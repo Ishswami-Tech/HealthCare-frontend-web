@@ -23,7 +23,6 @@ import {
   isProtectedRoute,
   getRouteGuardPolicy,
 } from "@/lib/config/routes";
-import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE_NAME } from "@/lib/i18n/config";
 import {
   buildConnectSrcSources,
   buildOriginConnectSrc,
@@ -171,31 +170,10 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // =========================================================================
-  // STEP 2: Handle i18n for non-auth routes
-  // =========================================================================
-  let response = NextResponse.next();
-
-  if (!pathname.startsWith("/(auth)") && !pathname.startsWith("/auth")) {
-    const locale =
-      request.cookies.get(LANGUAGE_COOKIE_NAME)?.value || DEFAULT_LANGUAGE;
-
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-locale", locale);
-
-    response = NextResponse.next({
-      request: { headers: requestHeaders },
-    });
-
-    // Ensure locale cookie is set
-    if (!request.cookies.get(LANGUAGE_COOKIE_NAME)?.value) {
-      response.cookies.set(LANGUAGE_COOKIE_NAME, DEFAULT_LANGUAGE, {
-        path: "/",
-        maxAge: 31536000, // 1 year
-        sameSite: "lax",
-      });
-    }
-  }
+  // The locale is chosen and stored by the client (src/lib/i18n/context.tsx); the proxy used to
+  // set a locale cookie and an x-locale header that nothing reads. Both are gone, so public pages
+  // carry no Set-Cookie and stay cacheable.
+  const response = NextResponse.next();
 
   // =========================================================================
   // STEP 3: Allow public routes without authentication
@@ -444,6 +422,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - Static assets (svg, png, jpg, etc.)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!api/|monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|woff2?|ttf|css|js|map|json|txt|xml|pdf|mp4|webm)$).*)",
   ],
 };

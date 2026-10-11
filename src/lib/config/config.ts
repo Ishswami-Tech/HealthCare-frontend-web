@@ -539,13 +539,6 @@ export const API_ENDPOINTS = {
   // Pharmacy Endpoints
   PHARMACY: {
     BASE: '/pharmacy',
-    MEDICINES: {
-      GET_BY_ID: (medicineId: string) => `/pharmacy/medicines/${medicineId}`,
-      GET_CLINIC_INVENTORY: (clinicId: string) => `/clinics/${clinicId}/medicines/inventory`,
-      CREATE: (clinicId: string) => `/clinics/${clinicId}/medicines`,
-      UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/medicines/${medicineId}`,
-      DELETE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/medicines/${medicineId}`,
-    },
     PRESCRIPTIONS: {
       GET: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
       LIST: '/pharmacy/prescriptions',
@@ -563,18 +556,8 @@ export const API_ENDPOINTS = {
       RECORD_CASH_PAYMENT: (prescriptionId: string) =>
         `/pharmacy/prescriptions/${prescriptionId}/record-cash-payment`,
     },
-    INVENTORY: {
-      UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/pharmacy/inventory/${medicineId}`,
-    },
-    ORDERS: {
-      CREATE: (clinicId: string) => `/clinics/${clinicId}/pharmacy/orders`,
-    },
-    STATS: (clinicId: string) => `/clinics/${clinicId}/pharmacy/stats`,
-    SEARCH: (clinicId: string) => `/clinics/${clinicId}/medicines/search`,
-    CATEGORIES: '/pharmacy/categories',
     SUPPLIERS: '/pharmacy/suppliers',
     AUDIT_BATCHES: '/pharmacy/audit/batches',
-    EXPORT: (clinicId: string) => `/clinics/${clinicId}/pharmacy/export`,
   },
 
   // Ayurveda Endpoints
@@ -661,6 +644,11 @@ export const API_ENDPOINTS = {
   },
   
   // Patients Endpoints
+  /** Staff patient list: search, filters and paging that run on the server (page sizes 10/50/200/500). */
+  PATIENT_DIRECTORY: {
+    BASE: '/patient-directory',
+    FACETS: '/patient-directory/facets',
+  },
   PATIENTS: {
     BASE: '/patients',
     GET_ALL: '/patients',
@@ -685,11 +673,8 @@ export const API_ENDPOINTS = {
   },
   
   // Doctors Endpoints
-  // The backend serves only: POST /doctors (CLINIC_ADMIN, SUPER_ADMIN), GET /doctors,
-  // GET /doctors/:id (`:id` = the doctor's USER id), GET /clinics/:id/doctors,
-  // GET /clinics/:id/doctors/:doctorUserId/patients and GET /appointments/doctor/:id/availability.
-  // UPDATE, DELETE, SCHEDULE, AVAILABILITY.UPDATE, APPOINTMENTS, STATS, REVIEWS, SPECIALIZATIONS,
-  // SEARCH, PERFORMANCE, PROFILE, EARNINGS and EXPORT below have NO backend route.
+  // `:id` is the doctor's USER id. Dead routes (DELETE, STATS, APPOINTMENTS, SEARCH, PERFORMANCE,
+  // PROFILE, EARNINGS, EXPORT, SPECIALIZATIONS) were removed; earnings live under ANALYTICS.
   DOCTORS: {
     BASE: '/doctors',
     GET_ALL: '/doctors',
@@ -697,30 +682,18 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (doctorId: string) => `/doctors/${doctorId}`,
     CREATE: '/doctors',
     UPDATE: (doctorId: string) => `/doctors/${doctorId}`,
-    DELETE: (doctorId: string) => `/doctors/${doctorId}`,
     SCHEDULE: {
       GET: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/schedule`,
       UPDATE: (doctorId: string) => `/doctors/${doctorId}/schedule`,
     },
     AVAILABILITY: {
       GET: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
-      UPDATE: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     },
-    APPOINTMENTS: (doctorId: string) => `/doctors/${doctorId}/appointments`,
     PATIENTS: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/patients`,
-    STATS: (doctorId: string) => `/doctors/${doctorId}/stats`,
     REVIEWS: {
       GET: (doctorId: string) => `/doctors/${doctorId}/reviews`,
       CREATE: (doctorId: string) => `/doctors/${doctorId}/reviews`,
     },
-    SPECIALIZATIONS: '/doctors/specializations',
-    SEARCH: '/doctors/search',
-    PERFORMANCE: (doctorId: string) => `/doctors/${doctorId}/performance`,
-    PROFILE: {
-      UPDATE: (doctorId: string) => `/doctors/${doctorId}/profile`,
-    },
-    EARNINGS: (doctorId: string) => `/doctors/${doctorId}/earnings`,
-    EXPORT: '/doctors/export',
   },
 
   // Staff Endpoints
@@ -1061,6 +1034,13 @@ export const API_ENDPOINTS = {
   // Communication Endpoints
   COMMUNICATION: {
     BASE: '/communication',
+    /** The notification inbox (header bell and notifications pages); chat has its own CHAT.HISTORY. */
+    INBOX: {
+      LIST: (userId: string) => `/communication/history/${userId}`,
+      MARK_READ: (notificationId: string) => `/communication/history/${notificationId}/read`,
+      MARK_ALL_READ: '/communication/history/mark-all-read',
+      DELETE: (notificationId: string) => `/communication/${notificationId}`,
+    },
     SEND: '/communication/send',
     APPOINTMENT_REMINDER: '/communication/appointment/reminder',
     PRESCRIPTION_READY: '/communication/prescription/ready',
@@ -1145,6 +1125,10 @@ export const API_ENDPOINTS = {
     PATIENT_SUMMARY: (clinicId: string) => `/ehr/clinic/${clinicId}/patients/summary`,
     SEARCH: (clinicId: string) => `/ehr/clinic/${clinicId}/search`,
     CRITICAL_ALERTS: (clinicId: string) => `/ehr/clinic/${clinicId}/alerts/critical`,
+    /** Paginated appointments of one patient (clinical staff). Query: page, limit, status. */
+    PATIENT_APPOINTMENTS: (patientId: string) => `/ehr/clinic/patients/${patientId}/appointments`,
+    /** Care plan of one patient: GET (staff and the patient themselves), PUT (doctors and admins). */
+    PATIENT_CARE_PLAN: (patientId: string) => `/ehr/clinic/patients/${patientId}/care-plan`,
   },
   
   // Plugin Endpoints (Optional - Admin-only tool for plugin monitoring/management)
@@ -1217,6 +1201,10 @@ export const API_ENDPOINTS = {
   ANALYTICS: {
     BASE: '/analytics',
     DASHBOARD: '/analytics/dashboard',
+    /** The signed-in doctor's own earnings. Query: from, to (IST days). Doctors only. */
+    DOCTOR_MY_EARNINGS: '/analytics/doctor/me/earnings',
+    /** Gross, doctor share and convenience fee per doctor. Query: from, to. SUPER_ADMIN and CLINIC_ADMIN only. */
+    EARNINGS_SPLIT: '/analytics/earnings/split',
     APPOINTMENTS: '/analytics/appointments',
     PATIENTS: '/analytics/patients',
     REVENUE: '/analytics/revenue',

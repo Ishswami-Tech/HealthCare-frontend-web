@@ -5,8 +5,10 @@ import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { EmptyBlock, Kpi, PageHero, SearchBox, SectionTitle, SegTabs, Surface } from "@/components/tbd";
 import { DoctorPrescriptionCard } from "./DoctorPrescriptionCard";
+import { DoctorPrescriptionDialog } from "./DoctorPrescriptionDialog";
 import {
   prescriptionsCountLabel,
+  type DoctorPrescriptionEditForm,
   type DoctorPrescriptionFilter,
   type DoctorPrescriptionRow,
   type DoctorPrescriptionStats,
@@ -27,9 +29,17 @@ export interface DoctorPrescriptionsViewProps {
   filterStatus: DoctorPrescriptionFilter;
   onSearchChange: (value: string) => void;
   onFilterChange: (value: DoctorPrescriptionFilter) => void;
-  createDisabled?: boolean;
-  /** "New Prescription": sends the doctor to the patient list, where "Prescribe" opens the prescribing dialog. */
+  editDisabled?: boolean;
   onCreate: () => void;
+  onEdit: (prescription: DoctorPrescriptionRow) => void;
+  onDownload: (prescription: DoctorPrescriptionRow) => void;
+  dialogOpen: boolean;
+  form: DoctorPrescriptionEditForm;
+  isSaving?: boolean;
+  onFormChange: (value: Partial<DoctorPrescriptionEditForm>) => void;
+  onSave: () => void;
+  onDialogOpenChange: (open: boolean) => void;
+
 }
 
 const FILTER_OPTIONS: Array<{ value: DoctorPrescriptionFilter; label: string }> = [
@@ -96,10 +106,7 @@ function LoadingBlocks() {
   );
 }
 
-/**
- * The doctor's prescriptions screen. Everything it shows and does comes in through props.
- * A saved prescription is read-only here (the server has no edit, delete or PDF for a doctor).
- */
+/** The doctor's prescriptions screen. Everything it shows and does comes in through props. */
 export function DoctorPrescriptionsView({
   isLoading,
   loadFailed = false,
@@ -111,8 +118,16 @@ export function DoctorPrescriptionsView({
   filterStatus,
   onSearchChange,
   onFilterChange,
-  createDisabled = false,
+  editDisabled = false,
   onCreate,
+  onEdit,
+  onDownload,
+  dialogOpen,
+  form,
+  isSaving = false,
+  onFormChange,
+  onSave,
+  onDialogOpenChange,
 }: DoctorPrescriptionsViewProps) {
   const filtersActive = searchQuery.trim() !== "" || filterStatus !== "all";
 
@@ -123,7 +138,7 @@ export function DoctorPrescriptionsView({
         title="Prescriptions"
         description={PAGE_DESCRIPTION}
         actions={
-          <Button size="md" onClick={onCreate} disabled={createDisabled || isLoading}>
+          <Button size="md" onClick={onCreate} disabled={isLoading}>
             <Plus aria-hidden="true" />
             New Prescription
           </Button>
@@ -241,13 +256,29 @@ export function DoctorPrescriptionsView({
             ) : (
               <div className="flex min-w-0 flex-col gap-3">
                 {prescriptions.map((prescription) => (
-                  <DoctorPrescriptionCard key={prescription.id} prescription={prescription} />
+                  <DoctorPrescriptionCard
+                    key={prescription.id}
+                    prescription={prescription}
+                    editDisabled={editDisabled}
+                    onDownload={onDownload}
+                    onEdit={onEdit}
+                  />
                 ))}
               </div>
             )}
           </Surface>
         </>
       )}
+
+      <DoctorPrescriptionDialog
+        open={dialogOpen}
+        form={form}
+        isSaving={isSaving}
+        onFormChange={onFormChange}
+        onSave={onSave}
+        onOpenChange={onDialogOpenChange}
+      />
+
     </DashboardPageShell>
   );
 }

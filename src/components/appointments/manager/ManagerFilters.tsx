@@ -1,8 +1,74 @@
 "use client";
 
-import { DateField, FilterChips, SearchBox } from "@/components/tbd";
+import { Calendar } from "lucide-react";
+import { FilterChips, SearchBox } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { formatDateInIST } from "@/lib/utils/appointmentUtils";
 import type { ManagerDateRange, ManagerStatusFilter } from "./types";
+
+export function parseDateValue(value: string): Date | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+export function toDateString(date?: Date): string {
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function formatDateValue(value: string, placeholder: string): string {
+  const parsed = parseDateValue(value);
+  return parsed ? formatDateInIST(parsed, { day: "2-digit", month: "short", year: "numeric" }) : placeholder;
+}
+
+/** A date button that opens a calendar. */
+export function DateField({
+  value,
+  placeholder,
+  ariaLabel,
+  onChange,
+  isDisabled,
+  className,
+}: {
+  value: string;
+  placeholder: string;
+  ariaLabel: string;
+  onChange: (value: string) => void;
+  isDisabled?: (date: Date) => boolean;
+  className?: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="md"
+          aria-label={value ? `${ariaLabel}: ${formatDateValue(value, placeholder)}` : ariaLabel}
+          className={cn("justify-start font-semibold", !value && "text-ink-muted", className)}
+        >
+          <Calendar className="text-brand" aria-hidden="true" />
+          <span className="truncate">{formatDateValue(value, placeholder)}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto rounded-2xl border border-line bg-popover p-3 shadow-xl" align="start" sideOffset={8}>
+        <CalendarPicker
+          mode="single"
+          selected={parseDateValue(value)}
+          onSelect={(date) => onChange(toDateString(date))}
+          {...(isDisabled ? { disabled: isDisabled } : {})}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 /** Search, date range and (where a tab has more than one status) status chips. */
 export function ManagerFilters({
@@ -41,21 +107,21 @@ export function ManagerFilters({
         />
         <div className="grid grid-cols-2 gap-2.5 @3xl:flex">
           <DateField
-            variant="placeholder"
-            id={`${id}-from`}
-            label="From date"
             value={dateRange.start}
-            max={dateRange.end || undefined}
+            placeholder="From date"
+            ariaLabel="From date"
             onChange={(start) => onDateRangeChange({ ...dateRange, start })}
             className="w-full @3xl:w-[168px]"
           />
           <DateField
-            variant="placeholder"
-            id={`${id}-to`}
-            label="To date"
             value={dateRange.end}
-            min={dateRange.start || undefined}
+            placeholder="To date"
+            ariaLabel="To date"
             onChange={(end) => onDateRangeChange({ ...dateRange, end })}
+            isDisabled={(date) => {
+              const start = parseDateValue(dateRange.start);
+              return Boolean(start) && date < (start as Date);
+            }}
             className="w-full @3xl:w-[168px]"
           />
         </div>

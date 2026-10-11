@@ -524,3 +524,143 @@ export interface PharmacyBatchAuditEntry {
   reversedAt?: string | null;
   reversalReason?: string | null;
 }
+
+// ===== Purchase orders, batches, sales (HealthCareBackend pharmacy-inventory) =====
+
+/** One line of a purchase order (`GET /pharmacy/inventory/purchase-orders`). */
+export interface PurchaseOrderLine {
+  id: string;
+  productId: string;
+  description: string | null;
+  quantity: number;
+  receivedQuantity: number;
+  unitPrice: number | null;
+  lineTotal: number;
+}
+
+export type PurchaseOrderStatus =
+  | 'DRAFT'
+  | 'SENT'
+  | 'PARTIALLY_RECEIVED'
+  | 'RECEIVED'
+  | 'CANCELLED';
+
+export interface PurchaseOrderRecord {
+  id: string;
+  poNumber: string;
+  supplierId: string;
+  clinicId: string;
+  status: PurchaseOrderStatus;
+  notes: string | null;
+  expectedDeliveryDate: string | null;
+  sentAt: string | null;
+  totalAmount: number;
+  items: PurchaseOrderLine[];
+  createdAt: string;
+}
+
+export interface PurchaseOrderPage {
+  orders: PurchaseOrderRecord[];
+  total: number;
+}
+
+/** One batch received against a purchase order line (`POST .../purchase-orders/:id/receive`). */
+export interface ReceiveOrderBatch {
+  /** Purchase order line id. */
+  itemId: string;
+  quantityReceived: number;
+  batchNumber: string;
+  /** yyyy-mm-dd, must be in the future. */
+  expiryDate: string;
+  /** yyyy-mm-dd, not in the future. */
+  manufactureDate?: string;
+  /** Rupees, up to 2 decimals. Defaults to the line price. */
+  unitCost?: number;
+}
+
+export interface SupplierInput {
+  name: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+/** A lot of one medicine (`GET /pharmacy/inventory/batches`). */
+export interface StockBatchRecord {
+  id: string;
+  productId: string;
+  lotNumber: string;
+  manufactureDate: string | null;
+  expiryDate: string;
+  quantityOnHand: number;
+  quantityReceived: number;
+  costPrice: number | null;
+  medicineName: string | null;
+  createdAt: string;
+}
+
+export interface ReceiveStockBatchInput {
+  productId: string;
+  lotNumber: string;
+  /** yyyy-mm-dd, not in the future. */
+  manufactureDate: string;
+  /** yyyy-mm-dd, in the future. */
+  expiryDate: string;
+  quantity: number;
+  costPrice?: number;
+  medicineName?: string;
+}
+
+export interface AdjustBatchStockInput {
+  productId: string;
+  batchId: string;
+  /** Signed: negative takes units off the batch. */
+  quantity: number;
+  reason: string;
+}
+
+export type StockAlertType =
+  | 'EXPIRY_WARNING'
+  | 'EXPIRY_CRITICAL'
+  | 'LOW_STOCK'
+  | 'OUT_OF_STOCK'
+  | 'REORDER_NEEDED'
+  | 'EXPIRED_WRITE_OFF';
+
+export interface StockAlertRecord {
+  id: string;
+  productId: string;
+  alertType: StockAlertType | string;
+  message: string;
+  batchId: string | null;
+  createdAt: string;
+}
+
+export type PharmacySalesGroupBy = 'day' | 'medicine';
+
+export interface PharmacySalesRow {
+  /** yyyy-mm-dd when grouped by day. */
+  date?: string;
+  medicineId?: string;
+  medicineName?: string;
+  prescriptions: number;
+  quantity: number;
+  revenue: number;
+}
+
+/** `GET /pharmacy/sales`. */
+export interface PharmacySalesReport {
+  from: string;
+  to: string;
+  groupBy: PharmacySalesGroupBy;
+  totals: { prescriptions: number; quantity: number; revenue: number };
+  breakdown: PharmacySalesRow[];
+}
+
+/** `GET /pharmacy/stats` fields the dashboards read. */
+export interface PharmacyStatsPeriodFields {
+  totalRevenue: number;
+  topSellingMedicine: string | null;
+  monthlyDispensed: number;
+}

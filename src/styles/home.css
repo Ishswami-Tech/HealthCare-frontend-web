@@ -354,6 +354,10 @@
   animation-delay: 0.21s;
 }
 
+.home-hero-copy-in > *:nth-child(n + 5) {
+  animation-delay: 0.28s;
+}
+
 /* Scroll cue at the foot of the full-height desktop hero. */
 @keyframes home-hero-cue {
   0%,
@@ -422,5 +426,62 @@
     opacity: 1;
     transform: none;
     filter: none;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Doctor spotlight band
+   ------------------------------------------------------------------------- */
+
+/*
+ * The spotlight's photographs carry their own pale botanical backdrop, so the
+ * band stays light in dark mode as well. Re-declaring the light values here
+ * keeps the semantic tokens — and the shared buttons — light inside it.
+ */
+.home-light-band {
+  color-scheme: light;
+  --background: #f4f9f6;
+  --foreground: #0f1b2d;
+  --card: #ffffff;
+  --card-foreground: #0f1b2d;
+  --primary: #047857;
+  --primary-foreground: #ffffff;
+  --muted: #f1f5f9;
+  --muted-foreground: #4b5a6e;
+  --border: #e2e8f0;
+  color: var(--foreground);
+  background:
+    radial-gradient(34% 58% at 6% 32%, oklch(0.93 0.05 150 / 0.75), transparent 70%),
+    radial-gradient(28% 48% at 97% 52%, oklch(0.94 0.045 150 / 0.7), transparent 70%),
+    linear-gradient(180deg, #fbfdfb 0%, #f3f8f4 100%);
+}
+
+/* Fades the cut-out portrait's edges into the band; the bottom fades longest. */
+.home-feather-portrait {
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0%, #000 6%, #000 68%, transparent 97%),
+    linear-gradient(to right, transparent 0%, #000 14%, #000 92%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, transparent 0%, #000 6%, #000 68%, transparent 97%),
+    linear-gradient(to right, transparent 0%, #000 14%, #000 92%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* Soft oval vignette for a still life that has no clean edge of its own. */
+.home-feather-soft {
+  -webkit-mask-image: radial-gradient(ellipse 72% 74% at 56% 58%, #000 52%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 74% at 56% 58%, #000 52%, transparent 100%);
+}
+
+/*
+ * Lets the spotlight portrait run into the page margin on wide screens, up to
+ * 5rem, but never past the viewport edge. 80rem is the CONTAINER max width.
+ */
+@media (min-width: 80rem) {
+  .home-spotlight-bleed {
+    --spotlight-bleed: min(5rem, calc((100vw - 80rem) / 2 + 1rem));
+    margin-left: calc(var(--spotlight-bleed) * -1);
+    width: calc(100% + var(--spotlight-bleed));
   }
 }

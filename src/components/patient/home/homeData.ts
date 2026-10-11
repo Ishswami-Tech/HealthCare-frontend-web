@@ -1,8 +1,10 @@
 import {
+  canRescheduleInPersonAppointment,
   canRescheduleVideoAppointment,
   formatDateInIST,
   formatDoctorDisplayName,
   formatISODateInIST,
+  formatTimeInIST,
   getAppointmentDateTimeValue,
   getAppointmentLocationName,
   getAppointmentViewState,
@@ -14,10 +16,9 @@ import {
   shouldShowAppointmentOnPatientDashboard,
   toTitleCase,
 } from "@/lib/utils/appointmentUtils";
+import { localizedDoctorName, localizedDoctorSubtitle } from "@/lib/utils/localized-profile";
 import type { HealthLibraryListFilters, HealthLibraryPost } from "@/lib/actions/health-library.server";
 import type { HomeLibraryItem, HomeLibraryTab, HomeVisit } from "./types";
-import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
-import { formatTimeLabel, lowerMeridiem } from "@/lib/utils/date-time";
 
 /**
  * Turns API rows into the Home view models (`types.ts`). Pure functions: the page container
@@ -29,6 +30,24 @@ import { formatTimeLabel, lowerMeridiem } from "@/lib/utils/date-time";
 // ---------------------------------------------------------------------------
 
 export type Row = Record<string, unknown>;
+
+export function asRow(value: unknown): Row | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Row) : undefined;
+}
+
+export function text(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+export function firstText(...values: unknown[]): string {
+  for (const value of values) {
+    const found = text(value);
+    if (found) return found;
+  }
+  return "";
+}
 
 export function positiveNumber(value: unknown): number | null {
   const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
@@ -49,7 +68,7 @@ function isVideoVisit(appointment: Row): boolean {
 /** An in-clinic visit the patient has already checked in for. The queue is for these only. */
 export function isCheckedInClinicVisit(appointment: Row): boolean {
   if (isVideoVisit(appointment) || isTerminalAppointment(appointment)) return false;
-  const rawStatus = textOf(appointment.status).toUpperCase().replace(/[\s-]+/g, "_");
+  const rawStatus = text(appointment.status).toUpperCase().replace(/[\s-]+/g, "_");
   return Boolean(appointment.checkedInAt) || rawStatus === "CHECKED_IN" || rawStatus === "QUEUED";
 }
 
@@ -73,7 +92,7 @@ export function selectUpcomingAppointments(appointments: Row[]): Row[] {
       appointments.map((appointment) => {
         const normalized = normalizePatientAppointment(appointment);
         const dedupeKey =
-          textOf(appointment.id) ||
+          text(appointment.id) ||
           `${normalized.doctorName || "doctor"}-${normalized.normalizedDate || "date"}-${normalized.normalizedTime || "time"}-${normalized.locationName || "location"}`;
         return [dedupeKey, appointment] as const;
       })
@@ -126,20 +145,22 @@ export function findQueueAppointment(upcoming: Row[]): Row | null {
   );
 }
 
-function doctorDetail(appointment: Row): string | undefined {
-  const doctor = asRecord(appointment.doctor);
+function doctorDetail(appointment: Row, locale?: string): string | undefined {
+  const doctor = asRow(appointment.doctor);
   if (!doctor) return undefined;
+  const headline = localizedDoctorSubtitle(doctor.localizedProfile, locale, undefined);
+  if (headline) return headline;
   const rawQualification = doctor.qualification ?? doctor.qualifications ?? doctor.degree;
   const qualification = Array.isArray(rawQualification)
-    ? rawQualification.map(textOf).filter(Boolean).join(", ")
-    : textOf(rawQualification);
+    ? rawQualification.map(text).filter(Boolean).join(", ")
+    : text(rawQualification);
   const years = positiveNumber(doctor.experience ?? doctor.yearsOfExperience);
   return [qualification, years ? `${years}+ years` : ""].filter(Boolean).join(" · ") || undefined;
 }
 
 function doctorPhoto(appointment: Row): string | undefined {
-  const doctor = asRecord(appointment.doctor);
-  const doctorUser = asRecord(doctor?.user);
+  const doctor = asRow(appointment.doctor);
+  const doctorUser = asRow(doctor?.user);
   const url = firstText(
     doctor?.profilePicture,
     doctor?.avatar,
@@ -151,8 +172,8 @@ function doctorPhoto(appointment: Row): string | undefined {
 }
 
 function clinicContact(appointment: Row): Pick<HomeVisit, "locationLabel" | "clinicPhone" | "directionsUrl"> {
-  const location = asRecord(appointment.location);
-  const clinic = asRecord(appointment.clinic);
+  const location = asRow(appointment.location);
+  const clinic = asRow(appointment.clinic);
   const name = getAppointmentLocationName(appointment);
   const hasName = Boolean(name) && name !== "Location TBD";
   const address = firstText(location?.address, clinic?.address);
@@ -174,7 +195,7 @@ function clinicContact(appointment: Row): Pick<HomeVisit, "locationLabel" | "cli
   };
 }
 
-export function toHomeVisit(appointment: Row, now: number): HomeVisit {
+export function toHomeVisit(appointment: Row, now: number, locale?: string): HomeVisit {
   const normalized = normalizePatientAppointment(appointment);
   const viewState = getAppointmentViewState(appointment);
   const isVideo = isVideoVisit(appointment);
@@ -182,24 +203,32 @@ export function toHomeVisit(appointment: Row, now: number): HomeVisit {
   const dateLabel = dateTime
     ? formatDateInIST(dateTime, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
     : getReceptionistAppointmentDateLabel(appointment);
-  const timeLabel = dateTime ? formatTimeLabel(dateTime) : lowerMeridiem(getReceptionistAppointmentTimeLabel(appointment));
+  const timeLabel = (
+    dateTime
+      ? formatTimeInIST(dateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+      : getReceptionistAppointmentTimeLabel(appointment)
+  ).replace(/\b(am|pm)\b/i, (meridiem) => meridiem.toUpperCase());
 
   // Paid, and the join decision says yes: a confirmed visit inside its join window, or one the
   // doctor has already started (the patient can rejoin until the doctor completes it).
   const decision = isVideo ? getVideoSessionDecision(appointment) : null;
   const canJoin = Boolean(isVideo && viewState.paymentCompleted && decision?.canJoin);
 
-  const treatment = textOf(appointment.treatmentType).replace(/_/g, " ");
-  const metadata = asRecord(appointment.metadata);
+  const treatment = text(appointment.treatmentType).replace(/_/g, " ");
+  const metadata = asRow(appointment.metadata);
   const token = firstText(appointment.tokenNumber, metadata?.tokenNumber);
 
   return {
-    id: textOf(appointment.id),
+    id: text(appointment.id),
     kind: isVideo ? "video" : "clinic",
-    doctorName: formatDoctorDisplayName(normalized.doctorName),
+    doctorName: localizedDoctorName(
+      asRow(appointment.doctor)?.localizedProfile,
+      locale,
+      formatDoctorDisplayName(normalized.doctorName),
+    ),
     doctorPhotoUrl: doctorPhoto(appointment),
     visitLabel: treatment ? toTitleCase(treatment) : isVideo ? "Video consultation" : "Clinic visit",
-    doctorDetail: doctorDetail(appointment),
+    doctorDetail: doctorDetail(appointment, locale),
     dateLabel: dateLabel || "Date to be confirmed",
     timeLabel: timeLabel || "",
     startsAt: dateTime ? dateTime.toISOString() : null,
@@ -216,8 +245,10 @@ export function toHomeVisit(appointment: Row, now: number): HomeVisit {
     joinAction: canJoin ? (decision?.action === "resume" ? "resume" : "join") : null,
     joinBlockedReason: canJoin ? null : (decision?.blockedReason ?? null),
     awaitingPayment: isVideo && viewState.awaitingPayment,
-    // A patient can never cancel a video visit; moving it follows the shared reschedule rule.
-    canReschedule: isVideo && canRescheduleVideoAppointment(appointment, new Date(now)),
+    // A patient can never cancel a video visit; moving a visit follows the shared reschedule rule.
+    canReschedule: isVideo
+      ? canRescheduleVideoAppointment(appointment, new Date(now))
+      : !isTerminalAppointment(appointment) && canRescheduleInPersonAppointment(appointment),
     clinicStage: isVideo
       ? "upcoming"
       : viewState.normalizedStatus.toUpperCase() === "IN_PROGRESS"

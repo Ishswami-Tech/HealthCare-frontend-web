@@ -82,6 +82,16 @@ function initializeFirebase() {
 
 initializeFirebase();
 
+// A push payload must never send the user to another site: only same-origin links are opened.
+function resolveSameOriginLink(value) {
+  try {
+    const target = new URL(String(value || "/"), self.location.origin);
+    return target.origin === self.location.origin ? target.href : self.location.origin + "/";
+  } catch {
+    return self.location.origin + "/";
+  }
+}
+
 // Handle notification clicks
 self.addEventListener("notificationclick", (event) => {
   console.log("[firebase-messaging-sw.js] Notification click received.");
@@ -90,7 +100,7 @@ self.addEventListener("notificationclick", (event) => {
 
   // Handle notification click action
   const data = event.notification.data || {};
-  const link = data.link || data.url || "/";
+  const link = resolveSameOriginLink(data.link || data.url);
 
   // Open or focus the app
   event.waitUntil(

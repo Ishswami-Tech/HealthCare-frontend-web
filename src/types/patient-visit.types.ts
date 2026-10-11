@@ -8,6 +8,8 @@ export interface PatientVisit {
   registrationDate: string;
   patientId: string;
   clinicId: string;
+  /** The appointment this visit belongs to (one visit per appointment); null for a walk-in. */
+  appointmentId?: string | null;
   doctorId: string | null;
   specialCaseFlags: SpecialCaseFlag[];
   internationalId: string | null;
@@ -39,6 +41,8 @@ export interface CreatePatientVisitInput {
   /** Patient.id — or pass patientUserId right after quick registration. */
   patientId?: string;
   patientUserId?: string;
+  /** Open the visit of this appointment; calling again returns the existing visit. */
+  appointmentId?: string;
   doctorId?: string;
   registrationDate?: string;
   specialCaseFlags?: SpecialCaseFlag[];

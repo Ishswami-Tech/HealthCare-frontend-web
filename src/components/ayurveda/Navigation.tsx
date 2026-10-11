@@ -261,9 +261,11 @@ const Navigation = () => {
             ? "backdrop-blur-md shadow-lg border-b border-border"
             : "backdrop-blur-sm"
         )}
-        initial={{ y: -100 }}
+        /* `initial={false}`: render in place. A slide-in from y:-100 is
+           server-rendered off-screen and only arrives after hydration, so the
+           header jumped in on every page load. */
+        initial={false}
         animate={{ y: 0 }}
-        transition={{ duration: 0.5, ease: [0.0, 0.0, 0.2, 1] }}
         style={{ zIndex: 40 }}
       >
         {/* Background Elements - Same as Hero */}
@@ -322,16 +324,11 @@ const Navigation = () => {
 
             {/* Center Navigation */}
             <div className="hidden lg:flex items-center gap-x-4 xl:gap-x-6 flex-1 justify-center max-w-3xl">
-              {navItems.map((item, index) => (
+              {navItems.map((item) => (
                 <m.div
                   key={item.name}
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.3,
-                    delay: index * 0.1,
-                    ease: [0.0, 0.0, 0.2, 1],
-                  }}
+                  /* Visible from the first paint — see the nav's `initial` above. */
+                  initial={false}
                   className="relative"
                 >
                   <Link
@@ -345,7 +342,7 @@ const Navigation = () => {
                     {item.name}
                     <m.span
                       className="absolute -bottom-1 left-0 h-0.5 bg-primary"
-                      initial={{ width: 0 }}
+                      initial={false}
                       whileHover={{ width: "100%" }}
                       animate={{ width: pathname === item.href ? "100%" : 0 }}
                       transition={{ duration: 0.3, ease: [0.0, 0.0, 0.2, 1] }}

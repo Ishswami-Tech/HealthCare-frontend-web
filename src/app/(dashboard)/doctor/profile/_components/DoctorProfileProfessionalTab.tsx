@@ -4,18 +4,22 @@ import { useState } from "react";
 import { BookOpen, Pencil, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FIELD_LABEL, Field, Note } from "@/components/tbd";
-import { ProfileCard } from "./DoctorProfileParts";
+import { Note } from "@/components/tbd";
+import { DoctorProfileLocalizedCard } from "./DoctorProfileLocalizedCard";
+import { PROFILE_LABEL, ProfileCard, ProfileField } from "./DoctorProfileParts";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
 
 interface DoctorProfileProfessionalTabProps {
   profileData: DoctorProfileFormState;
   updateProfessionalInfo: (field: string, value: unknown) => void;
+  /** Only the doctor saves the public profile (same rule as the other doctor-record fields). */
+  canEditPublicProfile?: boolean;
 }
 
 export function DoctorProfileProfessionalTab({
   profileData,
   updateProfessionalInfo,
+  canEditPublicProfile = false,
 }: DoctorProfileProfessionalTabProps) {
   const { professionalInfo } = profileData;
   const [addingSpecialization, setAddingSpecialization] = useState(false);
@@ -39,36 +43,33 @@ export function DoctorProfileProfessionalTab({
 
   return (
     <div className="flex flex-col gap-5">
+      {canEditPublicProfile ? (
+        <DoctorProfileLocalizedCard
+          value={professionalInfo.localizedProfile}
+          onChange={(next) => updateProfessionalInfo("localizedProfile", next)}
+        />
+      ) : null}
       <ProfileCard icon={Pencil} title="Professional Information">
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-          {/* Read-only: the profile save has no licence field. */}
-          <Field
-            labelClassName="min-h-5"
-            label="Medical License"
-            htmlFor="medicalLicense"
-            hint="Cannot be changed here. Ask your clinic admin to correct it."
-          >
+          <ProfileField label="Medical License" htmlFor="medicalLicense">
             <Input
               id="medicalLicense"
               value={professionalInfo.medicalLicense}
-              placeholder="Not set"
-              aria-describedby="medicalLicense-hint"
-              readOnly
-              disabled
+              onChange={(e) => updateProfessionalInfo("medicalLicense", e.target.value)}
             />
-          </Field>
-          <Field labelClassName="min-h-5" label="Years of Experience" htmlFor="experience">
+          </ProfileField>
+          <ProfileField label="Years of Experience" htmlFor="experience">
             <Input
               id="experience"
               inputMode="numeric"
               value={professionalInfo.experience}
               onChange={(e) => updateProfessionalInfo("experience", e.target.value)}
             />
-          </Field>
+          </ProfileField>
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL} id="doctor-specializations-label">
+          <span className={PROFILE_LABEL} id="doctor-specializations-label">
             Specializations
           </span>
           <div className="flex flex-wrap items-center gap-2">
@@ -127,7 +128,7 @@ export function DoctorProfileProfessionalTab({
               <Button
                 type="button"
                 variant="outline"
-                size="compact"
+                className="h-[34px]"
                 onClick={() => setAddingSpecialization(true)}
               >
                 <Plus aria-hidden="true" />
@@ -143,7 +144,7 @@ export function DoctorProfileProfessionalTab({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL} id="doctor-languages-label">
+          <span className={PROFILE_LABEL} id="doctor-languages-label">
             Languages Spoken
           </span>
           {professionalInfo.languagesSpoken.length > 0 ? (
@@ -160,7 +161,6 @@ export function DoctorProfileProfessionalTab({
           ) : (
             <span className="text-[13px] text-ink-muted">No languages added yet.</span>
           )}
-          <span className="text-xs text-ink-muted">Languages cannot be changed here yet.</span>
         </div>
       </ProfileCard>
 

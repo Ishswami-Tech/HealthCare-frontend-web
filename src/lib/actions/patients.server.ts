@@ -10,47 +10,6 @@ import { API_ENDPOINTS } from '../config/config';
 //   - Patient-record id (Patient.id): Appointment.patientId, patient visits, prescriptions.
 // A patient list row carries both: `id` (Patient.id) and `userId` / `user.id` (User.id).
 
-type UnknownRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is UnknownRecord =>
-  !!value && typeof value === 'object' && !Array.isArray(value);
-
-/** Result of a read the backend has no route for: nothing to show, and no request is sent. */
-function notAvailable(feature: string) {
-  return {
-    available: false as const,
-    items: [] as unknown[],
-    message: `${feature} is not available yet: the server has no service for it.`,
-  };
-}
-
-/** Largest page GET /appointments serves, and how many pages one patient lookup may read. */
-const APPOINTMENT_PAGE_SIZE = 100;
-const APPOINTMENT_MAX_PAGES = 5;
-
-/** GET /appointments answers `{ appointments, pagination }`, bare or under `data`. */
-function readAppointmentPage(payload: unknown): { rows: UnknownRecord[]; hasNext: boolean } {
-  if (Array.isArray(payload)) {
-    return { rows: payload as UnknownRecord[], hasNext: false };
-  }
-  const outer = isRecord(payload) ? payload : {};
-  const body = isRecord(outer.data) ? outer.data : outer;
-  const rows = Array.isArray(body.appointments)
-    ? body.appointments
-    : Array.isArray(outer.data)
-      ? outer.data
-      : [];
-  const pagination = isRecord(body.pagination) ? body.pagination : {};
-  return { rows: rows as UnknownRecord[], hasNext: pagination.hasNext === true };
-}
-
-/** True when the appointment row is for this patient (Patient.id, or the patient's user id). */
-function isAppointmentOfPatient(row: UnknownRecord, patientId: string): boolean {
-  const patient = isRecord(row.patient) ? row.patient : {};
-  const patientUser = isRecord(patient.user) ? patient.user : {};
-  return [row.patientId, patient.id, patient.userId, patientUser.id].includes(patientId);
-}
-
 /**
  * Get all patients for a clinic.
  * Backend: GET /patients/clinic/:clinicId — DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST, CLINIC_ADMIN,
@@ -221,60 +180,7 @@ export async function deletePatient(patientId: string) {
 }
 
 /**
- * Get one patient's appointments, newest first.
- *
- * Backend: GET /appointments — SUPER_ADMIN, CLINIC_ADMIN, DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST,
- * NURSE, THERAPIST, COUNSELOR, SUPPORT_STAFF, PATIENT. The route reads `status`, `date`, `dateFrom`,
- * `dateTo`, `doctorId`, `locationId`, `page` and `limit` (100 at most). It has no patient filter that
- * works (`userId` is accepted but never applied, `patientId` is not read), and there is no
- * /patients/:id/appointments route. So this reads the list the caller is allowed to see (a doctor
- * gets only their own appointments) and keeps the rows of this patient.
- *
- * @param patientId Patient-record id (Appointment.patientId). The patient's user id matches too.
- * @returns the matching appointment rows (at most `APPOINTMENT_MAX_PAGES` pages are read).
- */
-export async function getPatientAppointments(patientId: string, filters?: {
-  status?: string;
-  startDate?: string;
-  endDate?: string;
-  doctorId?: string;
-  limit?: number;
-}) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  const wanted = typeof filters?.limit === 'number' && filters.limit > 0 ? filters.limit : undefined;
-  const matches: UnknownRecord[] = [];
-
-  for (let page = 1; page <= APPOINTMENT_MAX_PAGES; page += 1) {
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: String(APPOINTMENT_PAGE_SIZE),
-    });
-    if (filters?.status) params.set('status', filters.status);
-    if (filters?.startDate) params.set('dateFrom', filters.startDate);
-    if (filters?.endDate) params.set('dateTo', filters.endDate);
-    if (filters?.doctorId) params.set('doctorId', filters.doctorId);
-
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${params.toString()}`);
-    const { rows, hasNext } = readAppointmentPage(data);
-    matches.push(...rows.filter((row) => isAppointmentOfPatient(row, patientId)));
-
-    if (!hasNext || rows.length === 0 || (wanted !== undefined && matches.length >= wanted)) {
-      break;
-    }
-  }
-
-  return wanted !== undefined ? matches.slice(0, wanted) : matches;
-}
-
-/**
- * Get patient medical history.
- * Backend: GET /ehr/medical-history/:userId — keyed on the patient's USER id (a Patient-record id
- * returns an empty list). DOCTOR, ASSISTANT_DOCTOR, NURSE, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own).
- * The route takes no filters; `filters` is kept for callers but not applied by the server.
+ * Get patient medical history
  */
 export async function getPatientMedicalHistory(_clinicId: string, patientId: string, filters?: {
   type?: string;
@@ -522,24 +428,7 @@ export async function addPatientLabResult(patientId: string, labData: {
 }
 
 /**
- * Patient statistics.
- * The backend has no /patients/:id/stats route, so no request is sent: the result says so.
- */
-export async function getPatientStats(_patientId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  return notAvailable('Patient statistics');
-}
-
-/**
- * Search the clinic's patients by name, email or phone.
- * Backend: GET /patients?search=&page=&limit= — CLINIC_ADMIN, SUPER_ADMIN, DOCTOR, ASSISTANT_DOCTOR,
- * NURSE, RECEPTIONIST (there is no /patients/search route). Answers
- * `{ patients, total, page, totalPages }`; a doctor only gets patients they have appointments with.
- * The server applies no other filter, so gender / age / blood group are not sent.
+ * Search patients
  */
 export async function searchPatients(query: string, filters?: {
   gender?: string;
@@ -565,26 +454,7 @@ export async function searchPatients(query: string, filters?: {
 }
 
 /**
- * Patient timeline.
- * The backend has no /patients/:id/timeline route, so no request is sent: the result says so.
- */
-export async function getPatientTimeline(_patientId: string, _filters?: {
-  startDate?: string;
-  endDate?: string;
-  eventTypes?: string[];
-  limit?: number;
-}) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  return notAvailable('The patient timeline');
-}
-
-/**
- * Export patient data.
- * The backend has no /patients/export route, so this fails with a readable message.
+ * Export patient data
  */
 export async function exportPatientData(_filters: {
   format: 'csv' | 'excel' | 'pdf';
@@ -604,43 +474,27 @@ export async function exportPatientData(_filters: {
 }
 
 /**
- * Patient care plan.
- * The backend has no care plan (no /patients/:id/care-plan route and no care plan record). Follow-up
- * plans (GET /appointments/patients/:patientId/follow-up-plans) are per-appointment reminders owned by
- * the appointments module, not a care plan, so they are not used here. No request is sent: the result
- * says the care plan is not available and carries an empty `items` list.
+ * Update the patient's care plan (PUT /ehr/clinic/patients/:patientId/care-plan, clinical staff only).
  */
-export async function getPatientCarePlan(_patientId: string) {
+export async function updatePatientCarePlan(patientId: string, carePlanData: {
+  title?: string;
+  status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+  summary?: string;
+  goals?: { text: string; done?: boolean }[];
+  interventions?: { text: string; done?: boolean }[];
+  dietNotes?: string;
+  lifestyleNotes?: string;
+  /** ISO date. */
+  nextReviewDate?: string;
+}) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  return notAvailable('The care plan');
-}
-
-/**
- * Update patient care plan.
- * The backend has no care plan route, so this fails with a readable message.
- */
-export async function updatePatientCarePlan(_patientId: string, _carePlanData: {
-  goals?: string[];
-  interventions?: string[];
-  medications?: {
-    name: string;
-    dosage: string;
-    frequency: string;
-    startDate: string;
-    endDate?: string;
-  }[];
-  followUpInstructions?: string;
-  nextAppointment?: string;
-  doctorId: string;
-}): Promise<never> {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-
-  throw new Error('The care plan cannot be saved yet: the server has no care plan service.');
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR_CLINIC.PATIENT_CARE_PLAN(patientId), {
+    method: 'PUT',
+    body: JSON.stringify(carePlanData),
+  });
+  return data;
 }

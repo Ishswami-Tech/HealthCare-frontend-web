@@ -105,6 +105,9 @@ let sharedDailyCallRefCount = 0;
 
 type DailyMediaKind = "audio" | "video";
 
+/** Daily device/leave calls are fire-and-forget; a rejection must not surface as an unhandled promise rejection. */
+const ignoreDailyRejection = (): void => undefined;
+
 /**
  * @daily-co/daily-react's camera-error handler calls `error.missingMedia.includes(...)`
  * without guarding null. Some NotFoundError paths (no mic / preferred device gone) emit
@@ -248,7 +251,7 @@ function releaseCallObject(call: DailyCall): void {
     if (call !== sharedDailyCallObject) return;
     try {
       if (!call.isDestroyed()) {
-        void call.leave();
+        void Promise.resolve(call.leave()).catch(ignoreDailyRejection);
         call.destroy();
       }
     } catch {
@@ -864,7 +867,7 @@ function DailyCallSurfaceContent({
       cancelled = true;
       hasJoinedRef.current = false;
       try {
-        void daily.leave();
+        void Promise.resolve(daily.leave()).catch(ignoreDailyRejection);
       } catch {
         /* ignore */
       }
@@ -1049,13 +1052,13 @@ function DailyCallSurfaceContent({
       label: "Microphone",
       devices: toDeviceOptions(devices.microphones),
       currentId: devices.currentMic?.device.deviceId || "",
-      onSelect: (id) => void devices.setMicrophone(id),
+      onSelect: (id) => void Promise.resolve(devices.setMicrophone(id)).catch(ignoreDailyRejection),
     },
     {
       label: "Speaker",
       devices: toDeviceOptions(devices.speakers),
       currentId: devices.currentSpeaker?.device.deviceId || "",
-      onSelect: (id) => void devices.setSpeaker(id),
+      onSelect: (id) => void Promise.resolve(devices.setSpeaker(id)).catch(ignoreDailyRejection),
     },
   ];
   const cameraDevices: CallDeviceGroup[] = [
@@ -1063,7 +1066,7 @@ function DailyCallSurfaceContent({
       label: "Camera",
       devices: toDeviceOptions(devices.cameras),
       currentId: devices.currentCam?.device.deviceId || "",
-      onSelect: (id) => void devices.setCamera(id),
+      onSelect: (id) => void Promise.resolve(devices.setCamera(id)).catch(ignoreDailyRejection),
     },
   ];
 
@@ -1141,10 +1144,10 @@ function DailyCallSurfaceContent({
     onToggleCamera: handleToggleCamera,
     isSharingScreen: isLocalSharing,
     onStartShare: () => {
-      void screenShare.startScreenShare();
+      void Promise.resolve(screenShare.startScreenShare()).catch(ignoreDailyRejection);
     },
     onStopShare: () => {
-      void screenShare.stopScreenShare();
+      void Promise.resolve(screenShare.stopScreenShare()).catch(ignoreDailyRejection);
     },
     layout,
     onLayoutChange: setLayout,

@@ -1,10 +1,11 @@
 import type { PillTone } from "@/components/tbd";
 import { statusLabel, statusTone } from "@/components/tbd";
-import { formatDateKeyInIST } from "@/lib/utils/date-time";
-import { asList, asRecordOrEmpty, textOf } from "@/lib/utils/coerce";
-import { prescriptionReference } from "@/lib/utils/labels";
-import { personFullName } from "@/lib/utils/display-name";
-import { DESK_STATE_LABEL, DESK_STATE_TONE } from "@/lib/pharmacy/desk-state";
+import { formatDateInIST, formatDateKeyInIST } from "@/lib/utils/date-time";
+import {
+  DESK_STATE_LABEL,
+  DESK_STATE_TONE,
+  prescriptionReference,
+} from "@/app/(dashboard)/pharmacist/dashboard/_components/pharmacist-dashboard.logic";
 
 /**
  * Pure helpers for the doctor's prescriptions screen: they turn the payload of
@@ -14,8 +15,20 @@ import { DESK_STATE_LABEL, DESK_STATE_TONE } from "@/lib/pharmacy/desk-state";
 
 type Raw = Record<string, unknown>;
 
+function asRecord(value: unknown): Raw {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
+}
+
+function asList(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
+}
+
 function upper(value: unknown): string {
-  return textOf(value).toUpperCase();
+  return text(value).toUpperCase();
 }
 
 /** What the doctor filters on. */
@@ -42,6 +55,7 @@ export interface DoctorPrescriptionRow {
   status: DoctorPrescriptionStatus;
   /** Where the prescription is at the medicine desk; null when the API did not say. */
   pharmacy: PharmacyState | null;
+  pdfUrl: string;
 }
 
 export interface DoctorPrescriptionStats {
@@ -50,6 +64,20 @@ export interface DoctorPrescriptionStats {
   patients: number;
   today: number;
 }
+
+export interface DoctorPrescriptionEditForm {
+  diagnosis: string;
+  notes: string;
+  status: string;
+  medicines: string;
+}
+
+export const EMPTY_PRESCRIPTION_FORM: DoctorPrescriptionEditForm = {
+  diagnosis: "",
+  notes: "",
+  status: "active",
+  medicines: "",
+};
 
 const DISPENSED_STATUSES = new Set(["FILLED", "DISPENSED", "COMPLETED"]);
 
@@ -111,47 +139,38 @@ function medicineNames(prescription: Raw): string[] {
   const names = source
     .map((entry) => {
       if (typeof entry === "string") return entry.trim();
-      const item = asRecordOrEmpty(entry);
-      return textOf(asRecordOrEmpty(item.medicine).name) || textOf(item.medicineName) || textOf(item.name);
+      const item = asRecord(entry);
+      return text(asRecord(item.medicine).name) || text(item.medicineName) || text(item.name);
     })
     .filter(Boolean);
   return names.filter((name, index) => names.indexOf(name) === index);
 }
 
 function patientName(prescription: Raw): string {
-  const patient = asRecordOrEmpty(prescription.patient);
-  const user = asRecordOrEmpty(patient.user);
-  const fromParts = personFullName(patient);
-  return textOf(prescription.patientName) || textOf(user.name) || textOf(patient.name) || fromParts || "Unknown patient";
+  const patient = asRecord(prescription.patient);
+  const user = asRecord(patient.user);
+  const fromParts = `${text(user.firstName) || text(patient.firstName)} ${text(user.lastName) || text(patient.lastName)}`.trim();
+  return text(prescription.patientName) || text(user.name) || text(patient.name) || fromParts || "Unknown patient";
 }
 
 export function normalizeDoctorPrescription(input: unknown): DoctorPrescriptionRow {
-  const raw = asRecordOrEmpty(input);
-  const id = textOf(raw.id);
+  const raw = asRecord(input);
+  const id = text(raw.id);
   return {
     id,
-    reference: prescriptionReference(id, raw),
+    reference: prescriptionReference(raw, id),
     patientName: patientName(raw),
-    patientId: textOf(raw.patientId) || textOf(asRecordOrEmpty(raw.patient).id),
-    date: textOf(raw.date) || textOf(raw.prescribedAt) || textOf(raw.createdAt),
-    diagnosis: textOf(raw.diagnosis),
-    notes: textOf(raw.doctorNotes) || textOf(raw.notes),
+    patientId: text(raw.patientId) || text(asRecord(raw.patient).id),
+    date: text(raw.date) || text(raw.prescribedAt) || text(raw.createdAt),
+    diagnosis: text(raw.diagnosis),
+    notes: text(raw.doctorNotes) || text(raw.notes),
     medicines: medicineNames(raw),
     status: normalizeStatus(raw.status),
     pharmacy: pharmacyState(raw),
+    // The backend sends its own relative path; the page links to the web route that forwards the
+    // request with the sign-in cookie.
+    pdfUrl: id && text(raw.pdfUrl) ? `/api/pharmacy/prescriptions/${encodeURIComponent(id)}/pdf` : "",
   };
-}
-
-/**
- * True when the prescription was written by this doctor. `ownIds` holds the doctor's record id
- * and user id: the prescription carries the record id, its `doctor` block the user id.
- */
-export function isPrescriptionByDoctor(input: unknown, ownIds: string[]): boolean {
-  const raw = asRecordOrEmpty(input);
-  const doctor = asRecordOrEmpty(raw.doctor);
-  return [textOf(raw.doctorId), textOf(doctor.id), textOf(doctor.userId), textOf(asRecordOrEmpty(doctor.user).id)].some(
-    (id) => id !== "" && ownIds.includes(id),
-  );
 }
 
 export function normalizeDoctorPrescriptions(list: unknown): DoctorPrescriptionRow[] {
@@ -186,6 +205,12 @@ export function buildDoctorPrescriptionStats(rows: DoctorPrescriptionRow[], toda
   };
 }
 
+/** "3 October 2026" */
+export function prescriptionDateLabel(date: string): string {
+  if (!date) return "";
+  return formatDateInIST(date, { year: "numeric", month: "long", day: "numeric" });
+}
+
 /** Short patient id for the row; the full id stays in the tooltip. */
 export function shortPatientId(patientId: string): string {
   if (!patientId) return "";
@@ -195,4 +220,12 @@ export function shortPatientId(patientId: string): string {
 /** "6 prescriptions" */
 export function prescriptionsCountLabel(count: number): string {
   return `${count} ${count === 1 ? "prescription" : "prescriptions"}`;
+}
+
+/** Comma-separated medicine names typed in the dialog -> clean list. */
+export function parseMedicineList(value: string): string[] {
+  return value.split(",").flatMap((entry) => {
+    const trimmed = entry.trim();
+    return trimmed ? [trimmed] : [];
+  });
 }

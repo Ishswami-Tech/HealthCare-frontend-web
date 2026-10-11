@@ -1,18 +1,20 @@
 "use client";
 
 import { runSave } from "./run-save";
+import { useLocalizedLabel } from "./use-localized-option";
 import { useId, useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Divider, Note, Pill, ChoiceChip } from "@/components/tbd";
+import { Divider, Note, Pill } from "@/components/tbd";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { PRAKRITI_QUESTIONS, type PrakritiDosha } from "@/lib/constants/case-sheet-fixed-lists";
 import { useCreatePrakritiAssessment, usePrakritiAssessments } from "@/hooks/query/usePatientVisits";
 import type { PrakritiAssessment } from "@/types/patient-visit.types";
 import {
   ExamEyebrow,
+  ExamOptionChip,
   ExamPanel,
   ExamPanelHead,
   ExamSaveButton,
@@ -74,6 +76,7 @@ export function PrakritiAssessmentView({
   isSaving,
 }: PrakritiAssessmentViewProps) {
   const headingId = useId();
+  const localizeLabel = useLocalizedLabel();
   const answeredCount = Object.keys(answers).length;
   const complete = answeredCount === PRAKRITI_QUESTIONS.length;
 
@@ -174,19 +177,17 @@ export function PrakritiAssessmentView({
               return (
                 <ExamTile key={question.key} labelledBy={questionId}>
                   <span id={questionId} className="text-sm font-bold text-ink">
-                    {question.label}
+                    {localizeLabel(question.label)}
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {question.options.map((option) => (
-                      <ChoiceChip
+                      <ExamOptionChip
                         key={option.dosha}
-                        className="whitespace-nowrap"
                         size="sm"
+                        label={localizeLabel(option.label)}
                         active={answers[question.key] === option.dosha}
                         onClick={() => onAnswer(question.key, option.dosha)}
-                      >
-                        {option.label}
-                      </ChoiceChip>
+                      />
                     ))}
                   </div>
                 </ExamTile>

@@ -1,13 +1,23 @@
 "use client";
 
-import { AlertTriangle, Loader2 } from "lucide-react";
-import { BookingSlotGroups } from "@/components/appointments/booking/BookingSlotGroups";
-import type { BookingSlotPeriod } from "@/components/appointments/booking/types";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { DateField, Note, DialogActions, DialogBody, DialogShell } from "@/components/tbd";
+import { Note } from "@/components/tbd";
+import { Star } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { APPOINTMENT_MAX_RESCHEDULES } from "@/lib/utils/appointmentUtils";
+import { BookingSlotGroups } from "@/components/appointments/booking/BookingSlotGroups";
+import type { BookingSlotPeriod } from "@/components/appointments/booking/types";
+import { DateField } from "./ManagerFilters";
 import type { ManagerVisit } from "./types";
 
 function VisitLine({ visit }: { visit: ManagerVisit | null }) {
@@ -20,75 +30,7 @@ function VisitLine({ visit }: { visit: ManagerVisit | null }) {
   );
 }
 
-/** The doctor's free times for the chosen day, as the container loaded them. */
-export interface RescheduleSlots {
-  /** "idle" = no date chosen yet. */
-  status: "idle" | "loading" | "error" | "empty" | "ready";
-  periods: BookingSlotPeriod[];
-  errorMessage?: string | undefined;
-  onRetry: () => void;
-}
-
-function RescheduleSlotPicker({
-  slots,
-  time,
-  onTimeChange,
-}: {
-  slots: RescheduleSlots;
-  time: string;
-  onTimeChange: (value: string) => void;
-}) {
-  if (slots.status === "idle") {
-    return <p className="m-0 text-[13px] text-ink-muted">Pick a date to see the free times.</p>;
-  }
-  if (slots.status === "loading") {
-    return (
-      <p role="status" className="m-0 flex items-center gap-2 text-[13px] font-semibold text-ink-muted">
-        <Loader2 className="size-4 animate-spin text-brand" aria-hidden="true" />
-        Loading free times…
-      </p>
-    );
-  }
-  if (slots.status === "error") {
-    return (
-      <Note tone="rose" icon={AlertTriangle}>
-        <span className="flex flex-wrap items-center justify-between gap-2">
-          <span>{slots.errorMessage || "Could not load the free times."}</span>
-          <Button variant="outline" onClick={slots.onRetry}>
-            Try again
-          </Button>
-        </span>
-      </Note>
-    );
-  }
-  if (slots.status === "empty") {
-    return <Note tone="amber">No free times on this day. Pick another date.</Note>;
-  }
-  return (
-    <div className="max-h-[280px] overflow-y-auto pr-1">
-      <BookingSlotGroups
-        periods={slots.periods}
-        selected={time}
-        onSelect={onTimeChange}
-        timeStyle="12h"
-        columnsClassName="grid-cols-3 sm:grid-cols-4"
-      />
-    </div>
-  );
-}
-
-/** `yyyy-mm-dd` of a local-time date, for the `min` of a date field. */
-function localDateKey(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-/**
- * Pick a new date and time for a visit. Shows how many moves are left.
- * With `slots` the time is picked from the doctor's free times (the same grid as booking);
- * without it (the doctor or clinic of the visit is unknown) a plain time field is shown.
- */
+/** Pick a new date and time for a visit. Shows how many moves are left. */
 export function RescheduleDialog({
   open,
   onOpenChange,
@@ -98,9 +40,11 @@ export function RescheduleDialog({
   onDateChange,
   onTimeChange,
   minDate,
+  slotPeriods,
+  slotsLoading = false,
+  slotsError = null,
   submitting,
   onSubmit,
-  slots,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -111,74 +55,182 @@ export function RescheduleDialog({
   onTimeChange: (value: string) => void;
   /** Days before this one cannot be picked. */
   minDate: Date | null;
+  /**
+   * The open slots of the chosen day, grouped by period (the doctor's availability for this
+   * visit type and location). Without it the dialog falls back to a free time field.
+   */
+  slotPeriods?: BookingSlotPeriod[] | undefined;
+  slotsLoading?: boolean;
+  slotsError?: string | null;
   submitting: boolean;
   onSubmit: () => void;
-  slots?: RescheduleSlots | null | undefined;
 }) {
-  // With a slot grid, only a time that is still free can be sent.
-  const timeIsFree =
-    !slots ||
-    (slots.status === "ready" &&
-      slots.periods.some((period) => period.slots.some((slot) => !slot.unavailable && slot.value === time)));
+  const useSlotGrid = slotPeriods !== undefined;
   return (
-    <DialogShell
-      plain
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Reschedule visit"
-      description={slots ? "Choose a new date, then one of the doctor's free times." : "Choose a new date and time."}
-      width={slots ? 512 : 448}
-    >
-      <DialogBody>
-        <VisitLine visit={visit} />
-        <div className={slots ? "flex flex-col gap-4" : "grid gap-3 sm:grid-cols-2"}>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="appointment-reschedule-date" className="text-[13px] font-semibold text-ink">
-              New date
-            </label>
-            <DateField
-              id="appointment-reschedule-date"
-              value={date}
-              min={minDate ? localDateKey(minDate) : undefined}
-              onChange={onDateChange}
-              className="w-full"
-            />
-          </div>
-          {slots ? (
-            <div className="flex flex-col gap-2" role="group" aria-label="New time">
-              <span className="text-[13px] font-semibold text-ink">New time</span>
-              <RescheduleSlotPicker slots={slots} time={time} onTimeChange={onTimeChange} />
-            </div>
-          ) : (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reschedule visit</DialogTitle>
+          <DialogDescription>Choose a new date and time.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <VisitLine visit={visit} />
+          <div className={useSlotGrid ? "flex flex-col gap-3" : "grid gap-3 sm:grid-cols-2"}>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="appointment-reschedule-time" className="text-[13px] font-semibold text-ink">
-                New time
-              </label>
-              <Input
-                id="appointment-reschedule-time"
-                type="time"
-                value={time}
-                onChange={(event) => onTimeChange(event.target.value)}
+              <span id="appointment-reschedule-date-label" className="text-[13px] font-semibold text-ink">
+                New date
+              </span>
+              <DateField
+                value={date}
+                placeholder="Pick a date"
+                ariaLabel="New date"
+                onChange={onDateChange}
+                isDisabled={(day) => Boolean(minDate) && day < (minDate as Date)}
+                className="w-full"
               />
             </div>
-          )}
+            {useSlotGrid ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-semibold text-ink">New time</span>
+                {!date ? (
+                  <p className="m-0 text-[13px] text-ink-muted">Pick a date to see the open times.</p>
+                ) : slotsLoading ? (
+                  <p className="m-0 text-[13px] text-ink-muted" role="status">Loading open times…</p>
+                ) : slotPeriods.length > 0 ? (
+                  <BookingSlotGroups periods={slotPeriods} selected={time} onSelect={onTimeChange} columnsClassName="grid-cols-4" />
+                ) : (
+                  <p className="m-0 text-[13px] text-ink-muted">
+                    {slotsError ?? "No open times on this day. Try another date."}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="appointment-reschedule-time" className="text-[13px] font-semibold text-ink">
+                  New time
+                </label>
+                <Input
+                  id="appointment-reschedule-time"
+                  type="time"
+                  value={time}
+                  onChange={(event) => onTimeChange(event.target.value)}
+                />
+              </div>
+            )}
+          </div>
+          {visit?.rescheduleHint ? (
+            <Note tone="blue">
+              <strong className="font-bold">{visit.rescheduleHint}.</strong> A visit can be moved{" "}
+              {APPOINTMENT_MAX_RESCHEDULES} times.
+            </Note>
+          ) : null}
         </div>
-        {visit?.rescheduleHint ? (
-          <Note tone="blue">
-            <strong className="font-bold">{visit.rescheduleHint}.</strong> A visit can be moved{" "}
-            {APPOINTMENT_MAX_RESCHEDULES} times.
-          </Note>
-        ) : null}
-      </DialogBody>
-      <DialogActions>
-        <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
-          Keep current time
-        </Button>
-        <Button size="md" onClick={onSubmit} disabled={submitting || !date || !time || !timeIsFree}>
-          {submitting ? "Moving…" : "Move visit"}
-        </Button>
-      </DialogActions>
-    </DialogShell>
+        <DialogFooter className="gap-2.5">
+          <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
+            Keep current time
+          </Button>
+          <Button size="md" onClick={onSubmit} disabled={submitting || !date || !time}>
+            {submitting ? "Moving…" : "Move visit"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const RATING_WORDS = ["", "Poor", "Fair", "Good", "Very good", "Excellent"];
+
+/** Rate a completed in-clinic visit: 1 to 5 stars and an optional comment. */
+export function RateVisitDialog({
+  open,
+  onOpenChange,
+  visit,
+  rating,
+  comment,
+  onRatingChange,
+  onCommentChange,
+  error,
+  submitting,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  visit: ManagerVisit | null;
+  rating: number;
+  comment: string;
+  onRatingChange: (value: number) => void;
+  onCommentChange: (value: string) => void;
+  error: string | null;
+  submitting: boolean;
+  onSubmit: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Rate your visit</DialogTitle>
+          <DialogDescription>Tell others how it went. Your name is not shown in full.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <VisitLine visit={visit} />
+          <div className="flex flex-col gap-1.5">
+            <span id="rate-visit-stars-label" className="text-[13px] font-semibold text-ink">
+              How was your visit?
+            </span>
+            <div role="radiogroup" aria-labelledby="rate-visit-stars-label" className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((stars) => (
+                <button
+                  key={stars}
+                  type="button"
+                  role="radio"
+                  aria-checked={rating === stars}
+                  aria-label={`${stars} ${stars === 1 ? "star" : "stars"}`}
+                  disabled={submitting}
+                  onClick={() => onRatingChange(stars)}
+                  className="rounded-md p-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
+                >
+                  <Star
+                    className={cn(
+                      "size-8",
+                      stars <= rating ? "fill-[#f59e0b] text-[#f59e0b]" : "fill-transparent text-[#cbd5e1] dark:text-slate-600",
+                    )}
+                    aria-hidden="true"
+                  />
+                </button>
+              ))}
+              <span className="ml-2 text-sm font-semibold text-ink-muted" aria-live="polite">
+                {RATING_WORDS[rating] ?? ""}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="rate-visit-comment" className="text-[13px] font-semibold text-ink">
+              Comment (optional)
+            </label>
+            <Textarea
+              id="rate-visit-comment"
+              value={comment}
+              maxLength={1000}
+              placeholder="What went well, or what could be better?"
+              onChange={(event) => onCommentChange(event.target.value)}
+            />
+          </div>
+          {error ? (
+            <Note tone="rose">
+              <span role="alert">{error}</span>
+            </Note>
+          ) : null}
+        </div>
+        <DialogFooter className="gap-2.5">
+          <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
+            Not now
+          </Button>
+          <Button size="md" onClick={onSubmit} disabled={submitting || rating < 1}>
+            {submitting ? "Sending…" : "Send rating"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -197,24 +249,23 @@ export function CancelVisitDialog({
   onConfirm: () => void;
 }) {
   return (
-    <DialogShell
-      plain
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Cancel this visit?"
-      description="The slot is released. You cannot undo this."
-      width={448}
-    >
-      <VisitLine visit={visit} />
-      <DialogActions>
-        <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
-          Keep visit
-        </Button>
-        <Button variant="danger" size="md" onClick={onConfirm} disabled={submitting}>
-          {submitting ? "Cancelling…" : "Cancel visit"}
-        </Button>
-      </DialogActions>
-    </DialogShell>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Cancel this visit?</DialogTitle>
+          <DialogDescription>The slot is released. You cannot undo this.</DialogDescription>
+        </DialogHeader>
+        <VisitLine visit={visit} />
+        <DialogFooter className="gap-2.5">
+          <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
+            Keep visit
+          </Button>
+          <Button variant="danger" size="md" onClick={onConfirm} disabled={submitting}>
+            {submitting ? "Cancelling…" : "Cancel visit"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -237,36 +288,35 @@ export function DeclineSlotsDialog({
   onSubmit: () => void;
 }) {
   return (
-    <DialogShell
-      plain
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Decline the proposed times"
-      description="Tell the patient why these times do not work."
-      width={448}
-    >
-      <DialogBody className="gap-3">
-        <VisitLine visit={visit} />
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="reject-proposal-reason" className="text-[13px] font-semibold text-ink">
-            Reason
-          </label>
-          <Textarea
-            id="reject-proposal-reason"
-            value={reason}
-            onChange={(event) => onReasonChange(event.target.value)}
-            placeholder="For example: only free in the evenings"
-          />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Decline the proposed times</DialogTitle>
+          <DialogDescription>Tell the patient why these times do not work.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <VisitLine visit={visit} />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="reject-proposal-reason" className="text-[13px] font-semibold text-ink">
+              Reason
+            </label>
+            <Textarea
+              id="reject-proposal-reason"
+              value={reason}
+              onChange={(event) => onReasonChange(event.target.value)}
+              placeholder="For example: only free in the evenings"
+            />
+          </div>
         </div>
-      </DialogBody>
-      <DialogActions>
-        <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
-          Back
-        </Button>
-        <Button variant="danger" size="md" onClick={onSubmit} disabled={!reason || submitting}>
-          {submitting ? "Declining…" : "Decline times"}
-        </Button>
-      </DialogActions>
-    </DialogShell>
+        <DialogFooter className="gap-2.5">
+          <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
+            Back
+          </Button>
+          <Button variant="danger" size="md" onClick={onSubmit} disabled={!reason || submitting}>
+            {submitting ? "Declining…" : "Decline times"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

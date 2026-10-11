@@ -29,10 +29,10 @@ import {
   getVideoSessionDecision,
   VIDEO_JOIN_EARLY_WINDOW_MINUTES,
 } from "@/lib/utils/appointmentUtils";
-import { ageInYears, formatDateKeyInIST } from "@/lib/utils/date-time";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { getDisplayAppointmentDuration } from "@/lib/utils/appointmentUtils";
-import type { AppointmentStatus, UpdateAppointmentData } from "@/types/appointment.types";
+import type { AppointmentStatus } from "@/types/appointment.types";
 
 // Appointment status constants - must match backend enum values
 const APPOINTMENT_STATUS = {
@@ -89,7 +89,8 @@ function matchesDoctorAppointmentViewFilter(
   appointmentStatus: string,
   viewFilter: DoctorAppointmentViewFilter
 ): boolean {
-  if (viewFilter === APPOINTMENT_STATUS.ALL) return true;
+  // "All statuses" hides expired slots (they swamp the list); pick "Expired" to see them.
+  if (viewFilter === APPOINTMENT_STATUS.ALL) return appointmentStatus !== APPOINTMENT_STATUS.EXPIRED;
   if (viewFilter === "ACTIVE") {
     return ["ACTIVE", APPOINTMENT_STATUS.SCHEDULED, APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.IN_PROGRESS].includes(
       getDoctorAppointmentBucket(appointmentStatus)
@@ -165,6 +166,12 @@ export interface TransformedAppointment {
   canJoinVideo: boolean;
   /** A confirmed video visit whose join window has not opened yet. */
   joinOpensLater: boolean;
+  /**
+   * The join window of a video visit has opened (scheduled start minus the early-join
+   * allowance). False when the row has no usable schedule, so a confirmed video visit without a
+   * time never offers Complete; the backend applies the same gate and fails closed.
+   */
+  joinWindowOpen: boolean;
   duration: string;
   appointmentDate: string;
   /** YYYY-MM-DD in IST — used by the date filter. */
@@ -185,8 +192,6 @@ export interface TransformedAppointment {
   } | null;
   checkedInAt: string | null;
   queuePosition: number | null;
-  /** The visit's priority as the server sent it (PUT /appointments/:id needs it sent back). */
-  priority?: string;
   diagnosis?: string;
   prescription?: string;
   treatmentPlan?: string;
@@ -333,6 +338,26 @@ function extractAppointments(value: unknown): any[] {
 
 /** How often the video join window is checked again while the page stays open. */
 const JOIN_WINDOW_RECHECK_MS = 30_000;
+
+/** A text field of a patient record: on the patient itself, else on its `user` (the list nests it there). */
+function personText(patient: unknown, key: "phone" | "email" | "gender"): string {
+  const record = (patient ?? {}) as Record<string, unknown>;
+  const user = (record.user ?? {}) as Record<string, unknown>;
+  const value = record[key] ?? user[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/** Age in whole years: the stored age, else worked out from the date of birth; null when neither is known. */
+function personAge(patient: unknown): number | null {
+  const record = (patient ?? {}) as Record<string, unknown>;
+  const user = (record.user ?? {}) as Record<string, unknown>;
+  const stored = Number(record.age ?? user.age);
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  const born = record.dateOfBirth ?? user.dateOfBirth;
+  if (typeof born !== "string" && !(born instanceof Date)) return null;
+  const time = new Date(born).getTime();
+  return Number.isNaN(time) ? null : Math.floor((Date.now() - time) / (1000 * 60 * 60 * 24 * 365.25));
+}
 
 export default function DoctorAppointments() {
   const { push } = useRouter();
@@ -490,6 +515,7 @@ export default function DoctorAppointments() {
           normalizedStatus === APPOINTMENT_STATUS.CONFIRMED &&
           joinOpensAtMs !== null &&
           Date.now() < joinOpensAtMs;
+        const joinWindowOpen = isVideo && joinOpensAtMs !== null && Date.now() >= joinOpensAtMs;
 
         return {
           id: app.id,
@@ -501,8 +527,8 @@ export default function DoctorAppointments() {
             app.patient?.name ||
             `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() ||
             "Unknown Patient",
-          patientAge: app.patient?.age || ageInYears(app.patient?.dateOfBirth),
-          patientGender: app.patient?.gender || "Unknown",
+          patientAge: personAge(app.patient),
+          patientGender: personText(app.patient, "gender"),
           time: appointmentDateTime
             ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
             : getReceptionistAppointmentTimeLabel(app as Record<string, unknown>),
@@ -511,6 +537,7 @@ export default function DoctorAppointments() {
           isVideo,
           canJoinVideo,
           joinOpensLater,
+          joinWindowOpen,
           duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
           appointmentDate: appointmentDateTime
             ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
@@ -522,16 +549,15 @@ export default function DoctorAppointments() {
               : "",
           startTime: app.startTime || "",
           createdAt: app.createdAt || app.updatedAt || "",
-          patientPhone: app.patient?.phone || "",
-          patientEmail: app.patient?.email || "",
-          chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
+          patientPhone: personText(app.patient, "phone"),
+          patientEmail: personText(app.patient, "email"),
+          chiefComplaint: app.chiefComplaint || app.reason || "",
           medicalHistory: app.patient?.medicalHistory || [],
           allergies: app.patient?.allergies || [],
           currentMedications: app.patient?.currentMedications || [],
           vitalSigns: app.vitalSigns || null,
           checkedInAt: app.checkedInAt ? formatTimeInIST(app.checkedInAt) : null,
           queuePosition: app.queuePosition || null,
-          priority: typeof app.priority === "string" && app.priority ? app.priority : undefined,
           diagnosis: typeof app.diagnosis === "string" ? app.diagnosis : "",
           prescription: typeof app.prescription === "string" ? app.prescription : "",
           treatmentPlan: typeof app.treatmentPlan === "string" ? app.treatmentPlan : "",
@@ -616,7 +642,7 @@ export default function DoctorAppointments() {
     [dateScopedAppointments]
   );
 
-  const totalAppointmentsCount = dateScopedAppointments.length;
+  const totalAppointmentsCount = dateScopedAppointments.length - expiredAppointmentsCount;
   const selectedAppointmentIsClosed = selectedAppointment
     ? ["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(selectedAppointment.status))
     : false;
@@ -631,31 +657,11 @@ export default function DoctorAppointments() {
       }
     ) => {
       try {
-        const trimmedDiagnosis = data?.diagnosis?.trim() ?? "";
-        const trimmedPrescription = data?.prescription?.trim() ?? "";
-        const trimmedNotes = data?.notes?.trim() ?? "";
-        const hasRecord = Boolean(trimmedDiagnosis || trimmedPrescription || trimmedNotes);
-        // Completing a visit stores its metadata (merged with what the visit already has), so
-        // the written record travels there. The appointment has no columns for this text.
         const completionData = {
-          ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
-          ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
-          ...(trimmedNotes ? { notes: trimmedNotes } : {}),
-          ...(hasRecord
-            ? {
-                metadata: {
-                  consultationDraft: {
-                    ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
-                    ...(trimmedPrescription
-                      ? { prescription: trimmedPrescription, treatmentPlan: trimmedPrescription }
-                      : {}),
-                    ...(trimmedNotes ? { notes: trimmedNotes } : {}),
-                    savedAt: new Date().toISOString(),
-                    savedBy: user?.id || null,
-                  },
-                },
-              }
-            : {}),
+          ...(data?.diagnosis ? { diagnosis: data.diagnosis } : {}),
+          ...(data?.prescription ? { prescription: data.prescription } : {}),
+          ...(data?.notes ? { notes: data.notes } : {}),
+          ...(data?.prescription ? { treatmentPlan: data.prescription } : {}),
         };
 
         await completeAppointmentMutation.mutateAsync({
@@ -670,7 +676,7 @@ export default function DoctorAppointments() {
         });
       }
     },
-    [completeAppointmentMutation, user?.id]
+    [completeAppointmentMutation]
   );
 
   const startConsultation = useCallback(
@@ -712,16 +718,14 @@ export default function DoctorAppointments() {
     }
 
     try {
-      // The draft lives in the appointment metadata only: the appointment has no diagnosis or
-      // prescription columns, and its own note is the booking note. An update replaces the
-      // stored metadata, so what the visit already has is sent back with the draft.
-      const visit =
-        appointments.find((appointment: TransformedAppointment) => appointment.id === appointmentId) ??
-        (selectedAppointment?.id === appointmentId ? selectedAppointment : undefined);
-      const existingMetadata = visit?.metadata ?? {};
+      const draftPayload = {
+        ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+        ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+        ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
+        ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+      };
 
       const draftMetadata: Record<string, unknown> = {
-        ...existingMetadata,
         consultationDraft: {
           ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
           ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
@@ -732,14 +736,13 @@ export default function DoctorAppointments() {
         },
       };
 
-      // PUT /appointments/:id requires `priority`: the visit's current one is sent back unchanged.
-      // (When the list row has none, the action reads it from the server before updating.)
-      const draftUpdate: UpdateAppointmentData & { priority?: string } = {
-        metadata: draftMetadata,
-        ...(visit?.priority ? { priority: visit.priority } : {}),
-      };
-
-      await updateAppointmentMutation.mutateAsync({ id: appointmentId, data: draftUpdate });
+      await updateAppointmentMutation.mutateAsync({
+        id: appointmentId,
+        data: {
+          ...draftPayload,
+          metadata: draftMetadata,
+        },
+      });
 
       dispatch({
         type: "setSelectedAppointment",
@@ -772,15 +775,16 @@ export default function DoctorAppointments() {
   const bulkCompleteSelected = useCallback(
     async (appointmentIds: string[]): Promise<{ completed: number; failed: number } | undefined> => {
       try {
-        // No doctorId: the backend then uses each appointment's own doctor record. The
-        // signed-in user id is not a doctor record id and would miss the doctor's queue.
-        return await bulkCompleteMutation.mutateAsync({ appointmentIds });
+        return await bulkCompleteMutation.mutateAsync({
+          appointmentIds,
+          ...(user?.id ? { doctorId: user.id } : {}),
+        });
       } catch (error: unknown) {
         console.error("Failed to bulk complete appointments", { appointmentIds, error });
         return undefined;
       }
     },
-    [bulkCompleteMutation]
+    [bulkCompleteMutation, user?.id]
   );
 
   // "Complete" on a table row. The diagnosis / notes / prescription fields belong to the

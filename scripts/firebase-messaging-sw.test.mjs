@@ -22,20 +22,34 @@ function startWorker(config) {
       };
     },
   };
+  const opened = [];
+  const clients = {
+    matchAll: async () => [],
+    openWindow: async (url) => { opened.push(url); },
+  };
   const self = {
+    location: { origin: 'https://app.example' },
     addEventListener(name, handler) { listeners.set(name, handler); },
     registration: {
       async showNotification(title, options) { notifications.push({ title, options }); },
     },
   };
   vm.runInNewContext(source, {
-    self, firebase, console,
+    self, firebase, console, clients, URL,
     importScripts(url) {
       if (url === '/api/firebase/config') self.__FIREBASE_CONFIG__ = config;
     },
   });
   return {
-    firebase, notifications, listeners,
+    firebase, notifications, listeners, opened,
+    click: async (data) => {
+      let pending;
+      listeners.get('notificationclick')({
+        notification: { close() {}, data },
+        waitUntil(promise) { pending = promise; },
+      });
+      await pending;
+    },
     receive: (payload) => backgroundHandler(payload),
     handlerCount: () => handlerCount,
   };
@@ -64,4 +78,16 @@ test('incomplete configuration leaves messaging disabled', () => {
   const worker = startWorker({});
   assert.equal(worker.firebase.apps.length, 0);
   assert.equal(worker.handlerCount(), 0);
+});
+
+test('notification taps only open same-origin links', async () => {
+  const worker = startWorker(config);
+  await worker.click({ link: '/patient/appointments' });
+  await worker.click({ url: 'https://evil.example/phish' });
+  await worker.click({});
+  assert.deepEqual(worker.opened, [
+    'https://app.example/patient/appointments',
+    'https://app.example/',
+    'https://app.example/',
+  ]);
 });

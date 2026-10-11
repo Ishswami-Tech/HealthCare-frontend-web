@@ -1,16 +1,18 @@
 import { normalizeQueueEntry } from "@/lib/queue/queue-adapter";
-import { formatDateInIST, formatDateKeyInIST, formatTimeLabel } from "@/lib/utils/date-time";
+import { formatDateInIST, formatDateKeyInIST, formatTimeInIST } from "@/lib/utils/date-time";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
-import { asList, asRecordOrEmpty, isoDateOrNull, numberOrNull, textOf, unwrapList } from "@/lib/utils/coerce";
-import { formatRupees } from "@/lib/utils/currency";
-import { plural, prescriptionReference } from "@/lib/utils/labels";
-import type { DeskQueueState } from "@/lib/pharmacy/desk-state";
 
 /**
  * Pure helpers for the pharmacy dashboard: they turn the raw payloads of
  * `useMedicineDeskQueue`, `usePrescriptions`, `useInventory` and `usePharmacyStats`
  * into the small view models the cards render. No React, no fetching.
  */
+
+export type DeskQueueState =
+  | "ready_to_dispense"
+  | "partially_dispensed"
+  | "awaiting_payment"
+  | "payment_expired";
 
 export interface DeskQueueLine {
   id: string;
@@ -56,7 +58,8 @@ export interface PharmacyDashboardStats {
   paymentDue: number;
   dispensedToday: number;
   lowStock: number;
-  thisMonth: number;
+  /** Prescriptions dispensed this calendar month (`monthlyDispensed` of `GET /pharmacy/stats`); null until the stats arrive. */
+  thisMonth: number | null;
 }
 
 export interface StockAlert {
@@ -96,26 +99,72 @@ export interface CashRecordedNotice {
 
 type Raw = Record<string, unknown>;
 
+function asRecord(value: unknown): Raw {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
+}
+
+function asList(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
+}
+
+function amount(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function upper(value: unknown): string {
-  return textOf(value).toUpperCase();
+  return text(value).toUpperCase();
+}
+
+function isoDate(value: unknown): string | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  const raw = text(value);
+  if (!raw) return null;
+  return Number.isNaN(new Date(raw).getTime()) ? null : raw;
+}
+
+/** Lists come back either as an array or wrapped in an object (`{ prescriptions: [] }`). */
+export function unwrapList(value: unknown, key: string): unknown[] {
+  if (Array.isArray(value)) return value;
+  return asList(asRecord(value)[key]);
+}
+
+const rupeeFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 });
+
+/** "₹1,240" — amounts on this screen are whole rupees or rupees with paise. */
+export function formatRupees(value: number): string {
+  return `₹${rupeeFormat.format(value)}`;
+}
+
+export function prescriptionReference(raw: unknown, id: string): string {
+  const record = asRecord(raw);
+  const given = text(record.prescriptionNumber) || text(record.referenceNumber);
+  if (given) return given;
+  const compact = id.replace(/[^a-zA-Z0-9]/g, "");
+  return compact ? `RX-${compact.slice(0, 8).toUpperCase()}` : "";
 }
 
 function buildLines(prescription: Raw): DeskQueueLine[] {
   const items = asList(prescription.items);
   if (items.length > 0) {
     return items.map((entry, index) => {
-      const item = asRecordOrEmpty(entry);
-      const medicine = asRecordOrEmpty(item.medicine);
-      const quantity = Math.max(0, numberOrNull(item.quantity) ?? 0);
-      const dispensed = Math.max(0, numberOrNull(item.dispensedQuantity) ?? 0);
-      const stock = numberOrNull(medicine.stock ?? medicine.stockQuantity ?? medicine.currentStock);
+      const item = asRecord(entry);
+      const medicine = asRecord(item.medicine);
+      const quantity = Math.max(0, amount(item.quantity) ?? 0);
+      const dispensed = Math.max(0, amount(item.dispensedQuantity) ?? 0);
+      const stock = amount(medicine.stock ?? medicine.stockQuantity ?? medicine.currentStock);
       return {
-        id: textOf(item.id) || `${textOf(item.medicineId) || "line"}-${index}`,
-        name: textOf(medicine.name) || textOf(item.medicineName) || textOf(item.name) || "Medicine",
+        id: text(item.id) || `${text(item.medicineId) || "line"}-${index}`,
+        name: text(medicine.name) || text(item.medicineName) || text(item.name) || "Medicine",
         quantity,
         remaining: Math.max(0, quantity - dispensed),
-        directions: [textOf(item.dosage), textOf(item.frequency), textOf(item.duration)].filter(Boolean).join(" · "),
-        unitPrice: numberOrNull(medicine.price ?? item.unitPrice) ?? 0,
+        directions: [text(item.dosage), text(item.frequency), text(item.duration)].filter(Boolean).join(" · "),
+        unitPrice: amount(medicine.price ?? item.unitPrice) ?? 0,
         stock,
       };
     });
@@ -125,7 +174,7 @@ function buildLines(prescription: Raw): DeskQueueLine[] {
   const names = asList(prescription.medicines).length > 0 ? asList(prescription.medicines) : asList(prescription.medicineNames);
   return names.map((entry, index) => ({
     id: `name-${index}`,
-    name: typeof entry === "string" ? entry : textOf(asRecordOrEmpty(entry).name) || "Medicine",
+    name: typeof entry === "string" ? entry : text(asRecord(entry).name) || "Medicine",
     quantity: 0,
     remaining: 0,
     directions: "",
@@ -137,7 +186,7 @@ function buildLines(prescription: Raw): DeskQueueLine[] {
 /** Normalises the medicine-desk queue payload into the rows the dashboard shows, in queue order. */
 export function buildDeskQueue(queueData: unknown): DeskQueueItem[] {
   return unwrapList(queueData, "queue").reduce<DeskQueueItem[]>((items, entryRaw) => {
-    const prescription = asRecordOrEmpty(entryRaw);
+    const prescription = asRecord(entryRaw);
     if (!prescription.id) return items;
 
     const entry = normalizeQueueEntry(prescription);
@@ -155,40 +204,40 @@ export function buildDeskQueue(queueData: unknown): DeskQueueItem[] {
           : "ready_to_dispense"
         : "awaiting_payment";
 
-    const payments = asList(prescription.payments).map(asRecordOrEmpty);
-    const paymentMethod = (payment: Raw) => upper(payment.method) || upper(asRecordOrEmpty(payment.metadata).paymentMethod);
+    const payments = asList(prescription.payments).map(asRecord);
+    const paymentMethod = (payment: Raw) => upper(payment.method) || upper(asRecord(payment.metadata).paymentMethod);
     const paidInCash = payments.some(
       (payment) => upper(payment.status) === "COMPLETED" && paymentMethod(payment) === "CASH",
     );
     const failedOnline = payments
       .filter((payment) => upper(payment.status) === "FAILED" && paymentMethod(payment) !== "CASH")
-      .map((payment) => isoDateOrNull(payment.createdAt))
+      .map((payment) => isoDate(payment.createdAt))
       .filter((value): value is string => Boolean(value))
       .sort()
       .pop();
 
-    const doctorName = textOf(entry.doctorName);
+    const doctorName = text(entry.doctorName);
     const id = String(entry.entryId || prescription.id);
 
     items.push({
       id,
       patientName: entry.patientName || "Unknown Patient",
-      reference: prescriptionReference(id, prescription),
+      reference: prescriptionReference(prescription, id),
       doctorName: doctorName && doctorName.toLowerCase() !== "unknown doctor" ? formatDoctorDisplayName(doctorName) : "",
-      sentAt: isoDateOrNull(prescription.prescribedAt) ?? isoDateOrNull(prescription.date) ?? isoDateOrNull(prescription.createdAt),
-      diagnosis: textOf(prescription.diagnosis),
-      locationName: textOf(prescription.locationName),
+      sentAt: isoDate(prescription.prescribedAt) ?? isoDate(prescription.date) ?? isoDate(prescription.createdAt),
+      diagnosis: text(prescription.diagnosis),
+      locationName: text(prescription.locationName),
       lines,
-      itemsCount: lines.length || (numberOrNull(prescription.itemsCount) ?? 0),
+      itemsCount: lines.length || (amount(prescription.itemsCount) ?? 0),
       itemsLeft,
-      totalAmount: numberOrNull(prescription.totalAmount),
-      paidAmount: numberOrNull(prescription.paidAmount),
-      pendingAmount: numberOrNull(prescription.pendingAmount),
+      totalAmount: amount(prescription.totalAmount),
+      paidAmount: amount(prescription.paidAmount),
+      pendingAmount: amount(prescription.pendingAmount),
       paidInCash,
       failedOnlinePaymentAt: failedOnline ?? null,
-      priority: textOf(prescription.priority).toLowerCase() || "normal",
+      priority: text(prescription.priority).toLowerCase() || "normal",
       state,
-      invoiceId: textOf(prescription.invoiceId) || null,
+      invoiceId: text(prescription.invoiceId) || null,
     });
     return items;
   }, []);
@@ -213,6 +262,25 @@ export function filterDeskQueue(queue: DeskQueueItem[], searchTerm: string): Des
   return queue.filter((item) => item.patientName.toLowerCase().includes(needle));
 }
 
+export const DESK_STATE_LABEL: Record<DeskQueueState, string> = {
+  ready_to_dispense: "Ready to dispense",
+  partially_dispensed: "Partially dispensed",
+  awaiting_payment: "Payment pending",
+  payment_expired: "Payment expired",
+};
+
+export const DESK_STATE_TONE: Record<DeskQueueState, "green" | "blue" | "amber" | "slate"> = {
+  ready_to_dispense: "green",
+  partially_dispensed: "blue",
+  awaiting_payment: "amber",
+  payment_expired: "slate",
+};
+
+/** "2 items" */
+export function itemsLabel(count: number): string {
+  return `${count} ${count === 1 ? "item" : "items"}`;
+}
+
 /** Second line of the Medicines cell: amount and what is still open. */
 export function moneyLine(item: DeskQueueItem): string {
   const total = item.totalAmount !== null && item.totalAmount > 0 ? formatRupees(item.totalAmount) : "";
@@ -226,7 +294,7 @@ export function moneyLine(item: DeskQueueItem): string {
     }
     case "partially_dispensed":
       if (total) parts.push(total);
-      parts.push(item.itemsLeft > 0 ? `${plural(item.itemsLeft, "item")} left` : "partly given");
+      parts.push(item.itemsLeft > 0 ? `${itemsLabel(item.itemsLeft)} left` : "partly given");
       break;
     case "payment_expired":
       if (total) parts.push(total);
@@ -244,10 +312,18 @@ export function sentTimeLabel(sentAt: string | null, now: Date = new Date()): st
   if (!sentAt) return "";
   const dayKey = formatDateKeyInIST(sentAt);
   if (!dayKey) return "";
-  if (dayKey === formatDateKeyInIST(now)) return formatTimeLabel(sentAt);
+  if (dayKey === formatDateKeyInIST(now)) return formatTimeInIST(sentAt).toLowerCase();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   if (dayKey === formatDateKeyInIST(yesterday)) return "Yesterday";
   return formatDateInIST(sentAt, { day: "numeric", month: "short" });
+}
+
+/** "3 Oct 2026, 11:18 am" */
+export function sentDateTimeLabel(sentAt: string | null): string {
+  if (!sentAt) return "";
+  const date = formatDateInIST(sentAt, { day: "numeric", month: "short", year: "numeric" });
+  const time = formatTimeInIST(sentAt).toLowerCase();
+  return [date, time].filter(Boolean).join(", ");
 }
 
 /** "Saturday, 3 October" */
@@ -260,32 +336,32 @@ export function todayLabel(now: Date = new Date()): string {
 // ── Stock ──────────────────────────────────────────────────────────────────
 
 export function buildInventorySummary(inventoryData: unknown): InventorySummary {
-  const medicines = unwrapList(inventoryData, "inventory").map(asRecordOrEmpty);
+  const medicines = unwrapList(inventoryData, "inventory").map(asRecord);
   const alerts: StockAlert[] = [];
   let inStock = 0;
   let datedMedicines = 0;
   let expiringSoon = 0;
 
   medicines.forEach((medicine, index) => {
-    const stock = numberOrNull(medicine.currentStock ?? medicine.stockQuantity ?? medicine.stock ?? medicine.quantity) ?? 0;
+    const stock = amount(medicine.currentStock ?? medicine.stockQuantity ?? medicine.stock ?? medicine.quantity) ?? 0;
     const reorderAt =
-      numberOrNull(medicine.minStock ?? medicine.minThreshold ?? medicine.minStockThreshold ?? medicine.minStockLevel) ?? 0;
-    const name = textOf(medicine.name) || textOf(medicine.medicineName) || "Medicine";
+      amount(medicine.minStock ?? medicine.minThreshold ?? medicine.minStockThreshold ?? medicine.minStockLevel) ?? 0;
+    const name = text(medicine.name) || text(medicine.medicineName) || "Medicine";
 
     if (stock > 0) inStock += 1;
     if (stock <= 0 || (reorderAt > 0 && stock <= reorderAt)) {
       alerts.push({
-        id: textOf(medicine.id) || `${name}-${index}`,
+        id: text(medicine.id) || `${name}-${index}`,
         name,
         stock: Math.max(0, stock),
         reorderAt,
-        unit: textOf(medicine.unit) || "units",
+        unit: text(medicine.unit) || "units",
         outOfStock: stock <= 0,
-        restockKey: textOf(medicine.id) || name,
+        restockKey: text(medicine.id) || name,
       });
     }
 
-    const daysToExpiry = numberOrNull(medicine.daysToExpiry);
+    const daysToExpiry = amount(medicine.daysToExpiry);
     if (medicine.expiryDate || daysToExpiry !== null) {
       datedMedicines += 1;
       if (medicine.isExpiringSoon === true || (daysToExpiry !== null && daysToExpiry <= 90)) expiringSoon += 1;
@@ -319,11 +395,11 @@ const DEAD_PAYMENT_STATUSES = new Set(["EXPIRED", "CANCELLED"]);
 /** Latest hand-over time of a prescription (ISO), from its lines or its own fields. */
 function dispensedAt(prescription: Raw): string | null {
   const fromLines = asList(prescription.items)
-    .map((item) => isoDateOrNull(asRecordOrEmpty(item).dispensedAt))
+    .map((item) => isoDate(asRecord(item).dispensedAt))
     .filter((value): value is string => Boolean(value))
     .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())
     .pop();
-  return fromLines ?? isoDateOrNull(prescription.dispensedAt) ?? isoDateOrNull(prescription.completedAt);
+  return fromLines ?? isoDate(prescription.dispensedAt) ?? isoDate(prescription.completedAt);
 }
 
 export function buildPharmacyStats(
@@ -333,14 +409,12 @@ export function buildPharmacyStats(
   now: Date = new Date(),
 ): PharmacyDashboardStats {
   const todayKey = formatDateKeyInIST(now);
-  const monthKey = todayKey.slice(0, 7);
   let toFill = 0;
   let paymentDue = 0;
   let dispensedToday = 0;
-  let dispensedThisMonth = 0;
 
   for (const entry of unwrapList(prescriptionsData, "prescriptions")) {
-    const prescription = asRecordOrEmpty(entry);
+    const prescription = asRecord(entry);
     const status = upper(prescription.status);
     const paymentStatus = upper(prescription.paymentStatus) || "PENDING";
     const open =
@@ -348,27 +422,23 @@ export function buildPharmacyStats(
 
     if (open && !DISPENSED_STATUSES.has(status) && !DEAD_PAYMENT_STATUSES.has(paymentStatus)) {
       toFill += 1;
-      // A prescription with nothing to pay is "PENDING" for the API but can be dispensed.
-      if (paymentStatus !== "PAID" && prescription.canDispense !== true) paymentDue += 1;
+      if (paymentStatus !== "PAID") paymentDue += 1;
     }
 
     if (DISPENSED_STATUSES.has(status)) {
       const handedOverAt = dispensedAt(prescription);
       const dayKey = handedOverAt ? formatDateKeyInIST(handedOverAt) : "";
       if (dayKey && dayKey === todayKey) dispensedToday += 1;
-      if (dayKey && dayKey.slice(0, 7) === monthKey) dispensedThisMonth += 1;
     }
   }
 
-  const monthlyFromApi = numberOrNull(asRecordOrEmpty(pharmacyStats).monthlyDispensed);
   return {
     toFill,
     paymentDue,
     dispensedToday,
-    // Same number as the "Low Stock" card on the inventory screen; medicines that are out of
-    // stock are counted apart there and named in the alerts card here.
-    lowStock: inventory.lowCount,
-    thisMonth: monthlyFromApi ?? dispensedThisMonth,
+    lowStock: inventory.alerts.length,
+    // The server counts the month; the 100 prescriptions this screen loads would undercount it.
+    thisMonth: amount(asRecord(pharmacyStats).monthlyDispensed),
   };
 }
 
@@ -381,9 +451,9 @@ export function buildCashRecordedNotice(
   recordedBy: string,
   now: Date = new Date(),
 ): CashRecordedNotice {
-  const response = asRecordOrEmpty(result);
-  const paidAfter = numberOrNull(response.paidAmount);
-  const stillDue = Math.max(0, numberOrNull(response.pendingAmount) ?? 0);
+  const response = asRecord(result);
+  const paidAfter = amount(response.paidAmount);
+  const stillDue = Math.max(0, amount(response.pendingAmount) ?? 0);
   const alreadyPaid = response.alreadyPaid === true;
   const collected =
     paidAfter !== null && item.paidAmount !== null
@@ -393,7 +463,7 @@ export function buildCashRecordedNotice(
         : null;
 
   return {
-    prescriptionId: textOf(response.prescriptionId) || item.id,
+    prescriptionId: text(response.prescriptionId) || item.id,
     patientName: item.patientName,
     reference: item.reference,
     amount: alreadyPaid ? null : collected,

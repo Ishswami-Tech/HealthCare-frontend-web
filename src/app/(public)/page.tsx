@@ -1,8 +1,9 @@
 import { generateMetadata as generateSEOMetadata, pageSEO } from "@/lib/config/seo";
-import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import { AuthRedirect } from "@/components/auth/AuthRedirect";
 import HomeHero from "@/components/home/HomeHero";
+import HomeDoctorSpotlight from "@/components/home/HomeDoctorSpotlight";
+import HomeGuruParampara from "@/components/home/HomeGuruParampara";
 import HomeStats from "@/components/home/HomeStats";
 import HomeWhyChooseUs from "@/components/home/HomeWhyChooseUs";
 import HomeMobileCtaBar from "@/components/home/HomeMobileCtaBar";
@@ -31,13 +32,17 @@ export const metadata = generateSEOMetadata({
 });
 
 export default function AyurvedaHomePage() {
+  /* No PageTransition wrapper: it server-renders the whole page at opacity 0
+     and fades it in only after hydration, so every refresh blinked. The hero
+     animates itself from CSS and the sections reveal on scroll. */
   return (
-    <PageTransition>
-      <HomeMotionProvider>
+    <HomeMotionProvider>
         <div className="overflow-x-clip font-body">
           {/* Above-the-fold content renders immediately */}
           <AuthRedirect />
           <HomeHero />
+          <HomeDoctorSpotlight />
+          <HomeGuruParampara />
           <HomeStats />
           <HomeWhyChooseUs />
 
@@ -82,7 +87,6 @@ export default function AyurvedaHomePage() {
 
           <HomeMobileCtaBar />
         </div>
-      </HomeMotionProvider>
-    </PageTransition>
+    </HomeMotionProvider>
   );
 }

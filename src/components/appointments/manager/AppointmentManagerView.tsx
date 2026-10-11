@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Calendar,
@@ -13,7 +13,7 @@ import {
   Stethoscope,
   Zap,
 } from "lucide-react";
-import { EmptyBlock, Kpi, LiveTag, Note, Pill, SegTabs, Surface, Pager, paginateRows } from "@/components/tbd";
+import { EmptyBlock, Kpi, LiveTag, Note, Pill, SegTabs, Surface } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,6 @@ import {
   filterByStatus,
   filterVisits,
   sortVisits,
-  visitElementId,
 } from "./managerData";
 import type {
   ManagerDateRange,
@@ -39,7 +38,6 @@ import type {
   ManagerTab,
   ManagerVisit,
   ManagerVisitActions,
-  ManagerVisitFocus,
 } from "./types";
 
 export interface AppointmentManagerViewProps {
@@ -68,12 +66,30 @@ export interface AppointmentManagerViewProps {
   /** The amber "Book appointment" button shown in the empty states. */
   bookAction?: ReactNode | undefined;
   initialTab?: ManagerTab | undefined;
-  /** A visit a link asked for: the list opens its tab and page, scrolls to it and marks it. */
-  focus?: ManagerVisitFocus | undefined;
 }
 
-/** How long a visit opened from a link stays marked. */
-const FOCUS_MARK_MS = 6000;
+function Pager({ page, pageCount, onChange }: { page: number; pageCount: number; onChange: (page: number) => void }) {
+  if (pageCount <= 1) return null;
+  return (
+    <nav aria-label="Pages" className="flex items-center justify-between gap-3 pt-3 text-[13px] text-ink-muted sm:justify-end">
+      <Button variant="outline" className="h-[34px]" onClick={() => onChange(page - 1)} disabled={page <= 1}>
+        Previous
+      </Button>
+      <span className="whitespace-nowrap" aria-live="polite">
+        Page {page} of {pageCount}
+      </span>
+      <Button variant="outline" className="h-[34px]" onClick={() => onChange(page + 1)} disabled={page >= pageCount}>
+        Next
+      </Button>
+    </nav>
+  );
+}
+
+function pageOf<T>(list: T[], page: number, size: number): { rows: T[]; page: number; pageCount: number } {
+  const pageCount = Math.max(1, Math.ceil(list.length / size));
+  const safePage = Math.min(Math.max(1, page), pageCount);
+  return { rows: list.slice((safePage - 1) * size, safePage * size), page: safePage, pageCount };
+}
 
 function LoadingState() {
   return (
@@ -122,7 +138,6 @@ export function AppointmentManagerView({
   heading,
   bookAction,
   initialTab = "upcoming",
-  focus,
 }: AppointmentManagerViewProps) {
   const filtersId = useId();
   const [tab, setTab] = useState<ManagerTab>(initialTab);
@@ -130,8 +145,6 @@ export function AppointmentManagerView({
   const [status, setStatus] = useState<ManagerStatusFilter>("ALL");
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(staffView);
-  const [handledFocus, setHandledFocus] = useState<ManagerVisitFocus | null>(null);
-  const [markedId, setMarkedId] = useState<string | null>(null);
 
   const hasRange = Boolean(dateRange.start || dateRange.end);
   const hasActiveFilters = Boolean(search.trim()) || hasRange || status !== "ALL";
@@ -153,37 +166,6 @@ export function AppointmentManagerView({
     setPage(1);
     onDateRangeChange({ start: "", end: "" });
   };
-
-  // A link asked for one visit: open its tab and page with no filters in the way. Waits for
-  // the list, so a visit that arrives with the next refresh is still found.
-  const focusTarget = focus ? visits.find((visit) => visit.id === focus.visitId) : undefined;
-  const focusPending = Boolean(focus) && handledFocus !== focus;
-  useEffect(() => {
-    if (!focus || !focusPending || isLoading || !focusTarget) return;
-    const inTargetTab = sortVisits(visits, focusTarget.tab);
-    const index = Math.max(0, inTargetTab.findIndex((visit) => visit.id === focusTarget.id));
-    const size = focusTarget.tab === "upcoming" ? UPCOMING_PAGE_SIZE : TABLE_PAGE_SIZE;
-    setHandledFocus(focus);
-    setTab(focusTarget.tab);
-    setSearch("");
-    setStatus("ALL");
-    if (hasRange) onDateRangeChange({ start: "", end: "" });
-    setPage(Math.floor(index / size) + 1);
-    setMarkedId(focusTarget.id);
-  }, [focus, focusPending, focusTarget, isLoading, visits, hasRange, onDateRangeChange]);
-
-  useEffect(() => {
-    if (!markedId) return;
-    const frame = window.requestAnimationFrame(() => {
-      document.getElementById(visitElementId(markedId))?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-    const timer = window.setTimeout(() => setMarkedId(null), FOCUS_MARK_MS);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
-    };
-  }, [markedId, handledFocus]);
-  const focusMissing = focusPending && !isLoading && !isRefreshing && !focusTarget;
 
   if (isLoading) return <LoadingState />;
 
@@ -208,10 +190,8 @@ export function AppointmentManagerView({
 
   const inTab = tab === "upcoming" ? upcoming : tab === "past" ? past : cancelled;
   const shown = filterByStatus(inTab, status);
-  const paged = paginateRows(shown, page, tab === "upcoming" ? UPCOMING_PAGE_SIZE : TABLE_PAGE_SIZE);
-  const pager = (
-    <Pager paging={{ ...paged, setPage }} showRange={false} hideWhenSinglePage className="border-t-0 px-0 pb-0" />
-  );
+  const paged = pageOf(shown, page, tab === "upcoming" ? UPCOMING_PAGE_SIZE : TABLE_PAGE_SIZE);
+  const pager = <Pager page={paged.page} pageCount={paged.pageCount} onChange={setPage} />;
   const hasUpcomingVideo = upcoming.some((visit) => visit.kind === "video");
   const noVisitsAtAll = visits.length === 0;
 
@@ -346,16 +326,12 @@ export function AppointmentManagerView({
         </Note>
       ) : null}
 
-      {focusMissing ? (
-        <Note tone="blue">The visit you opened is not in this list. It may belong to another clinic.</Note>
-      ) : null}
-
       {shown.length === 0 ? (
         <Surface>{emptyState}</Surface>
       ) : tab === "upcoming" ? (
         <>
           <div className="grid items-start gap-5 @3xl:grid-cols-2">
-            {paged.pageRows.map((visit) => (
+            {paged.rows.map((visit) => (
               <ManagerVisitCard
                 key={visit.id}
                 visit={visit}
@@ -365,22 +341,15 @@ export function AppointmentManagerView({
                 checkInHref={checkInHref}
                 cancelling={cancelling}
                 rescheduling={rescheduling}
-                marked={visit.id === markedId}
               />
             ))}
           </div>
           {pager}
         </>
       ) : tab === "past" ? (
-        <ManagerPastTable visits={paged.pageRows} footer={pager} markedId={markedId} />
+        <ManagerPastTable visits={paged.rows} footer={pager} onRate={actions.onRate} />
       ) : (
-        <ManagerClosedTable
-          visits={paged.pageRows}
-          actions={actions}
-          renderPay={renderPay}
-          footer={pager}
-          markedId={markedId}
-        />
+        <ManagerClosedTable visits={paged.rows} actions={actions} renderPay={renderPay} footer={pager} />
       )}
 
       {tab === "upcoming" && hasUpcomingVideo && !staffView ? (
@@ -400,7 +369,7 @@ export function AppointmentManagerView({
               </Button>
             ) : null}
           </div>
-          <ManagerPastTable visits={past.slice(0, PAST_PREVIEW_SIZE)} />
+          <ManagerPastTable visits={past.slice(0, PAST_PREVIEW_SIZE)} onRate={actions.onRate} />
         </section>
       ) : null}
     </div>

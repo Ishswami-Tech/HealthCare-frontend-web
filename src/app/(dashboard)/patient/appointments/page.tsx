@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
-import type { ManagerVisitFocus } from "@/components/appointments/manager/types";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { DashboardPageShell as PatientPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PageHead } from "@/components/tbd";
@@ -28,10 +27,6 @@ function PatientAppointmentsContent() {
   const initialTab = tabParam === "past" || tabParam === "cancelled" ? tabParam : undefined;
   // `&familyMemberId=<id>`: open the booking wizard for that family member.
   const queryFamilyMemberId = getSearchParam("familyMemberId") || undefined;
-  // `?id=<appointmentId>`: show that visit (a notification, or Home's "Pay now" / "Reschedule").
-  // `&action=reschedule` also opens the reschedule dialog when the visit can still be moved.
-  const queryVisitId = getSearchParam("id") || undefined;
-  const queryVisitAction = getSearchParam("action") === "reschedule" ? "reschedule" : undefined;
   const defaultConsultationMode =
     bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
   const currentClinicId = useCurrentClinicId();
@@ -72,11 +67,6 @@ function PatientAppointmentsContent() {
     shouldOpenBooking ? queryFamilyMemberId : undefined,
   );
   const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
-  // Kept in state for the same reason. A new object each time a link arrives, so opening the
-  // same visit twice still scrolls to it.
-  const [visitFocus, setVisitFocus] = useState<ManagerVisitFocus | undefined>(
-    queryVisitId ? { visitId: queryVisitId, ...(queryVisitAction ? { action: queryVisitAction } : {}) } : undefined,
-  );
 
   useEffect(() => {
     if (shouldOpenBooking) {
@@ -84,26 +74,11 @@ function PatientAppointmentsContent() {
       setBookingFamilyMemberId(queryFamilyMemberId);
     }
 
-    if (queryVisitId) {
-      setVisitFocus({ visitId: queryVisitId, ...(queryVisitAction ? { action: queryVisitAction } : {}) });
-    }
-
     if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
       document.getElementById("appointment-manager")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-    if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking || queryVisitId) {
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
-  }, [
-    queryClinicId,
-    queryLocationId,
-    queryClinicName,
-    bookingMode,
-    shouldOpenBooking,
-    queryFamilyMemberId,
-    queryVisitId,
-    queryVisitAction,
-  ]);
+  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking, queryFamilyMemberId]);
 
   // Closing the wizard forgets the family member, so the next booking starts with "Myself".
   const handleBookingDialogOpenChange = (open: boolean) => {
@@ -161,7 +136,6 @@ function PatientAppointmentsContent() {
           }}
           onBookAppointment={() => setIsBookingDialogOpen(true)}
           initialTab={initialTab}
-          focus={visitFocus}
           {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
           {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
         />

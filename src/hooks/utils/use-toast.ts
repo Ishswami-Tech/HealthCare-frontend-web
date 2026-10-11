@@ -167,6 +167,11 @@ export const TOAST_IDS = {
   },
   PHARMACY: {
     ORDER_CREATE: 'pharmacy-order-create',
+    ORDER_SEND: 'pharmacy-order-send',
+    ORDER_RECEIVE: 'pharmacy-order-receive',
+    SUPPLIER_SAVE: 'pharmacy-supplier-save',
+    BATCH_RECEIVE: 'pharmacy-batch-receive',
+    BATCH_ADJUST: 'pharmacy-batch-adjust',
     PRESCRIPTION_UPDATE: 'pharmacy-prescription-update',
     INVENTORY_UPDATE: 'pharmacy-inventory-update',
   },

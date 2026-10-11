@@ -9,50 +9,20 @@ import {
   createPatient,
   updatePatient,
   deletePatient,
-  getPatientAppointments,
   addPatientMedicalHistory,
   addPatientVitalSigns,
   addPatientLabResult,
   searchPatients,
+  exportPatientData,
+  updatePatientCarePlan
 } from '@/lib/actions/patients.server';
 import { createUser } from '@/lib/actions/users.server';
 import { usePatientStore } from '@/stores';
 
 // ===== PATIENTS QUERY HOOKS =====
-//
-// Ids: `/patients/:id` and every `/ehr/<section>/:userId` route are keyed on the patient's USER id
-// (User.id). Appointments, visits and prescriptions carry the Patient-record id (Patient.id).
-// A patient list row has both: `id` (Patient.id) and `userId` / `user.id` (User.id).
-
-/** Result of a read the backend has no route for: nothing to show, and no request is sent. */
-function notAvailable(feature: string) {
-  return {
-    available: false as const,
-    items: [] as unknown[],
-    message: `${feature} is not available yet: the server has no service for it.`,
-  };
-}
 
 /**
- * GET /patients/:userId answers with the User row and nests the Patient record under `patient`.
- * Re-shape it to the form the patient lists return (`id` = Patient.id, `userId`, `user`), so a screen
- * reads one patient the same way wherever it came from. Null when the user has no patient record.
- */
-function toPatientWithUser(payload: unknown): Record<string, unknown> | null {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-  const user: Record<string, unknown> = { ...(payload as Record<string, unknown>) };
-  const patient = user.patient;
-  if (!patient || typeof patient !== 'object' || Array.isArray(patient)) return null;
-  delete user.patient;
-  return { ...(patient as Record<string, unknown>), userId: user.id, user };
-}
-
-/**
- * Hook to get all patients for a clinic.
- * Backend: GET /clinics/:clinicId/patients — SUPER_ADMIN, CLINIC_ADMIN, RECEPTIONIST, DOCTOR,
- * ASSISTANT_DOCTOR, NURSE. The server reads `search`, `page` and `limit` only, so `offset` is sent
- * as the matching `page`. With `limit` or `search` it answers `{ patients, total, page, totalPages }`,
- * otherwise a plain list.
+ * Hook to get all patients for a clinic
  */
 export const usePatients = (clinicId: string, filters?: {
   search?: string;
@@ -78,9 +48,7 @@ export const usePatients = (clinicId: string, filters?: {
       ...(filters?.doctorId ? { doctorId: filters.doctorId } : {}),
       ...(typeof filters?.isActive === 'boolean' ? { isActive: filters.isActive } : {}),
       ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
-      ...(typeof filters?.limit === 'number' && filters.limit > 0 && typeof filters?.offset === 'number'
-        ? { page: Math.floor(filters.offset / filters.limit) + 1 }
-        : {}),
+      ...(typeof filters?.offset === 'number' ? { offset: filters.offset } : {}),
     };
     return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId), params)).data;
   }, {
@@ -105,56 +73,43 @@ export const usePatients = (clinicId: string, filters?: {
 };
 
 /**
- * Hook to get one patient.
- * Backend: GET /patients/:id — `:id` is the patient's USER id (User.id). A Patient-record id is
- * answered with 403 "Patient does not belong to your clinic", and the backend has no route that
- * finds one patient by Patient-record id.
- * Roles: DOCTOR, ASSISTANT_DOCTOR, RECEPTIONIST, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
- * Returns the patient in the list shape (`id` = Patient.id, `userId`, `user`), or null.
- *
- * @param patientUserId the patient's USER id; pass '' (or `enabled: false`) until it is known.
+ * Hook to get patient by ID
  */
-export const usePatient = (clinicId: string, patientUserId: string, options?: {
-  enabled?: boolean;
-}) => {
+export const usePatient = (clinicId: string, patientId: string) => {
   const { isConnected } = useWebSocketStatus();
-  return useQueryData(['patient', clinicId, patientUserId], async () => {
-    const response = await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_BY_ID(clinicId, patientUserId));
-    return toPatientWithUser(response.data);
+  return useQueryData(['patient', clinicId, patientId], async () => {
+    return (await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_BY_ID(clinicId, patientId))).data;
   }, {
-    enabled: !!clinicId && !!patientUserId && (options?.enabled ?? true),
+    enabled: !!clinicId && !!patientId,
     refetchInterval: isConnected ? false : 120_000,
   });
 };
 
 /**
- * Hook to get one patient's appointments (a list of appointment rows, newest first).
- * Backend: GET /appointments. It has no patient filter that works, so the rows the caller may see
- * (a doctor: their own appointments) are read and narrowed to this patient — see
- * `getPatientAppointments`. There is no /patients/:id/appointments route.
- *
- * @param patientId Patient-record id (Appointment.patientId); the patient's user id matches too.
+ * Hook to get patient appointments
  */
 export const usePatientAppointments = (patientId: string, filters?: {
   status?: string;
-  startDate?: string;
-  endDate?: string;
-  doctorId?: string;
+  page?: number;
   limit?: number;
 }) => {
   const { isConnected } = useWebSocketStatus();
   return useQueryData(['patientAppointments', patientId, filters], async () => {
-    return await getPatientAppointments(patientId, filters);
+    const params = {
+      ...(filters?.status ? { status: filters.status } : {}),
+      ...(typeof filters?.page === 'number' ? { page: filters.page } : {}),
+      ...(typeof filters?.limit === 'number' ? { limit: filters.limit } : {}),
+    };
+    // Clinical staff only: GET /ehr/clinic/patients/:patientId/appointments -> { data, meta }.
+    return (await clinicApiClient.get(API_ENDPOINTS.EHR_CLINIC.PATIENT_APPOINTMENTS(patientId), params)).data;
   }, {
     enabled: !!patientId,
-    // One lookup can read several pages of the appointment list, so it is polled sparingly.
-    refetchInterval: isConnected ? false : 120_000,
+    refetchInterval: isConnected ? false : 30_000,
   });
 };
 
 /**
- * Hook to get patient medical history.
- * Backend: GET /ehr/medical-history/:userId — `patientId` must be the patient's USER id.
+ * Hook to get patient medical history
  */
 export const usePatientMedicalHistory = (patientId: string, filters?: {
   type?: string;
@@ -178,9 +133,7 @@ export const usePatientMedicalHistory = (patientId: string, filters?: {
 };
 
 /**
- * Hook to get patient medical records (alias for medical history).
- * Backend: GET /ehr/medical-history/:userId — `patientId` must be the patient's USER id
- * (a Patient-record id returns an empty list).
+ * Hook to get patient medical records (alias for medical history)
  */
 export const usePatientMedicalRecords = (clinicId: string, patientId: string, options?: {
   enabled?: boolean;
@@ -195,8 +148,7 @@ export const usePatientMedicalRecords = (clinicId: string, patientId: string, op
 };
 
 /**
- * Hook to get patient vital signs.
- * Backend: GET /ehr/vitals/:userId — `patientId` must be the patient's USER id.
+ * Hook to get patient vital signs
  */
 export const usePatientVitalSigns = (patientId: string, filters?: {
   startDate?: string;
@@ -218,8 +170,7 @@ export const usePatientVitalSigns = (patientId: string, filters?: {
 };
 
 /**
- * Hook to get patient lab results.
- * Backend: GET /ehr/lab-reports/:userId — `patientId` must be the patient's USER id.
+ * Hook to get patient lab results
  */
 export const usePatientLabResults = (patientId: string, filters?: {
   testType?: string;
@@ -243,43 +194,16 @@ export const usePatientLabResults = (patientId: string, filters?: {
 };
 
 /**
- * Hook to get patient statistics.
- * The backend has no route for it: the result is `{ available: false, items: [], message }`
- * and no request is sent.
- */
-export const usePatientStats = (patientId: string) => {
-  return useQueryData(['patientStats', patientId], async () => notAvailable('Patient statistics'), {
-    enabled: !!patientId,
-    staleTime: Infinity,
-  });
-};
-
-/**
- * Hook to get patient timeline.
- * The backend has no route for it: the result is `{ available: false, items: [], message }`
- * and no request is sent.
- */
-export const usePatientTimeline = (patientId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-  eventTypes?: string[];
-  limit?: number;
-}) => {
-  return useQueryData(['patientTimeline', patientId, filters], async () => notAvailable('The patient timeline'), {
-    enabled: !!patientId,
-    staleTime: Infinity,
-  });
-};
-
-/**
- * Hook to get patient care plan.
- * The backend has no care plan (see `getPatientCarePlan` in patients.server.ts): the result is
- * `{ available: false, items: [], message }` and no request is sent.
+ * Hook to get a patient's care plan (GET /ehr/clinic/patients/:patientId/care-plan).
+ * Answers one plan object: { exists, title, status, summary, goals: [{ text, done }], ... }.
  */
 export const usePatientCarePlan = (patientId: string) => {
-  return useQueryData(['patientCarePlan', patientId], async () => notAvailable('The care plan'), {
+  const { isConnected } = useWebSocketStatus();
+  return useQueryData(['patientCarePlan', patientId], async () => {
+    return (await clinicApiClient.get(API_ENDPOINTS.EHR_CLINIC.PATIENT_CARE_PLAN(patientId))).data;
+  }, {
     enabled: !!patientId,
-    staleTime: Infinity,
+    refetchInterval: isConnected ? false : 120_000,
   });
 };
 
@@ -318,6 +242,7 @@ export const useCreatePatient = () => {
       successMessage: 'Patient created successfully',
       invalidateQueries: [
         ['patients'],
+        ['patientDirectory'],
         ['users'],
         ['patientStats'],
         ['patientTimeline'],
@@ -428,6 +353,7 @@ export const useQuickRegisterPatient = () => {
       successMessage: 'Patient registered successfully',
       invalidateQueries: [
         ['patients'],
+        ['patientDirectory'],
         ['doctorPatients'],
         ['users'],
         ['patientStats'],
@@ -439,8 +365,7 @@ export const useQuickRegisterPatient = () => {
 };
 
 /**
- * Hook to update patient.
- * Backend: PUT /patients/:id — `patientId` is the patient's USER id.
+ * Hook to update patient
  */
 export const useUpdatePatient = () => {
   return useMutationOperation(
@@ -480,6 +405,7 @@ export const useUpdatePatient = () => {
       successMessage: 'Patient updated successfully',
       invalidateQueries: [
         ['patients'],
+        ['patientDirectory'],
         ['users'],
         ['patientStats'],
         ['patientTimeline'],
@@ -490,8 +416,7 @@ export const useUpdatePatient = () => {
 };
 
 /**
- * Hook to deactivate a patient.
- * Backend: DELETE /patients/:id — `patientId` is the patient's USER id; CLINIC_ADMIN, SUPER_ADMIN only.
+ * Hook to delete patient
  */
 export const useDeletePatient = () => {
   return useMutationOperation(
@@ -504,6 +429,7 @@ export const useDeletePatient = () => {
       successMessage: 'Patient deleted successfully',
       invalidateQueries: [
         ['patients'],
+        ['patientDirectory'],
         ['users'],
         ['patientStats'],
         ['patientTimeline'],
@@ -514,7 +440,7 @@ export const useDeletePatient = () => {
 };
 
 /**
- * Hook to add patient medical history (POST /ehr/medical-history; `patientId` = patient's USER id).
+ * Hook to add patient medical history
  */
 export const useAddPatientMedicalHistory = () => {
   return useMutationOperation(
@@ -542,7 +468,7 @@ export const useAddPatientMedicalHistory = () => {
 };
 
 /**
- * Hook to add patient vital signs (POST /ehr/vitals, one row per reading; `patientId` = patient's USER id).
+ * Hook to add patient vital signs
  */
 export const useAddPatientVitalSigns = () => {
   return useMutationOperation(
@@ -575,7 +501,7 @@ export const useAddPatientVitalSigns = () => {
 };
 
 /**
- * Hook to add patient lab result (POST /ehr/lab-reports; `patientId` = patient's USER id).
+ * Hook to add patient lab result
  */
 export const useAddPatientLabResult = () => {
   return useMutationOperation(
@@ -607,9 +533,7 @@ export const useAddPatientLabResult = () => {
 };
 
 /**
- * Hook to search the clinic's patients by name, email or phone.
- * Backend: GET /patients?search= — CLINIC_ADMIN, SUPER_ADMIN, DOCTOR, ASSISTANT_DOCTOR, NURSE,
- * RECEPTIONIST. Answers `{ patients, total, page, totalPages }`.
+ * Hook to search patients
  */
 export const useSearchPatients = () => {
   return useMutationOperation(
@@ -635,12 +559,11 @@ export const useSearchPatients = () => {
 };
 
 /**
- * Hook to export patient data.
- * The backend has no patient export route, so this fails with a readable message and sends nothing.
+ * Hook to export patient data
  */
 export const useExportPatientData = () => {
   return useMutationOperation(
-    async (_filters: {
+    async (filters: {
     format: 'csv' | 'excel' | 'pdf';
     patientIds?: string[];
     includeHistory?: boolean;
@@ -648,48 +571,42 @@ export const useExportPatientData = () => {
     includeLabs?: boolean;
     startDate?: string;
     endDate?: string;
-  }): Promise<never> => {
-      throw new Error('Patient data export is not available yet: the server has no export service.');
+  }) => {
+      return await exportPatientData(filters);
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
       loadingMessage: 'Exporting patient data...',
       successMessage: 'Patient data exported successfully',
-      showLoading: false,
     }
   );
 };
 
 /**
- * Hook to update patient care plan.
- * The backend has no care plan route, so this fails with a readable message and sends nothing.
+ * Hook to update patient care plan
  */
 export const useUpdatePatientCarePlan = () => {
   return useMutationOperation(
-    async (_variables: {
+    async ({ patientId, carePlanData }: {
     patientId: string;
     carePlanData: {
-      goals?: string[];
-      interventions?: string[];
-      medications?: {
-        name: string;
-        dosage: string;
-        frequency: string;
-        startDate: string;
-        endDate?: string;
-      }[];
-      followUpInstructions?: string;
-      nextAppointment?: string;
-      doctorId: string;
+      title?: string;
+      status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+      summary?: string;
+      goals?: { text: string; done?: boolean }[];
+      interventions?: { text: string; done?: boolean }[];
+      dietNotes?: string;
+      lifestyleNotes?: string;
+      nextReviewDate?: string;
     };
-  }): Promise<never> => {
-      throw new Error('The care plan cannot be saved yet: the server has no care plan service.');
+  }) => {
+      return await updatePatientCarePlan(patientId, carePlanData);
     },
     {
       toastId: TOAST_IDS.PATIENT.UPDATE,
       loadingMessage: 'Updating patient care plan...',
       successMessage: 'Patient care plan updated successfully',
-      showLoading: false,
+      invalidateQueries: [['patientCarePlan']],
     }
   );
 };

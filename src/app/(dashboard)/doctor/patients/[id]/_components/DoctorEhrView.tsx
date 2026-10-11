@@ -6,7 +6,7 @@ import { AlertCircle, ChevronLeft, Droplet, Loader2, Mail, Phone, Pill as PillIc
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { Chip, EmptyBlock, InitialsAvatar, Note, Surface } from "@/components/tbd";
+import { Chip, EmptyBlock, InitialsAvatar, Surface } from "@/components/tbd";
 import {
   PatientClinicalRecordView,
   type PatientClinicalRecordViewProps,
@@ -21,6 +21,8 @@ export interface DoctorEhrHeaderInfo {
   idLabel: string;
   /** The full id, as a tooltip. */
   fullId: string;
+  /** The clinic-issued health ID (UHID); empty when none has been issued. */
+  uhid: string;
   bloodGroup: string;
   phone: string;
   email: string;
@@ -46,11 +48,10 @@ export interface DoctorEhrViewProps {
   >;
   /** The health record is still loading: numbers and tables show placeholders. */
   recordLoading: boolean;
-  /** The appointment list could not be read: say so instead of showing "No appointments yet". */
-  appointmentsFailed?: boolean;
-  onRetryAppointments?: (() => void) | undefined;
   /** The case sheet of the selected OPD visit; without it the tab shows the plain history table. */
   caseSheet?: ReactNode;
+  /** The "History" tab (timeline of every appointment); without it the tab is hidden. */
+  renderAppointmentHistory?: PatientClinicalRecordViewProps["renderAppointmentHistory"];
   /** Bills tab. Left out, it follows the signed-in role (never shown to a doctor). */
   showBills?: boolean;
 }
@@ -74,7 +75,11 @@ function PatientHeader({
             <span className="text-[11px] font-extrabold uppercase tracking-[1.2px] text-brand">
               Electronic health record
             </span>
-            {header.idLabel ? (
+            {header.uhid ? (
+              <span className="font-mono text-xs font-bold text-ink-soft" title="Unique health ID (UHID)">
+                UHID {header.uhid}
+              </span>
+            ) : header.idLabel ? (
               <span className="text-xs font-semibold text-ink-muted" title={header.fullId}>
                 Patient ID: {header.idLabel}
               </span>
@@ -160,9 +165,8 @@ export function DoctorEhrView({
   onPrescribe,
   record,
   recordLoading,
-  appointmentsFailed = false,
-  onRetryAppointments,
   caseSheet,
+  renderAppointmentHistory,
   showBills,
 }: DoctorEhrViewProps) {
   return (
@@ -193,41 +197,22 @@ export function DoctorEhrView({
       ) : loading ? (
         <LoadingState />
       ) : (
-        <>
-          {appointmentsFailed ? (
-            <div role="alert">
-              <Note tone="rose" icon={AlertCircle}>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <span>
-                    The appointments of this patient could not be loaded, so the appointment list and counts
-                    below are empty.
-                  </span>
-                  {onRetryAppointments ? (
-                    <Button variant="outline" size="sm" onClick={onRetryAppointments}>
-                      <RefreshCw />
-                      Try again
-                    </Button>
-                  ) : null}
-                </div>
-              </Note>
-            </div>
-          ) : null}
-          <PatientClinicalRecordView
-            {...record}
-            loading={recordLoading}
-            caseSheet={caseSheet}
-            {...(showBills === undefined ? {} : { showBills })}
-            header={
-              <PatientHeader
-                header={header}
-                visitSelector={visitSelector}
-                onNewVisit={onNewVisit}
-                newVisitPending={newVisitPending}
-                onPrescribe={onPrescribe}
-              />
-            }
-          />
-        </>
+        <PatientClinicalRecordView
+          {...record}
+          loading={recordLoading}
+          caseSheet={caseSheet}
+          {...(renderAppointmentHistory ? { renderAppointmentHistory } : {})}
+          {...(showBills === undefined ? {} : { showBills })}
+          header={
+            <PatientHeader
+              header={header}
+              visitSelector={visitSelector}
+              onNewVisit={onNewVisit}
+              newVisitPending={newVisitPending}
+              onPrescribe={onPrescribe}
+            />
+          }
+        />
       )}
     </DashboardPageShell>
   );

@@ -20,8 +20,8 @@ Sentry.init({
   integrations: [Sentry.replayIntegration()],
 
   // ── Replay Sampling ────────────────────────────────────────────────────────
-  // 10% of normal sessions get replayed (adjust based on Sentry quota)
-  replaysSessionSampleRate: 0.1,
+  // 1% of normal sessions get replayed (adjust based on Sentry quota)
+  replaysSessionSampleRate: 0.01,
   // 100% of sessions that throw an error get replayed
   replaysOnErrorSampleRate: 1.0,
 

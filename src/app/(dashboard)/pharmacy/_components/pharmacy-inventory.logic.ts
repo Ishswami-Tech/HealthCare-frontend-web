@@ -1,69 +1,79 @@
-import { formatDateKeyInIST, formatDateLabel, formatMonthYearLabel } from "@/lib/utils/date-time";
-import { statusTone, type PillTone } from "@/components/tbd";
+import { formatDateInIST, formatDateKeyInIST, formatTimeInIST } from "@/lib/utils/date-time";
+import type { PillTone } from "@/components/tbd";
 import {
   buildInventorySummary,
+  formatRupees,
+  unwrapList,
   type InventorySummary,
 } from "../../pharmacist/dashboard/_components/pharmacist-dashboard.logic";
-import { asList, asRecordOrEmpty, isoDateOrNull, numberOrNull, textOf, unwrapList } from "@/lib/utils/coerce";
-import { sentenceCase } from "@/lib/utils/labels";
 
 /**
  * Pure helpers for the pharmacy inventory screen (`/pharmacy`): they turn the raw payloads of
- * `useMedicines`, `useSuppliers`, `usePharmacyOrders`, `usePharmacySales` and `usePrescriptions`
+ * `useMedicines`, `useSuppliers`, `usePharmacyOrders`, `usePharmacyStats` and `usePrescriptions`
  * into the view models the tabs and dialogs render. No React, no fetching.
  *
  * Low stock uses the dashboard rule (`buildInventorySummary`): stock at or below the reorder
  * level (`minStockThreshold` / `minStockLevel`), or no stock at all.
  */
 
+export { formatRupees };
 
 // ── What the backend can do today ──────────────────────────────────────────
 
 /**
- * `PATCH /pharmacy/inventory/:id` accepts only `quantityChange` and `price`, and there is no
- * DELETE route, so a medicine cannot be removed yet. Set to `true` when the backend supports it:
+ * `PATCH /pharmacy/inventory/:id` accepts only `quantityChange` and `price` (the web sends the
+ * price only: stock moves through batches), and there is no DELETE route the web can rely on,
+ * so a medicine cannot be removed yet. Set to `true` when the backend supports it:
  * the Remove button (danger, with a confirm dialog, wired to `useDeleteMedicine`) appears.
  */
 export const CAN_REMOVE_MEDICINE = false;
 
-/**
- * A new medicine cannot be saved today. `POST /pharmacy/inventory` only accepts the types
- * below (`CreateMedicineDto`: TABLET … OTHER), but the database column is a different list
- * (`MedicineType`: CLASSICAL, PROPRIETARY, HERBAL), so the server refuses every value: the
- * first list fails in the database, the second fails the request check. While this is
- * `false` the Add dialog says so and does not send the request. Set to `true` once the
- * backend stores the type it accepts (and keep `DOSAGE_FORMS` equal to that list).
- */
-export const CAN_ADD_MEDICINE: boolean = false;
-
-/**
- * A purchase order cannot be placed from the pharmacy portal today. `POST
- * /pharmacy/inventory/purchase-orders` names the PHARMACIST role, but then requires the
- * `pharmacy_purchase_order:create` permission, which the backend grants to no role
- * (`rbac.service.ts`), so the server answers 403. While this is `false` the New order dialog
- * says so and does not send the request. Set to `true` once the backend grants the permission.
- */
-export const CAN_PLACE_ORDER: boolean = false;
-
-/** Values `POST /pharmacy/inventory` accepts for the medicine type. */
-export const DOSAGE_FORMS = [
-  { value: "TABLET", label: "Tablet" },
-  { value: "CAPSULE", label: "Capsule" },
-  { value: "SYRUP", label: "Syrup" },
-  { value: "INJECTION", label: "Injection" },
-  { value: "CREAM", label: "Cream" },
-  { value: "DROPS", label: "Drops" },
-  { value: "OTHER", label: "Other" },
-] as const;
-
-export type DosageFormValue = (typeof DOSAGE_FORMS)[number]["value"];
+export { DOSAGE_FORMS, type DosageFormValue } from "@/lib/constants/medicine-types";
 
 // ── Small readers ──────────────────────────────────────────────────────────
 
 type Raw = Record<string, unknown>;
 
+function asRecord(value: unknown): Raw {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
+}
+
+function asList(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
+}
+
+function amount(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isoDate(value: unknown): string | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  const raw = text(value);
+  if (!raw) return null;
+  return Number.isNaN(new Date(raw).getTime()) ? null : raw;
+}
+
 function joinList(value: unknown): string {
-  return Array.isArray(value) ? value.map(textOf).filter(Boolean).join(", ") : textOf(value);
+  return Array.isArray(value) ? value.map(text).filter(Boolean).join(", ") : text(value);
+}
+
+/** "PROPRIETARY" -> "Proprietary", "cough_and_cold" -> "Cough and cold". */
+export function titleCase(value: string): string {
+  const clean = value.replace(/[_-]+/g, " ").trim();
+  if (!clean) return "";
+  // Leave values that are already written for people ("Cough & cold") as they are.
+  if (clean !== clean.toUpperCase()) return clean;
+  return clean
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -120,9 +130,31 @@ export const STATUS_LABEL: Record<StockStatus, string> = {
   out_of_stock: "Out of stock",
 };
 
+export const STATUS_TONE: Record<StockStatus, PillTone> = {
+  in_stock: "green",
+  low_stock: "amber",
+  out_of_stock: "rose",
+};
+
 function daysUntil(expiryDate: string | null, now: Date): number | null {
   if (!expiryDate) return null;
   return Math.ceil((new Date(expiryDate).getTime() - now.getTime()) / DAY_MS);
+}
+
+/** "Aug 2027" */
+export function expiryMonthLabel(expiryDate: string | null): string {
+  return expiryDate ? formatDateInIST(expiryDate, { month: "short", year: "numeric" }) : "";
+}
+
+/** "31 Jan 2027" */
+export function dayLabel(value: string | null): string {
+  return value ? formatDateInIST(value, { day: "numeric", month: "short", year: "numeric" }) : "";
+}
+
+/** "3 Oct 2026, 12:40 pm" */
+export function dateTimeLabel(value: string | null): string {
+  if (!value) return "";
+  return [dayLabel(value), formatTimeInIST(value).toLowerCase()].filter(Boolean).join(", ");
 }
 
 /** Builds the list, the alert lists and the filter options from the `useMedicines` payload. */
@@ -135,53 +167,53 @@ export function buildInventoryOverview(
   const alertById = new Map(summary.alerts.map((alert, index) => [alert.id, { alert, rank: index }]));
 
   const rows = unwrapList(inventoryData, "inventory").map((entry, index): MedicineRow => {
-    const medicine = asRecordOrEmpty(entry);
-    const name = textOf(medicine.name) || textOf(medicine.medicineName) || "Medicine";
+    const medicine = asRecord(entry);
+    const name = text(medicine.name) || text(medicine.medicineName) || "Medicine";
     // Same id fallback as the dashboard, so its alerts can be matched to these rows.
-    const id = textOf(medicine.id) || `${name}-${index}`;
+    const id = text(medicine.id) || `${name}-${index}`;
     const alert = alertById.get(id)?.alert;
 
     const stock = Math.max(
       0,
-      numberOrNull(medicine.currentStock ?? medicine.stockQuantity ?? medicine.stock ?? medicine.quantity) ?? 0,
+      amount(medicine.currentStock ?? medicine.stockQuantity ?? medicine.stock ?? medicine.quantity) ?? 0,
     );
     const minStock =
-      numberOrNull(medicine.minStock ?? medicine.minThreshold ?? medicine.minStockThreshold ?? medicine.minStockLevel) ?? 0;
-    const maxStock = numberOrNull(medicine.maxStockLevel ?? medicine.maxStock) ?? 0;
-    const price = numberOrNull(medicine.unitPrice ?? medicine.price) ?? 0;
-    const expiryDate = isoDateOrNull(medicine.expiryDate);
-    const daysToExpiry = daysUntil(expiryDate, now) ?? numberOrNull(medicine.daysToExpiry);
+      amount(medicine.minStock ?? medicine.minThreshold ?? medicine.minStockThreshold ?? medicine.minStockLevel) ?? 0;
+    const maxStock = amount(medicine.maxStockLevel ?? medicine.maxStock) ?? 0;
+    const price = amount(medicine.unitPrice ?? medicine.price) ?? 0;
+    const expiryDate = isoDate(medicine.expiryDate);
+    const daysToExpiry = daysUntil(expiryDate, now) ?? amount(medicine.daysToExpiry);
 
-    const typeCode = textOf(medicine.type);
-    const typeLabel = sentenceCase(typeCode);
-    const rawCategory = textOf(medicine.category);
-    const category = rawCategory && rawCategory.toUpperCase() !== typeCode.toUpperCase() ? sentenceCase(rawCategory) : "";
-    const supplierId = textOf(medicine.supplierId);
-    const supplierName = textOf(asRecordOrEmpty(medicine.supplier).name) || supplierNames.get(supplierId) || "";
-    const unit = textOf(medicine.unit) || "units";
-    const batchNumber = textOf(medicine.batchNumber);
-    const packSize = numberOrNull(medicine.packSize);
-    const dosage = textOf(medicine.dosage);
+    const typeCode = text(medicine.type);
+    const typeLabel = titleCase(typeCode);
+    const rawCategory = text(medicine.category);
+    const category = rawCategory && rawCategory.toUpperCase() !== typeCode.toUpperCase() ? titleCase(rawCategory) : "";
+    const supplierId = text(medicine.supplierId);
+    const supplierName = text(asRecord(medicine.supplier).name) || supplierNames.get(supplierId) || "";
+    const unit = text(medicine.unit) || "units";
+    const batchNumber = text(medicine.batchNumber);
+    const packSize = amount(medicine.packSize);
+    const dosage = text(medicine.dosage);
 
     const facts = [
-      { label: "Generic name", value: textOf(medicine.genericName) },
+      { label: "Generic name", value: text(medicine.genericName) },
       { label: "Category", value: category },
       { label: "Type", value: typeLabel },
-      { label: "Strength", value: textOf(medicine.strength) },
+      { label: "Strength", value: text(medicine.strength) },
       { label: "Pack size", value: packSize !== null && packSize > 1 ? `${packSize} ${unit}` : "" },
       { label: "Batch number", value: batchNumber },
-      { label: "Expiry date", value: formatDateLabel(expiryDate) },
+      { label: "Expiry date", value: dayLabel(expiryDate) },
       { label: "Minimum stock level", value: minStock > 0 ? `${minStock} ${unit}` : "" },
-      { label: "Last restocked", value: formatDateLabel(isoDateOrNull(medicine.lastRestocked)) },
-      { label: "Manufacturer", value: textOf(medicine.manufacturer) },
+      { label: "Last restocked", value: dayLabel(isoDate(medicine.lastRestocked)) },
+      { label: "Manufacturer", value: text(medicine.manufacturer) },
       { label: "Supplier", value: supplierName },
-      { label: "Ingredients", value: textOf(medicine.ingredients) },
+      { label: "Ingredients", value: text(medicine.ingredients) },
     ].filter((fact) => fact.value);
 
     const notes = [
-      { label: "Description", value: textOf(medicine.description) || textOf(medicine.properties) },
+      { label: "Description", value: text(medicine.description) || text(medicine.properties) },
       { label: "Dosage", value: dosage },
-      { label: "Storage conditions", value: textOf(medicine.storageConditions) },
+      { label: "Storage conditions", value: text(medicine.storageConditions) },
       { label: "Side effects", value: joinList(medicine.sideEffects) },
       { label: "Contraindications", value: joinList(medicine.contraindications) },
     ].filter((note) => note.value);
@@ -189,7 +221,7 @@ export function buildInventoryOverview(
     return {
       id,
       name,
-      manufacturer: textOf(medicine.manufacturer),
+      manufacturer: text(medicine.manufacturer),
       typeCode,
       typeLabel,
       category,
@@ -257,7 +289,7 @@ export function expiringLine(row: MedicineRow): string {
 /** Pill for the expiry column of the "Expiring soon" list. */
 export function expiryPill(row: MedicineRow): { label: string; tone: PillTone } {
   if (row.daysToExpiry !== null && row.daysToExpiry < 0) return { label: "Expired", tone: "rose" };
-  const label = `Expires ${formatMonthYearLabel(row.expiryDate)}`.trim();
+  const label = `Expires ${expiryMonthLabel(row.expiryDate)}`.trim();
   return { label, tone: row.daysToExpiry !== null && row.daysToExpiry <= 30 ? "rose" : "amber" };
 }
 
@@ -318,8 +350,21 @@ export function filterMedicines(rows: MedicineRow[], filters: InventoryFilters):
   });
 }
 
-/** Medicines per page of the stock table. */
 export const PAGE_SIZE = 10;
+
+export function paginate<T>(items: T[], page: number, pageSize: number = PAGE_SIZE) {
+  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+  const current = Math.min(Math.max(1, page), pageCount);
+  const start = (current - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    page: current,
+    pageCount,
+    from: items.length === 0 ? 0 : start + 1,
+    to: Math.min(items.length, start + pageSize),
+    total: items.length,
+  };
+}
 
 /** Finds the medicine a deep link (`?item=`) points at: by id, else by name. */
 export function findMedicine(rows: MedicineRow[], key: string | null | undefined): MedicineRow | null {
@@ -347,16 +392,16 @@ export interface SupplierCard {
 
 export function buildSuppliers(suppliersData: unknown, rows: MedicineRow[]): SupplierCard[] {
   return unwrapList(suppliersData, "suppliers").reduce<SupplierCard[]>((cards, entry) => {
-    const supplier = asRecordOrEmpty(entry);
-    const id = textOf(supplier.id);
+    const supplier = asRecord(entry);
+    const id = text(supplier.id);
     if (!id) return cards;
     cards.push({
       id,
-      name: textOf(supplier.name) || "Supplier",
-      contactPerson: textOf(supplier.contactPerson),
-      phone: textOf(supplier.phone),
-      email: textOf(supplier.email),
-      address: textOf(supplier.address),
+      name: text(supplier.name) || "Supplier",
+      contactPerson: text(supplier.contactPerson),
+      phone: text(supplier.phone),
+      email: text(supplier.email),
+      address: text(supplier.address),
       medicines: rows.filter((row) => row.supplierId === id).map((row) => ({ id: row.id, name: row.name })),
     });
     return cards;
@@ -366,47 +411,65 @@ export function buildSuppliers(suppliersData: unknown, rows: MedicineRow[]): Sup
 export function supplierNameMap(suppliersData: unknown): Map<string, string> {
   return new Map(
     unwrapList(suppliersData, "suppliers")
-      .map(asRecordOrEmpty)
-      .filter((supplier) => textOf(supplier.id))
-      .map((supplier) => [textOf(supplier.id), textOf(supplier.name)]),
+      .map(asRecord)
+      .filter((supplier) => text(supplier.id))
+      .map((supplier) => [text(supplier.id), text(supplier.name)]),
   );
 }
 
 // ── Orders (purchase orders to suppliers) ──────────────────────────────────
 
 export interface OrderLine {
+  /** Purchase order line id (what the receive route calls `itemId`). */
   id: string;
+  productId: string;
   name: string;
   quantity: number;
-  received: number | null;
+  /** Units received so far. */
+  received: number;
+  /** Units still to arrive. */
+  outstanding: number;
   unitPrice: number | null;
 }
 
 export interface OrderRow {
   id: string;
-  /** "PO-1A2B3C4D" — shown to people; there is no order number in the API. */
+  /** The purchase order number from the API ("PO-…"). */
   reference: string;
   status: string;
+  supplierId: string;
   supplierName: string;
   lines: OrderLine[];
   orderedAt: string | null;
+  sentAt: string | null;
   expectedAt: string | null;
   /** Null when no line carries a price. */
   total: number | null;
   notes: string;
+  /** A draft: it has not gone to the supplier yet. */
+  canSend: boolean;
+  /** Sent or partly received: goods can be booked in. */
+  canReceive: boolean;
 }
 
-/** Pill colour of a purchase order status. */
+const ORDER_TONES: Record<string, PillTone> = {
+  DRAFT: "slate",
+  SENT: "blue",
+  PARTIALLY_RECEIVED: "amber",
+  RECEIVED: "green",
+  CANCELLED: "rose",
+};
+
 export function orderTone(status: string): PillTone {
-  return statusTone(status);
+  return ORDER_TONES[status.toUpperCase()] ?? "slate";
 }
 
 /** Orders still on their way to the clinic. */
-const OPEN_ORDER_STATUSES = new Set(["SENT", "PROCESSING", "SHIPPED", "PARTIALLY_RECEIVED"]);
+const OPEN_ORDER_STATUSES = new Set(["SENT", "PARTIALLY_RECEIVED"]);
 
 /**
- * Maps the `usePharmacyOrders` payload. Returns null when the API has no order list
- * (today the backend can create purchase orders but has no route that lists them).
+ * Maps the `usePharmacyOrders` payload (`{ orders, total }`, the `GET .../purchase-orders` page).
+ * Returns null while the list has not been read (loading, failed or no clinic).
  */
 export function buildOrders(
   ordersData: unknown,
@@ -417,157 +480,115 @@ export function buildOrders(
   const medicineNames = new Map(rows.map((row) => [row.id, row.name]));
 
   return unwrapList(ordersData, "orders").reduce<OrderRow[]>((orders, entry) => {
-    const order = asRecordOrEmpty(entry);
-    const id = textOf(order.id);
+    const order = asRecord(entry);
+    const id = text(order.id);
     if (!id) return orders;
 
     const lines = asList(order.items).map((itemRaw, index): OrderLine => {
-      const item = asRecordOrEmpty(itemRaw);
-      const medicineId = textOf(item.productId) || textOf(item.medicineId);
+      const item = asRecord(itemRaw);
+      const medicineId = text(item.productId) || text(item.medicineId);
+      const quantity = amount(item.quantity) ?? 0;
+      const received = amount(item.receivedQuantity) ?? 0;
       return {
-        id: textOf(item.id) || `${medicineId || "line"}-${index}`,
+        id: text(item.id) || `${medicineId || "line"}-${index}`,
+        productId: medicineId,
         name:
-          textOf(item.description) ||
-          textOf(asRecordOrEmpty(item.medicine).name) ||
+          text(item.description) ||
+          text(asRecord(item.medicine).name) ||
           medicineNames.get(medicineId) ||
           "Medicine",
-        quantity: numberOrNull(item.quantity) ?? 0,
-        received: numberOrNull(item.receivedQuantity),
-        unitPrice: numberOrNull(item.unitPrice),
+        quantity,
+        received,
+        outstanding: Math.max(0, quantity - received),
+        unitPrice: amount(item.unitPrice),
       };
     });
     const priced = lines.filter((line) => line.unitPrice !== null);
     const compact = id.replace(/[^a-zA-Z0-9]/g, "");
+    const status = text(order.status).toUpperCase() || "DRAFT";
 
     orders.push({
       id,
-      reference: textOf(order.orderNumber) || `PO-${compact.slice(0, 8).toUpperCase()}`,
-      status: textOf(order.status).toUpperCase() || "DRAFT",
+      reference: text(order.poNumber) || `PO-${compact.slice(0, 8).toUpperCase()}`,
+      status,
+      supplierId: text(order.supplierId),
       supplierName:
-        textOf(asRecordOrEmpty(order.supplier).name) || supplierNames.get(textOf(order.supplierId)) || "",
+        text(asRecord(order.supplier).name) || supplierNames.get(text(order.supplierId)) || "",
       lines,
-      orderedAt: isoDateOrNull(order.createdAt) ?? isoDateOrNull(order.orderDate),
-      expectedAt: isoDateOrNull(order.expectedDeliveryDate),
+      orderedAt: isoDate(order.createdAt),
+      sentAt: isoDate(order.sentAt),
+      expectedAt: isoDate(order.expectedDeliveryDate),
       total:
-        numberOrNull(order.totalAmount) ??
+        amount(order.totalAmount) ??
         (priced.length > 0
           ? priced.reduce((sum, line) => sum + line.quantity * (line.unitPrice ?? 0), 0)
           : null),
-      notes: textOf(order.notes),
+      notes: text(order.notes),
+      canSend: status === "DRAFT",
+      canReceive: OPEN_ORDER_STATUSES.has(status),
     });
     return orders;
   }, []);
 }
 
+/** "3 of 10 received" for the order card; empty for an order nothing has arrived for. */
+export function receivedSummary(order: OrderRow): string {
+  const ordered = order.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const received = order.lines.reduce((sum, line) => sum + Math.min(line.received, line.quantity), 0);
+  return received > 0 ? `${received} of ${ordered} units received` : "";
+}
+
 // ── Analytics ──────────────────────────────────────────────────────────────
+
+/** Window of the revenue and top-seller figures (`GET /pharmacy/stats?period=`). */
+export type StatsPeriod = "day" | "week" | "month" | "year";
 
 export interface AnalyticsSummary {
   /** Prescriptions written today. */
   prescriptionsToday: number | null;
-  /** Medicine sales this month; null = the API has no sales data. */
-  revenueThisMonth: number | null;
-  /** Orders on their way; null = the API has no order list. */
+  /** Paid pharmacy invoices in the chosen period; null until `GET /pharmacy/stats` has answered. */
+  revenue: number | null;
+  /** Purchase orders sent and not fully received; null until the order list has been read. */
   pendingDeliveries: number | null;
+  /** Medicine with the most units dispensed in the period; null = none dispensed (or no answer yet). */
   topSelling: string | null;
-  /** Share of this month's sales by category, largest first; null = no data. */
-  categoryShare: { label: string; percent: number }[] | null;
-  /** Sales of the last six months, oldest first; null = no data. */
-  monthly: { key: string; label: string; amount: number; current: boolean }[] | null;
+  /** The stats answered, so a blank top seller means "no sales", not "unknown". */
+  statsReady: boolean;
 }
 
 function prescriptionDay(prescription: Raw): string {
-  const when = isoDateOrNull(prescription.prescribedAt) ?? isoDateOrNull(prescription.date) ?? isoDateOrNull(prescription.createdAt);
+  const when = isoDate(prescription.prescribedAt) ?? isoDate(prescription.date) ?? isoDate(prescription.createdAt);
   return when ? formatDateKeyInIST(when) : "";
 }
 
 /**
- * `usePharmacySales` has no backend route yet and returns null, so every sales figure is null
- * and the cards show "not available yet". The mapping below is used as soon as a list of
- * sales (`{ totalAmount, createdAt, items: [{ name, category, quantity, total }] }`) arrives.
- * `pharmacyStats` is the `usePharmacyStats` payload.
+ * The figures of the analytics cards. Revenue and top seller are the server's own
+ * (`totalRevenue`, `topSellingMedicine` of `GET /pharmacy/stats?period=`); nothing is estimated
+ * here. `pharmacyStats` is the `usePharmacyStats` payload.
  */
 export function buildAnalytics(
   prescriptionsData: unknown,
-  salesData: unknown,
   orders: OrderRow[] | null,
   pharmacyStats: unknown = null,
   now: Date = new Date(),
 ): AnalyticsSummary {
   const todayKey = formatDateKeyInIST(now);
-  const monthKey = todayKey.slice(0, 7);
 
   const prescriptions =
     prescriptionsData === null || prescriptionsData === undefined
       ? null
-      : unwrapList(prescriptionsData, "prescriptions").map(asRecordOrEmpty);
+      : unwrapList(prescriptionsData, "prescriptions").map(asRecord);
 
-  const sales = Array.isArray(salesData) || Array.isArray(asRecordOrEmpty(salesData).sales)
-    ? unwrapList(salesData, "sales").map(asRecordOrEmpty)
-    : null;
-
-  let revenueThisMonth: number | null = null;
-  let topSelling: string | null = null;
-  let categoryShare: AnalyticsSummary["categoryShare"] = null;
-  let monthly: AnalyticsSummary["monthly"] = null;
-
-  if (sales && sales.length > 0) {
-    const months = Array.from({ length: 6 }, (_, back) => {
-      const [year, month] = monthKey.split("-").map(Number);
-      const date = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1 - (5 - back), 1));
-      const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-      return {
-        key,
-        label: date.toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" }),
-        amount: 0,
-        current: key === monthKey,
-      };
-    });
-    const byMonth = new Map(months.map((month) => [month.key, month]));
-    const byCategory = new Map<string, number>();
-    const byMedicine = new Map<string, number>();
-    revenueThisMonth = 0;
-
-    for (const sale of sales) {
-      const when = isoDateOrNull(sale.saleDate) ?? isoDateOrNull(sale.createdAt) ?? isoDateOrNull(sale.date);
-      const key = when ? formatDateKeyInIST(when).slice(0, 7) : "";
-      const total = numberOrNull(sale.totalAmount ?? sale.total ?? sale.amount) ?? 0;
-      const bucket = byMonth.get(key);
-      if (bucket) bucket.amount += total;
-      if (key !== monthKey) continue;
-      revenueThisMonth += total;
-      for (const itemRaw of asList(sale.items)) {
-        const item = asRecordOrEmpty(itemRaw);
-        const name = textOf(item.medicineName) || textOf(item.name) || textOf(asRecordOrEmpty(item.medicine).name);
-        const lineTotal = numberOrNull(item.total ?? item.amount) ?? 0;
-        const category = sentenceCase(textOf(item.category) || textOf(asRecordOrEmpty(item.medicine).category));
-        if (name) byMedicine.set(name, (byMedicine.get(name) ?? 0) + (numberOrNull(item.quantity) ?? 0));
-        if (category) byCategory.set(category, (byCategory.get(category) ?? 0) + lineTotal);
-      }
-    }
-
-    monthly = months;
-    topSelling = [...byMedicine.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
-    const categoryTotal = [...byCategory.values()].reduce((sum, value) => sum + value, 0);
-    categoryShare =
-      categoryTotal > 0
-        ? [...byCategory.entries()]
-            .sort((left, right) => right[1] - left[1])
-            .map(([label, value]) => ({ label, percent: Math.round((value / categoryTotal) * 100) }))
-        : null;
-  }
-
-  // The stats endpoint is used when it carries these two figures (it does not today).
-  const stats = asRecordOrEmpty(pharmacyStats);
+  const stats = pharmacyStats && typeof pharmacyStats === "object" ? asRecord(pharmacyStats) : null;
 
   return {
     prescriptionsToday: prescriptions
       ? prescriptions.filter((prescription) => prescriptionDay(prescription) === todayKey).length
       : null,
-    revenueThisMonth: revenueThisMonth ?? numberOrNull(stats.totalRevenue),
+    revenue: stats ? amount(stats.totalRevenue) : null,
     pendingDeliveries: orders ? orders.filter((order) => OPEN_ORDER_STATUSES.has(order.status)).length : null,
-    topSelling: topSelling ?? (textOf(stats.topSellingMedicine) || null),
-    categoryShare,
-    monthly,
+    topSelling: stats ? text(stats.topSellingMedicine) || null : null,
+    statsReady: stats !== null,
   };
 }
 
@@ -576,4 +597,9 @@ export function buildAnalytics(
 /** Today's date as `yyyy-mm-dd` in IST (for `min` on date inputs and defaults). */
 export function todayKey(now: Date = new Date()): string {
   return formatDateKeyInIST(now);
+}
+
+/** Tomorrow's date as `yyyy-mm-dd` in IST: the earliest expiry date a stock batch accepts. */
+export function tomorrowKey(now: Date = new Date()): string {
+  return formatDateKeyInIST(new Date(now.getTime() + 86_400_000));
 }

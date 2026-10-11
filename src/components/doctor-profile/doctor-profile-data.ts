@@ -4,6 +4,11 @@ import type { HomeTint } from "@/components/home/home-theme";
 
 export type PreviewKind = "video" | "app" | "map" | "order";
 
+/** Where a link sits on the /drdeshmukh page. */
+export type ServiceGroup = "consult" | "clinics" | "watch" | "shop";
+
+export const SERVICE_GROUPS: readonly ServiceGroup[] = ["consult", "clinics", "shop", "watch"];
+
 export type ServiceItem = {
   id: string;
   title: string;
@@ -13,6 +18,7 @@ export type ServiceItem = {
   tint: HomeTint;
   badge: string;
   previewKind: PreviewKind;
+  group: ServiceGroup;
   /** The primary conversion link, rendered as a large highlighted card. */
   featured?: boolean;
 };
@@ -53,6 +59,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "emerald",
       badge: t("drDeshmukhPage.services.videoAppointments.badge"),
       previewKind: "app",
+      group: "consult",
       featured: true,
     },
     {
@@ -64,6 +71,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "amber",
       badge: t("drDeshmukhPage.services.soup.badge"),
       previewKind: "order",
+      group: "shop",
     },
     {
       id: "android",
@@ -74,6 +82,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "sky",
       badge: t("drDeshmukhPage.services.android.badge"),
       previewKind: "app",
+      group: "consult",
     },
     {
       id: "apple",
@@ -84,6 +93,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "sky",
       badge: t("drDeshmukhPage.services.apple.badge"),
       previewKind: "app",
+      group: "consult",
     },
     {
       id: "chinchwad",
@@ -94,6 +104,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "teal",
       badge: t("drDeshmukhPage.services.chinchwad.badge"),
       previewKind: "map",
+      group: "clinics",
     },
     {
       id: "nanapeth",
@@ -104,6 +115,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "teal",
       badge: t("drDeshmukhPage.services.nanapeth.badge"),
       previewKind: "map",
+      group: "clinics",
     },
     {
       id: "youtube",
@@ -114,6 +126,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "rose",
       badge: t("drDeshmukhPage.services.youtube.badge"),
       previewKind: "video",
+      group: "watch",
     },
     {
       id: "viddhakarma",
@@ -124,6 +137,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "rose",
       badge: t("drDeshmukhPage.services.viddhakarma.badge"),
       previewKind: "video",
+      group: "watch",
     },
     {
       id: "autism",
@@ -134,6 +148,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "rose",
       badge: t("drDeshmukhPage.services.autism.badge"),
       previewKind: "video",
+      group: "watch",
     },
     {
       id: "call-clinic",
@@ -144,6 +159,7 @@ export function buildDoctorServices(t: Translate): ServiceItem[] {
       tint: "violet",
       badge: t("drDeshmukhPage.services.callClinic.badge"),
       previewKind: "app",
+      group: "consult",
     },
   ];
 }
@@ -194,15 +210,20 @@ export type ResolvedPreview = {
   siteName?: string;
 };
 
-/** Merges fetched Open Graph data with the static service copy. Maps always use the local artwork. */
+/**
+ * Merges fetched Open Graph data with the static service copy. The copy always
+ * comes from the translations: fetched titles are long, untranslated and full
+ * of channel boilerplate. The preview only contributes its image and site name.
+ * Maps always use the local artwork.
+ */
 export function resolvePreview(service: ServiceItem, preview?: LinkPreview): ResolvedPreview {
   if (service.previewKind === "map") {
     return { title: service.title, description: service.description, image: MAP_THUMBNAIL };
   }
 
   return {
-    title: preview?.title || service.title,
-    description: preview?.description || service.description,
+    title: service.title,
+    description: service.description,
     image: preview?.image,
     siteName: preview?.siteName,
   };

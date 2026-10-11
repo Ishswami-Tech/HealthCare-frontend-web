@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useMemo } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { TOAST_IDS } from '../utils/use-toast';
 import { CACHE_TIMES, GC_TIMES } from './config';
 import { useAuth } from '@/hooks/auth/useAuth';
-import { ApiError, clinicApiClient } from '@/lib/api/client';
+import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
 import {
+  addDoctorReview,
+  getDoctorAppointments,
+  getDoctorReviews,
   getDoctors as getDoctorsServerAction,
-  updateDoctorSchedule as updateDoctorScheduleServerAction,
+  getEarningsSplit,
+  getMyDoctorEarnings,
+  updateDoctorProfile,
 } from '@/lib/actions/doctors.server';
 import { resolveDisplayNameAndInitials } from '@/lib/utils/display-name';
 import { usePatientStore } from '@/stores';
@@ -98,13 +104,6 @@ const normalizeDoctorRows = (payload: unknown): any[] => {
   });
 };
 // ===== DOCTORS QUERY HOOKS =====
-//
-// Backend doctor routes (doctors.controller.ts, verified by reading): POST /doctors (CLINIC_ADMIN,
-// SUPER_ADMIN), GET /doctors and GET /doctors/:id (`:id` is the doctor's USER id). Clinic lists come
-// from GET /clinics/:id/doctors and GET /clinics/:id/doctors/:doctorUserId/patients.
-// There are NO routes for a doctor's reviews, stats, performance, earnings, specializations, search,
-// export, profile, schedule (other than GET /appointments/doctor/:id/availability), or for
-// updating / deleting a doctor: the hooks below that name such a route cannot succeed.
 
 /**
  * Hook to get all doctors for a clinic
@@ -208,10 +207,7 @@ export const useDoctors = (clinicId: string, filters?: {
 };
 
 /**
- * Hook to get doctor by ID.
- * Backend: GET /doctors/:id — `doctorId` must be the doctor's USER id (User.id). A Doctor-record id
- * (Appointment.doctorId, PatientVisit.doctorId, Prescription.doctorId) finds nothing: resolve it
- * through `useDoctors` (each row carries `id` and `userId`) instead.
+ * Hook to get doctor by ID
  */
 export const useDoctor = (doctorId: string) => {
   return useQueryData(['doctor', doctorId], async () => {
@@ -236,10 +232,7 @@ export const useDoctor = (doctorId: string) => {
 };
 
 /**
- * Hook to get doctor schedule.
- * NOT WIRED: the backend has no GET /clinics/:clinicId/doctors/:doctorId/schedule route (it only
- * serves the slots of one date: GET /appointments/doctor/:doctorId/availability?date=), so this
- * request is answered 404.
+ * Hook to get doctor schedule
  */
 export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: string) => {
   const { isConnected } = useWebSocketStatus();
@@ -304,7 +297,8 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
 
   return useQueryData(['doctorAppointments', doctorId, filters], async () => {
     try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.APPOINTMENTS(doctorId), filters);
+      // GET /appointments?doctorId= (there is no /doctors/:id/appointments route).
+      return await getDoctorAppointments(doctorId, filters);
     } catch (error) {
       if (isSessionInvalidError(error)) {
         return [];
@@ -323,10 +317,7 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
 };
 
 /**
- * Hook to get patients for the active authenticated doctor in a clinic.
- * Backend: GET /clinics/:clinicId/doctors/:doctorId/patients?search=&limit=&offset= — `:doctorId` is
- * the doctor's USER id. SUPER_ADMIN, CLINIC_ADMIN, RECEPTIONIST, DOCTOR, ASSISTANT_DOCTOR, NURSE.
- * Rows are Patient records (`id` = Patient.id) with the person under `user` (`userId` = User.id).
+ * Hook to get patients for the active authenticated doctor in a clinic
  */
 export const useDoctorPatients = (clinicId: string, filters?: {
   search?: string;
@@ -373,57 +364,15 @@ export const useDoctorPatients = (clinicId: string, filters?: {
 };
 
 /**
- * Hook to get doctor statistics
+ * Hook to get a doctor's reviews (GET /doctors/:id/reviews; the id is the doctor's User id).
+ * Answers { items, averageRating, reviewCount, meta }.
  */
-export const useDoctorStats = (doctorId: string, period?: 'day' | 'week' | 'month' | 'year') => {
+export const useDoctorReviews = (doctorId: string, limit: number = 10, page: number = 1) => {
   const { isConnected } = useWebSocketStatus();
 
-  return useQueryData(['doctorStats', doctorId, period], async () => {
+  return useQueryData(['doctorReviews', doctorId, limit, page], async () => {
     try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.STATS(doctorId), period ? { period } : undefined);
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return null;
-      }
-      throw error;
-    }
-  }, {
-    enabled: !!doctorId,
-    refetchInterval: isConnected ? false : 120_000,
-    retry: doctorQueryRetry,
-  });
-};
-
-/**
- * Hook to get doctor reviews.
- * The backend has no reviews route (a patient's star rating is saved with
- * POST /video/consultation/:appointmentId/rate, and nothing reads the ratings back per doctor).
- * No request is sent: the query settles at once with a "not found" error (`statusCode` 404), which
- * is what the doctor profile screen shows as "reviews are not available".
- */
-export const useDoctorReviews = (doctorId: string, limit: number = 10) => {
-  return useQueryData(['doctorReviews', doctorId, limit], async (): Promise<unknown[]> => {
-    throw new ApiError(
-      'Doctor reviews are not available yet: the server has no reviews service.',
-      404,
-      'NOT_FOUND'
-    );
-  }, {
-    enabled: !!doctorId,
-    retry: false,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-};
-
-/**
- * Hook to get doctor specializations
- */
-export const useDoctorSpecializations = () => {
-  return useQueryData(['doctorSpecializations'], async () => {
-    try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS);
+      return await getDoctorReviews(doctorId, { limit, page });
     } catch (error) {
       if (isSessionInvalidError(error)) {
         return [];
@@ -431,34 +380,6 @@ export const useDoctorSpecializations = () => {
       throw error;
     }
   }, {
-    // Reference/enum-like catalog of specialization categories - it does not
-    // change per request, so avoid refetching it on every focus/reconnect.
-    staleTime: CACHE_TIMES.VERY_LONG,
-    gcTime: GC_TIMES.STATIC,
-    refetchOnWindowFocus: false,
-    retry: doctorQueryRetry,
-  });
-};
-
-/**
- * Hook to get doctor performance metrics
- */
-export const useDoctorPerformanceMetrics = (doctorId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-}) => {
-  const { isConnected } = useWebSocketStatus();
-
-  return useQueryData(['doctorPerformanceMetrics', doctorId, filters], async () => {
-    try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.PERFORMANCE(doctorId), filters);
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return null;
-      }
-      throw error;
-    }
-  }, {
     enabled: !!doctorId,
     refetchInterval: isConnected ? false : 300_000,
     retry: doctorQueryRetry,
@@ -466,28 +387,31 @@ export const useDoctorPerformanceMetrics = (doctorId: string, filters?: {
 };
 
 /**
- * Hook to get doctor earnings
+ * Hook for the signed-in doctor's own earnings between two IST days (YYYY-MM-DD).
+ * Needs the backend route GET /analytics/doctor/me/earnings; callers show the error state.
  */
-export const useDoctorEarnings = (doctorId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-  period?: 'day' | 'week' | 'month' | 'year';
-}) => {
-  const { isConnected } = useWebSocketStatus();
-
-  return useQueryData(['doctorEarnings', doctorId, filters], async () => {
-    try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.EARNINGS(doctorId), filters);
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return null;
-      }
-      throw error;
-    }
+export const useMyDoctorEarnings = (range: { from: string; to: string }) => {
+  return useQueryData(['doctorEarnings', 'me', range.from, range.to], async () => {
+    return await getMyDoctorEarnings(range);
   }, {
-    enabled: !!doctorId,
-    refetchInterval: isConnected ? false : 300_000,
+    enabled: !!range.from && !!range.to,
     retry: doctorQueryRetry,
+  });
+};
+
+/**
+ * Hook for the admin earnings split between two IST days (YYYY-MM-DD).
+ * GET /analytics/earnings/split: SUPER_ADMIN and CLINIC_ADMIN only.
+ */
+export const useEarningsSplit = (range: { from: string; to: string }) => {
+  return useQueryData(['doctorEarnings', 'split', range.from, range.to], async () => {
+    return await getEarningsSplit(range);
+  }, {
+    enabled: !!range.from && !!range.to,
+    retry: doctorQueryRetry,
+    // Changing the date range keeps the previous figures (and the fees card with any open edit)
+    // on screen instead of dropping back to the skeleton.
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -538,23 +462,19 @@ export const useCreateDoctor = () => {
 };
 
 /**
- * Hook to update doctor
+ * Hook to update a doctor's profile (PATCH /doctors/:id; the id is the doctor's User id).
  */
 export const useUpdateDoctor = () => {
   return useMutationOperation(
     async ({ doctorId, updates }: {
       doctorId: string;
-      updates: {
-        specialization?: string;
-        licenseNumber?: string;
-        experience?: number;
-        qualification?: string;
-        consultationFee?: number;
-        isActive?: boolean;
-        clinicId?: string;
-      };
+      updates: Parameters<typeof updateDoctorProfile>[1];
     }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.UPDATE(doctorId), updates);
+      const result = await updateDoctorProfile(doctorId, updates);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -579,40 +499,7 @@ export const useUpdateDoctor = () => {
 };
 
 /**
- * Hook to delete doctor
- */
-export const useDeleteDoctor = () => {
-  return useMutationOperation(
-    async (doctorId: string) => {
-      return await clinicApiClient.delete(API_ENDPOINTS.DOCTORS.DELETE(doctorId));
-    },
-    {
-      toastId: TOAST_IDS.DOCTOR.DELETE,
-      loadingMessage: 'Deleting doctor...',
-      successMessage: 'Doctor deleted successfully',
-      invalidateQueries: [
-        ['doctors'],
-        ['doctor'],
-        ['doctorSchedule'],
-        ['doctorAvailability'],
-        ['doctorAppointments'],
-        ['doctorStats'],
-        ['doctorReviews'],
-        ['doctorPerformanceMetrics'],
-        ['doctorEarnings'],
-        ['clinicDoctors'],
-        ['clinicUsersByRole'],
-        ['users'],
-      ],
-    }
-  );
-};
-
-/**
- * Hook to update doctor schedule.
- * The backend has no PUT /doctors/:id/schedule route. Weekly working hours are stored with
- * POST /doctors (`workingHours`), which only CLINIC_ADMIN and SUPER_ADMIN may call; `doctorId` is the
- * doctor's USER id.
+ * Hook to update doctor schedule
  */
 export const useUpdateDoctorSchedule = () => {
   return useMutationOperation(
@@ -626,7 +513,7 @@ export const useUpdateDoctorSchedule = () => {
         isAvailable: boolean;
       }[];
     }) => {
-      return await updateDoctorScheduleServerAction(doctorId, schedule, clinicId);
+      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.SCHEDULE.UPDATE(doctorId), { schedule, clinicId });
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -645,134 +532,30 @@ export const useUpdateDoctorSchedule = () => {
 };
 
 /**
- * Hook to update doctor availability
- */
-export const useUpdateDoctorAvailability = () => {
-  return useMutationOperation(
-    async ({ doctorId, availabilityData }: {
-      doctorId: string;
-      availabilityData: {
-        date: string;
-        timeSlots: {
-          startTime: string;
-          endTime: string;
-          isAvailable: boolean;
-        }[];
-      };
-    }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.AVAILABILITY.UPDATE(doctorId), availabilityData);
-    },
-    {
-      toastId: TOAST_IDS.DOCTOR.UPDATE,
-      loadingMessage: 'Updating doctor availability...',
-      successMessage: 'Doctor availability updated successfully',
-      invalidateQueries: [
-        ['doctorAvailability'],
-        ['doctorSchedule'],
-        ['doctorAppointments'],
-        ['doctorStats'],
-        ['doctorPerformanceMetrics'],
-        ['clinicDoctors'],
-      ],
-    }
-  );
-};
-
-/**
- * Hook to add doctor review
+ * Hook for a patient to rate a doctor after a completed visit (POST /doctors/:id/reviews).
+ * `doctorId` is the doctor's User id; one review per appointment.
  */
 export const useAddDoctorReview = () => {
   return useMutationOperation(
     async ({ doctorId, reviewData }: {
       doctorId: string;
       reviewData: {
-        patientId: string;
+        appointmentId: string;
         rating: number;
         comment?: string;
-        appointmentId?: string;
       };
     }) => {
-      return await clinicApiClient.post(API_ENDPOINTS.DOCTORS.REVIEWS.CREATE(doctorId), reviewData);
+      const result = await addDoctorReview(doctorId, reviewData);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
-      loadingMessage: 'Adding doctor review...',
-      successMessage: 'Doctor review added successfully',
-      invalidateQueries: [['doctorReviews'], ['doctor'], ['doctorStats']],
-    }
-  );
-};
-
-/**
- * Hook to search doctors
- */
-export const useSearchDoctors = () => {
-  return useMutationOperation(
-    async ({ query, filters }: {
-      query: string;
-      filters?: {
-        specialization?: string;
-        clinicId?: string;
-        location?: string;
-        availability?: string;
-        limit?: number;
-      };
-    }) => {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SEARCH, { query, ...filters });
-    },
-    {
-      toastId: TOAST_IDS.DOCTOR.UPDATE,
-      loadingMessage: 'Searching doctors...',
-      successMessage: 'Search completed',
-      showToast: false,
-    }
-  );
-};
-
-/**
- * Hook to update doctor profile
- */
-export const useUpdateDoctorProfile = () => {
-  return useMutationOperation(
-    async ({ doctorId, profileData }: {
-      doctorId: string;
-      profileData: {
-        bio?: string;
-        education?: string[];
-        certifications?: string[];
-        languages?: string[];
-        profilePicture?: string;
-      };
-    }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.PROFILE.UPDATE(doctorId), profileData);
-    },
-    {
-      toastId: TOAST_IDS.DOCTOR.UPDATE,
-      loadingMessage: 'Updating doctor profile...',
-      successMessage: 'Doctor profile updated successfully',
-      invalidateQueries: [['doctor'], ['doctors'], ['clinicDoctors'], ['doctorStats']],
-    }
-  );
-};
-
-/**
- * Hook to export doctor data
- */
-export const useExportDoctorData = () => {
-  return useMutationOperation(
-    async (filters: {
-      format: 'csv' | 'excel' | 'pdf';
-      doctorIds?: string[];
-      includeStats?: boolean;
-      startDate?: string;
-      endDate?: string;
-    }) => {
-      return await clinicApiClient.post(API_ENDPOINTS.DOCTORS.EXPORT, filters);
-    },
-    {
-      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
-      loadingMessage: 'Exporting doctor data...',
-      successMessage: 'Doctor data exported successfully',
+      loadingMessage: 'Sending your rating...',
+      successMessage: 'Thanks for rating your visit',
+      invalidateQueries: [['doctorReviews'], ['doctor']],
     }
   );
 };

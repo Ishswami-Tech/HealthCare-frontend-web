@@ -1,6 +1,7 @@
 "use client";
 
 import { runSave } from "./run-save";
+import { useLocalizedLabel } from "./use-localized-option";
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ export function FamilyHistoryTableView({
   onRemove,
   isRemoving,
 }: FamilyHistoryTableViewProps) {
+  const localizeLabel = useLocalizedLabel();
   const [draft, setDraft] = useState(EMPTY);
   const canAdd = draft.relation.trim().length > 0 && draft.condition.trim().length > 0;
 
@@ -126,7 +128,7 @@ export function FamilyHistoryTableView({
                 chosen ? "bg-mint text-brand-dark" : "bg-well text-ink hover:bg-mint-soft",
               )}
             >
-              {relation}
+              {localizeLabel(relation)}
             </button>
           );
         })}

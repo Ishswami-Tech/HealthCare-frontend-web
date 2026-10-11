@@ -10,14 +10,17 @@
 import { useDeferredValue, useId, useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, Check, ClipboardPlus, Loader2, Search, UserPlus, UserRoundSearch, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyBlock, Note, DialogActions, DialogBody, DialogShell, ChoiceChip, DateField, Field } from "@/components/tbd";
+import { EmptyBlock, Note } from "@/components/tbd";
 import { cn } from "@/lib/utils";
+import { useLocalizedLabel } from "@/components/patient/case-sheet/use-localized-option";
 import { SPECIAL_CASE_OPTIONS, FAMILY_RELATION_SUGGESTIONS } from "@/lib/constants/case-sheet-fixed-lists";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useDoctorPatients } from "@/hooks/query/useDoctors";
+import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
 import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
 import {
   useCreateFamilyMember,
   useCreatePatientVisit,
@@ -26,7 +29,15 @@ import {
 import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { Role } from "@/types/auth.types";
 import type { CollectFeeMethod, FamilyMember, PatientVisit, SpecialCaseFlag } from "@/types/patient-visit.types";
-import { FieldPanel, StepTitle } from "./RegistrationFields";
+import {
+  ChoiceChip,
+  DateInput,
+  DialogActionBar,
+  DialogCloseButton,
+  Field,
+  FieldPanel,
+  StepTitle,
+} from "./RegistrationFields";
 
 export type FeeCollectMode = CollectFeeMethod | "LATER" | "WAIVE";
 
@@ -46,19 +57,11 @@ export type OpdPatientRow = {
   firstName?: string;
   lastName?: string;
   phone?: string;
-  user?: { id?: string; name?: string; firstName?: string; lastName?: string; phone?: string };
+  email?: string;
+  /** Clinic-issued health ID, shown so the desk can tell two patients with the same name apart. */
+  uhid?: string;
+  user?: { id?: string; name?: string; firstName?: string; lastName?: string; phone?: string; email?: string };
 };
-
-function extractPatients(value: unknown): OpdPatientRow[] {
-  if (Array.isArray(value)) return value as OpdPatientRow[];
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    for (const key of ["patients", "data", "items", "records"]) {
-      if (Array.isArray(record[key])) return record[key] as OpdPatientRow[];
-    }
-  }
-  return [];
-}
 
 function patientName(row: OpdPatientRow): string {
   return (
@@ -210,6 +213,7 @@ export function OpdRegistrationDialogView({
   busy,
   onSubmit,
 }: OpdRegistrationDialogViewProps) {
+  const localizeLabel = useLocalizedLabel();
   const uid = useId();
   const id = (name: string) => `${uid}-${name}`;
   const { who, selectedPatient, newPatient, dependent } = form;
@@ -238,21 +242,15 @@ export function OpdRegistrationDialogView({
   );
 
   return (
-    <>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger ? (
         <span className="contents" onClick={() => onOpenChange(true)}>
           {trigger}
         </span>
       ) : null}
-      <DialogShell
-        open={open}
-        onOpenChange={onOpenChange}
-        busy={busy}
-        title="OPD Registration"
-        description="Choose who is visiting, then register the visit to get an OPD number."
-        width={1040}
-        stretch
-        dense
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1040px] flex-col gap-0 overflow-hidden p-0 sm:w-[calc(100vw-2rem)] sm:max-w-[1040px]"
         onOpenAutoFocus={(event) => {
           // Start in the search box (or the first name of a new patient), not on a button.
           const first = document.getElementById(isNew ? id("new-firstName") : id("search"));
@@ -262,7 +260,17 @@ export function OpdRegistrationDialogView({
           }
         }}
       >
-        <DialogBody className="pb-[22px] pt-0">
+        <div className="flex shrink-0 items-center gap-3.5 px-4 pb-4 pt-[22px] sm:px-6">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <DialogTitle>New patient / OPD visit</DialogTitle>
+            <DialogDescription>
+              Search by phone or email first to avoid duplicates, or register a new patient, then open the visit to get an OPD number.
+            </DialogDescription>
+          </div>
+          <DialogCloseButton disabled={busy} />
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[22px] sm:px-6">
           <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 lg:grid-cols-2">
             {/* Left: who is visiting */}
             <div className="flex min-w-0 flex-col gap-4">
@@ -286,7 +294,7 @@ export function OpdRegistrationDialogView({
                         {newField("lastName", "Last name")}
                         {newField("phone", "Mobile", { placeholder: "+91 98765 43210", inputMode: "tel", type: "tel" })}
                         <Field label="Date of birth" htmlFor={id("new-dateOfBirth")}>
-                          <DateField
+                          <DateInput
                             id={id("new-dateOfBirth")}
                             value={newPatient.dateOfBirth}
                             onChange={(value) => patchNew({ dateOfBirth: value })}
@@ -297,12 +305,10 @@ export function OpdRegistrationDialogView({
                             {GENDERS.map((gender) => (
                               <ChoiceChip
                                 key={gender}
-                                shape="box"
+                                label={genderLabel(gender)}
                                 active={newPatient.gender === gender}
                                 onClick={() => patchNew({ gender: newPatient.gender === gender ? "" : gender })}
-                              >
-                                {genderLabel(gender)}
-                              </ChoiceChip>
+                              />
                             ))}
                           </div>
                         </Field>
@@ -332,8 +338,8 @@ export function OpdRegistrationDialogView({
                         autoComplete="off"
                         value={form.search}
                         onChange={(event) => onPatch({ search: event.target.value })}
-                        placeholder="Search existing patient by name or phone"
-                        aria-label="Search existing patient by name or phone"
+                        placeholder="Search existing patient by phone, email or name"
+                        aria-label="Search existing patient by phone, email or name"
                         className="min-w-0 flex-1 bg-transparent outline-hidden placeholder:text-ink-muted focus-visible:outline-hidden! focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-search-cancel-button]:appearance-none"
                       />
                     </label>
@@ -373,7 +379,11 @@ export function OpdRegistrationDialogView({
                                 <span className={cn("min-w-0 flex-1 truncate", active ? "font-bold" : "font-semibold")}>
                                   {patientName(row)}
                                 </span>
-                                <span className="shrink-0 text-xs text-ink-muted">{row.phone || row.user?.phone || ""}</span>
+                                <span className="shrink-0 text-xs text-ink-muted">
+                                  {[row.uhid, row.phone || row.user?.phone || row.email || row.user?.email]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </span>
                                 {active ? (
                                   <Check className="size-4 shrink-0 text-brand" strokeWidth={2.4} aria-hidden="true" />
                                 ) : null}
@@ -405,22 +415,20 @@ export function OpdRegistrationDialogView({
                   />
                   <div className="flex flex-wrap gap-1.5" role="group" aria-label="Who the visit is for">
                     <ChoiceChip
-                      shape="box"
+                      label={`${patientName(selectedPatient)} (self)`}
                       active={who?.kind === "existing"}
-                      check
+                      showCheck
                       onClick={() => onPickExisting(selectedPatient)}
-                    >
-                      {`${patientName(selectedPatient)} (self)`}
-                    </ChoiceChip>
+                    />
                     {familyMembers.map((member) => {
                       const dependentPatientId = member.dependentPatientId;
                       const label = `${member.name} (${member.relation})`;
                       return (
                         <ChoiceChip
                           key={member.id}
-                          shape="box"
+                          label={label}
                           active={who?.kind === "dependent" && who.patientId === dependentPatientId}
-                          check
+                          showCheck
                           disabled={!dependentPatientId}
                           {...(dependentPatientId ? {} : { title: "This family member has no patient record yet" })}
                           onClick={() => {
@@ -428,9 +436,7 @@ export function OpdRegistrationDialogView({
                               onPatch({ who: { kind: "dependent", patientId: dependentPatientId, label } });
                             }
                           }}
-                        >
-                          {label}
-                        </ChoiceChip>
+                        />
                       );
                     })}
                   </div>
@@ -469,7 +475,7 @@ export function OpdRegistrationDialogView({
                           </datalist>
                         </Field>
                         <Field label="Date of birth" htmlFor={id("dep-dob")}>
-                          <DateField
+                          <DateInput
                             id={id("dep-dob")}
                             value={dependent.dateOfBirth}
                             onChange={(value) => patchDependent({ dateOfBirth: value })}
@@ -491,12 +497,10 @@ export function OpdRegistrationDialogView({
                             {GENDERS.map((gender) => (
                               <ChoiceChip
                                 key={gender}
-                                shape="box"
+                                label={genderLabel(gender)}
                                 active={dependent.gender === gender}
                                 onClick={() => patchDependent({ gender: dependent.gender === gender ? "" : gender })}
-                              >
-                                {genderLabel(gender)}
-                              </ChoiceChip>
+                              />
                             ))}
                           </div>
                         </Field>
@@ -547,7 +551,7 @@ export function OpdRegistrationDialogView({
                           {SPECIAL_CASE_OPTIONS.map((option) => (
                             <ChoiceChip
                               key={option.value}
-                              shape="box"
+                              label={localizeLabel(option.label)}
                               active={form.flags.includes(option.value)}
                               onClick={() =>
                                 onPatch({
@@ -556,9 +560,7 @@ export function OpdRegistrationDialogView({
                                     : [...form.flags, option.value],
                                 })
                               }
-                            >
-                              {option.label}
-                            </ChoiceChip>
+                            />
                           ))}
                         </div>
                       </Field>
@@ -629,14 +631,12 @@ export function OpdRegistrationDialogView({
                             {FEE_COLLECT_OPTIONS.map((option) => (
                               <ChoiceChip
                                 key={option.value}
-                                shape="box"
+                                label={option.label}
                                 active={form.feeCollectMode === option.value}
-                                check
+                                showCheck
                                 block
                                 onClick={() => onPatch({ feeCollectMode: option.value })}
-                              >
-                                {option.label}
-                              </ChoiceChip>
+                              />
                             ))}
                           </div>
                         </Field>
@@ -668,9 +668,9 @@ export function OpdRegistrationDialogView({
               )}
             </div>
           </div>
-        </DialogBody>
+        </div>
 
-        <DialogActions
+        <DialogActionBar
           hint={
             isNew
               ? "First name, last name and a 10-digit mobile number are needed to register."
@@ -684,9 +684,9 @@ export function OpdRegistrationDialogView({
             {busy ? <Loader2 className="animate-spin" /> : <ClipboardPlus />}
             {busy ? "Registering..." : "Register visit"}
           </Button>
-        </DialogActions>
-      </DialogShell>
-    </>
+        </DialogActionBar>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -703,12 +703,25 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered, showFee
   const isDoctor = role === Role.DOCTOR || role === Role.ASSISTANT_DOCTOR;
   const feeVisible = showFee ?? !isDoctor;
 
-  const patientsQuery = useDoctorPatients(
+  // Searched on the server by name, phone (also numbers kept outside the login), UHID, OPD or register
+  // number, so an existing patient is found instead of being registered a second time.
+  const patientsQuery = usePatientDirectory(
     clinicId,
-    { search: deferredSearch, limit: 8, offset: 0 },
+    { search: deferredSearch.trim(), pageSize: 10 },
     { enabled: open && !!clinicId && searchActive },
   );
-  const results = useMemo(() => extractPatients(patientsQuery.data), [patientsQuery.data]);
+  const results = useMemo<OpdPatientRow[]>(
+    () =>
+      (patientsQuery.data?.rows ?? []).map((row) => ({
+        id: row.patientId,
+        userId: row.userId,
+        name: row.name,
+        ...(row.phone ? { phone: row.phone } : {}),
+        ...(row.email ? { email: row.email } : {}),
+        ...(row.uhid ? { uhid: row.uhid } : {}),
+      })),
+    [patientsQuery.data],
+  );
   const familyQuery = useFamilyMembers(clinicId, selectedPatient?.id ?? "");
   const register = useQuickRegisterPatient();
   const createVisit = useCreatePatientVisit();
@@ -795,12 +808,11 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered, showFee
     let visit: PatientVisit;
     try {
       if (who.kind === "new") {
-        const digits = newPatient.phone.replace(/\D/g, "");
         const { user } = await register.mutateAsync({
           firstName: newPatient.firstName.trim(),
           lastName: newPatient.lastName.trim(),
           phone: newPatient.phone.trim(),
-          password: `Temp@${digits.slice(-4)}Aa`,
+          password: generateTemporaryPassword(),
           ...(newPatient.gender ? { gender: newPatient.gender } : {}),
           ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
           ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),
@@ -839,7 +851,7 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered, showFee
         trigger ?? (
           <Button size="md">
             <ClipboardPlus />
-            OPD Registration
+            New patient / OPD visit
           </Button>
         )
       }
@@ -851,7 +863,15 @@ export function OpdRegistrationDialog({ clinicId, trigger, onRegistered, showFee
       results={results}
       familyMembers={familyQuery.data ?? []}
       onPickExisting={pickExisting}
-      onStartNew={() => patch({ selectedPatient: null, who: { kind: "new" } })}
+      onStartNew={() => {
+        // A phone number typed into the search carries over so it is not typed twice.
+        const typedPhone = form.search.replace(/\D/g, "").length >= 10 && !/[a-z@]/i.test(form.search);
+        patch({
+          selectedPatient: null,
+          who: { kind: "new" },
+          ...(typedPhone && !newPatient.phone ? { newPatient: { ...newPatient, phone: form.search.trim() } } : {}),
+        });
+      }}
       onBackToSearch={() => patch({ who: null, selectedPatient: null })}
       onAddDependent={() => void addDependent()}
       addingDependent={createDependent.isPending}

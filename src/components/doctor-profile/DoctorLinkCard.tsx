@@ -1,29 +1,35 @@
 "use client";
 
 import Image from "next/image";
-import { MoreVertical } from "lucide-react";
+import { ArrowUpRight, MoreVertical, Play } from "lucide-react";
 import { BookVideoCta } from "@/components/home/BookVideoCta";
 import { SmartLink } from "@/components/home/HomeLinkButton";
-import { HOME_TINTS } from "@/components/home/home-theme";
+import { CARD, CARD_INTERACTIVE, HOME_TINTS, SURFACE_INK } from "@/components/home/home-theme";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { HOVER_CARD_LIFT, HOVER_TRANSITION } from "@/lib/design/tokens";
+import { HOVER_TRANSITION_CHILD } from "@/lib/design/tokens";
 import { resolvePreview, type LinkPreview, type ServiceItem } from "./doctor-profile-data";
 
-interface DoctorLinkCardProps {
+interface LinkCardProps {
   service: ServiceItem;
   preview?: LinkPreview;
   moreLabel: string;
   onMore: () => void;
 }
 
-function MoreButton({ label, onClick }: { label: string; onClick: () => void }) {
+/** Opens the share sheet for a link. Sits above the card's stretched link. */
+function MoreButton({ label, onClick, isInverse = false }: { label: string; onClick: () => void; isInverse?: boolean }) {
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon-sm"
-      className="shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
+      className={cn(
+        "relative z-10 shrink-0 rounded-full",
+        isInverse
+          ? "text-white/80 hover:bg-white/15 hover:text-white"
+          : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+      )}
       aria-label={label}
       onClick={onClick}
     >
@@ -32,17 +38,27 @@ function MoreButton({ label, onClick }: { label: string; onClick: () => void }) 
   );
 }
 
-function Thumbnail({ service, image, title }: { service: ServiceItem; image?: string; title: string }) {
+function ActionChip({ service }: { service: ServiceItem }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold", HOME_TINTS[service.tint].plate)}>
+      {service.badge}
+      <ArrowUpRight className="size-3" aria-hidden="true" />
+    </span>
+  );
+}
+
+/** Preview image when one was fetched, otherwise the service icon on its accent gradient. */
+function Thumbnail({ service, image, className }: { service: ServiceItem; image?: string; className?: string }) {
   const Icon = service.icon;
 
   return (
-    <span className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-border">
+    <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-1 ring-border/70", className)}>
       {image ? (
-        <Image src={image} alt={title} fill sizes="48px" className="object-cover" />
+        <Image src={image} alt="" fill sizes="80px" className="object-cover" />
       ) : (
         <span
-          className={cn("flex size-full items-center justify-center bg-linear-to-br text-white", HOME_TINTS[service.tint].gradient)}
           aria-hidden="true"
+          className={cn("flex size-full items-center justify-center bg-linear-to-br text-white", HOME_TINTS[service.tint].gradient)}
         >
           <Icon className="size-6" />
         </span>
@@ -51,67 +67,110 @@ function Thumbnail({ service, image, title }: { service: ServiceItem; image?: st
   );
 }
 
-export function DoctorLinkCard({ service, preview, moreLabel, onMore }: DoctorLinkCardProps) {
-  const resolved = resolvePreview(service, preview);
-  const tint = HOME_TINTS[service.tint];
+/** The primary conversion: video consultation, on the deep emerald band. */
+export function DoctorFeaturedCard({ service, moreLabel, onMore }: Omit<LinkCardProps, "preview">) {
   const Icon = service.icon;
 
-  if (service.featured) {
-    return (
-      <article className="relative overflow-hidden rounded-3xl border border-primary/30 bg-linear-to-br from-emerald-50 via-card to-teal-50 p-4 shadow-lg shadow-emerald-900/5 ring-2 ring-primary/10 dark:from-emerald-950/40 dark:via-card dark:to-teal-950/30 sm:p-5">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-primary/10 blur-3xl"
-        />
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
-          <SmartLink href={service.href} className="flex min-w-0 flex-1 items-center gap-4 focus-visible:outline-none">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30">
-              <Icon className="size-6" aria-hidden="true" />
-            </span>
-            <span className="min-w-0">
-              <h3 className="font-heading text-base font-semibold text-foreground sm:text-lg">{resolved.title}</h3>
-              <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{resolved.description}</p>
-              <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                {service.badge}
-              </span>
-            </span>
-          </SmartLink>
-          <div className="flex items-center gap-2 sm:shrink-0">
-            <BookVideoCta size="md" showArrow={false} className="flex-1 sm:flex-none" />
-            <MoreButton label={moreLabel} onClick={onMore} />
-          </div>
+  return (
+    <article className={cn(SURFACE_INK, "home-grain rounded-[1.75rem] p-6 sm:p-8")}>
+      <div aria-hidden="true" className="home-aurora absolute inset-0 -z-10 opacity-60" />
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-8">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/20">
+          <Icon className="size-7" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <span className="inline-flex rounded-full bg-white/12 px-3 py-1 text-xs font-semibold text-white/90 ring-1 ring-white/15">
+            {service.badge}
+          </span>
+          <h2 className="mt-3 font-heading text-2xl font-bold leading-tight sm:text-3xl">{service.title}</h2>
+          <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-white/75">{service.description}</p>
         </div>
-      </article>
-    );
-  }
+        <BookVideoCta variant="inverse" className="w-full sm:w-auto lg:mr-8" />
+      </div>
+      <div className="absolute right-3 top-3 sm:right-4 sm:top-4">
+        <MoreButton label={moreLabel} onClick={onMore} isInverse />
+      </div>
+    </article>
+  );
+}
+
+/** A row-style link: app listings, clinics, the help line and the product. */
+export function DoctorLinkCard({ service, preview, moreLabel, onMore, isLarge = false }: LinkCardProps & { isLarge?: boolean }) {
+  const resolved = resolvePreview(service, preview);
 
   return (
-    <article
-      className={cn(
-        "group flex h-full items-center gap-2.5 rounded-2xl border border-border bg-card p-3 shadow-sm",
-        HOVER_TRANSITION,
-        HOVER_CARD_LIFT,
-        "hover:border-primary/40 hover:shadow-lg hover:shadow-emerald-900/5"
-      )}
-    >
-      <SmartLink href={service.href} className="flex min-w-0 flex-1 items-center gap-3.5 focus-visible:outline-none">
-        <Thumbnail service={service} image={resolved.image} title={resolved.title} />
+    <article className={cn(CARD, CARD_INTERACTIVE, "group flex h-full items-center gap-3 p-4")}>
+      {/* Stretched link: the whole card opens the destination; the share button sits above it. */}
+      <SmartLink
+        href={service.href}
+        className="flex min-w-0 flex-1 items-center gap-4 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:rounded-[1.75rem] focus-visible:after:ring-4 focus-visible:after:ring-primary/30"
+      >
+        <Thumbnail service={service} image={resolved.image} className={isLarge ? "size-20" : "size-14"} />
         <span className="min-w-0 flex-1">
-          <h3 className="truncate font-heading text-sm font-semibold text-foreground transition-colors group-hover:text-primary sm:text-base">
+          <h3 className="font-heading text-[15px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary sm:text-base">
             {resolved.title}
           </h3>
-          {resolved.siteName ? (
-            <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              {resolved.siteName}
-            </p>
-          ) : null}
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{resolved.description}</p>
-          <span className={cn("mt-1.5 inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold", tint.plate)}>
-            {service.badge}
+          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">{resolved.description}</p>
+          <span className="mt-2.5 block">
+            <ActionChip service={service} />
           </span>
         </span>
       </SmartLink>
       <MoreButton label={moreLabel} onClick={onMore} />
+    </article>
+  );
+}
+
+/** A video link with its thumbnail up top. */
+export function DoctorVideoCard({ service, preview, moreLabel, onMore }: LinkCardProps) {
+  const resolved = resolvePreview(service, preview);
+  const Icon = service.icon;
+
+  return (
+    <article className={cn(CARD, CARD_INTERACTIVE, "group flex h-full flex-col")}>
+      <SmartLink
+        href={service.href}
+        className="flex flex-1 flex-col after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:rounded-[1.75rem] focus-visible:after:ring-4 focus-visible:after:ring-primary/30"
+      >
+        <span className="relative block aspect-video overflow-hidden bg-muted">
+          {resolved.image ? (
+            <Image
+              src={resolved.image}
+              alt=""
+              fill
+              sizes="(min-width: 1024px) 26rem, (min-width: 640px) 50vw, 100vw"
+              className={cn("object-cover group-hover:scale-105", HOVER_TRANSITION_CHILD)}
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className={cn("flex size-full items-center justify-center bg-linear-to-br text-white", HOME_TINTS[service.tint].gradient)}
+            >
+              <Icon className="size-10 opacity-80" />
+            </span>
+          )}
+          <span aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/45 via-transparent to-transparent" />
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute left-1/2 top-1/2 flex size-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-[#FF0000] shadow-xl group-hover:scale-110",
+              HOVER_TRANSITION_CHILD
+            )}
+          >
+            <Play className="ml-0.5 size-6 fill-current" />
+          </span>
+        </span>
+        <span className="flex flex-1 flex-col p-4 pb-2">
+          <h3 className="font-heading text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+            {resolved.title}
+          </h3>
+          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">{resolved.description}</p>
+        </span>
+      </SmartLink>
+      <div className="flex items-center justify-between gap-2 px-4 pb-3">
+        <ActionChip service={service} />
+        <MoreButton label={moreLabel} onClick={onMore} />
+      </div>
     </article>
   );
 }

@@ -2,19 +2,16 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-import { Pill, Surface, VisitTypeChip } from "@/components/tbd";
+import { ChevronRight, Star } from "lucide-react";
+import { Pill, Surface } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { visitElementId } from "./managerData";
-import { VisitAvatar } from "./ManagerVisitCard";
+import { VisitAvatar, VisitTypeChip } from "./ManagerVisitCard";
 import type { ManagerPayRenderer, ManagerVisit, ManagerVisitActions } from "./types";
 
 const PAST_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_180px_180px_110px]";
 const CLOSED_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_120px_120px_110px_150px]";
-/** A row a link opened: tinted for a moment. */
-const MARKED_ROW = "-mx-2 rounded-xl bg-mint-soft px-2 ring-2 ring-brand/50";
-const ROW = "scroll-mt-24 flex flex-col gap-2.5 border-b border-hair py-3 text-ink last:border-b-0 @3xl:grid @3xl:items-center @3xl:gap-4";
+const ROW = "flex flex-col gap-2.5 border-b border-hair py-3 text-ink last:border-b-0 @3xl:grid @3xl:items-center @3xl:gap-4";
 
 function VisitCell({ visit, description }: { visit: ManagerVisit; description: string }) {
   return (
@@ -50,12 +47,12 @@ function Head({ columns, labels }: { columns: string; labels: string[] }) {
 export function ManagerPastTable({
   visits,
   footer,
-  markedId,
+  onRate,
 }: {
   visits: ManagerVisit[];
   footer?: ReactNode;
-  /** The visit a link opened. */
-  markedId?: string | null | undefined;
+  /** Shows "Rate visit" on a completed in-clinic visit the patient can still rate. */
+  onRate?: (visitId: string) => void;
 }) {
   return (
     <Surface className="gap-0 pb-2">
@@ -66,7 +63,7 @@ export function ManagerPastTable({
             <VisitCell visit={visit} description={who(visit)} />
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
               <span>
-                <VisitTypeChip variant="chip" type={visit.kind} />
+                <VisitTypeChip visit={visit} short />
               </span>
               <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
               {visit.summaryHref ? (
@@ -80,26 +77,46 @@ export function ManagerPastTable({
             </span>
           </>
         );
+        // A row with a Rate button cannot be one big link (a button inside a link is not valid).
+        if (onRate && visit.canRate) {
+          return (
+            <div key={visit.id} className={cn(ROW, PAST_COLUMNS)}>
+              <VisitCell visit={visit} description={who(visit)} />
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
+                <span>
+                  <VisitTypeChip visit={visit} short />
+                </span>
+                <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
+                <span className="ml-auto flex items-center justify-end gap-3 @3xl:ml-0">
+                  <Button variant="outline" size="sm" onClick={() => onRate(visit.id)}>
+                    <Star aria-hidden="true" />
+                    Rate visit
+                  </Button>
+                  {visit.summaryHref ? (
+                    <Link href={visit.summaryHref} className="inline-flex items-center gap-1 text-[13px] font-bold text-brand hover:text-brand-dark">
+                      {visit.summaryLabel}
+                      <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+                    </Link>
+                  ) : null}
+                </span>
+              </span>
+            </div>
+          );
+        }
         return visit.summaryHref ? (
           <Link
             key={visit.id}
-            id={visitElementId(visit.id)}
             href={visit.summaryHref}
             className={cn(
               ROW,
               PAST_COLUMNS,
-              visit.id === markedId && MARKED_ROW,
               "rounded-sm hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
             )}
           >
             {cells}
           </Link>
         ) : (
-          <div
-            key={visit.id}
-            id={visitElementId(visit.id)}
-            className={cn(ROW, PAST_COLUMNS, visit.id === markedId && MARKED_ROW)}
-          >
+          <div key={visit.id} className={cn(ROW, PAST_COLUMNS)}>
             {cells}
           </div>
         );
@@ -115,28 +132,21 @@ export function ManagerClosedTable({
   actions,
   renderPay,
   footer,
-  markedId,
 }: {
   visits: ManagerVisit[];
   actions: ManagerVisitActions;
   renderPay: ManagerPayRenderer;
   footer?: ReactNode;
-  /** The visit a link opened. */
-  markedId?: string | null | undefined;
 }) {
   return (
     <Surface className="gap-0 pb-2">
       <Head columns={CLOSED_COLUMNS} labels={["Visit", "Type", "Date", "Status", ""]} />
       {visits.map((visit) => (
-        <div
-          key={visit.id}
-          id={visitElementId(visit.id)}
-          className={cn(ROW, CLOSED_COLUMNS, visit.id === markedId && MARKED_ROW)}
-        >
+        <div key={visit.id} className={cn(ROW, CLOSED_COLUMNS)}>
           <VisitCell visit={visit} description={[who(visit), visit.closedNote].filter(Boolean).join(" · ")} />
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
             <span>
-              <VisitTypeChip variant="chip" type={visit.kind} />
+              <VisitTypeChip visit={visit} short />
             </span>
             <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
             <span>

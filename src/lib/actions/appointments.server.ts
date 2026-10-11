@@ -149,6 +149,8 @@ export async function startConsultation(
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
+    // There is no start route: the status route turns IN_PROGRESS into the start-consultation
+    // flow (check-in required for in-clinic visits). The doctor is the caller, so doctorId is not sent.
     const payload = {
       status: 'IN_PROGRESS' as const,
       ...(data.consultationType ? { consultationType: data.consultationType } : {}),
@@ -358,6 +360,8 @@ export async function cancelAppointment(id: string, reason?: string) {
       }),
       getClientInfo(),
     ]);
+    // The backend answers 200 with success:false when the visit cannot be cancelled in its
+    // current state; that is a refusal, not a cancellation.
     const rejectedCancellation = readRejectedOutcome(cancelResult.data);
     if (rejectedCancellation) {
       return { success: false, error: rejectedCancellation };
@@ -1201,7 +1205,11 @@ export async function rescheduleAppointment(id: string, data: any) {
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to reschedule appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to reschedule appointment' };
+    // The backend's own reason (slot taken, visit not movable, window closed) tells the patient
+    // what to do next; a generic line does not.
+    const reason =
+      isApiError(error) && (error as { name?: string }).name !== 'ZodError' ? error.message : '';
+    return { success: false, error: reason || 'Failed to reschedule appointment' };
   }
 }
 

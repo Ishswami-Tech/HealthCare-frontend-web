@@ -45,10 +45,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import {
-  usePatients,
-  useQuickRegisterPatient,
-} from "@/hooks/query/usePatients";
+import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
+import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
+import { useDebouncedValue } from "@/hooks/core/useDebouncedValue";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { useMyFamilyMembers } from "@/hooks/query/useMyFamilyMembers";
 import { Role } from "@/types/auth.types";
@@ -92,6 +92,12 @@ import { cn } from "@/lib/utils";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
+import { useLanguage } from "@/lib/i18n/context";
+import {
+  localizedDoctorName,
+  localizedDoctorSubtitle,
+  toLocalizedDoctorText,
+} from "@/lib/utils/localized-profile";
 import { format } from "date-fns";
 import { AppointmentStepWrapper } from "@/components/appointments/AppointmentStepWrapper";
 import {
@@ -110,6 +116,8 @@ import {
   bookingOptionClass,
   buildSlotPeriods,
   downloadBookingCalendarFile,
+  formatRupees,
+  toTextList,
   formatSlotLabel,
   readBookedSlots,
   shortBookingRef,
@@ -151,7 +159,6 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { formatRupees } from "@/lib/utils/currency";
 
 function isProfileCompletionError(error: unknown): boolean {
   if (!error) {
@@ -719,7 +726,7 @@ function BookAppointmentPatientPicker({
     }
 
     try {
-      const temporaryPassword = createTemporaryPatientPassword(phone);
+      const temporaryPassword = generateTemporaryPassword();
       const normalizedGender = normalizePatientGender(newPatient.gender);
       const email = newPatient.email.trim();
       const quickRegisterResult =
@@ -812,8 +819,12 @@ function BookAppointmentPatientPicker({
         queryKey: ["patients"],
         exact: false,
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["patientDirectory"],
+        exact: false,
+      });
       showSuccessToast(
-        `Patient created successfully. Temporary password: ${temporaryPassword}`,
+        "Patient created successfully. They sign in with a one-time code sent to their phone.",
       );
     } catch (error) {
       showErrorToast(
@@ -847,7 +858,7 @@ function BookAppointmentPatientPicker({
         <Input
           value={patientSearch}
           onChange={(event) => setPatientSearch(event.target.value)}
-          placeholder="Search by patient name, phone, or email"
+          placeholder="Search by name, phone, UHID or OPD number"
           className="h-11 pl-10"
         />
       </div>
@@ -897,6 +908,7 @@ function BookAppointmentPatientPicker({
                     {patient.displayName}
                   </p>
                   <p className="m-0 truncate text-xs text-ink-muted">
+                    {patient.uhid ? `UHID ${patient.uhid} - ` : ""}
                     {patient.phone || "No phone"}
                     {patient.email ? ` - ${patient.email}` : ""}
                   </p>
@@ -1420,6 +1432,13 @@ interface BookAppointmentStep2Props {
   onHardRefresh: () => void;
 }
 
+/** "Ayurveda · BAMS"; "General Physician" only as the last resort when nothing is on file. */
+function plainDoctorSubtitle(doctor: any): string {
+  return [doctor?.specialization || "General Physician", doctor?.qualification]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function BookAppointmentStep2({
   doctorsLoading,
   doctorsFetched,
@@ -1436,6 +1455,7 @@ function BookAppointmentStep2({
   goBack,
   onHardRefresh,
 }: BookAppointmentStep2Props) {
+  const { language } = useLanguage();
   const refreshActions = (
     <>
       <Button type="button" onClick={onHardRefresh} disabled={doctorsRefreshing}>
@@ -1526,10 +1546,14 @@ function BookAppointmentStep2({
               />
               <div className="flex-1 min-w-0">
                 <p className="m-0 truncate text-[15px] font-bold text-ink">
-                  {doctor.name}
+                  {localizedDoctorName(doctor.localizedProfile, language, doctor.name)}
                 </p>
-                <p className="m-0 truncate text-[13px] text-ink-muted">
-                  {doctor.specialization || "General Physician"}
+                <p className="m-0 line-clamp-2 break-words text-[13px] text-ink-muted">
+                  {localizedDoctorSubtitle(
+                    doctor.localizedProfile,
+                    language,
+                    doctor.specialization || "General Physician",
+                  )}
                 </p>
               </div>
               <Pill tone="green" dot className="shrink-0">
@@ -1796,7 +1820,7 @@ interface BookAppointmentStep5Props {
   userRole: string;
   selectedPatient: { displayName: string } | null;
   selectedService: { label?: string; category?: string } | null;
-  selectedDoctor: { name?: string; specialization?: string } | null;
+  selectedDoctor: { name?: string; specialization?: string; localizedProfile?: unknown } | null;
   selectedDate: Date | undefined;
   selectedSlot: string;
   appointmentDurationMinutes: number;
@@ -1864,6 +1888,7 @@ function BookAppointmentStep5({
   locationName,
   confirmAction,
 }: BookAppointmentStep5Props) {
+  const { language } = useLanguage();
   const isPageLayout = layout === "page";
   // The existing gateway button: same props and callbacks, only the look changed.
   const payButton =
@@ -1888,14 +1913,22 @@ function BookAppointmentStep5({
     ) : null;
 
   const doctorName = selectedDoctor?.name
-    ? formatDoctorDisplayName(selectedDoctor.name)
+    ? localizedDoctorName(
+        selectedDoctor.localizedProfile,
+        language,
+        formatDoctorDisplayName(selectedDoctor.name),
+      )
     : undefined;
   const reviewDoctor: BookingDoctorInfo | null = isPageLayout
     ? doctorInfo
     : doctorName
       ? {
           name: doctorName,
-          subtitle: selectedDoctor?.specialization || "General Physician",
+          subtitle: localizedDoctorSubtitle(
+            selectedDoctor?.localizedProfile,
+            language,
+            selectedDoctor?.specialization || "General Physician",
+          ),
         }
       : null;
   const isPatientInPerson =
@@ -1964,7 +1997,7 @@ interface BookAppointmentStep6Props {
   selectedSlot: string;
   clinicVideoCallWindow?: { start: string; end: string } | null;
   selectedService: { label?: string } | null;
-  selectedDoctor: { name?: string } | null;
+  selectedDoctor: { name?: string; localizedProfile?: unknown } | null;
   selectedDate: Date | undefined;
   isPatientInPersonFlow: boolean;
   handleOpenChange: (open: boolean) => void;
@@ -2021,11 +2054,16 @@ function BookAppointmentStep6({
   locationAddress,
   isPatientUser,
 }: BookAppointmentStep6Props) {
+  const { language } = useLanguage();
   const isVideoMode = consultationMode === "VIDEO";
   const paymentPending = isVideoMode && requiresVideoPayment && !videoPaymentCompleted;
   const paid = isVideoMode && videoPaymentCompleted && Boolean(paidAmountLabel);
   const doctorName = selectedDoctor?.name
-    ? formatDoctorDisplayName(selectedDoctor.name)
+    ? localizedDoctorName(
+        selectedDoctor.localizedProfile,
+        language,
+        formatDoctorDisplayName(selectedDoctor.name),
+      )
     : "doctor";
   const slotLabel = selectedSlot
     ? formatSlotLabel(selectedSlot, layout === "page" ? "12h" : "24h")
@@ -2252,11 +2290,6 @@ const normalizePatientGender = (value: string) => {
   return undefined;
 };
 
-const createTemporaryPatientPassword = (phone: string) => {
-  const digits = phone.replace(/\D/g, "").slice(-6) || "123456";
-  return `Pt@${digits}`;
-};
-
 const AVAILABILITY_TIMEOUT_MS = 15000;
 const withTimeout = async <T,>(
   promise: Promise<T>,
@@ -2298,6 +2331,7 @@ export function BookAppointmentDialog({
   initialFamilyMemberId,
   videoOnly = true,
 }: BookAppointmentDialogProps) {
+  const { language } = useLanguage();
   const { push, replace } = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
@@ -2337,20 +2371,6 @@ export function BookAppointmentDialog({
   const hasExplicitClinicId = !!resolvedClinicId;
   const activeClinicId =
     resolvedClinicId || clinicFallbackId;  // Always allow fallback for all roles
-
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] ClinicId resolution:', {
-      propsClinicId: clinicId,
-      sessionClinicId,
-      safeContextClinicId,
-      currentClinicId,
-      myClinicId,
-      clinicFallbackId,
-      authClinicId,
-      resolvedClinicId,
-      activeClinicId
-    });
-  }
 
   type BookingFlowState = {
     step: number;
@@ -2773,10 +2793,10 @@ export function BookAppointmentDialog({
     dialogOpen && isPrivilegedScheduler && !!activeClinicId;
   // Family members of the signed-in patient. Optional: when the list is empty or cannot be read
   // the visit is for the patient, and booking carries on as before.
-  // `familyMemberId` is part of the appointment create DTO used by the video flow only; the
-  // patient in-clinic flow books through the subscription endpoint, which has no such field.
+  // `familyMemberId` is accepted by the appointment create DTO (video and plain in-clinic) and by
+  // the subscription in-clinic booking DTO, so a patient can book any visit for a dependent.
   const isPatientBooker = userRole === "PATIENT";
-  const canChooseFamilyMember = isPatientBooker && consultationMode === "VIDEO";
+  const canChooseFamilyMember = isPatientBooker;
   const familyClinicId = sessionClinicId || currentClinicId || "";
   const {
     data: myFamilyMembers,
@@ -2929,11 +2949,25 @@ export function BookAppointmentDialog({
   // Only RECEPTIONIST needs the full patient list to select a patient.
   // Patients book for themselves calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
-  const { data: patientsData = [] } = usePatients(
+  // Searched on the server (name, phone, UHID, OPD or register number): the clinic has tens of
+  // thousands of patients, so a fixed page of the newest ones would hide most of them.
+  const debouncedPatientSearch = useDebouncedValue(patientSearch.trim(), 300);
+  const { data: patientsData } = usePatientDirectory(
     isPrivilegedScheduler ? activeClinicId : "",
-    { limit: 200, isActive: true },
+    {
+      ...(debouncedPatientSearch.length >= 2 ? { search: debouncedPatientSearch } : {}),
+      sort: "lastVisit",
+      order: "desc",
+      pageSize: 10,
+    },
     { enabled: shouldLoadPatients },
   );
+  // Patients picked from earlier searches stay selectable after the search text changes.
+  const knownPatientsRef = useRef(new Map<string, any>());
+  // Remembered picks are per clinic: another clinic's patients must not linger (they hold PHI).
+  useEffect(() => {
+    knownPatientsRef.current.clear();
+  }, [activeClinicId, dialogOpen]);
   // Only fetch the user profile when the dialog is open. The dialog
   // component is mounted by the appointments page header even when
   // closed, so unconditionally calling `useUserProfile()` here would
@@ -3010,20 +3044,6 @@ export function BookAppointmentDialog({
 
     return null;
   }, [currentClinic, myClinic]);
-
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log("[BookAppointmentDialog] Schedule settings source:", {
-      hasMyClinicSettings: !!myClinic?.settings,
-      hasCurrentClinicSettings: !!(currentClinic as { settings?: unknown } | null)
-        ?.settings,
-      hasOperatingWindows: !!resolvedAppointmentSettings?.operatingWindowsByDay,
-      operatingDayKeys: resolvedAppointmentSettings?.operatingWindowsByDay
-        ? Object.keys(
-            resolvedAppointmentSettings.operatingWindowsByDay as object,
-          )
-        : [],
-    });
-  }
 
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
@@ -3245,32 +3265,6 @@ export function BookAppointmentDialog({
     userRole === "PATIENT" &&
     videoPaymentAmount > 0;
 
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] Video payment state:', {
-      consultationMode,
-      userRole,
-      selectedServiceId,
-      selectedService: selectedService?.label || 'none',
-      videoPaymentAmount,
-      shouldCollectVideoPayment,
-      visibleServicesCount: visibleServices.length,
-      visibleServicesTreatmentTypes: visibleServices.map(s => s.treatmentType),
-      allServicesCount: appointmentServices.length,
-      allServicesTreatmentTypes: (appointmentServices as AppointmentServiceDefinition[]).map(s => s.treatmentType),
-    });
-    console.log('[BookAppointmentDialog] Appointment services:', {
-      servicesLoading,
-      servicesCount: appointmentServices.length,
-      services: (appointmentServices as AppointmentServiceDefinition[]).map(s => ({
-        treatmentType: s.treatmentType,
-        label: s.label,
-        active: s.active,
-        appointmentModes: s.appointmentModes,
-        videoConsultationFee: s.videoConsultationFee,
-      }))
-    });
-  }
-
   const doctorsList: any[] = useMemo(() => {
     // Backend returns [{ doctor: { id, user: { id, name, email } } }]
     const normalize = (raw: any[]) =>
@@ -3302,16 +3296,6 @@ export function BookAppointmentDialog({
     const raw = (doctorsData as any)?.doctors || [];
     return normalize(raw);
   }, [doctorsData]);
-
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] doctorsData raw:', {
-      type: typeof doctorsData,
-      isArray: Array.isArray(doctorsData),
-      hasData: !!(doctorsData as any)?.data,
-      doctorsCount: Array.isArray(doctorsData) ? doctorsData.length : ((doctorsData as any)?.data ? ((doctorsData as any).data.doctors?.length || (doctorsData as any).data.length || 'unknown') : 'no data'),
-      firstFew: Array.isArray(doctorsData) ? doctorsData.slice(0, 2) : ((doctorsData as any)?.data?.doctors?.slice(0, 2) || (doctorsData as any)?.data?.slice(0, 2))
-    });
-  }
 
   const doctorsErrorMessage = useMemo(() => {
     if (!doctorsError || doctorsLoading || !doctorsFetched) {
@@ -3378,23 +3362,6 @@ export function BookAppointmentDialog({
     setSelectedSlot,
   ]);
 
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] doctors state:', {
-      doctorsListLength: doctorsList.length,
-      doctorsLoading,
-      doctorsFetched,
-      doctorsError: doctorsError instanceof Error ? doctorsError.message : String(doctorsError),
-      doctorsErrorMessage,
-      shouldLoadDoctors,
-      dialogOpen,
-      activeClinicId,
-      consultationMode,
-      resolvedLocationId,
-      resolvedDoctorId,
-      selectedDoctor: selectedDoctor?.name || 'none'
-    });
-  }
-
   const dateString = useMemo(
     () => (selectedDate ? formatDateIST(selectedDate) : ""),
     [selectedDate],
@@ -3455,44 +3422,30 @@ export function BookAppointmentDialog({
     void refetchAvailability({ cancelRefetch: true });
   }, [availabilityQueryKey, dateString, dialogOpen, queryClient, refetchAvailability, resolvedDoctorId]);
   const patientsList: any[] = useMemo(() => {
-    const rawPatients = Array.isArray(patientsData)
-      ? patientsData
-      : (patientsData as any)?.patients || [];
-
-    return rawPatients.map((patient: any) => ({
-      ...patient,
-      displayName:
-        patient.name ||
-        patient.user?.name ||
-        `${patient.firstName || patient.user?.firstName || ""} ${patient.lastName || patient.user?.lastName || ""}`.trim() ||
-        patient.email ||
-        "Unknown Patient",
-      phone: patient.phone || patient.user?.phone || "",
-      email: patient.email || patient.user?.email || "",
+    const mapped = (patientsData?.rows ?? []).map((row) => ({
+      // `id` is the Patient id and `userId` the user id; the picker keys on `userId`.
+      id: row.patientId,
+      userId: row.userId,
+      displayName: row.name || "Unknown Patient",
+      phone: row.phone ?? "",
+      email: row.email ?? "",
+      uhid: row.uhid ?? "",
     }));
+    for (const patient of mapped) {
+      knownPatientsRef.current.set(patient.userId, patient);
+    }
+    return mapped;
   }, [patientsData]);
 
-  const filteredPatientsList = useMemo(() => {
-    const query = patientSearch.trim().toLowerCase();
-    if (!query) {
-      return patientsList;
-    }
-
-    return patientsList.filter((patient: any) => {
-      const name = String(patient.displayName || "").toLowerCase();
-      const phone = String(patient.phone || "").toLowerCase();
-      const email = String(patient.email || "").toLowerCase();
-      return (
-        name.includes(query) || phone.includes(query) || email.includes(query)
-      );
-    });
-  }, [patientsList, patientSearch]);
+  // Already searched and filtered by the server.
+  const filteredPatientsList = patientsList;
 
   const selectedPatient = useMemo(
     () =>
       patientsList.find((patient: any) =>
         isSelectedBookingPatient(patient, selectedPatientId),
       ) ||
+      knownPatientsRef.current.get(selectedPatientId) ||
       (recentlyCreatedPatient?.id === selectedPatientId
         ? recentlyCreatedPatient
         : null),
@@ -3912,26 +3865,6 @@ export function BookAppointmentDialog({
     queryClient,
     refetchAvailability,
   ]);
-
-  if (APP_CONFIG.ENVIRONMENT === "development") {
-    console.log('[BookAppointmentDialog] Availability state:', {
-      resolvedDoctorId,
-      dateString,
-      shouldLoadAvailability,
-      consultationMode,
-      rawSlots: slots.length,
-      effectiveSlots: effectiveSlots.length,
-      backendVideoWindow: backendVideoCallWindow,
-      clinicVideoWindow: clinicVideoCallWindow,
-      availabilityKeys: availability ? Object.keys(availability) : null,
-      availabilityAvailableSlots: (availability as any)?.availableSlots,
-      availabilityBookedSlots: (availability as any)?.bookedSlots,
-      availabilityVideoWindow: (availability as any)?.videoCallWindow,
-      availabilityRestrictions: (availability as any)?.restrictions,
-      availabilityLoading,
-      availabilityError: availabilityError instanceof Error ? availabilityError.message : String(availabilityError)
-    });
-  }
 
   useEffect(() => {
     if (!dialogOpen || !isConnected || !resolvedDoctorId || !dateString) {
@@ -4356,7 +4289,7 @@ export function BookAppointmentDialog({
           }
           
           showInfoToast(
-            "Appointment created. Complete the payment on the confirm screen to finish booking.",
+            "Appointment created. Complete payment in in the confirm screen to finish booking.",
           );
           return;
         }
@@ -4439,6 +4372,7 @@ export function BookAppointmentDialog({
           treatmentType: selectedService.treatmentType,
           priority: urgency.toUpperCase(),
           notes: chiefComplaint || selectedService.label,
+          ...(visitForFamilyMemberId ? { familyMemberId: visitForFamilyMemberId } : {}),
         });
         apptId =
           (atomicResult as any)?.appointment?.id ||
@@ -4482,6 +4416,7 @@ export function BookAppointmentDialog({
           notes: chiefComplaint || selectedService.label,
           priority: urgency.toUpperCase() as any,
           patientId: bookingPatientId,
+          ...(visitForFamilyMemberId ? { familyMemberId: visitForFamilyMemberId } : {}),
         };
 
         logger.info("[BookAppointmentDialog] Creating appointment", {
@@ -4762,20 +4697,27 @@ export function BookAppointmentDialog({
           .join(", ");
   const doctorExperienceYears = Number(selectedDoctor?.experience);
   const doctorRating = Number(selectedDoctor?.rating);
+  const localizedDoctor = toLocalizedDoctorText(
+    selectedDoctor?.localizedProfile,
+    language,
+  );
   const doctorInfo: BookingDoctorInfo | null = selectedDoctor
     ? {
-        name: formatDoctorDisplayName(selectedDoctor.name) || "Doctor",
-        subtitle: [
-          selectedDoctor.specialization || "General Physician",
-          selectedDoctor.qualification,
-        ]
-          .filter(Boolean)
-          .join(" · "),
+        name:
+          localizedDoctor?.name ||
+          formatDoctorDisplayName(selectedDoctor.name) ||
+          "Doctor",
+        subtitle: localizedDoctor?.headline || plainDoctorSubtitle(selectedDoctor),
         image: selectedDoctor.image || undefined,
-        locationName:
-          (consultationMode === "VIDEO"
-            ? clinicName || myClinic?.name
-            : bookingLocationName) || undefined,
+        locationName: bookingLocationName || undefined,
+        clinicName: clinicName || myClinic?.name || undefined,
+        highlights: toTextList(selectedDoctor.certifications),
+        profileHighlights:
+          localizedDoctor && localizedDoctor.highlights.length > 0
+            ? localizedDoctor.highlights
+            : undefined,
+        education: toTextList(selectedDoctor.education).join(", ") || undefined,
+        languages: toTextList(selectedDoctor.languages),
         stats: [
           ...(Number.isFinite(doctorExperienceYears) && doctorExperienceYears > 0
             ? [{ value: `${doctorExperienceYears}+`, label: "Years" }]

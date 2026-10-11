@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Loader2, ScanLine, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
@@ -23,6 +24,8 @@ export interface PatientHomeViewProps {
   /** True while the backend still marks the patient's profile as incomplete. */
   showProfileBanner: boolean;
   onCompleteProfile: () => void;
+  /** Optional card under the profile banner (e.g. linking an earlier clinic record). */
+  notice?: ReactNode;
 
   onBook: () => void;
   isBookingOpening: boolean;
@@ -53,6 +56,7 @@ export function PatientHomeView({
   doctor,
   showProfileBanner,
   onCompleteProfile,
+  notice,
   onBook,
   isBookingOpening,
   onScanCheckIn,
@@ -83,6 +87,8 @@ export function PatientHomeView({
           </Button>
         </div>
       ) : null}
+
+      {notice}
 
       <PatientHomeHero
         hello={hello}

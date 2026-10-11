@@ -1,13 +1,14 @@
 "use client";
 
 import { runSave } from "./run-save";
+import { useLocalizedOption } from "./use-localized-option";
 import { useStableSnapshot } from "./use-stable-snapshot";
 import { useEffect, useId, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Divider, Pill, ChoiceChip, type PillTone } from "@/components/tbd";
+import { Divider, Pill, type PillTone } from "@/components/tbd";
 import { GENERAL_EXAM_TEXT_OPTIONS } from "@/lib/constants/case-sheet-fixed-lists";
-import { ExamEyebrow, ExamPanel, ExamPanelHead, ExamSaveButton } from "./ExamParts";
+import { ExamEyebrow, ExamOptionChip, ExamPanel, ExamPanelHead, ExamSaveButton } from "./ExamParts";
 import type {
   UpsertVisitVitalsExaminationInput,
   VisitVitalsExamination,
@@ -141,6 +142,7 @@ export function GeneralExaminationForm({ vitals: vitalsProp, onSave, isSaving = 
   // Snapshot so a background refetch with identical data doesn't reset the draft.
   const vitals = useStableSnapshot(vitalsProp);
   const headingId = useId();
+  const localize = useLocalizedOption();
   const initial = useMemo(() => toDraft(vitals, GENERAL_FIELDS), [vitals]);
   const [draft, setDraft] = useState<Draft>(initial);
   const [text, setText] = useState<Record<TextField, string>>({
@@ -207,18 +209,16 @@ export function GeneralExaminationForm({ vitals: vitalsProp, onSave, isSaving = 
               {GENERAL_EXAM_TEXT_OPTIONS[field].map((option) => {
                 const active = text[field] === option;
                 return (
-                  <ChoiceChip
+                  <ExamOptionChip
                     key={option}
-                    className="whitespace-nowrap"
                     size="md"
+                    label={localize(option)}
                     active={active}
                     onClick={() => {
                       setText((prev) => ({ ...prev, [field]: active ? "" : option }));
                       setDirty(true);
                     }}
-                  >
-                    {option}
-                  </ChoiceChip>
+                  />
                 );
               })}
             </div>

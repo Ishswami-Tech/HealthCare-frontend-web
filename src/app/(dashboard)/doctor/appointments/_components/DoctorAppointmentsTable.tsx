@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
@@ -16,37 +17,29 @@ import {
 } from "lucide-react";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  CellTitle,
-  EmptyBlock,
-  InitialsAvatar,
-  Pill,
-  SkeletonRows,
-  Surface,
-  statusLabel,
-  statusTone,
-  visitTypeLabel,
-  PAGE_SIZE_OPTIONS,
-  Pager,
-  usePagedRows,
-} from "@/components/tbd";
+import { CellTitle, EmptyBlock, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
 import { VIDEO_JOIN_EARLY_WINDOW_MINUTES } from "@/lib/utils/appointmentUtils";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { cn } from "@/lib/utils";
 import type { DoctorAppointmentViewFilter, TransformedAppointment } from "../page";
-import { getPatientContact, getPatientLine } from "./appointmentLabels";
+import { getPatientContact, getPatientLine, getVisitTypeLabel } from "./appointmentLabels";
 import type { DoctorAppointmentDetailsTab } from "./DoctorAppointmentsDetailsDialog";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 /**
  * One line per visit on a wide card (patient, type, status, details, actions).
- * On a narrow card the same cells stack: name and status first, then the rest across the
- * full width (in the `auto` column they would size that column and squeeze the name).
+ * On a narrow card the same cells stack: name and status first, then the rest.
  * `@5xl` is a container width, so the layout follows the card, not the window.
  */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.45fr)_100px_minmax(0,1.1fr)_388px] @5xl:items-center @5xl:gap-x-4";
-const CELL_BELOW = "col-[1/-1] @5xl:col-auto @5xl:row-auto";
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_100px_minmax(0,1.1fr)_388px] @5xl:items-center @5xl:gap-x-4";
+/** Same grid without the Details column (no row has a complaint or reason to show). */
+const ROW_GRID_NO_DETAILS =
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_100px_388px] @5xl:items-center @5xl:gap-x-4";
+const CELL_BELOW = "col-[2/-1] @5xl:col-auto @5xl:row-auto";
 
 interface DoctorAppointmentsTableProps {
   appointments: TransformedAppointment[];
@@ -74,7 +67,7 @@ interface DoctorAppointmentsTableProps {
  * which is exactly when `joinOpensLater` turns false.
  */
 export function canCompleteConfirmedVideoVisit(appointment: TransformedAppointment): boolean {
-  return appointment.status === "CONFIRMED" && appointment.isVideo && !appointment.joinOpensLater;
+  return appointment.status === "CONFIRMED" && appointment.isVideo && appointment.joinWindowOpen;
 }
 
 function RowActions({
@@ -202,33 +195,36 @@ function RowActions({
   );
 }
 
-/** Placeholder rows in the grid of this table. */
-function TableSkeleton({ rows = 5 }: { rows?: number }) {
+function SkeletonRows({ rows = 5, rowGrid }: { rows?: number; rowGrid: string }) {
   return (
-    <SkeletonRows rows={rows} rowClassName={cn(ROW_GRID, "items-center gap-y-2.5 py-3.5 @5xl:min-h-16 @5xl:py-2")}>
-      <div className="flex min-w-0 items-center gap-3">
-        <Skeleton className="size-[38px] shrink-0 rounded-full" />
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Skeleton className="h-3.5 w-32 rounded" />
-          <Skeleton className="h-3 w-20 rounded" />
+    <div aria-hidden="true">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={index} className={cn(rowGrid, "items-center gap-y-2.5 border-b border-hair py-3.5 last:border-b-0 @5xl:min-h-16 @5xl:py-2")}>
+          <div className="flex min-w-0 items-center gap-3">
+            <Skeleton className="size-[38px] shrink-0 rounded-full" />
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Skeleton className="h-3.5 w-32 rounded" />
+              <Skeleton className="h-3 w-20 rounded" />
+            </div>
+          </div>
+          <div className={cn(CELL_BELOW, "row-[2] flex flex-col gap-1.5")}>
+            <Skeleton className="h-3.5 w-24 rounded" />
+            <Skeleton className="h-3 w-40 max-w-full rounded" />
+          </div>
+          <div className="col-[2] row-[1] @5xl:col-auto @5xl:row-auto">
+            <Skeleton className="h-[22px] w-20 rounded-lg" />
+          </div>
+          <div className={cn(CELL_BELOW, "row-[3] flex flex-col gap-1.5")}>
+            <Skeleton className="h-3.5 w-36 max-w-full rounded" />
+            <Skeleton className="h-3 w-24 rounded" />
+          </div>
+          <div className={cn(CELL_BELOW, "row-[4] flex gap-2")}>
+            <Skeleton className="size-9 rounded-xl" />
+            <Skeleton className="h-9 w-24 rounded-xl" />
+          </div>
         </div>
-      </div>
-      <div className={cn(CELL_BELOW, "row-[2] flex flex-col gap-1.5")}>
-        <Skeleton className="h-3.5 w-24 rounded" />
-        <Skeleton className="h-3 w-40 max-w-full rounded" />
-      </div>
-      <div className="col-[2] row-[1] @5xl:col-auto @5xl:row-auto">
-        <Skeleton className="h-[22px] w-20 rounded-lg" />
-      </div>
-      <div className={cn(CELL_BELOW, "row-[3] flex flex-col gap-1.5")}>
-        <Skeleton className="h-3.5 w-36 max-w-full rounded" />
-        <Skeleton className="h-3 w-24 rounded" />
-      </div>
-      <div className={cn(CELL_BELOW, "row-[4] flex gap-2")}>
-        <Skeleton className="size-9 rounded-xl" />
-        <Skeleton className="h-9 w-24 rounded-xl" />
-      </div>
-    </SkeletonRows>
+      ))}
+    </div>
   );
 }
 
@@ -250,9 +246,24 @@ export function DoctorAppointmentsTable({
   onStart,
   onComplete,
 }: DoctorAppointmentsTableProps) {
-  const paging = usePagedRows(appointments, PAGE_SIZE_OPTIONS[0], { resetKey });
-  const { pageRows } = paging;
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [appliedResetKey, setAppliedResetKey] = useState(resetKey);
+  if (appliedResetKey !== resetKey) {
+    setAppliedResetKey(resetKey);
+    setPageIndex(0);
+  }
+
+  const total = appointments.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(pageIndex, pageCount - 1);
+  const pageRows = appointments.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
+  const rangeStart = total === 0 ? 0 : currentPage * pageSize + 1;
+  const rangeEnd = total === 0 ? 0 : currentPage * pageSize + pageRows.length;
   const isMissedView = appointmentViewFilter === "NO_SHOW";
+  // The Details column only earns its space when at least one row has a complaint or reason.
+  const showDetails = appointments.some((app) => Boolean(app.chiefComplaint));
+  const rowGrid = showDetails ? ROW_GRID : ROW_GRID_NO_DETAILS;
 
   return (
     <Surface flush as="section" className="@container" aria-label={isMissedView ? "Missed appointments" : "Appointments"}>
@@ -287,19 +298,19 @@ export function DoctorAppointmentsTable({
         <div
           role="row"
           className={cn(
-            ROW_GRID,
+            rowGrid,
             "hidden border-b border-hair py-3 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted @5xl:grid",
           )}
         >
           <span role="columnheader">Patient</span>
           <span role="columnheader">Type</span>
           <span role="columnheader">Status</span>
-          <span role="columnheader">Details</span>
+          {showDetails ? <span role="columnheader">Details</span> : null}
           <span role="columnheader">Actions</span>
         </div>
 
         {loading ? (
-          <TableSkeleton />
+          <SkeletonRows rowGrid={rowGrid} />
         ) : pageRows.length === 0 ? (
           <div role="row">
             <div role="cell">
@@ -328,7 +339,7 @@ export function DoctorAppointmentsTable({
                 key={app.id}
                 role="row"
                 className={cn(
-                  ROW_GRID,
+                  rowGrid,
                   "items-start gap-y-2.5 border-b border-hair py-3.5 text-sm last:border-b-0 @5xl:min-h-16 @5xl:py-2",
                 )}
               >
@@ -366,25 +377,29 @@ export function DoctorAppointmentsTable({
                         app.patientName
                       )
                     }
-                    description={getPatientLine(app)}
+                    description={getPatientLine(app) ?? (getPatientContact(app) || undefined)}
+                    wrapTitle
+                    titleHint={app.patientName}
                   />
                 </div>
                 <div role="cell" className={cn(CELL_BELOW, "row-[2] min-w-0")}>
                   <CellTitle
-                    title={visitTypeLabel(app.type)}
+                    title={getVisitTypeLabel(app.type)}
                     description={`${app.appointmentDate} · ${app.time} · ${app.duration}`}
                   />
                 </div>
                 <div role="cell" className="col-[2] row-[1] min-w-0 @5xl:col-auto @5xl:row-auto">
                   <Pill tone={statusTone(app.status)}>{statusLabel(app.status)}</Pill>
                 </div>
-                <div role="cell" className={cn(CELL_BELOW, "row-[3] min-w-0")}>
-                  <CellTitle
-                    title={<span className="font-medium">{app.chiefComplaint}</span>}
-                    description={getPatientContact(app)}
-                  />
-                </div>
-                <div role="cell" className={cn(CELL_BELOW, "row-[4] min-w-0")}>
+                {showDetails ? (
+                  <div role="cell" className={cn(CELL_BELOW, "row-[3] min-w-0")}>
+                    <CellTitle
+                      title={<span className="font-medium">{app.chiefComplaint}</span>}
+                      description={getPatientContact(app) || undefined}
+                    />
+                  </div>
+                ) : null}
+                <div role="cell" className={cn(CELL_BELOW, showDetails ? "row-[4]" : "row-[3]", "min-w-0")}>
                   <RowActions
                     appointment={app}
                     clinicId={clinicId}
@@ -402,7 +417,57 @@ export function DoctorAppointmentsTable({
       </div>
 
       {loading ? null : (
-        <Pager paging={paging} noun="row(s)" pageSizeOptions={PAGE_SIZE_OPTIONS} id="doctor-appointments" />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-hair px-5 py-3 text-[13px] text-ink-muted">
+          <span>
+            Showing {rangeStart}–{rangeEnd} of {total} row(s)
+          </span>
+          <span className="ml-auto flex items-center gap-2">
+            <span id="doctor-appointments-page-size">Show</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => {
+                setPageSize(Number(value));
+                setPageIndex(0);
+              }}
+            >
+              <SelectTrigger
+                size="sm"
+                aria-labelledby="doctor-appointments-page-size"
+                className="h-[34px] rounded-[10px] px-2.5 text-[13px] font-semibold text-ink data-[size=sm]:h-[34px]"
+              >
+                <SelectValue placeholder="Rows" />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </span>
+          <nav aria-label="Pages" className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
+            <Button
+              variant="outline"
+              className="h-[34px]"
+              onClick={() => setPageIndex(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
+            >
+              Previous
+            </Button>
+            <span className="whitespace-nowrap" aria-live="polite">
+              Page {currentPage + 1} of {pageCount}
+            </span>
+            <Button
+              variant="outline"
+              className="h-[34px]"
+              onClick={() => setPageIndex(Math.min(pageCount - 1, currentPage + 1))}
+              disabled={currentPage >= pageCount - 1}
+            >
+              Next
+            </Button>
+          </nav>
+        </div>
       )}
     </Surface>
   );

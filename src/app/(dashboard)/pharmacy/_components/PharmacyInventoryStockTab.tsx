@@ -61,7 +61,7 @@ export interface PharmacyInventoryStockTabProps {
   onFiltersChange: (filters: InventoryFilters) => void;
   page: number;
   onPageChange: (page: number) => void;
-  /** False hides Restock and Add (no `MANAGE_INVENTORY` permission). */
+  /** False hides Receive and Add (no `MANAGE_INVENTORY` permission). */
   canManage: boolean;
   onView: (medicine: MedicineRow) => void;
   onRestock: (medicine: MedicineRow) => void;
@@ -214,10 +214,10 @@ export function PharmacyInventoryStockTab({
                             variant="soft"
                             size="compact"
                             onClick={() => onRestock(medicine)}
-                            aria-label={`Restock ${medicine.name}`}
+                            aria-label={`Receive stock for ${medicine.name}`}
                           >
                             <Plus aria-hidden="true" />
-                            Restock
+                            Receive
                           </Button>
                         ) : null}
                       </span>
@@ -470,10 +470,10 @@ export function PharmacyInventoryStockTab({
                         <Button
                           variant="soft"
                           onClick={() => onRestock(medicine)}
-                          aria-label={`Restock ${medicine.name}`}
+                          aria-label={`Receive stock for ${medicine.name}`}
                         >
                           <Plus aria-hidden="true" />
-                          Restock
+                          Receive
                         </Button>
                       ) : null}
                       <Button variant="outline" onClick={() => onView(medicine)} aria-label={`View ${medicine.name}`}>

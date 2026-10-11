@@ -1,7 +1,8 @@
 "use client";
 
+import { useLocalizedLabel } from "./use-localized-option";
 import type { ReactNode } from "react";
-import { Save } from "lucide-react";
+import { Check, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/tbd";
 import { cn } from "@/lib/utils";
@@ -44,13 +45,18 @@ export function ExamPanelHead({
   description?: ReactNode;
   aside?: ReactNode;
 }) {
+  const localizeLabel = useLocalizedLabel();
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
       <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
         <h2 id={id} className="m-0 text-base font-bold text-ink">
-          {title}
+          {typeof title === "string" ? localizeLabel(title) : title}
         </h2>
-        {description ? <div className="text-[13px] text-ink-muted">{description}</div> : null}
+        {description ? (
+          <div className="text-[13px] text-ink-muted">
+            {typeof description === "string" ? localizeLabel(description) : description}
+          </div>
+        ) : null}
       </div>
       {aside ? <div className="ml-auto flex shrink-0 items-center gap-2">{aside}</div> : null}
     </div>
@@ -69,10 +75,11 @@ export function ExamSaveButton({
   saving: boolean;
   label?: string;
 }) {
+  const localizeLabel = useLocalizedLabel();
   return (
     <Button onClick={onClick} disabled={disabled} className="h-[38px] px-3.5 has-[>svg]:px-3.5">
       <Save strokeWidth={2.4} aria-hidden="true" />
-      {saving ? "Saving..." : label}
+      {localizeLabel(saving ? "Saving..." : label)}
     </Button>
   );
 }
@@ -86,6 +93,49 @@ export function ExamEyebrow({ id, className, children }: { id?: string; classNam
     >
       {children}
     </span>
+  );
+}
+
+const CHIP_SIZES = {
+  /** 30 px — inside the small tiles (Pain, Personal, Prakruti). */
+  sm: "min-h-[30px] text-xs",
+  /** 34 px — Sleep / Bowel / Appetite on General Exam. */
+  md: "min-h-[34px] text-[13px]",
+  /** 36 px — the Devanagari option lists of the classical examinations. */
+  lg: "min-h-9 text-sm",
+} as const;
+
+export type ExamChipSize = keyof typeof CHIP_SIZES;
+
+/** Option chip. Selected = emerald with a tick, so the state never depends on colour alone. */
+export function ExamOptionChip({
+  label,
+  active,
+  onClick,
+  size = "lg",
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  size?: ExamChipSize;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-[13px] transition-colors",
+        "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
+        CHIP_SIZES[size],
+        active
+          ? "border-[#047857] bg-[#047857] font-bold text-white"
+          : "border-line bg-card font-medium text-ink hover:bg-mint-soft",
+      )}
+    >
+      {active ? <Check className="size-[13px] shrink-0" strokeWidth={3} aria-hidden="true" /> : null}
+      {label}
+    </button>
   );
 }
 

@@ -5,32 +5,41 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHydrated } from "@/hooks/utils/useHydrated";
 import { showInfoToast } from "@/hooks/utils/use-toast";
-import { useClinicContext } from "@/hooks/query/useClinics";
-import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
-import { usePrescriptions as useClinicPrescriptions } from "@/hooks/query/usePharmacy";
+import { usePrescriptions, useUpdatePrescription } from "@/hooks/query/usePrescriptions";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateKeyInIST } from "@/lib/utils/date-time";
 import { DoctorPrescriptionsView } from "./DoctorPrescriptionsView";
 import {
+  EMPTY_PRESCRIPTION_FORM,
   buildDoctorPrescriptionStats,
   filterDoctorPrescriptions,
-  isPrescriptionByDoctor,
   normalizeDoctorPrescriptions,
+  type DoctorPrescriptionEditForm,
   type DoctorPrescriptionFilter,
+  type DoctorPrescriptionRow,
 } from "./doctor-prescriptions.logic";
 
 type DoctorPrescriptionsState = {
   searchQuery: string;
   filterStatus: DoctorPrescriptionFilter;
+  editingPrescription: DoctorPrescriptionRow | null;
+  showPrescriptionDialog: boolean;
+  editForm: DoctorPrescriptionEditForm;
 };
 
 type DoctorPrescriptionsAction =
   | { type: "setSearchQuery"; value: string }
-  | { type: "setFilterStatus"; value: DoctorPrescriptionFilter };
+  | { type: "setFilterStatus"; value: DoctorPrescriptionFilter }
+  | { type: "openDialog"; prescription: DoctorPrescriptionRow | null; form: DoctorPrescriptionEditForm }
+  | { type: "setShowPrescriptionDialog"; value: boolean }
+  | { type: "updateEditForm"; value: Partial<DoctorPrescriptionEditForm> };
 
 const initialDoctorPrescriptionsState: DoctorPrescriptionsState = {
   searchQuery: "",
   filterStatus: "all",
+  editingPrescription: null,
+  showPrescriptionDialog: false,
+  editForm: EMPTY_PRESCRIPTION_FORM,
 };
 
 function doctorPrescriptionsReducer(
@@ -42,68 +51,90 @@ function doctorPrescriptionsReducer(
       return { ...state, searchQuery: action.value };
     case "setFilterStatus":
       return { ...state, filterStatus: action.value };
+    case "openDialog":
+      return {
+        ...state,
+        editingPrescription: action.prescription,
+        editForm: action.form,
+        showPrescriptionDialog: true,
+      };
+    case "setShowPrescriptionDialog":
+      return { ...state, showPrescriptionDialog: action.value };
+    case "updateEditForm":
+      return { ...state, editForm: { ...state.editForm, ...action.value } };
     default:
       return state;
   }
 }
 
-/**
- * Data container for the doctor's prescriptions screen: hooks here, layout in the view.
- *
- * The backend lets a doctor LIST prescriptions (GET /pharmacy/prescriptions) and CREATE one
- * (POST /pharmacy/prescriptions, through `QuickPrescriptionModal` on a patient). It has no
- * edit, cancel, delete or PDF for a doctor, so a saved prescription is read-only here; the
- * medicine desk marks it dispensed or cancelled.
- */
+/** Data container for the doctor's prescriptions screen: hooks and mutations here, layout in the view. */
 export function DoctorPrescriptionsContent() {
-  const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
-  const doctorUserId = user?.id || "";
-  const { clinicId } = useClinicContext();
-  // A prescription carries the Doctor record id, not the signed-in user's id.
-  const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(clinicId || "");
+  const doctorId = user?.id || "";
 
-  const [{ searchQuery, filterStatus }, dispatch] = useReducer(
-    doctorPrescriptionsReducer,
-    initialDoctorPrescriptionsState,
-  );
+  const [
+    { searchQuery, filterStatus, editingPrescription, showPrescriptionDialog, editForm },
+    dispatch,
+  ] = useReducer(doctorPrescriptionsReducer, initialDoctorPrescriptionsState);
 
   const isHydrated = useHydrated();
   const todayDate = isHydrated ? formatDateKeyInIST(new Date()) : "";
 
-  // `GET /pharmacy/prescriptions` answers with every prescription of the clinic as a plain
-  // list (the same request the pharmacy screens use); this doctor's own are picked below.
-  const {
-    data: prescriptionsData,
-    isPending,
-    error,
-    refetch,
-  } = useClinicPrescriptions(clinicId || "");
+  const { data: prescriptionsData, isPending, error, refetch } = usePrescriptions(doctorId);
+  const updateMutation = useUpdatePrescription();
+  const router = useRouter();
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
 
-  const prescriptions = useMemo(() => {
-    const ownIds = [doctorUserId, doctorEntityId].filter(Boolean);
-    const all = Array.isArray(prescriptionsData) ? prescriptionsData : [];
-    return normalizeDoctorPrescriptions(all.filter((prescription) => isPrescriptionByDoctor(prescription, ownIds)));
-  }, [doctorEntityId, doctorUserId, prescriptionsData]);
+  const prescriptions = useMemo(
+    () => normalizeDoctorPrescriptions(prescriptionsData?.prescriptions),
+    [prescriptionsData?.prescriptions],
+  );
   const filteredPrescriptions = useMemo(
     () => filterDoctorPrescriptions(prescriptions, searchQuery, filterStatus),
     [prescriptions, searchQuery, filterStatus],
   );
   const stats = useMemo(() => buildDoctorPrescriptionStats(prescriptions, todayDate), [prescriptions, todayDate]);
 
-  // A prescription belongs to a patient and is written from the pharmacy stock list, so a new
-  // one starts from the patient list: "Prescribe" on a patient opens the prescribing dialog.
+  // A prescription is written for a patient, from the patient's record or the visit; the
+  // patients list is where the doctor picks who it is for.
   const openCreate = () => {
-    showInfoToast("Choose the patient, then press Prescribe.");
-    push("/doctor/patients");
+    router.push("/doctor/patients");
   };
 
-  // Without a clinic the list request never starts, so it must not look like loading.
-  const showSkeleton = Boolean(clinicId) && isPending && prescriptions.length === 0;
+  const openEdit = (prescription: DoctorPrescriptionRow) => {
+    dispatch({
+      type: "openDialog",
+      prescription,
+      form: {
+        diagnosis: prescription.diagnosis,
+        notes: prescription.notes,
+        status: prescription.status || "active",
+        medicines: prescription.medicines.join(", "),
+      },
+    });
+  };
+
+  const handleDownload = (prescription: DoctorPrescriptionRow) => {
+    if (prescription.pdfUrl) {
+      window.open(prescription.pdfUrl, "_blank", "noopener,noreferrer");
+    } else {
+      showInfoToast("PDF not available for this prescription");
+    }
+  };
+
+  const handleSavePrescription = () => {
+    if (!editingPrescription?.id) return;
+    updateMutation.mutate({
+      prescriptionId: editingPrescription.id,
+      updates: { notes: editForm.notes },
+    });
+    dispatch({ type: "setShowPrescriptionDialog", value: false });
+  };
+
+  const showSkeleton = isPending && prescriptions.length === 0;
   const loadFailed = Boolean(error) && prescriptions.length === 0;
 
   return (
@@ -118,7 +149,16 @@ export function DoctorPrescriptionsContent() {
       filterStatus={filterStatus}
       onSearchChange={(value) => dispatch({ type: "setSearchQuery", value })}
       onFilterChange={(value) => dispatch({ type: "setFilterStatus", value })}
+      editDisabled={updateMutation.isPending}
       onCreate={openCreate}
+      onEdit={openEdit}
+      onDownload={handleDownload}
+      dialogOpen={showPrescriptionDialog}
+      form={editForm}
+      isSaving={updateMutation.isPending}
+      onFormChange={(value) => dispatch({ type: "updateEditForm", value })}
+      onSave={handleSavePrescription}
+      onDialogOpenChange={(value) => dispatch({ type: "setShowPrescriptionDialog", value })}
     />
   );
 }

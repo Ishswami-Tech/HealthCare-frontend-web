@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useCallback, useReducer } from "react";
+import { useMemo, useCallback, useReducer, useState } from "react";
 import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
@@ -29,7 +29,15 @@ import {
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
+import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
+import {
+  PATIENT_DIRECTORY_DEFAULT_PAGE_SIZE,
+  PATIENT_DIRECTORY_PAGE_SIZES,
+  type PatientDirectoryPageSize,
+  type PatientDirectoryRow,
+} from "@/types/patient-directory.types";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { formatDateInIST } from "@/lib/utils/date-time";
@@ -63,6 +71,7 @@ interface PatientTableRow {
   id: string;
   patient: any;
   name: string;
+  uhid: string;
   address: string;
   phone: string;
   email: string;
@@ -94,7 +103,6 @@ type NewPatientFormState = {
 
 type ReceptionistPatientsState = {
   searchTerm: string;
-  statusFilter: string;
   genderFilter: string;
   sortFilter: string;
   page: number;
@@ -107,7 +115,6 @@ type ReceptionistPatientsState = {
 type ReceptionistPatientsAction =
   | { type: "setSearchTerm"; value: string }
   | { type: "setDebouncedSearchTerm"; value: string }
-  | { type: "setStatusFilter"; value: string }
   | { type: "setGenderFilter"; value: string }
   | { type: "setSortFilter"; value: string }
   | { type: "setPage"; value: number }
@@ -159,7 +166,6 @@ const initialNewPatientFormState: NewPatientFormState = {
 
 const initialReceptionistPatientsState: ReceptionistPatientsState = {
   searchTerm: "",
-  statusFilter: "all",
   genderFilter: "all",
   sortFilter: "registered-desc",
   page: 1,
@@ -178,8 +184,6 @@ function receptionistPatientsReducer(
       return { ...state, searchTerm: action.value };
     case "setDebouncedSearchTerm":
       return { ...state, debouncedSearchTerm: action.value };
-    case "setStatusFilter":
-      return { ...state, statusFilter: action.value };
     case "setGenderFilter":
       return { ...state, genderFilter: action.value };
     case "setSortFilter":
@@ -323,11 +327,6 @@ function PatientDetailsSections({
   );
 }
 
-function createTemporaryPatientPassword(phone: string): string {
-  const digits = phone.replace(/\D/g, "").slice(-4) || "1234";
-  return `Temp@${digits}Aa`;
-}
-
 function normalizePatientGender(
   gender: string
 ): "MALE" | "FEMALE" | "OTHER" | undefined {
@@ -338,13 +337,33 @@ function normalizePatientGender(
   return undefined;
 }
 
+/** A directory row in the shape this page's table and details dialog already read. */
+function directoryRowToPatient(row: PatientDirectoryRow) {
+  return {
+    id: row.patientId,
+    userId: row.userId,
+    name: row.name,
+    phone: row.phone ?? "",
+    email: row.email ?? "",
+    age: row.age ?? undefined,
+    gender: row.gender ?? "",
+    dateOfBirth: row.dateOfBirth ?? undefined,
+    address: [row.city, row.state].filter(Boolean).join(", "),
+    isActive: true,
+    totalVisits: row.totalVisits,
+    createdAt: row.registeredAt,
+    lastVisit: row.lastVisit ?? undefined,
+    uhid: row.uhid ?? "",
+    legacyRegistration: row.legacyRegistration ?? "",
+  };
+}
+
 export default function ReceptionistPatients() {
   useAuth();
   const { clinicId } = useClinicContext();
   const [
     {
       searchTerm,
-      statusFilter,
       genderFilter,
       sortFilter,
       page,
@@ -355,8 +374,7 @@ export default function ReceptionistPatients() {
     },
     dispatch,
   ] = useReducer(receptionistPatientsReducer, initialReceptionistPatientsState);
-  const pageSize = 12;
-  const patients = usePatientStore((state) => state.collections.clinic);
+  const [pageSize, setPageSize] = useState<PatientDirectoryPageSize>(PATIENT_DIRECTORY_DEFAULT_PAGE_SIZE);
   const selectedPatient = usePatientStore((state) => state.selectedPatient);
   const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
   const debouncedSetSearch = useDebouncedCallback((value: string) => {
@@ -369,40 +387,32 @@ export default function ReceptionistPatients() {
     debouncedSetSearch(value);
   };
 
-  // Fetch real patient data
-  const patientsQuery = usePatients(
-    clinicId || "",
-    {
-      ...(debouncedSearchTerm ? { search: debouncedSearchTerm } : {}),
-      ...(statusFilter !== "all" && { isActive: statusFilter === "active" }),
-      ...(genderFilter !== "all" ? { gender: genderFilter } : {}),
-      limit: pageSize,
-      offset: (page - 1) * pageSize,
-    }
+  // Search, filters, sorting and paging run on the server: the clinic has tens of thousands of patients.
+  const [sortField, sortOrder] = sortFilter.split("-") as [
+    "registered" | "name" | "visits" | "lastVisit" | "firstVisit",
+    "asc" | "desc",
+  ];
+  const directoryQuery = usePatientDirectory(clinicId || "", {
+    ...(debouncedSearchTerm.trim().length >= 2 ? { search: debouncedSearchTerm.trim() } : {}),
+    ...(genderFilter === "MALE" || genderFilter === "FEMALE" || genderFilter === "OTHER"
+      ? { gender: genderFilter }
+      : {}),
+    sort: sortField,
+    order: sortOrder,
+    page,
+    pageSize,
+  });
+  const patientsQuery = directoryQuery;
+  const patients = useMemo(
+    () => (directoryQuery.data?.rows ?? []).map(directoryRowToPatient),
+    [directoryQuery.data]
   );
-  const patientsPage = useMemo(() => {
-    if (Array.isArray(patientsQuery.data)) {
-      return {
-        total: patientsQuery.data.length,
-        page: 1,
-        totalPages: 1,
-        pageSize,
-      };
-    }
-
-    const record = (patientsQuery.data as Record<string, any>) || {};
-    const total = Number(record.total ?? record.count ?? record.totalCount ?? 0) || patients.length;
-    const currentPage = Number(record.page ?? record.currentPage ?? page) || page;
-    const resolvedPageSize = Number(record.pageSize ?? record.limit ?? pageSize) || pageSize;
-    const totalPages = Number(record.totalPages ?? record.pageCount ?? Math.max(1, Math.ceil(total / Math.max(resolvedPageSize, 1)))) || 1;
-
-    return {
-      total,
-      page: currentPage,
-      totalPages,
-      pageSize: resolvedPageSize,
-    };
-  }, [patientsQuery.data, patients.length, page, pageSize]);
+  const patientsPage = {
+    total: directoryQuery.data?.total ?? 0,
+    page: directoryQuery.data?.page ?? page,
+    totalPages: directoryQuery.data?.totalPages ?? 1,
+    pageSize,
+  };
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
@@ -441,42 +451,8 @@ export default function ReceptionistPatients() {
     });
   }, [patients]);
 
-  const filteredPatients = useMemo(() => {
-    const base = patientsWithAge.filter((patient: any) => {
-      const patientPhone = patient.phone || patient.user?.phone || "";
-      const patientEmail = patient.email || patient.user?.email || "";
-      const patientGender = String(patient.gender || "").toUpperCase();
-      const matchesSearch =
-        !searchTerm ||
-        patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patientPhone.includes(searchTerm) ||
-        patientEmail.toLowerCase().includes(searchTerm.toLowerCase());
-      const patientStatus = patient.isActive ? "active" : "inactive";
-      const matchesStatus =
-        statusFilter === "all" || patientStatus === statusFilter;
-      const matchesGender = genderFilter === "all" || patientGender === genderFilter;
-
-      return matchesSearch && matchesStatus && matchesGender;
-    });
-
-    return base.toSorted((left: any, right: any) => {
-      if (sortFilter === "name-asc") {
-        return String(left.name || "").localeCompare(String(right.name || ""));
-      }
-      if (sortFilter === "name-desc") {
-        return String(right.name || "").localeCompare(String(left.name || ""));
-      }
-      if (sortFilter === "visits-desc") {
-        return Number(right.totalVisits || 0) - Number(left.totalVisits || 0);
-      }
-      const leftCreatedAt = left.createdAt ? new Date(left.createdAt).getTime() : 0;
-      const rightCreatedAt = right.createdAt ? new Date(right.createdAt).getTime() : 0;
-      if (sortFilter === "registered-asc") {
-        return leftCreatedAt - rightCreatedAt;
-      }
-      return rightCreatedAt - leftCreatedAt;
-    });
-  }, [patientsWithAge, searchTerm, statusFilter, genderFilter, sortFilter]);
+  // Already searched, filtered and sorted by the server.
+  const filteredPatients = patientsWithAge;
 
   const patientTableRows = useMemo<PatientTableRow[]>(
     () =>
@@ -484,6 +460,7 @@ export default function ReceptionistPatients() {
         id: patient.id,
         patient,
         name: patient.name || "Unknown Patient",
+        uhid: patient.uhid || "",
         address: patient.address || "Address not available",
         phone: patient.phone || patient.user?.phone || "N/A",
         email: patient.email || patient.user?.email || "N/A",
@@ -519,6 +496,9 @@ export default function ReceptionistPatients() {
             </div>
             <div>
               <div className="font-semibold">{row.original.name}</div>
+              {row.original.uhid ? (
+                <div className="font-mono text-xs text-muted-foreground">UHID {row.original.uhid}</div>
+              ) : null}
               <div className="line-clamp-1 text-xs text-muted-foreground">
                 {row.original.address}
               </div>
@@ -610,7 +590,7 @@ export default function ReceptionistPatients() {
           ? `Current medications: ${newPatient.currentMedications.trim()}`
           : "",
       ].flatMap((value) => (value ? [value] : []));
-      const temporaryPassword = createTemporaryPatientPassword(newPatient.phone);
+      const temporaryPassword = generateTemporaryPassword();
       const emergencyContact =
         newPatient.emergencyContact.trim() && newPatient.emergencyPhone.trim()
           ? {
@@ -642,7 +622,7 @@ export default function ReceptionistPatients() {
       }
 
       showSuccessToast(
-        `Patient created successfully. Temporary password: ${temporaryPassword}`,
+        "Patient created successfully. They sign in with a one-time code sent to their phone.",
         {
           id: TOAST_IDS.GLOBAL.SUCCESS,
         }
@@ -968,7 +948,7 @@ export default function ReceptionistPatients() {
           </div>
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -978,24 +958,18 @@ export default function ReceptionistPatients() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{patientsPage.total || patients.length}</div>
-                <p className="text-xs text-muted-foreground">Registered</p>
+                <p className="text-xs text-muted-foreground">In this clinic</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Active Patients
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">On this page</CardTitle>
                 <UserCheck className="size-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {patients.filter((p: any) => p.isActive !== false).length}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Loaded page active
-                </p>
+                <div className="text-2xl font-bold text-green-600">{patients.length}</div>
+                <p className="text-xs text-muted-foreground">Patients shown now</p>
               </CardContent>
             </Card>
 
@@ -1018,22 +992,7 @@ export default function ReceptionistPatients() {
                     );
                   }).length}
                 </div>
-                <p className="text-xs text-muted-foreground" suppressHydrationWarning>Loaded page registrations</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Inactive Patients
-                </CardTitle>
-                <AlertCircle className="size-4 text-orange-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {patients.filter((p: any) => p.isActive === false).length}
-                </div>
-                <p className="text-xs text-muted-foreground">Loaded page inactive</p>
+                <p className="text-xs text-muted-foreground" suppressHydrationWarning>Registered this month (this page)</p>
               </CardContent>
             </Card>
           </div>
@@ -1048,25 +1007,12 @@ export default function ReceptionistPatients() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by name, phone, or email..."
+                    placeholder="Search name, phone, UHID, OPD or register number..."
                     value={searchTerm}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     className="pl-10"
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={(value) => {
-                  dispatch({ type: "setStatusFilter", value });
-                  dispatch({ type: "setPage", value: 1 });
-                }}>
-                  <SelectTrigger className="w-full md:w-48">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Patients</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
                 <Select value={genderFilter} onValueChange={(value) => {
                   dispatch({ type: "setGenderFilter", value });
                   dispatch({ type: "setPage", value: 1 });
@@ -1091,6 +1037,8 @@ export default function ReceptionistPatients() {
                   <SelectContent>
                     <SelectItem value="registered-desc">Newest registered</SelectItem>
                     <SelectItem value="registered-asc">Oldest registered</SelectItem>
+                    <SelectItem value="lastVisit-desc">Last visit (newest)</SelectItem>
+                    <SelectItem value="lastVisit-asc">Last visit (oldest)</SelectItem>
                     <SelectItem value="name-asc">Name A-Z</SelectItem>
                     <SelectItem value="name-desc">Name Z-A</SelectItem>
                     <SelectItem value="visits-desc">Most visits</SelectItem>
@@ -1098,31 +1046,68 @@ export default function ReceptionistPatients() {
                 </Select>
               </div>
               <div className="mt-3 text-sm text-muted-foreground">
-                Showing {filteredPatients.length} of {patientsPage.total || patientsWithAge.length} patients
+                Showing {filteredPatients.length.toLocaleString("en-IN")} of{" "}
+                {patientsPage.total.toLocaleString("en-IN")} patients
               </div>
             </CardContent>
           </Card>
 
           {/* Patients List */}
-          <Card>
+          {directoryQuery.error && !directoryQuery.data ? (
+            <Card role="alert">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+                <span>
+                  <b className="font-bold">Patients could not be loaded.</b> Check your connection and try again.
+                </span>
+                <Button variant="outline" onClick={() => void directoryQuery.refetch()}>
+                  Try again
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
+          <Card aria-busy={directoryQuery.isFetching}>
             <CardContent className="p-4">
               <DataTable
                 columns={patientColumns}
                 data={patientTableRows}
-                emptyMessage="No patients found"
-                pageSize={12}
+                emptyMessage={directoryQuery.isPending ? "Loading patients…" : "No patients found"}
+                manualPagination
                 showPagination={false}
               />
             </CardContent>
           </Card>
 
-          <ServerPagination
-            page={page}
-            totalPages={patientsPage.totalPages || 1}
-            totalItems={patientsPage.total || patientsWithAge.length}
-            pageSize={pageSize}
-            onPageChange={(nextPage) => dispatch({ type: "setPage", value: nextPage })}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span id="receptionist-page-size-label">Show</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  setPageSize(Number(value) as PatientDirectoryPageSize);
+                  dispatch({ type: "setPage", value: 1 });
+                }}
+              >
+                <SelectTrigger className="w-24" aria-labelledby="receptionist-page-size-label">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PATIENT_DIRECTORY_PAGE_SIZES.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span>per page</span>
+            </div>
+            <ServerPagination
+              page={page}
+              totalPages={patientsPage.totalPages || 1}
+              totalItems={patientsPage.total}
+              pageSize={pageSize}
+              onPageChange={(nextPage) => dispatch({ type: "setPage", value: nextPage })}
+            />
+          </div>
 
           <div className="hidden grid gap-4">
             {filteredPatients.map((patient: any) => (

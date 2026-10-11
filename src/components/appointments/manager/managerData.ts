@@ -1,13 +1,11 @@
-import { buildSlotPeriods, readBookedSlots } from "@/components/appointments/booking/slotDisplay";
-import type { BookingPeriodKey, BookingSlotPeriod } from "@/components/appointments/booking/types";
 import { statusLabel, statusTone, type PillTone } from "@/components/tbd";
-import { isCheckedInClinicVisit, type Row } from "@/components/patient/home/homeData";
-import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
+import { localizedDoctorName, localizedDoctorSubtitle } from "@/lib/utils/localized-profile";
+import { asRow, firstText, isCheckedInClinicVisit, text, type Row } from "@/components/patient/home/homeData";
 import {
   APPOINTMENT_MAX_RESCHEDULES,
   canCancelAppointment,
   canCancelVideoAppointment,
-  canRescheduleAppointment,
+  canRescheduleInPersonAppointment,
   canRescheduleVideoAppointment,
   formatDateInIST,
   formatDoctorDisplayName,
@@ -39,7 +37,6 @@ import type {
   ManagerTab,
   ManagerVisit,
 } from "./types";
-import { lowerMeridiem } from "@/lib/utils/date-time";
 
 /**
  * Turns API rows into the appointments-list view models (`types.ts`). Pure functions: the
@@ -70,20 +67,15 @@ export const STATUS_OPTIONS_BY_TAB: Record<ManagerTab, Array<{ value: ManagerSta
   ],
 };
 
-/** DOM id of a visit's card or row, so a link can scroll to it. */
-export function visitElementId(visitId: string): string {
-  return `appointment-visit-${visitId}`;
-}
-
 export function getEffectiveAppointmentId(appointment: unknown): string {
-  const row = asRecord(appointment);
+  const row = asRow(appointment);
   return firstText(row?.appointmentId, row?.id);
 }
 
 /** The list inside any of the shapes the appointment hooks and server actions return. */
 export function extractAppointmentList(rawData: unknown): Row[] {
-  const data = asRecord(rawData);
-  const inner = asRecord(data?.data);
+  const data = asRow(rawData);
+  const inner = asRow(data?.data);
   const list = Array.isArray(rawData)
     ? rawData
     : Array.isArray(inner?.appointments)
@@ -93,11 +85,11 @@ export function extractAppointmentList(rawData: unknown): Row[] {
         : Array.isArray(data?.data)
           ? data.data
           : [];
-  return list.filter((item): item is Row => Boolean(asRecord(item)));
+  return list.filter((item): item is Row => Boolean(asRow(item)));
 }
 
 function personName(value: unknown): string {
-  const person = asRecord(value);
+  const person = asRow(value);
   return firstText(person?.fullName, person?.name);
 }
 
@@ -115,7 +107,7 @@ export function dedupeAppointments(list: Row[]): Row[] {
     const date = firstText(appointment.date, appointment.scheduledDate, appointment.appointmentDate);
     const time = firstText(appointment.time, appointment.startTime, appointment.scheduledStartTime, appointment.slot);
     const location =
-      firstText(asRecord(appointment.location)?.name, appointment.locationLabel, appointment.locationName) || "location";
+      firstText(asRow(appointment.location)?.name, appointment.locationLabel, appointment.locationName) || "location";
     const key = `${doctor}|${patient}|${date}|${time}|${location}`;
     if (!seen.has(key)) seen.set(key, appointment);
   }
@@ -131,6 +123,8 @@ export interface ManagerVisitOptions {
   viewerRole?: string | null | undefined;
   /** Staff lists (reception, clinic) lead with the patient's name. */
   staffView: boolean;
+  /** App language; patients see the doctor's localized name and headline in it. */
+  locale?: string | undefined;
 }
 
 function normalizeRole(role?: string | null): string {
@@ -146,9 +140,13 @@ export function isPatientViewer(viewerRole: string | null | undefined, staffView
   return role ? role === "PATIENT" : !staffView;
 }
 
+function upperMeridiem(value: string): string {
+  return value.replace(/\b(am|pm)\b/i, (meridiem) => meridiem.toUpperCase());
+}
+
 function doctorPhoto(appointment: Row): string | undefined {
-  const doctor = asRecord(appointment.doctor);
-  const doctorUser = asRecord(doctor?.user);
+  const doctor = asRow(appointment.doctor);
+  const doctorUser = asRow(doctor?.user);
   const url = firstText(
     doctor?.profilePicture,
     doctor?.avatar,
@@ -160,8 +158,8 @@ function doctorPhoto(appointment: Row): string | undefined {
 }
 
 function directionsUrl(appointment: Row): string | undefined {
-  const location = asRecord(appointment.location);
-  const clinic = asRecord(appointment.clinic);
+  const location = asRow(appointment.location);
+  const clinic = asRow(appointment.clinic);
   const name = getAppointmentLocationName(appointment);
   const hasName = Boolean(name) && name !== "Location TBD";
   const address = firstText(location?.address, clinic?.address);
@@ -178,15 +176,15 @@ function proposedSlotLabels(appointment: Row): string[] {
   if (!Array.isArray(appointment.proposedSlots)) return [];
   return appointment.proposedSlots
     .map((slot) => {
-      const row = asRecord(slot);
-      const date = textOf(row?.date);
-      const time = textOf(row?.time);
+      const row = asRow(slot);
+      const date = text(row?.date);
+      const time = text(row?.time);
       if (!date) return "";
       const parsed = new Date(`${date.slice(0, 10)}T00:00:00+05:30`);
       const dateLabel = Number.isNaN(parsed.getTime())
         ? date
         : formatDateInIST(parsed, { weekday: "short", day: "numeric", month: "short" });
-      const timeLabel = time ? lowerMeridiem(formatTimeValueInIST(time) || time) : "";
+      const timeLabel = time ? upperMeridiem(formatTimeValueInIST(time) || time) : "";
       return [dateLabel, timeLabel].filter(Boolean).join(" · ");
     })
     .filter(Boolean);
@@ -217,7 +215,7 @@ function closedNote(appointment: Row, status: string, isVideo: boolean, paymentF
 }
 
 export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): ManagerVisit {
-  const { now, viewerRole, staffView } = options;
+  const { now, viewerRole, staffView, locale } = options;
   const viewerIsPatient = isPatientViewer(viewerRole, staffView);
   const normalized = normalizePatientAppointment(appointment);
   const viewState = getAppointmentViewState(appointment);
@@ -246,19 +244,24 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
   const rawTime = dateTime
     ? formatTimeInIST(dateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
     : getReceptionistAppointmentTimeLabel(appointment);
-  const timeLabel = rawTime && rawTime !== "TBD" ? lowerMeridiem(rawTime) : "";
+  const timeLabel = rawTime && rawTime !== "TBD" ? upperMeridiem(rawTime) : "";
   const dateLabel = dateTime
     ? formatDateInIST(dateTime, { day: "numeric", month: "short", year: "numeric" })
     : dayLabel;
 
   // ── who ──
-  const doctorName = formatDoctorDisplayName(firstText(appointment.doctorLabel) || normalized.doctorName);
+  const plainDoctorName = formatDoctorDisplayName(firstText(appointment.doctorLabel) || normalized.doctorName);
+  const doctorProfile = asRow(appointment.doctor)?.localizedProfile;
+  const doctorName = staffView ? plainDoctorName : localizedDoctorName(doctorProfile, locale, plainDoctorName);
   const patientName = toTitleCase(firstText(appointment.patientLabel) || getAppointmentPatientName(appointment));
   const hasPatientName = Boolean(patientName) && patientName !== "Unknown Patient";
-  const treatment = textOf(appointment.treatmentType).replace(/_/g, " ");
+  const treatment = text(appointment.treatmentType).replace(/_/g, " ");
   const visitLabel = treatment ? toTitleCase(treatment) : isVideo ? "Video consultation" : "Clinic visit";
   const duration = getDisplayAppointmentDuration(appointment);
-  const specialization = textOf(asRecord(appointment.doctor)?.specialization);
+  const plainSpecialization = text(asRow(appointment.doctor)?.specialization);
+  const specialization = staffView
+    ? plainSpecialization
+    : (localizedDoctorSubtitle(doctorProfile, locale, plainSpecialization) ?? "");
   const locationName = firstText(appointment.locationLabel) || normalized.locationName;
   const hasLocation = Boolean(locationName) && locationName !== "Location TBD" && locationName !== doctorName;
   const subtitle = staffView
@@ -300,13 +303,14 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
 
   // ── moving and cancelling ──
   // A visit can be moved APPOINTMENT_MAX_RESCHEDULES times; the backend counts every type.
+  // Video: only while confirmed. In-person: any state but done, cancelled, no-show, expired or in progress.
   const movesUsed = getAppointmentRescheduleCount(appointment);
   const canReschedule =
     !terminal &&
     !unpaid &&
     (isVideo
       ? canRescheduleVideoAppointment(appointment, new Date(now))
-      : clinicStage === "upcoming" && canRescheduleAppointment(status) && movesUsed < APPOINTMENT_MAX_RESCHEDULES);
+      : canRescheduleInPersonAppointment(appointment));
   const changesLeft = Math.max(0, APPOINTMENT_MAX_RESCHEDULES - movesUsed);
   // A patient can never cancel a video visit; nobody cancels a paid one.
   const canCancel =
@@ -320,6 +324,9 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
   const canBookAgain = (status === "CANCELLED" || status === "NO_SHOW") && terminal && !canRetryPayment;
   // Booking saves the reason for the visit in `notes`.
   const reason = firstText(appointment.chiefComplaint, appointment.notes).split("\n")[0] ?? "";
+  // A completed in-clinic visit can be rated by the patient (POST /doctors/:id/reviews).
+  const rateDoctorId = firstText(appointment.doctorId, appointment.appointmentDoctorId) || null;
+  const canRate = viewerIsPatient && !isVideo && status === "COMPLETED" && Boolean(id) && Boolean(rateDoctorId);
   const summaryHref =
     tab === "past" && viewerIsPatient && id
       ? isVideo
@@ -384,6 +391,8 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
     closedNote: terminal ? closedNote(appointment, status, isVideo, paymentFailure, slotPassed) : null,
     canBookAgain,
     canRetryPayment,
+    canRate,
+    rateDoctorId,
     summaryHref,
     summaryLabel: isVideo ? "Summary" : "Records",
   };
@@ -441,87 +450,4 @@ export function countStats(visits: ManagerVisit[]): ManagerStats {
     inProgress: visits.filter((visit) => visit.filterStatus === "IN_PROGRESS").length,
     completed: visits.filter((visit) => visit.filterStatus === "COMPLETED").length,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Reschedule: the doctor's free times
-// ---------------------------------------------------------------------------
-
-/** What the availability request needs for one visit. Empty ids mean "cannot ask". */
-export interface RescheduleAvailabilityTarget {
-  clinicId: string;
-  doctorId: string;
-  /** Sent for clinic visits only: video slots are not tied to a place. */
-  locationId?: string;
-  appointmentType: "VIDEO_CALL" | "IN_PERSON";
-  /** Slot length, used to place booked times on the same grid. */
-  durationMinutes: number;
-}
-
-export function rescheduleAvailabilityTarget(
-  appointment: Row | undefined,
-  fallbackClinicId: string | undefined,
-): RescheduleAvailabilityTarget {
-  if (!appointment) return { clinicId: "", doctorId: "", appointmentType: "VIDEO_CALL", durationMinutes: 0 };
-  const isVideo = normalizePatientAppointment(appointment).isOnline || getAppointmentViewState(appointment).isVideo;
-  const locationId = firstText(appointment.locationId, asRecord(appointment.location)?.id);
-  return {
-    clinicId: firstText(appointment.clinicId, asRecord(appointment.clinic)?.id, fallbackClinicId),
-    // The same ids "Book again" hands to the booking wizard.
-    doctorId: firstText(appointment.doctorId, appointment.appointmentDoctorId),
-    ...(!isVideo && locationId ? { locationId } : {}),
-    appointmentType: isVideo ? "VIDEO_CALL" : "IN_PERSON",
-    durationMinutes: getDisplayAppointmentDuration(appointment) ?? 0,
-  };
-}
-
-/** The availability response sits at the root, under `data`, or under `data.data`. */
-function availabilityLayers(availability: unknown): Row[] {
-  const layers: Row[] = [];
-  let node = asRecord(availability);
-  for (let depth = 0; depth < 3 && node; depth += 1) {
-    layers.push(node);
-    node = asRecord(node.data);
-  }
-  return layers;
-}
-
-function slotTime(value: unknown): string {
-  const match = /^(\d{1,2}):(\d{2})/.exec(textOf(value).trim());
-  return match ? `${(match[1] ?? "").padStart(2, "0")}:${match[2] ?? ""}` : "";
-}
-
-/** The day the response answers for ("2026-10-04"), when it says so. */
-export function readAvailabilityDate(availability: unknown): string {
-  for (const layer of availabilityLayers(availability)) {
-    const date = textOf(layer.date);
-    if (date) return date.slice(0, 10);
-  }
-  return "";
-}
-
-/**
- * The doctor's free times for one day, grouped like the booking wizard's slot grid.
- * The backend already leaves out past times and other visits; booked times are drawn struck
- * through by `buildSlotPeriods`.
- */
-export function buildRescheduleSlotPeriods(availability: unknown, durationMinutes: number): BookingSlotPeriod[] {
-  const booked = readBookedSlots(availability);
-  const bookedSet = new Set(booked);
-  const open = new Set<string>();
-  for (const layer of availabilityLayers(availability)) {
-    for (const list of [layer.availableSlots, layer.slots]) {
-      if (!Array.isArray(list)) continue;
-      for (const entry of list) {
-        const time = slotTime(entry);
-        if (time && !bookedSet.has(time)) open.add(time);
-      }
-    }
-  }
-  const groups: Record<BookingPeriodKey, string[]> = { morning: [], afternoon: [], evening: [] };
-  for (const time of Array.from(open).sort()) {
-    const hour = Number(time.slice(0, 2));
-    groups[hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"].push(time);
-  }
-  return buildSlotPeriods(groups, booked, durationMinutes);
 }

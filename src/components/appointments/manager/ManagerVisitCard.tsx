@@ -3,18 +3,13 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Activity, Calendar, CalendarClock, Clock, ScanLine, Video } from "lucide-react";
+import { Activity, Calendar, CalendarClock, Clock, Hospital, ScanLine, Video } from "lucide-react";
 import { AppointmentExpiryCountdown } from "@/components/appointments/AppointmentExpiryCountdown";
 import { PaymentCountdown } from "@/components/appointments/PaymentCountdown";
 import { describeStart } from "@/components/patient/home/HomeVisitCard";
-import { Chip, Divider, InitialsAvatar, Pill, Surface, VisitTypeChip } from "@/components/tbd";
+import { Chip, Divider, InitialsAvatar, Pill, Surface } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { visitElementId } from "./managerData";
 import type { ManagerPayRenderer, ManagerVisit, ManagerVisitActions } from "./types";
-
-/** The ring around a visit that a link opened. */
-export const MARKED_VISIT_CLASS = "ring-2 ring-brand ring-offset-2 ring-offset-background transition-shadow";
 
 /** Doctor photo (or initials) used by the cards and the table rows. */
 export function VisitAvatar({ visit, size }: { visit: ManagerVisit; size: number }) {
@@ -36,6 +31,16 @@ export function VisitAvatar({ visit, size }: { visit: ManagerVisit; size: number
   return <InitialsAvatar name={visit.avatarName} size={size} square />;
 }
 
+/** "Video" (indigo) or "In-Clinic · place" (green). */
+export function VisitTypeChip({ visit, short = false }: { visit: ManagerVisit; short?: boolean }) {
+  const isVideo = visit.kind === "video";
+  return (
+    <Chip icon={isVideo ? Video : Hospital} tone={isVideo ? "video" : "clinic"} className="max-w-full">
+      <span className="min-w-0 truncate">{isVideo ? "Video" : short ? "In-Clinic" : visit.typeLabel}</span>
+    </Chip>
+  );
+}
+
 /**
  * One upcoming visit: who, when, what kind, where it stands, and what can be done now.
  * One main button: pay (amber), join (amber), check in or track the queue (emerald).
@@ -48,7 +53,6 @@ export function ManagerVisitCard({
   checkInHref,
   cancelling,
   rescheduling,
-  marked = false,
 }: {
   visit: ManagerVisit;
   now: number | null;
@@ -58,8 +62,6 @@ export function ManagerVisitCard({
   checkInHref: string;
   cancelling: boolean;
   rescheduling: boolean;
-  /** Opened from a link: drawn with a ring for a moment. */
-  marked?: boolean;
 }) {
   const isVideo = visit.kind === "video";
   const isRejoin = visit.joinAction === "resume";
@@ -118,9 +120,7 @@ export function ManagerVisitCard({
   return (
     <Surface
       as="article"
-      id={visitElementId(visit.id)}
-      className={cn("@container scroll-mt-24", marked && MARKED_VISIT_CLASS)}
-      {...(marked ? { "aria-current": "true" as const } : {})}
+      className="@container"
       aria-label={`${isVideo ? "Video visit" : "Clinic visit"}: ${visit.title}, ${visit.whenLabel}`}
     >
       <div className="flex items-center gap-3.5">
@@ -140,7 +140,7 @@ export function ManagerVisitCard({
 
       <div className="flex flex-wrap items-center gap-2">
         <Chip icon={Calendar}>{visit.whenLabel}</Chip>
-        <VisitTypeChip variant="chip" type={visit.kind} label={visit.typeLabel} />
+        <VisitTypeChip visit={visit} />
         {stateLine ? (
           <Chip icon={visit.kind === "video" ? Clock : Activity} tone={visit.canJoin || !isVideo ? "green" : "slate"}>
             <span suppressHydrationWarning>{stateLine}</span>

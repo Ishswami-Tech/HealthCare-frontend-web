@@ -4,10 +4,8 @@ import { authenticatedApi, getServerSession } from './auth.server';
 import { revalidateCache } from '@/lib/utils/revalidate-cache';
 import { API_ENDPOINTS } from '../config/config';
 import { logger } from '@/lib/utils/logger';
-
-function unsupportedDoctorRoute(feature: string): never {
-  throw new Error(`Unsupported doctor backend route: ${feature}`);
-}
+import { isApiError } from '@/lib/utils/error-handler';
+import type { LocalizedProfile } from '@/lib/utils/localized-profile';
 
 function normalizeCollectionResponse<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) {
@@ -194,31 +192,6 @@ export async function createDoctor(doctorData: {
 }
 
 /**
- * Update doctor
- */
-export async function updateDoctor(doctorId: string, updates: {
-  specialization?: string;
-  licenseNumber?: string;
-  experience?: number;
-  qualification?: string;
-  consultationFee?: number;
-  isActive?: boolean;
-  clinicId?: string;
-}) {
-  void doctorId;
-  void updates;
-  return unsupportedDoctorRoute('PATCH /doctors/:id');
-}
-
-/**
- * Delete doctor
- */
-export async function deleteDoctor(doctorId: string) {
-  void doctorId;
-  return unsupportedDoctorRoute('DELETE /doctors/:id');
-}
-
-/**
  * Get doctor schedule
  */
 export async function getDoctorSchedule(clinicId: string, doctorId: string, date?: string) {
@@ -275,22 +248,6 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
 }
 
 
-
-/**
- * Update doctor availability
- */
-export async function updateDoctorAvailability(doctorId: string, availabilityData: {
-  date: string;
-  timeSlots: {
-    startTime: string;
-    endTime: string;
-    isAvailable: boolean;
-  }[];
-}) {
-  void doctorId;
-  void availabilityData;
-  return unsupportedDoctorRoute('PUT /appointments/doctor/:doctorId/availability');
-}
 
 /**
  * Get doctor appointments
@@ -361,109 +318,137 @@ export async function getDoctorPatients(clinicId: string, filters?: {
 }
 
 /**
- * Get doctor statistics
+ * Get a doctor's reviews (GET /doctors/:id/reviews, the id is the doctor's User id).
+ * Answers { items: [{ id, rating, comment, createdAt, reviewerName }], averageRating, reviewCount, meta }.
  */
-export async function getDoctorStats(_doctorId: string, _period?: 'day' | 'week' | 'month' | 'year') {
-  void _doctorId;
-  void _period;
-  return unsupportedDoctorRoute('GET /doctors/:id/stats');
+export async function getDoctorReviews(doctorUserId: string, filters?: { page?: number; limit?: number }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
+  const params = new URLSearchParams();
+  if (typeof filters?.page === 'number') params.append('page', String(filters.page));
+  if (typeof filters?.limit === 'number') params.append('limit', String(filters.limit));
+  const query = params.toString();
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorUserId)}${query ? `?${query}` : ''}`, {
+    cache: 'no-store',
+  });
+  return data;
 }
 
 /**
- * Get doctor reviews
+ * Rate a doctor after a completed visit (POST /doctors/:id/reviews, patients only).
+ * The backend allows one review per appointment and answers 409 when it was already rated.
  */
-export async function getDoctorReviews(_doctorId: string, _limit: number = 10) {
-  void _doctorId;
-  void _limit;
-  return unsupportedDoctorRoute('GET /doctors/:id/reviews');
-}
-
-/**
- * Add doctor review
- */
-export async function addDoctorReview(_doctorId: string, _reviewData: {
-  patientId: string;
+export async function addDoctorReview(doctorUserId: string, reviewData: {
+  appointmentId: string;
   rating: number;
   comment?: string;
-  appointmentId?: string;
 }) {
-  void _doctorId;
-  void _reviewData;
-  return unsupportedDoctorRoute('POST /doctors/:id/reviews');
+  const session = await getServerSession();
+  if (!session?.user) return { success: false as const, error: 'Unauthorized' };
+  try {
+    const comment = reviewData.comment?.trim();
+    const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.REVIEWS.CREATE(doctorUserId), {
+      method: 'POST',
+      body: JSON.stringify({
+        appointmentId: reviewData.appointmentId,
+        rating: reviewData.rating,
+        ...(comment ? { comment } : {}),
+      }),
+    });
+    void revalidateCache('doctors');
+    return { success: true as const, review: data };
+  } catch (error) {
+    logger.error('Failed to add doctor review', error instanceof Error ? error : new Error(String(error)));
+    return {
+      success: false as const,
+      error: error instanceof Error && error.message ? error.message : 'Failed to submit your rating',
+    };
+  }
 }
 
 /**
- * Get doctor specializations
+ * The signed-in doctor's own earnings (GET /analytics/doctor/me/earnings, paid consultations
+ * per IST day, net of refunds). Answers { from, to, currency, consultations, total, daily }.
  */
-export async function getDoctorSpecializations() {
-  return unsupportedDoctorRoute('GET /doctors/specializations');
+export async function getMyDoctorEarnings(range?: { from?: string; to?: string }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
+  const params = new URLSearchParams();
+  if (range?.from) params.append('from', range.from);
+  if (range?.to) params.append('to', range.to);
+  const query = params.toString();
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.DOCTOR_MY_EARNINGS}${query ? `?${query}` : ''}`, {
+    cache: 'no-store',
+  });
+  return data;
 }
 
 /**
- * Search doctors
+ * Admin view of the earnings split (GET /analytics/earnings/split): gross, doctor share and
+ * convenience fee per doctor, paid-but-not-completed payments and the doctors' fixed fees.
+ * SUPER_ADMIN and CLINIC_ADMIN only.
  */
-export async function searchDoctors(query: string, filters?: {
-  specialization?: string;
-  clinicId?: string;
-  location?: string;
-  availability?: string;
-  limit?: number;
-}) {
-  void query;
-  void filters;
-  return unsupportedDoctorRoute('GET /doctors/search');
-}
+export async function getEarningsSplit(range?: { from?: string; to?: string }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
 
-/**
- * Get doctor performance metrics
- */
-export async function getDoctorPerformanceMetrics(_doctorId: string, _filters?: {
-  startDate?: string;
-  endDate?: string;
-}) {
-  void _doctorId;
-  void _filters;
-  return unsupportedDoctorRoute('GET /doctors/:id/performance');
+  const params = new URLSearchParams();
+  if (range?.from) params.append('from', range.from);
+  if (range?.to) params.append('to', range.to);
+  const query = params.toString();
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.EARNINGS_SPLIT}${query ? `?${query}` : ''}`, {
+    cache: 'no-store',
+  });
+  return data;
 }
 
 /**
  * Update doctor profile
  */
-export async function updateDoctorProfile(doctorId: string, profileData: {
-  bio?: string;
-  education?: string[];
+export async function updateDoctorProfile(doctorUserId: string, profileData: {
+  specialization?: string;
+  experience?: number;
+  consultationFee?: number;
+  videoConsultationFee?: number;
+  /** Fixed doctor fees: set by admins only (a doctor gets 403). */
+  videoDoctorFee?: number | null;
+  inPersonDoctorFee?: number | null;
+  slotDurationMinutes?: number;
+  videoConsultationEnabled?: boolean;
+  inPersonConsultationEnabled?: boolean;
+  qualification?: string;
+  licenseNumber?: string;
+  education?: string;
   certifications?: string[];
   languages?: string[];
-  profilePicture?: string;
+  /** Public name, headline and highlights per language; null clears them. */
+  localizedProfile?: LocalizedProfile | null;
 }) {
-  void doctorId;
-  void profileData;
-  return unsupportedDoctorRoute('PATCH /doctors/:id/profile');
+  const session = await getServerSession();
+  if (!session?.user) return { success: false as const, error: 'Unauthorized' };
+  try {
+    // The doctor's own record: PATCH /doctors/:userId (the id is the doctor's User id).
+    await authenticatedApi(API_ENDPOINTS.DOCTORS.UPDATE(doctorUserId), {
+      method: 'PATCH',
+      body: JSON.stringify(profileData),
+    });
+    revalidateCache('doctors');
+    return { success: true as const };
+  } catch (error) {
+    logger.error('Failed to update doctor profile', error instanceof Error ? error : new Error(String(error)));
+    return {
+      success: false as const,
+      error: error instanceof Error && error.message ? error.message : 'Failed to update doctor profile',
+      statusCode: isApiError(error) ? error.statusCode : undefined,
+    };
+  }
 }
 
-/**
- * Get doctor earnings
- */
-export async function getDoctorEarnings(_doctorId: string, _filters?: {
-  startDate?: string;
-  endDate?: string;
-  period?: 'day' | 'week' | 'month' | 'year';
-}) {
-  void _doctorId;
-  void _filters;
-  return unsupportedDoctorRoute('GET /doctors/:id/earnings');
-}
-
-/**
- * Export doctor data
- */
-export async function exportDoctorData(_filters: {
-  format: 'csv' | 'excel' | 'pdf';
-  doctorIds?: string[];
-  includeStats?: boolean;
-  startDate?: string;
-  endDate?: string;
-}) {
-  void _filters;
-  return unsupportedDoctorRoute('POST /doctors/export');
-}
