@@ -30,6 +30,7 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
 import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
 import {
   PATIENT_DIRECTORY_DEFAULT_PAGE_SIZE,
@@ -331,11 +332,6 @@ function PatientDetailsSections({
   );
 }
 
-function createTemporaryPatientPassword(phone: string): string {
-  const digits = phone.replace(/\D/g, "").slice(-4) || "1234";
-  return `Temp@${digits}Aa`;
-}
-
 function normalizePatientGender(
   gender: string
 ): "MALE" | "FEMALE" | "OTHER" | undefined {
@@ -599,7 +595,7 @@ export default function ReceptionistPatients() {
           ? `Current medications: ${newPatient.currentMedications.trim()}`
           : "",
       ].flatMap((value) => (value ? [value] : []));
-      const temporaryPassword = createTemporaryPatientPassword(newPatient.phone);
+      const temporaryPassword = generateTemporaryPassword();
       const emergencyContact =
         newPatient.emergencyContact.trim() && newPatient.emergencyPhone.trim()
           ? {
@@ -631,7 +627,7 @@ export default function ReceptionistPatients() {
       }
 
       showSuccessToast(
-        `Patient created successfully. Temporary password: ${temporaryPassword}`,
+        "Patient created successfully. They sign in with a one-time code sent to their phone.",
         {
           id: TOAST_IDS.GLOBAL.SUCCESS,
         }

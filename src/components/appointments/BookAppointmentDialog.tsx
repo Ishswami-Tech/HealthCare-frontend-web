@@ -45,10 +45,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import {
-  usePatients,
-  useQuickRegisterPatient,
-} from "@/hooks/query/usePatients";
+import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
+import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
+import { useDebouncedValue } from "@/hooks/core/useDebouncedValue";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { useMyFamilyMembers } from "@/hooks/query/useMyFamilyMembers";
 import { Role } from "@/types/auth.types";
@@ -726,7 +726,7 @@ function BookAppointmentPatientPicker({
     }
 
     try {
-      const temporaryPassword = createTemporaryPatientPassword(phone);
+      const temporaryPassword = generateTemporaryPassword();
       const normalizedGender = normalizePatientGender(newPatient.gender);
       const email = newPatient.email.trim();
       const quickRegisterResult =
@@ -819,8 +819,12 @@ function BookAppointmentPatientPicker({
         queryKey: ["patients"],
         exact: false,
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["patientDirectory"],
+        exact: false,
+      });
       showSuccessToast(
-        `Patient created successfully. Temporary password: ${temporaryPassword}`,
+        "Patient created successfully. They sign in with a one-time code sent to their phone.",
       );
     } catch (error) {
       showErrorToast(
@@ -854,7 +858,7 @@ function BookAppointmentPatientPicker({
         <Input
           value={patientSearch}
           onChange={(event) => setPatientSearch(event.target.value)}
-          placeholder="Search by patient name, phone, or email"
+          placeholder="Search by name, phone, UHID or OPD number"
           className="h-11 pl-10"
         />
       </div>
@@ -904,6 +908,7 @@ function BookAppointmentPatientPicker({
                     {patient.displayName}
                   </p>
                   <p className="m-0 truncate text-xs text-ink-muted">
+                    {patient.uhid ? `UHID ${patient.uhid} - ` : ""}
                     {patient.phone || "No phone"}
                     {patient.email ? ` - ${patient.email}` : ""}
                   </p>
@@ -2285,11 +2290,6 @@ const normalizePatientGender = (value: string) => {
   return undefined;
 };
 
-const createTemporaryPatientPassword = (phone: string) => {
-  const digits = phone.replace(/\D/g, "").slice(-6) || "123456";
-  return `Pt@${digits}`;
-};
-
 const AVAILABILITY_TIMEOUT_MS = 15000;
 const withTimeout = async <T,>(
   promise: Promise<T>,
@@ -2949,11 +2949,21 @@ export function BookAppointmentDialog({
   // Only RECEPTIONIST needs the full patient list to select a patient.
   // Patients book for themselves calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
-  const { data: patientsData = [] } = usePatients(
+  // Searched on the server (name, phone, UHID, OPD or register number): the clinic has tens of
+  // thousands of patients, so a fixed page of the newest ones would hide most of them.
+  const debouncedPatientSearch = useDebouncedValue(patientSearch.trim(), 300);
+  const { data: patientsData } = usePatientDirectory(
     isPrivilegedScheduler ? activeClinicId : "",
-    { limit: 200, isActive: true },
+    {
+      ...(debouncedPatientSearch.length >= 2 ? { search: debouncedPatientSearch } : {}),
+      sort: "lastVisit",
+      order: "desc",
+      pageSize: 10,
+    },
     { enabled: shouldLoadPatients },
   );
+  // Patients picked from earlier searches stay selectable after the search text changes.
+  const knownPatientsRef = useRef(new Map<string, any>());
   // Only fetch the user profile when the dialog is open. The dialog
   // component is mounted by the appointments page header even when
   // closed, so unconditionally calling `useUserProfile()` here would
@@ -3408,44 +3418,30 @@ export function BookAppointmentDialog({
     void refetchAvailability({ cancelRefetch: true });
   }, [availabilityQueryKey, dateString, dialogOpen, queryClient, refetchAvailability, resolvedDoctorId]);
   const patientsList: any[] = useMemo(() => {
-    const rawPatients = Array.isArray(patientsData)
-      ? patientsData
-      : (patientsData as any)?.patients || [];
-
-    return rawPatients.map((patient: any) => ({
-      ...patient,
-      displayName:
-        patient.name ||
-        patient.user?.name ||
-        `${patient.firstName || patient.user?.firstName || ""} ${patient.lastName || patient.user?.lastName || ""}`.trim() ||
-        patient.email ||
-        "Unknown Patient",
-      phone: patient.phone || patient.user?.phone || "",
-      email: patient.email || patient.user?.email || "",
+    const mapped = (patientsData?.rows ?? []).map((row) => ({
+      // `id` is the Patient id and `userId` the user id; the picker keys on `userId`.
+      id: row.patientId,
+      userId: row.userId,
+      displayName: row.name || "Unknown Patient",
+      phone: row.phone ?? "",
+      email: row.email ?? "",
+      uhid: row.uhid ?? "",
     }));
+    for (const patient of mapped) {
+      knownPatientsRef.current.set(patient.userId, patient);
+    }
+    return mapped;
   }, [patientsData]);
 
-  const filteredPatientsList = useMemo(() => {
-    const query = patientSearch.trim().toLowerCase();
-    if (!query) {
-      return patientsList;
-    }
-
-    return patientsList.filter((patient: any) => {
-      const name = String(patient.displayName || "").toLowerCase();
-      const phone = String(patient.phone || "").toLowerCase();
-      const email = String(patient.email || "").toLowerCase();
-      return (
-        name.includes(query) || phone.includes(query) || email.includes(query)
-      );
-    });
-  }, [patientsList, patientSearch]);
+  // Already searched and filtered by the server.
+  const filteredPatientsList = patientsList;
 
   const selectedPatient = useMemo(
     () =>
       patientsList.find((patient: any) =>
         isSelectedBookingPatient(patient, selectedPatientId),
       ) ||
+      knownPatientsRef.current.get(selectedPatientId) ||
       (recentlyCreatedPatient?.id === selectedPatientId
         ? recentlyCreatedPatient
         : null),

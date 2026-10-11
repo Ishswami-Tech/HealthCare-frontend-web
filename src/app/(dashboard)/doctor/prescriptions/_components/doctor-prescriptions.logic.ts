@@ -167,7 +167,9 @@ export function normalizeDoctorPrescription(input: unknown): DoctorPrescriptionR
     medicines: medicineNames(raw),
     status: normalizeStatus(raw.status),
     pharmacy: pharmacyState(raw),
-    pdfUrl: text(raw.pdfUrl),
+    // The backend sends its own relative path; the page links to the web route that forwards the
+    // request with the sign-in cookie.
+    pdfUrl: id ? `/api/pharmacy/prescriptions/${encodeURIComponent(id)}/pdf` : "",
   };
 }
 

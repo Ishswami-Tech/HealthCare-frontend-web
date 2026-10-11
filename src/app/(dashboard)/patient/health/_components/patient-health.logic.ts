@@ -428,7 +428,8 @@ export function buildPrescriptions(data: unknown): PatientPrescription[] {
       queueLabel: open && queue.position > 0 ? getQueuePositionLabel({ position: queue.position }) : null,
       atDesk: open && Boolean(raw.activeQueueEntry ?? queue.position > 0),
       invoiceId: text(raw.invoiceId) || null,
-      pdfUrl: text(raw.pdfUrl) || null,
+      // Linked through the web route that forwards the request with the sign-in cookie.
+      pdfUrl: id ? `/api/pharmacy/prescriptions/${encodeURIComponent(id)}/pdf` : null,
     });
     return list;
   }, []);
