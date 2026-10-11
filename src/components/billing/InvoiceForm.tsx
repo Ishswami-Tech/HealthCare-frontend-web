@@ -1,12 +1,13 @@
-﻿"use client";
+﻿﻿"use client";
 
-import { useReducer } from "react";
+import { useReducer, useState } from "react";
 import { Invoice } from "@/types/billing.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAuth } from "@/hooks/auth/useAuth";
+import { InvoicePatientPicker } from "@/components/billing/InvoicePatientPicker";
+import type { PatientDirectoryRow } from "@/types/patient-directory.types";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useCreateInvoice } from "@/hooks/query/useBilling";
 import { formatISODateInIST } from "@/lib/utils/date-time";
@@ -18,11 +19,12 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) {
-  const { session } = useAuth();
   const clinicContextId = useCurrentClinicId();
   const createInvoice = useCreateInvoice();
+  // The invoice is for the patient picked here (never the signed-in staff member).
+  const [patient, setPatient] = useState<PatientDirectoryRow | null>(null);
 
-  const userId = session?.user?.id || invoice?.userId || "";
+  const userId = patient?.userId || invoice?.userId || "";
   const clinicId = clinicContextId || invoice?.clinicId || "";
 
   const [formState, dispatch] = useReducer(
@@ -79,6 +81,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
 
     const payload = {
       userId,
+      ...(patient ? { patientId: patient.patientId } : {}),
       clinicId,
       amount,
       dueDate,
@@ -106,6 +109,9 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
     <Card className="gap-0 rounded-none border-0 bg-transparent py-0 shadow-none dark:border-0">
       <CardContent className="p-0">
         <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
+          {invoice ? null : (
+            <InvoicePatientPicker clinicId={clinicId} selected={patient} onSelect={setPatient} />
+          )}
           <div className="flex flex-col gap-y-2">
             <Label htmlFor="invoice-description">Description</Label>
             <Input
