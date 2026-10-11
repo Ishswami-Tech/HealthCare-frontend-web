@@ -409,6 +409,37 @@ export const en: TranslationKeys = {
   },
   drDeshmukhPage: {
     heroText: 'Ayurvedacharya | Viddhakarma, Agnikarma, Panchakarma & Nadi Pariksha Specialist\n\n🏅 Honored by the Governor of India | 🇳🇵 Honored by the Government of Nepal | 🥇 BAMS, DYND (Gold Medalist) | 🌍 World Record Holder in Viddhakarma | 👨‍⚕️ Vaidyaratna • Sushrutaratna • Wari Vaidya | 🎤 350+ Lectures Across India & Abroad | 🎓 320+ National & International Workshops | 🌎 Trusted by Patients from 22+ Countries | ❤️ 500,000+ Successful Treatments | 👨‍🎓 Trained 5,000+ Ayurvedic Doctors',
+    spotlight: {
+      description: 'Dedicated to giving patients complete, natural and lasting care by uniting traditional Ayurvedic wisdom with a modern approach.',
+      quote: 'Ayurveda in harmony with nature is the true secret of good health.',
+      experienceValue: '15+ Years',
+      experienceLabel: 'Experience in Ayurveda & Research',
+    },
+    guru: {
+      eyebrow: 'Guru Parampara',
+      name: 'Vaidya Ramchandra Ballal Gogate',
+      shortName: 'Vaidya R.B. Gogate',
+      lifespan: '1933 – 2015',
+      role: 'Pioneer of Viddhakarma & Agnikarma therapy',
+      bio: 'Holding an AVP in Shalya-Shalakya, Vaidya Gogate served as a postgraduate professor at Pune University, Principal of Tilak Ayurved Mahavidyalaya and head of surgery at Seth Tarachand Ramnath Hospital. His research on Agnikarma, Viddhakarma and Raktamokshan gave Ayurveda a new direction.',
+      legacy: 'Dr. Chandrakumar Deshmukh is his disciple, and carries the Viddhakarma and Agnikarma he learned from his guru into patient care with the same devotion.',
+      guruLabel: 'Guru',
+      discipleLabel: 'Disciple',
+      highlights: {
+        education: 'GFAM · AVP (Shalya-Shalakya)',
+        principal: 'Principal, Tilak Ayurved Mahavidyalaya',
+        book: "Author of 'Viddha and Agnikarma Chikitsa'",
+        awards: 'Sushrut Puraskar & Pt. Ramnarayan Sharma Award',
+      },
+      photoCaption: 'Vaidya Gogate performing Viddhakarma',
+      photoCredit: 'Photographs courtesy of the Vaidya Gogate Memorial Foundation',
+    },
+    groups: {
+      consult: 'Appointments & help',
+      clinics: 'Visit the clinic',
+      shop: 'Ayurvedic products',
+      watch: 'Watch & learn',
+    },
     linksTitle: 'Links',
     linksHint: 'Tap a row to open or use the three dots to share.',
     shareButtonLabel: 'Share',
@@ -1276,6 +1307,11 @@ export const en: TranslationKeys = {
         title: "Emergency Care",
         description: "24/7 emergency consultation for urgent health concerns",
         action: "Call Now"
+      },
+      email: {
+        title: "Email Us",
+        description: "Send reports or questions by email and we'll reply within 24 hours.",
+        action: "Write an Email"
       }
     },
     badges: {
@@ -1300,7 +1336,21 @@ export const en: TranslationKeys = {
         healthCondition: "Describe your health condition (optional)",
         message: "Tell us how we can help you"
       },
-      submitButton: "Send Message"
+      submitButton: "Send Message",
+      sending: "Opening your email…",
+      optional: "Optional",
+      validation: {
+        nameRequired: "Please enter your name",
+        emailInvalid: "Please enter a valid email address",
+        phoneInvalid: "Please enter a valid phone number (at least 10 digits)"
+      },
+      success: {
+        title: "Your email is ready",
+        description: "We opened your email app with the message filled in. Press Send there and we'll reply within 24 hours."
+      },
+      error: {
+        title: "We couldn't send your message. Please try again or call us."
+      }
     },
     contactInfo: {
       phoneNumbers: {
@@ -1340,6 +1390,36 @@ export const en: TranslationKeys = {
     visitClinic: {
       title: "Visit Our Clinic",
       description: "Located in the heart of Chinchwad, our clinic is easily accessible and provides a peaceful environment for healing."
+    },
+    map: {
+      title: "Find the clinic",
+      open: "Open in Google Maps"
+    },
+    clinics: {
+      mainBadge: "Main clinic",
+      directions: "Directions",
+      dayOpd: "Day OPD",
+      nightOpd: "Night OPD",
+      chinchwad: {
+        name: "Chinchwad",
+        day: "12 pm – 6 pm",
+        night: "10 pm – 11:45 pm"
+      },
+      pune: {
+        name: "Nana Peth, Pune",
+        night: "7 pm – 9 pm",
+        note: "Night OPD only"
+      },
+      dehu: {
+        name: "Dehu",
+        schedule: "Every Wednesday",
+        hours: "10 am – 2 pm"
+      },
+      nanded: {
+        name: "Nanded",
+        schedule: "Alternate weekends",
+        hours: "Saturday & Sunday"
+      }
     },
     formTitle: 'Send us a Message',
     formSubtitle: 'Fill out the form below and we will get back to you soon',
@@ -2276,6 +2356,7 @@ export const en: TranslationKeys = {
   },
   viddhakarma: {
     badge: 'Viddhakarma',
+    marmaPoints: 'Marma Points',
     title: 'Viddhakarma Therapy',
     subtitle: 'Specialized Neurological Treatment',
     processSteps: {
@@ -2349,6 +2430,7 @@ export const en: TranslationKeys = {
     advancedTechniques: {
       title: 'Advanced Techniques',
       subtitle: 'Cutting-Edge Neurological Treatment Methods',
+      description: 'Viddhakarma pairs precise stimulation of marma points with breathwork, meditation and herbal support, so every session works on the nervous system as a whole.',
       marmaTherapy: {
         title: 'Marma Therapy',
         description: 'Stimulation of vital energy points for neurological healing'
@@ -2430,7 +2512,12 @@ export const en: TranslationKeys = {
       title: 'Start Your Neurological Healing Journey',
       subtitle: 'Specialized care for complex neurological conditions',
       bookConsultation: 'Book Viddhakarma Consultation',
-      freeAssessment: 'Free Neurological Assessment'
+      freeAssessment: 'Free Neurological Assessment',
+      features: {
+        marmaPoints: '107 Marma Points',
+        safeNatural: 'Safe & Natural',
+        successRate: '89% Success Rate',
+      },
     }
   },
   about: {

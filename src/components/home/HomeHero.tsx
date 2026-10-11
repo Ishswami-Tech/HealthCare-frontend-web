@@ -299,6 +299,8 @@ export default function HomeHero() {
                 alt=""
                 fill
                 priority={index === 0}
+                placeholder={slide.blurDataURL ? "blur" : "empty"}
+                blurDataURL={slide.blurDataURL}
                 sizes="100vw"
                 className="object-cover [object-position:var(--hero-focal-mobile)] lg:[object-position:var(--hero-focal)]"
                 style={

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Link2, MapPin } from "lucide-react";
-import { DoctorLinkCard } from "@/components/doctor-profile/DoctorLinkCard";
+import { useMemo, useState, type ReactNode } from "react";
+import { CalendarDays, MapPin, PlayCircle, ShoppingBag, type LucideIcon } from "lucide-react";
+import { DoctorFeaturedCard, DoctorLinkCard, DoctorVideoCard } from "@/components/doctor-profile/DoctorLinkCard";
 import { DoctorProfileHero } from "@/components/doctor-profile/DoctorProfileHero";
 import { DoctorShareDialog } from "@/components/doctor-profile/DoctorShareDialog";
 import {
@@ -10,31 +10,48 @@ import {
   buildDoctorServices,
   getShareText,
   resolveHref,
+  type ServiceGroup,
   type ServiceItem,
 } from "@/components/doctor-profile/doctor-profile-data";
 import { useLinkPreviews } from "@/components/doctor-profile/useLinkPreviews";
-import { Float, HomeMotionProvider, Reveal, RevealGroup, RevealItem } from "@/components/home/home-motion";
+import { CONTAINER, HOME_TINTS, ICON_PLATE } from "@/components/home/home-theme";
+import { HomeMotionProvider, Reveal, RevealGroup, RevealItem } from "@/components/home/home-motion";
 import { useTranslation } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
+import type { AccentName } from "@/lib/design/tokens";
 
 const COPIED_FEEDBACK_MS = 1500;
 const PAGE_SHARE_TARGET = "page";
 
-function PageBackdrop() {
+const GROUP_ICONS: Record<ServiceGroup, { icon: LucideIcon; accent: AccentName }> = {
+  consult: { icon: CalendarDays, accent: "sky" },
+  clinics: { icon: MapPin, accent: "teal" },
+  shop: { icon: ShoppingBag, accent: "amber" },
+  watch: { icon: PlayCircle, accent: "rose" },
+};
+
+function GroupHeading({ group, title }: { group: ServiceGroup; title: string }) {
+  const { icon: Icon, accent } = GROUP_ICONS[group];
+
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <div className="absolute inset-0 bg-linear-to-b from-primary/10 via-background to-background" />
-      <Float
-        distance={16}
-        duration={10}
-        className="absolute -top-32 left-1/2 h-[26rem] w-[44rem] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl"
-      />
-      <Float
-        distance={12}
-        duration={12}
-        delay={1.5}
-        className="absolute right-[-8%] top-1/4 size-72 rounded-full bg-teal-400/15 blur-3xl"
-      />
+    <div className="flex items-center gap-3">
+      <span className={cn(ICON_PLATE, "size-10 rounded-xl", HOME_TINTS[accent].plate)}>
+        <Icon className="size-5" aria-hidden="true" />
+      </span>
+      <h2 className="font-heading text-xl font-semibold text-foreground sm:text-2xl">{title}</h2>
+      <span aria-hidden="true" className="h-px flex-1 bg-border/70" />
     </div>
+  );
+}
+
+function LinkGroup({ group, title, className, children }: { group: ServiceGroup; title: string; className?: string; children: ReactNode }) {
+  return (
+    <section aria-label={title} className={className}>
+      <Reveal>
+        <GroupHeading group={group} title={title} />
+      </Reveal>
+      {children}
+    </section>
   );
 }
 
@@ -50,7 +67,7 @@ export default function DrDeshmukhPage() {
 
   const activeService = services.find((service) => service.id === activeServiceId) ?? null;
   const featuredService = services.find((service) => service.featured);
-  const otherServices = services.filter((service) => !service.featured);
+  const servicesIn = (group: ServiceGroup) => services.filter((service) => service.group === group && !service.featured);
 
   const handleCopy = async (text: string, target: string) => {
     await navigator.clipboard.writeText(text);
@@ -91,60 +108,67 @@ export default function DrDeshmukhPage() {
 
   const moreLabel = (service: ServiceItem) => `${t("drDeshmukhPage.moreActionsAriaPrefix")} ${service.title}`;
 
+  const cardProps = (service: ServiceItem) => ({
+    service,
+    preview: previews[service.id],
+    moreLabel: moreLabel(service),
+    onMore: () => setActiveServiceId(service.id),
+  });
+
+  const rowCards = (group: ServiceGroup, gridClassName: string, isLarge = false) => (
+    <RevealGroup className={cn("mt-5 grid gap-4", gridClassName)}>
+      {servicesIn(group).map((service) => (
+        <RevealItem key={service.id} className="h-full">
+          <DoctorLinkCard {...cardProps(service)} isLarge={isLarge} />
+        </RevealItem>
+      ))}
+    </RevealGroup>
+  );
+
   return (
     <HomeMotionProvider>
-      <div className="relative isolate overflow-x-clip font-body">
-        <PageBackdrop />
+      <div className="relative isolate overflow-x-clip bg-background font-body">
+        <DoctorProfileHero
+          doctorName={doctorName}
+          isPageCopied={copiedTarget === PAGE_SHARE_TARGET}
+          onSharePage={handleSharePage}
+        />
 
-        <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pb-14">
-          <DoctorProfileHero
-            doctorName={doctorName}
-            isPageCopied={copiedTarget === PAGE_SHARE_TARGET}
-            onSharePage={handleSharePage}
-          />
-
-          <section className="mt-8" aria-labelledby="doctor-links-heading">
+        <div className={cn(CONTAINER, "pb-14 pt-10 lg:pb-20 lg:pt-14")}>
+          {featuredService ? (
             <Reveal>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2
-                  id="doctor-links-heading"
-                  className="inline-flex items-center gap-3 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
-                >
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Link2 className="size-5" aria-hidden="true" />
-                  </span>
-                  {t("drDeshmukhPage.linksTitle")}
-                </h2>
-                <p className="text-sm text-muted-foreground">{t("drDeshmukhPage.linksHint")}</p>
-              </div>
+              <DoctorFeaturedCard {...cardProps(featuredService)} />
             </Reveal>
+          ) : null}
 
-            {featuredService ? (
-              <Reveal delay={0.05} className="mt-4">
-                <DoctorLinkCard
-                  service={featuredService}
-                  preview={previews[featuredService.id]}
-                  moreLabel={moreLabel(featuredService)}
-                  onMore={() => setActiveServiceId(featuredService.id)}
-                />
-              </Reveal>
-            ) : null}
+          <Reveal className="mt-5">
+            <p className="text-center text-sm text-muted-foreground">{t("drDeshmukhPage.linksHint")}</p>
+          </Reveal>
 
-            <RevealGroup className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {otherServices.map((service) => (
+          <LinkGroup group="consult" title={t("drDeshmukhPage.groups.consult")} className="mt-10 lg:mt-12">
+            {rowCards("consult", "sm:grid-cols-2 lg:grid-cols-3")}
+          </LinkGroup>
+
+          <div className="mt-12 grid gap-12 lg:grid-cols-3 lg:gap-8">
+            <LinkGroup group="clinics" title={t("drDeshmukhPage.groups.clinics")} className="lg:col-span-2">
+              {rowCards("clinics", "sm:grid-cols-2")}
+            </LinkGroup>
+            <LinkGroup group="shop" title={t("drDeshmukhPage.groups.shop")}>
+              {rowCards("shop", "", true)}
+            </LinkGroup>
+          </div>
+
+          <LinkGroup group="watch" title={t("drDeshmukhPage.groups.watch")} className="mt-12">
+            <RevealGroup className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {servicesIn("watch").map((service) => (
                 <RevealItem key={service.id} className="h-full">
-                  <DoctorLinkCard
-                    service={service}
-                    preview={previews[service.id]}
-                    moreLabel={moreLabel(service)}
-                    onMore={() => setActiveServiceId(service.id)}
-                  />
+                  <DoctorVideoCard {...cardProps(service)} />
                 </RevealItem>
               ))}
             </RevealGroup>
-          </section>
+          </LinkGroup>
 
-          <Reveal className="mt-8">
+          <Reveal className="mt-14">
             <p className="flex flex-col items-center gap-1.5 text-center text-sm text-muted-foreground">
               <span>{t("drDeshmukhPage.footerTagline")}</span>
               <span className="inline-flex items-center gap-1.5">

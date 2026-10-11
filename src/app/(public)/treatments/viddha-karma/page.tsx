@@ -1,797 +1,216 @@
 "use client";
 
-
-import { useTranslation } from "@/lib/i18n/context";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
-  Zap,
-  CheckCircle,
+  Accessibility,
+  Activity,
+  Baby,
+  Brain,
+  ClipboardList,
+  Clock,
+  Crosshair,
+  FileSearch,
+  Flower2,
+  Hand,
+  HeartPulse,
+  Leaf,
+  Shield,
+  Sparkles,
   Star,
   Target,
-  Brain,
-  Heart,
-  Shield,
-  Award,
-  Activity,
+  Users,
+  Wind,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
-import { LanguageSwitcher } from "@/components/ui/language-switcher";
-import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
-import { PageTransition } from "@/components/ui/animated-wrapper";
-import { getIconColorScheme } from "@/lib/config/color-palette";
+import { useTranslation } from "@/lib/i18n/context";
+import { HomeMotionProvider } from "@/components/home/home-motion";
+import { HOME_LINKS } from "@/components/home/home-links";
+import { TreatmentCards } from "@/components/treatments/TreatmentCards";
+import { TreatmentConditions } from "@/components/treatments/TreatmentConditions";
+import { TreatmentCta } from "@/components/treatments/TreatmentCta";
+import { TreatmentHero } from "@/components/treatments/TreatmentHero";
+import { TreatmentPackages } from "@/components/treatments/TreatmentPackages";
+import { TreatmentPillars } from "@/components/treatments/TreatmentPillars";
+import { TreatmentProcess } from "@/components/treatments/TreatmentProcess";
+import { TREATMENT_THEMES, parsePercent } from "@/components/treatments/treatment-theme";
+import type { AccentName } from "@/lib/design/tokens";
+
+/** Viddhakarma owns the violet accent everywhere it appears. */
+const THEME = TREATMENT_THEMES.violet;
+
+/** The health assessment lives on the homepage, so it needs an absolute hash. */
+const ASSESSMENT_HREF = "/#health-assessment";
+
+/** Real clinic photograph; the subject sits right of centre, clear of the copy. */
+const HERO_IMAGE = "/assets/treatments/viddhakarma-hero.webp";
+
+const HEADLINE_SUCCESS_RATE = 89;
+const MARMA_POINT_COUNT = 107;
+
+/**
+ * Marma Therapy is the clinic's own photograph; the other three are free
+ * Unsplash photographs, credited under the cards.
+ */
+const TECHNIQUES = [
+  { key: "marmaTherapy", icon: Target, tint: "violet", image: "/assets/treatments/viddhakarma-marma-therapy.webp" },
+  { key: "pranayama", icon: Wind, tint: "sky", image: "/assets/treatments/viddhakarma-pranayama.webp" },
+  { key: "meditation", icon: Brain, tint: "emerald", image: "/assets/treatments/viddhakarma-meditation.webp" },
+  { key: "herbalSupport", icon: Leaf, tint: "teal", image: "/assets/treatments/viddhakarma-herbal-support.webp" },
+] as const satisfies readonly { key: string; icon: LucideIcon; tint: AccentName; image: string }[];
+
+const PHOTO_CREDIT = "Unsplash: Charanjeet Dhiman · Jared Rice · Emma-Jane Hobden";
+
+const PROCESS_ICONS: readonly LucideIcon[] = [FileSearch, Crosshair, Zap, Activity, HeartPulse];
+
+const CONDITIONS = [
+  { key: "autism", icon: Brain },
+  { key: "cerebralPalsy", icon: Accessibility },
+  { key: "stroke", icon: HeartPulse },
+  { key: "developmental", icon: Baby },
+] as const satisfies readonly { key: string; icon: LucideIcon }[];
+
+/**
+ * Specialised applications. The success rates are the clinic's published
+ * figures from the previous page; the translations carry the copy only.
+ */
+const APPLICATIONS = [
+  { key: "autism", icon: Brain, tint: "violet", successRate: 89 },
+  { key: "cerebralPalsy", icon: Accessibility, tint: "sky", successRate: 92 },
+  { key: "stroke", icon: HeartPulse, tint: "rose", successRate: 85 },
+  { key: "parkinsons", icon: Hand, tint: "amber", successRate: 87 },
+  { key: "stressMentalHealth", icon: Sparkles, tint: "teal", successRate: 83 },
+  { key: "womensHealth", icon: Flower2, tint: "emerald", successRate: 88 },
+] as const satisfies readonly { key: string; icon: LucideIcon; tint: AccentName; successRate: number }[];
+
+const PACKAGES = [
+  { key: "essential", hasBadge: false },
+  { key: "comprehensive", hasBadge: true },
+  { key: "advanced", hasBadge: false },
+  { key: "holistic", hasBadge: true },
+] as const;
 
 export default function ViddhaKarmaPage() {
   const { t } = useTranslation();
 
-  // Helper function to get translated treatments
-  const getTranslatedTreatments = (key: string): string[] => {
-    const treatments = t(key);
-    // If the translation returns a string, split it by comma
-    if (typeof treatments === "string") {
-      return treatments.split(",").map((t) => t.trim());
-    }
-    // If it's already an array, return it
-    return treatments as string[];
-  };
-  const processSteps = [
-    {
-      step: 1,
-      title: t("viddhakarma.processSteps.steps.1.title"),
-      description: t("viddhakarma.processSteps.steps.1.description"),
-      icon: Target,
-      colorScheme: getIconColorScheme("Target"),
-    },
-    {
-      step: 2,
-      title: t("viddhakarma.processSteps.steps.2.title"),
-      description: t("viddhakarma.processSteps.steps.2.description"),
-      icon: Zap,
-      colorScheme: getIconColorScheme("Zap"),
-    },
-    {
-      step: 3,
-      title: t("viddhakarma.processSteps.steps.3.title"),
-      description: t("viddhakarma.processSteps.steps.3.description"),
-      icon: Activity,
-      colorScheme: getIconColorScheme("Activity"),
-    },
-    {
-      step: 4,
-      title: t("viddhakarma.processSteps.steps.4.title"),
-      description: t("viddhakarma.processSteps.steps.4.description"),
-      icon: Heart,
-      colorScheme: getIconColorScheme("Heart"),
-    },
-    {
-      step: 5,
-      title: t("viddhakarma.processSteps.steps.5.title"),
-      description: t("viddhakarma.processSteps.steps.5.description"),
-      icon: Shield,
-      colorScheme: getIconColorScheme("Shield"),
-    },
-  ];
-
-  const specializedApplications = [
-    {
-      category: t("viddhakarma.specializedApplications.autism.title"),
-      treatments: getTranslatedTreatments(
-        "viddhakarma.specializedApplications.autism.treatments"
-      ),
-      benefits: t("viddhakarma.specializedApplications.autism.description"),
-      successRate: 89,
-      colorScheme: getIconColorScheme("Brain"),
-    },
-    {
-      category: t("viddhakarma.specializedApplications.cerebralPalsy.title"),
-      treatments: getTranslatedTreatments(
-        "viddhakarma.specializedApplications.cerebralPalsy.treatments"
-      ),
-      benefits: t(
-        "viddhakarma.specializedApplications.cerebralPalsy.description"
-      ),
-      successRate: 92,
-      colorScheme: getIconColorScheme("Activity"),
-    },
-    {
-      category: t("viddhakarma.specializedApplications.stroke.title"),
-      treatments: getTranslatedTreatments(
-        "viddhakarma.specializedApplications.stroke.treatments"
-      ),
-      benefits: t("viddhakarma.specializedApplications.stroke.description"),
-      successRate: 85,
-      colorScheme: getIconColorScheme("Heart"),
-    },
-    {
-      category: t("viddhakarma.specializedApplications.parkinsons.title"),
-      treatments: getTranslatedTreatments(
-        "viddhakarma.specializedApplications.parkinsons.treatments"
-      ),
-      benefits: t("viddhakarma.specializedApplications.parkinsons.description"),
-      successRate: 87,
-      colorScheme: getIconColorScheme("Zap"),
-    },
-    {
-      category: t(
-        "viddhakarma.specializedApplications.stressMentalHealth.title"
-      ),
-      treatments: getTranslatedTreatments(
-        "viddhakarma.specializedApplications.stressMentalHealth.treatments"
-      ),
-      benefits: t(
-        "viddhakarma.specializedApplications.stressMentalHealth.description"
-      ),
-      successRate: 83,
-      colorScheme: getIconColorScheme("Shield"),
-    },
-    {
-      category: t("viddhakarma.specializedApplications.womensHealth.title"),
-      treatments: getTranslatedTreatments(
-        "viddhakarma.specializedApplications.womensHealth.treatments"
-      ),
-      benefits: t(
-        "viddhakarma.specializedApplications.womensHealth.description"
-      ),
-      successRate: 88,
-      colorScheme: getIconColorScheme("Heart"),
-    },
-  ];
-
-  const advancedTechniques = [
-    {
-      name: t("viddhakarma.advancedTechniques.marmaTherapy.title"),
-      description: t("viddhakarma.advancedTechniques.marmaTherapy.description"),
-      icon: Target,
-      colorScheme: getIconColorScheme("Target"),
-    },
-    {
-      name: t("viddhakarma.advancedTechniques.pranayama.title"),
-      description: t("viddhakarma.advancedTechniques.pranayama.description"),
-      icon: Zap,
-      colorScheme: getIconColorScheme("Zap"),
-    },
-    {
-      name: t("viddhakarma.advancedTechniques.meditation.title"),
-      description: t("viddhakarma.advancedTechniques.meditation.description"),
-      icon: Heart,
-      colorScheme: getIconColorScheme("Heart"),
-    },
-    {
-      name: t("viddhakarma.advancedTechniques.herbalSupport.title"),
-      description: t(
-        "viddhakarma.advancedTechniques.herbalSupport.description"
-      ),
-      icon: Activity,
-      colorScheme: getIconColorScheme("Activity"),
-    },
-  ];
-
+  /* No PageTransition wrapper: it server-renders the whole page at opacity 0
+     and fades it in only after hydration, so every refresh blinked. The hero
+     animates itself from CSS and the sections reveal on scroll. */
   return (
-    <PageTransition>
-      <div className="min-h-screen">
-        {/* Language Switcher and Theme Switcher */}
-        <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex gap-2">
-          <LanguageSwitcher variant="compact" />
-          <CompactThemeSwitcher />
-        </div>
+    <HomeMotionProvider>
+      <div className="overflow-x-clip font-body">
+        <TreatmentHero
+          theme={THEME}
+          appearance="auto"
+          badgeIcon={Zap}
+          badge={t("viddhakarma.badge")}
+          title={t("viddhakarma.title")}
+          subtitle={t("viddhakarma.subtitle")}
+          lede={t("viddhakarma.specializedApplications.subtitle")}
+          features={TECHNIQUES.map(({ key, icon }) => ({ icon, label: t(`viddhakarma.advancedTechniques.${key}.title`) }))}
+          stats={[
+            { icon: Users, value: "5000+", label: t("stats.livesTransformed") },
+            { icon: Shield, value: `${HEADLINE_SUCCESS_RATE}%`, label: t("common.successRate") },
+            { icon: Target, value: String(MARMA_POINT_COUNT), label: t("viddhakarma.marmaPoints") },
+          ]}
+          assurances={[
+            { icon: Leaf, label: t("hero.natural") },
+            { icon: Shield, label: t("hero.noSideEffects") },
+            { icon: Sparkles, label: t("hero.provenResults") },
+          ]}
+          primaryCtaLabel={t("viddhakarma.cta.bookConsultation")}
+          secondaryCta={{ icon: ClipboardList, label: t("viddhakarma.cta.freeAssessment"), href: ASSESSMENT_HREF }}
+          image={{ src: HERO_IMAGE, fit: "right", positionClassName: "object-[78%_30%] sm:object-[74%_30%] lg:object-[70%_center]" }}
+        />
 
-        {/* Hero Section */}
-        <section className="relative py-16 sm:py-20 md:py-24 lg:py-28 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/98 to-muted/30"></div>
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-violet-500/5 to-indigo-500/10"></div>
-          <div className="absolute inset-0 bg-gradient-to-bl from-violet-400/3 via-transparent to-indigo-400/5"></div>
-          <div className="absolute top-20 left-8 size-20 bg-gradient-to-r from-violet-400/20 to-indigo-400/20 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-32 right-16 size-32 bg-gradient-to-r from-indigo-400/15 to-violet-400/15 rounded-full blur-2xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-24 left-1/3 size-24 bg-gradient-to-r from-violet-300/10 to-indigo-300/10 rounded-full blur-xl animate-pulse delay-2000"></div>
-          <div className="absolute top-1/2 right-1/4 size-16 bg-gradient-to-r from-violet-500/20 to-indigo-500/20 rounded-full blur-lg animate-pulse delay-3000"></div>
-          <div className="absolute top-16 right-8 size-12 border border-violet-400/20 rotate-45 animate-spin-slow"></div>
-          <div className="absolute bottom-32 left-12 size-8 border border-indigo-400/20 rotate-12 animate-pulse"></div>
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="max-w-5xl mx-auto text-center">
-              <Badge className="bg-gradient-to-r from-violet-100 to-indigo-100 dark:from-violet-900/50 dark:to-indigo-900/50 text-violet-800 dark:text-violet-100 border-violet-200 dark:border-violet-700/60 glass interactive mb-8 px-6 py-3 text-sm font-medium">
-                <Zap className="size-4 mr-2" />
-                {t("viddhakarma.badge")}
-              </Badge>
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl font-playfair font-semibold text-foreground mb-8 gradient-text leading-tight">
-                {t("viddhakarma.title")}
-              </h1>
-              <p className="text-xl sm:text-2xl text-muted-foreground mb-10 leading-relaxed max-w-4xl mx-auto">
-                {t("viddhakarma.subtitle")}
-              </p>
-              <div className="flex flex-wrap justify-center gap-4 mb-10">
-                <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/50 dark:to-emerald-900/50 text-emerald-800 dark:text-emerald-100 border-emerald-200 dark:border-emerald-700/60 glass interactive px-4 py-2">
-                  <CheckCircle className="size-4 mr-2" />
-                  89% {t("common.success")}{" "}
-                  {t("agnikarma.comparison.successRate")}
-                </Badge>
-                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/50 dark:to-cyan-900/50 text-sky-800 dark:text-sky-100 border-sky-200 dark:border-sky-700/60 glass interactive px-4 py-2">
-                  <Target className="size-4 mr-2" />
-                  107 Marma Points
-                </Badge>
-                <Badge className="bg-gradient-to-r from-violet-100 to-violet-100 dark:from-violet-900/50 dark:to-violet-900/50 text-violet-800 dark:text-violet-100 border-violet-200 dark:border-violet-700/60 glass interactive px-4 py-2">
-                  <Shield className="size-4 mr-2" />
-                  {t("common.scientificallyValidated")}
-                </Badge>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 dark:from-violet-600 dark:to-indigo-700 dark:hover:from-violet-700 dark:hover:to-indigo-800 text-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  {t("viddhakarma.cta.bookConsultation")}
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-2 border-primary/30 text-primary hover:bg-primary/10 text-lg px-10 py-4 interactive"
-                >
-                  {t("viddhakarma.cta.freeAssessment")}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
+        <TreatmentPillars
+          theme={THEME}
+          index="01"
+          title={t("viddhakarma.advancedTechniques.title")}
+          subtitle={t("viddhakarma.advancedTechniques.subtitle")}
+          description={t("viddhakarma.advancedTechniques.description")}
+          credit={PHOTO_CREDIT}
+          pillars={TECHNIQUES.map((technique) => ({
+            ...technique,
+            title: t(`viddhakarma.advancedTechniques.${technique.key}.title`),
+            description: t(`viddhakarma.advancedTechniques.${technique.key}.description`),
+          }))}
+        />
 
-        {/* Understanding Viddha Karma */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Brain className="size-4 mr-2" />
-                  Advanced Techniques
-                </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("viddhakarma.advancedTechniques.title")}
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                  {t("viddhakarma.advancedTechniques.subtitle")}
-                </p>
-              </div>
+        <TreatmentProcess
+          theme={THEME}
+          title={t("viddhakarma.processSteps.title")}
+          subtitle={t("viddhakarma.processSteps.subtitle")}
+          steps={PROCESS_ICONS.map((icon, index) => ({
+            icon,
+            title: t(`viddhakarma.processSteps.steps.${index + 1}.title`),
+            description: t(`viddhakarma.processSteps.steps.${index + 1}.description`),
+          }))}
+        />
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
-                  <CardContent className="p-6">
-                    <div className="relative">
-                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Brain className="size-8 sm:w-10 sm:h-10 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4">
-                      {t("viddhakarma.advancedTechniques.marmaTherapy.title")}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                      {t(
-                        "viddhakarma.advancedTechniques.marmaTherapy.description"
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
+        <TreatmentConditions
+          theme={THEME}
+          title={t("viddhakarma.conditions.title")}
+          subtitle={t("viddhakarma.conditions.subtitle")}
+          successLabel={t("common.successRate")}
+          rows={CONDITIONS.map(({ key, icon }) => ({
+            key,
+            icon,
+            condition: t(`viddhakarma.conditions.${key}.condition`),
+            note: t(`viddhakarma.conditions.${key}.description`),
+            successRate: parsePercent(t(`viddhakarma.conditions.${key}.successRate`)),
+            metrics: [{ icon: Clock, label: t("common.duration"), text: t(`viddhakarma.conditions.${key}.duration`), tone: "accent" }],
+          }))}
+        />
 
-                <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
-                  <CardContent className="p-6">
-                    <div className="relative">
-                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Award className="size-8 sm:w-10 sm:h-10 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4">
-                      {t("viddhakarma.advancedTechniques.pranayama.title")}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                      {t(
-                        "viddhakarma.advancedTechniques.pranayama.description"
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
+        <TreatmentCards
+          index="04"
+          eyebrow={t("viddhakarma.specializedApplications.title")}
+          icon={Target}
+          title={t("viddhakarma.specializedApplications.title")}
+          description={t("viddhakarma.specializedApplications.subtitle")}
+          successLabel={t("viddhakarma.specializedApplications.successRate")}
+          columnsClassName="lg:grid-cols-3"
+          surface="canvas"
+          cards={APPLICATIONS.map((application) => ({
+            ...application,
+            title: t(`viddhakarma.specializedApplications.${application.key}.title`),
+            description: t(`viddhakarma.specializedApplications.${application.key}.description`),
+          }))}
+        />
 
-                <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
-                  <CardContent className="p-6">
-                    <div className="relative">
-                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <CheckCircle className="size-8 sm:w-10 sm:h-10 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4">
-                      {t("viddhakarma.advancedTechniques.meditation.title")}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                      {t(
-                        "viddhakarma.advancedTechniques.meditation.description"
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
+        <TreatmentPackages
+          theme={THEME}
+          index="05"
+          eyebrow={t("viddhakarma.treatmentPackages.title")}
+          icon={Star}
+          title={t("viddhakarma.treatmentPackages.title")}
+          description={t("viddhakarma.treatmentPackages.subtitle")}
+          successLabel={t("viddhakarma.treatmentPackages.successRate")}
+          ctaLabel={t("viddhakarma.treatmentPackages.choosePackage")}
+          ctaHref={HOME_LINKS.videoBooking}
+          packages={PACKAGES.map(({ key, hasBadge }) => ({
+            key,
+            title: t(`viddhakarma.treatmentPackages.${key}.title`),
+            sessions: t(`viddhakarma.treatmentPackages.${key}.sessions`),
+            description: t(`viddhakarma.treatmentPackages.${key}.description`),
+            successRate: t(`viddhakarma.treatmentPackages.${key}.successRate`),
+            badge: hasBadge ? t(`viddhakarma.treatmentPackages.${key}.badge`) : undefined,
+          }))}
+        />
 
-                <Card className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group">
-                  <CardContent className="p-6">
-                    <div className="relative">
-                      <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                      <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                      <div className="size-16 sm:w-20 sm:h-20 bg-gradient-to-r from-cyan-500 to-sky-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10">
-                        <Target className="size-8 sm:w-10 sm:h-10 text-white" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4">
-                      {t("viddhakarma.advancedTechniques.herbalSupport.title")}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                      {t(
-                        "viddhakarma.advancedTechniques.herbalSupport.description"
-                      )}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Treatment Process */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-muted/30 to-violet-50 dark:to-violet-900/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Activity className="size-4 mr-2" />
-                  Treatment Process
-                </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("viddhakarma.processSteps.title")}
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                  {t("viddhakarma.processSteps.subtitle")}
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-y-6 sm:gap-y-8">
-                {processSteps.map((step) => {
-                  const IconComponent = step.icon;
-
-                  return (
-                    <Card
-                      key={step.step}
-                      className="bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group hover:shadow-3xl transition-all duration-500"
-                    >
-                      <CardContent className="p-0">
-                        <div className="grid lg:grid-cols-4">
-                          <div
-                            className={`bg-gradient-to-br ${step.colorScheme.gradient} text-white p-8 flex flex-col justify-center relative overflow-hidden`}
-                          >
-                            <div className="absolute inset-0 bg-white/10"></div>
-                            <div className="absolute top-4 right-4 size-20 border border-white/20 rounded-full"></div>
-                            <div className="absolute bottom-4 left-4 size-16 border border-white/20 rounded-full"></div>
-                            <div className="text-center lg:text-left relative z-10">
-                              <div className="text-4xl sm:text-5xl font-bold mb-3 text-white drop-shadow-lg bg-black/20 rounded-full size-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto lg:mx-0">
-                                {step.step}
-                              </div>
-                              <div className="size-16 sm:w-20 sm:h-20 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto lg:mx-0 mb-4 shadow-lg">
-                                <IconComponent className="size-8 sm:w-10 sm:h-10 text-white drop-shadow-md" />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="lg:col-span-3 p-8 flex flex-col justify-center">
-                            <h3 className="text-2xl sm:text-3xl font-semibold text-foreground mb-4">
-                              {step.title}
-                            </h3>
-                            <p className="text-lg text-muted-foreground leading-relaxed">
-                              {step.description}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Specialized Applications */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-muted/30 to-primary/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-primary/10 to-secondary/10 text-primary border-primary/20 glass interactive mb-6 px-4 py-2">
-                  <Target className="size-4 mr-2" />
-                  Specialized Care
-                </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("viddhakarma.specializedApplications.title")}
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                  {t("viddhakarma.specializedApplications.subtitle")}
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {specializedApplications.map((application) => (
-                  <Card
-                    key={application.category}
-                    className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group"
-                  >
-                    <CardHeader>
-                      <div
-                        className={`size-12 bg-gradient-to-r ${application.colorScheme.gradient} rounded-full flex items-center justify-center mb-4`}
-                      >
-                        <Activity className="size-6 text-white" />
-                      </div>
-                      <CardTitle className="text-xl text-foreground mb-2">
-                        {application.category}
-                      </CardTitle>
-                      <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/20 dark:to-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/30 w-fit">
-                        {application.successRate}% Success Rate
-                      </Badge>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-col gap-y-4">
-                        <div>
-                          <h4 className="font-semibold text-foreground mb-2">
-                            {t(
-                              "viddhakarma.specializedApplications.specificTreatments"
-                            )}
-                          </h4>
-                          <ul className="flex flex-col gap-y-1">
-                            {application.treatments.map((treatment) => (
-                                <li
-                                  key={treatment}
-                                  className="flex items-center gap-x-2"
-                                >
-                                  <CheckCircle className="size-4 text-emerald-500" />
-                                  <span className="text-muted-foreground">
-                                    {treatment}
-                                  </span>
-                                </li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-
-                        <div>
-                          <h4 className="font-semibold text-foreground mb-2">
-                            {t(
-                              "viddhakarma.specializedApplications.uniqueBenefits"
-                            )}
-                          </h4>
-                          <p className="text-muted-foreground">
-                            {application.benefits}
-                          </p>
-                        </div>
-
-                        <div className="pt-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {t(
-                                "viddhakarma.specializedApplications.successRate"
-                              )}
-                            </span>
-                            <span className="text-sm font-bold text-emerald-600">
-                              {application.successRate}%
-                            </span>
-                          </div>
-                          <Progress
-                            value={application.successRate}
-                            className="h-2"
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Patient Success Stories */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-900/10 dark:to-cyan-900/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-sky-100 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Heart className="size-4 mr-2" />
-                  {t("viddhakarma.patientSuccessStories.title")}
-                </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("viddhakarma.patientSuccessStories.subtitle")}
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                  {t("viddhakarma.patientSuccessStories.description")}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {specializedApplications.map((application) => (
-                  <Card
-                    key={application.category}
-                    className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-lg border border-border/50 overflow-hidden glass card-hover group"
-                  >
-                    <CardContent className="p-6">
-                      <div className="text-center">
-                        <div className="size-12 bg-gradient-to-r from-sky-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Heart className="size-6 text-white" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-foreground mb-3">
-                          {application.category}
-                        </h3>
-                        <div className="bg-gradient-to-r from-sky-50 to-cyan-50 dark:from-sky-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-sky-200 dark:border-sky-800/30">
-                          <p className="text-sm text-sky-800 dark:text-sky-200 font-medium leading-relaxed mb-3">
-                            &ldquo;{application.benefits}&rdquo;
-                          </p>
-                          <div className="flex items-center justify-center gap-x-4 text-xs text-sky-600">
-                            <span className="flex items-center">
-                              <div className="size-2 bg-emerald-500 rounded-full mr-1"></div>
-                              {application.successRate}% Success
-                            </span>
-                            <span className="flex items-center">
-                              <div className="size-2 bg-amber-500 rounded-full mr-1"></div>
-                              {application.treatments.length} Treatments
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Advanced Techniques */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/10 dark:to-indigo-900/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-violet-100 to-indigo-100 dark:from-violet-900/30 dark:to-indigo-900/30 text-violet-800 dark:text-violet-200 border-violet-200 dark:border-violet-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Award className="size-4 mr-2" />
-                  Advanced Techniques
-                </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("viddhakarma.advancedTechniques.title")}
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                  {t("viddhakarma.advancedTechniques.subtitle")}
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {advancedTechniques.map((technique) => {
-                  const IconComponent = technique.icon;
-
-                  return (
-                    <Card
-                      key={technique.name}
-                      className="text-center hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-hidden glass card-hover group"
-                    >
-                      <CardContent className="p-8">
-                        <div className="relative">
-                          <div className="absolute top-4 right-4 size-20 border border-primary/20 rounded-full"></div>
-                          <div className="absolute bottom-4 left-4 size-16 border border-secondary/20 rounded-full"></div>
-                          <div
-                            className={`size-16 bg-gradient-to-r ${technique.colorScheme.gradient} rounded-full flex items-center justify-center mx-auto mb-6 relative z-10`}
-                          >
-                            <IconComponent className="size-8 text-white" />
-                          </div>
-                        </div>
-                        <h3 className="text-xl font-semibold text-foreground mb-4">
-                          {technique.name}
-                        </h3>
-                        <p className="text-muted-foreground leading-relaxed">
-                          {technique.description}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Treatment Packages */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-br from-amber-50 to-amber-50 dark:from-amber-900/10 dark:to-rose-900/10">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <Badge className="bg-gradient-to-r from-amber-100 to-amber-100 dark:from-amber-900/30 dark:to-rose-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50 glass interactive mb-6 px-6 py-3 text-sm font-medium shadow-md">
-                  <Star className="size-4 mr-2" />
-                  Treatment Packages
-                </Badge>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold text-foreground mb-6 gradient-text">
-                  {t("viddhakarma.treatmentPackages.title")}
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                  {t("viddhakarma.treatmentPackages.subtitle")}
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 pt-4">
-                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-lg text-foreground">
-                      {t("viddhakarma.treatmentPackages.essential.title")}
-                    </CardTitle>
-                    <div className="text-2xl font-bold text-violet-600">
-                      {t("viddhakarma.treatmentPackages.essential.sessions")}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="gap-y-4">
-                    <p className="text-muted-foreground">
-                      {t("viddhakarma.treatmentPackages.essential.description")}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        {t("viddhakarma.treatmentPackages.successRate")}
-                      </span>
-                      <span className="font-bold text-emerald-600">
-                        {t(
-                          "viddhakarma.treatmentPackages.essential.successRate"
-                        )}
-                      </span>
-                    </div>
-                    <Button className="w-full bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 dark:from-violet-600 dark:to-indigo-700 dark:hover:from-violet-700 dark:hover:to-indigo-800 text-white">
-                      {t("viddhakarma.treatmentPackages.choosePackage")}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
-                  <Badge className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md z-10">
-                    {t("viddhakarma.treatmentPackages.comprehensive.badge")}
-                  </Badge>
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-lg text-foreground">
-                      {t("viddhakarma.treatmentPackages.comprehensive.title")}
-                    </CardTitle>
-                    <div className="text-2xl font-bold text-violet-600">
-                      {t(
-                        "viddhakarma.treatmentPackages.comprehensive.sessions"
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="gap-y-4">
-                    <p className="text-muted-foreground">
-                      {t(
-                        "viddhakarma.treatmentPackages.comprehensive.description"
-                      )}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        {t("viddhakarma.treatmentPackages.successRate")}
-                      </span>
-                      <span className="font-bold text-emerald-600">
-                        {t(
-                          "viddhakarma.treatmentPackages.comprehensive.successRate"
-                        )}
-                      </span>
-                    </div>
-                    <Button className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-rose-700 dark:from-amber-600 dark:to-rose-700 dark:hover:from-amber-700 dark:hover:to-rose-800 text-white">
-                      {t("viddhakarma.treatmentPackages.choosePackage")}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-xl transition-all duration-500 bg-card/80 backdrop-blur-sm shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-lg text-foreground">
-                      {t("viddhakarma.treatmentPackages.advanced.title")}
-                    </CardTitle>
-                    <div className="text-2xl font-bold text-violet-600">
-                      {t("viddhakarma.treatmentPackages.advanced.sessions")}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="gap-y-4">
-                    <p className="text-muted-foreground">
-                      {t("viddhakarma.treatmentPackages.advanced.description")}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        {t("viddhakarma.treatmentPackages.successRate")}
-                      </span>
-                      <span className="font-bold text-emerald-600">
-                        {t(
-                          "viddhakarma.treatmentPackages.advanced.successRate"
-                        )}
-                      </span>
-                    </div>
-                    <Button className="w-full bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 dark:from-violet-600 dark:to-indigo-700 dark:hover:from-violet-700 dark:hover:to-indigo-800 text-white">
-                      {t("viddhakarma.treatmentPackages.choosePackage")}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-amber-50 to-amber-50 dark:from-amber-900/10 dark:to-amber-900/10 shadow-2xl border border-border/50 overflow-visible glass card-hover group relative">
-                  <Badge className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md z-10">
-                    {t("viddhakarma.treatmentPackages.holistic.badge")}
-                  </Badge>
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-lg text-foreground">
-                      {t("viddhakarma.treatmentPackages.holistic.title")}
-                    </CardTitle>
-                    <div className="text-2xl font-bold text-violet-600">
-                      {t("viddhakarma.treatmentPackages.holistic.sessions")}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="gap-y-4">
-                    <p className="text-muted-foreground">
-                      {t("viddhakarma.treatmentPackages.holistic.description")}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        {t("viddhakarma.treatmentPackages.successRate")}
-                      </span>
-                      <span className="font-bold text-emerald-600">
-                        {t(
-                          "viddhakarma.treatmentPackages.holistic.successRate"
-                        )}
-                      </span>
-                    </div>
-                    <Button className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 dark:from-amber-600 dark:to-amber-700 dark:hover:from-amber-700 dark:hover:to-amber-800 text-white">
-                      {t("viddhakarma.treatmentPackages.choosePackage")}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Call to Action */}
-        <section className="py-16 sm:py-20 md:py-24 bg-gradient-to-r from-violet-600 to-indigo-700 dark:from-violet-700 dark:to-indigo-800">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto text-center text-white">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-semibold mb-6">
-                {t("viddhakarma.cta.title")}
-              </h2>
-              <p className="text-xl text-violet-100 dark:text-violet-200 mb-8 leading-relaxed">
-                {t("viddhakarma.cta.subtitle")}
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button
-                  size="lg"
-                  className="bg-white text-violet-600 hover:bg-violet-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
-                >
-                  {t("viddhakarma.cta.bookConsultation")}
-                </Button>
-                <Button
-                  size="lg"
-                  className="bg-white text-violet-600 hover:bg-violet-600 hover:text-white border border-transparent hover:border-white text-lg px-10 py-4 interactive shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
-                >
-                  {t("viddhakarma.cta.freeAssessment")}
-                </Button>
-              </div>
-
-              <div className="mt-8 flex flex-wrap justify-center gap-6 text-violet-100 dark:text-violet-200">
-                <div className="flex items-center gap-x-2">
-                  <Target className="size-4" />
-                  <span>107 Marma Points</span>
-                </div>
-                <div className="flex items-center gap-x-2">
-                  <Shield className="size-4" />
-                  <span>Safe & Natural</span>
-                </div>
-                <div className="flex items-center gap-x-2">
-                  <Star className="size-4" />
-                  <span>89% Success Rate</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <TreatmentCta
+          title={t("viddhakarma.cta.title")}
+          subtitle={t("viddhakarma.cta.subtitle")}
+          primaryLabel={t("viddhakarma.cta.bookConsultation")}
+          secondary={{ icon: ClipboardList, label: t("viddhakarma.cta.freeAssessment"), href: ASSESSMENT_HREF }}
+          features={[
+            { icon: Target, label: t("viddhakarma.cta.features.marmaPoints") },
+            { icon: Shield, label: t("viddhakarma.cta.features.safeNatural") },
+            { icon: Star, label: t("viddhakarma.cta.features.successRate") },
+          ]}
+          learnMore={{ label: t("common.learnMore"), href: HOME_LINKS.treatments }}
+        />
       </div>
-    </PageTransition>
+    </HomeMotionProvider>
   );
 }
-
