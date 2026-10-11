@@ -2,7 +2,7 @@
 
 import { authenticatedApi, getServerSession } from "./auth.server";
 import { API_ENDPOINTS } from "../config/config";
-import { DOSAGE_FORMS } from "@/app/(dashboard)/pharmacy/_components/pharmacy-inventory.logic";
+import { parseDosageForm } from "@/lib/constants/medicine-types";
 import type {
   AdjustBatchStockInput,
   DispensePrescriptionData,
@@ -89,8 +89,7 @@ function normalizeMedicineRecord(medicine: Record<string, unknown>) {
  * medicine form offers. An unknown value is stored as OTHER rather than rejected.
  */
 function toBackendMedicineType(value: unknown): string {
-  const upper = String(value ?? "").trim().toUpperCase().replace(/\s+/g, "_");
-  return DOSAGE_FORMS.find((form) => form.value === upper)?.value ?? "OTHER";
+  return parseDosageForm(value) ?? "OTHER";
 }
 
 /** One CSV cell: quoted when needed; a leading formula character is neutralised. */

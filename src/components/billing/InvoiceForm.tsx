@@ -1,4 +1,4 @@
-﻿﻿"use client";
+﻿"use client";
 
 import { useReducer, useState } from "react";
 import { Invoice } from "@/types/billing.types";

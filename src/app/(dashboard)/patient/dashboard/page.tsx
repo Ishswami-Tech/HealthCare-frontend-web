@@ -258,7 +258,7 @@ export default function PatientDashboard() {
       doctor={homeDoctor}
       showProfileBanner={authoritativeProfileComplete !== true}
       onCompleteProfile={() => push("/profile-completion")}
-      notice={<ClaimRecordCard enabled={Boolean(session?.user)} />}
+      notice={<ClaimRecordCard userId={session?.user?.id ?? ""} enabled={Boolean(session?.user)} />}
       onBook={openBooking}
       isBookingOpening={isBookingAppointmentLoading}
       onScanCheckIn={startCheckIn}

@@ -157,7 +157,7 @@ export function DoctorPatientsFilters({ filters, facets, onChange, onClear }: Do
             size="md"
             className="h-10 rounded-xl"
             aria-expanded={moreOpen}
-            aria-controls="patient-more-filters"
+            aria-controls={moreOpen ? "patient-more-filters" : undefined}
             onClick={() => setMoreOpen((open) => !open)}
           >
             <SlidersHorizontal />

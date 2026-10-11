@@ -2964,6 +2964,10 @@ export function BookAppointmentDialog({
   );
   // Patients picked from earlier searches stay selectable after the search text changes.
   const knownPatientsRef = useRef(new Map<string, any>());
+  // Remembered picks are per clinic: another clinic's patients must not linger (they hold PHI).
+  useEffect(() => {
+    knownPatientsRef.current.clear();
+  }, [activeClinicId, dialogOpen]);
   // Only fetch the user profile when the dialog is open. The dialog
   // component is mounted by the appointments page header even when
   // closed, so unconditionally calling `useUserProfile()` here would

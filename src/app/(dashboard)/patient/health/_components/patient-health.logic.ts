@@ -429,7 +429,7 @@ export function buildPrescriptions(data: unknown): PatientPrescription[] {
       atDesk: open && Boolean(raw.activeQueueEntry ?? queue.position > 0),
       invoiceId: text(raw.invoiceId) || null,
       // Linked through the web route that forwards the request with the sign-in cookie.
-      pdfUrl: id ? `/api/pharmacy/prescriptions/${encodeURIComponent(id)}/pdf` : null,
+      pdfUrl: id && text(raw.pdfUrl) ? `/api/pharmacy/prescriptions/${encodeURIComponent(id)}/pdf` : null,
     });
     return list;
   }, []);

@@ -8,17 +8,28 @@ const CLAIM_PATH = '/auth/claim-record';
 
 export interface ClaimRecordInput {
   fullName: string;
+  /** The UHID, or the old patient number, printed on the clinic receipt or card. */
   uhid?: string;
   legacyRegistration?: string;
+}
+
+const UHID_SHAPE = /^[A-Za-z0-9]{2,8}-\d{9}$/;
+
+/** Sends the typed receipt number as a UHID when it looks like one, else as the old patient number. */
+export function toClaimInput(fullName: string, receiptNumber: string): ClaimRecordInput {
+  const number = receiptNumber.trim();
+  return UHID_SHAPE.test(number)
+    ? { fullName: fullName.trim(), uhid: number.toUpperCase() }
+    : { fullName: fullName.trim(), legacyRegistration: number };
 }
 
 /**
  * How many earlier clinic records (imported from the old register) are held under the patient's
  * verified mobile number. Only a number: the page shows the claim card when it is above zero.
  */
-export function useClaimableRecords(enabled: boolean) {
+export function useClaimableRecords(userId: string, enabled: boolean) {
   return useQueryData<{ available: number }>(
-    ['claimableRecords'],
+    ['claimableRecords', userId],
     async () => {
       const response = await clinicApiClient.get<{ available: number }>(`${CLAIM_PATH}/available`);
       return response as unknown as { available: number };

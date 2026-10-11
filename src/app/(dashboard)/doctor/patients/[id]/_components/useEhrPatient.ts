@@ -61,7 +61,8 @@ export function useEhrPatient(
 ): EhrPatientResult {
   const entryQuery = usePatientDirectoryEntry(clinicId, patientId);
   const fromDirectory = entryQuery.data ? directoryRowToPatient(entryQuery.data) : null;
-  const directorySettled = !entryQuery.isPending || Boolean(entryQuery.error);
+  // With no clinic the query never runs (and stays pending): do not wait for it.
+  const directorySettled = !clinicId || !entryQuery.isPending || Boolean(entryQuery.error);
 
   // The row of the list the doctor clicked "View EHR" in (kept in the patient store).
   const stored = usePatientStore((state) => {

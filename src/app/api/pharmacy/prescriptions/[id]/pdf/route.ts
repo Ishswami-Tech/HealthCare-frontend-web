@@ -16,8 +16,9 @@ interface RouteParams {
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { id: prescriptionId } = await params;
 
-  if (!prescriptionId || typeof prescriptionId !== "string") {
-    return NextResponse.json({ error: "Prescription ID is required" }, { status: 400 });
+  // Prescription ids are UUIDs; anything else (including ".." or quotes) is refused before any request.
+  if (!prescriptionId || !/^[A-Za-z0-9-]{8,64}$/.test(prescriptionId)) {
+    return NextResponse.json({ error: "Invalid prescription ID" }, { status: 400 });
   }
 
   const cookieStore = await cookies();
@@ -43,10 +44,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     );
 
     if (!backendResponse.ok) {
-      const errorText = await backendResponse.text().catch(() => "Unknown error");
+      // The backend's own message stays on the server.
       return NextResponse.json(
-        { error: `Failed to fetch prescription PDF: ${errorText}` },
-        { status: backendResponse.status }
+        { error: "The prescription PDF is not available" },
+        { status: backendResponse.status === 404 ? 404 : 502 }
       );
     }
 
@@ -56,12 +57,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       headers: {
         "Content-Type": "application/pdf",
         // Opens in the browser's viewer, where it can be printed.
-        "Content-Disposition": `inline; filename="prescription-${prescriptionId}.pdf"`,
+        "Content-Disposition": 'inline; filename="prescription.pdf"',
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "no-store",
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "The prescription PDF could not be loaded" }, { status: 500 });
   }
 }

@@ -35,6 +35,8 @@ type DataTableProps<TData, TValue> = {
   data: TData[];
   emptyMessage?: string;
   pageSize?: number;
+  /** The rows are already one page from the server: do not slice them again. */
+  manualPagination?: boolean;
   showPagination?: boolean;
   className?: string;
   tableClassName?: string;
@@ -50,6 +52,7 @@ export function DataTable<TData, TValue>({
   data,
   emptyMessage = "No results.",
   pageSize = 10,
+  manualPagination = false,
   showPagination = true,
   className,
   tableClassName,
@@ -68,7 +71,7 @@ export function DataTable<TData, TValue>({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    ...(manualPagination ? {} : { getPaginationRowModel: getPaginationRowModel() }),
     initialState: {
       pagination: {
         pageIndex: 0,

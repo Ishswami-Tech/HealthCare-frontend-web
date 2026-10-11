@@ -20,7 +20,14 @@ function isSafeInternalPath(path?: string | null): path is string {
   if (!path) return false;
   if (!path.startsWith('/')) return false;
   if (path.startsWith('//')) return false;
-  return !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(path);
+  // Browsers treat "\" as "/" and ignore tabs and line breaks, so "/\evil.com" is "//evil.com".
+  if (/[\\\u0000-\u001f\u007f\s]/.test(path)) return false;
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(path)) return false;
+  try {
+    return new URL(path, 'http://safe.invalid').origin === 'http://safe.invalid';
+  } catch {
+    return false;
+  }
 }
 
 /**
