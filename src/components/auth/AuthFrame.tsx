@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Presentational pieces shared by every auth screen (sign in, enter code, signed in,
  * forgot / reset password). No data fetching, no auth logic: props in, markup out.

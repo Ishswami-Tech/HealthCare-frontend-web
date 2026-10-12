@@ -1,9 +1,9 @@
 import Link from "next/link";
 import {
   BookOpen,
+  CalendarPlus,
   ClipboardPlus,
   FlaskConical,
-  Hospital,
   Pill,
   Users,
   Video,
@@ -28,7 +28,9 @@ interface QuickAction {
  */
 const ACTIONS: QuickAction[] = [
   { label: "Video Consult", href: "/patient/appointments?openBooking=1&mode=VIDEO", icon: Video, tile: "bg-[#eef0ff] dark:bg-indigo-500/10", well: "bg-[#6366f1]" },
-  { label: "Book Clinic", href: "/patient/appointments?openBooking=1&mode=IN_PERSON", icon: Hospital, tile: "bg-[#e2f8ec] dark:bg-emerald-500/10", well: "bg-[#22b07d]" },
+  // The booking wizard is video-only for now (clinic visits are booked at the front desk), so
+  // this tile makes no in-clinic promise: it opens the same wizard, with no mode.
+  { label: "Book a visit", href: "/patient/appointments?openBooking=1", icon: CalendarPlus, tile: "bg-[#e2f8ec] dark:bg-emerald-500/10", well: "bg-[#22b07d]" },
   { label: "Reports & Lab", href: "/patient/health/reports", icon: FlaskConical, tile: "bg-[#fff1dc] dark:bg-orange-500/10", well: "bg-[#f28a1e]" },
   { label: "Records", href: "/patient/health#records", icon: ClipboardPlus, tile: "bg-[#ffece6] dark:bg-rose-500/10", well: "bg-[#f4664f]" },
   { label: "Family", href: "/patient/family", icon: Users, tile: "bg-[#e6f0ff] dark:bg-blue-500/10", well: "bg-[#3b82f6]" },

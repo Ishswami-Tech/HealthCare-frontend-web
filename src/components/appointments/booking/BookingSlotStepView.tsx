@@ -216,7 +216,7 @@ function SlotStepPage({
     <BookingDoctorPage doctor={doctor} hours={hours} hoursTag={isVideo && videoWindow ? "Video" : undefined}>
         <section className="flex flex-col gap-2">
           <SectionTitle title="Consultation type" className="[&_h2]:text-sm" />
-          <div className="flex min-h-[56px] items-center gap-2.5 rounded-xl border-2 border-[#047857] bg-mint-soft px-3 py-2.5 dark:border-emerald-500">
+          <div className="flex min-h-[56px] items-center gap-2.5 rounded-xl border-2 border-brand bg-mint-soft px-3 py-2.5">
             {isVideo ? (
               <Video className="size-5 shrink-0 fill-[#4f46e5] text-[#4f46e5] dark:fill-indigo-400 dark:text-indigo-400" aria-hidden="true" />
             ) : (
@@ -277,12 +277,12 @@ function SlotStepPage({
 
         {selectedSlot ? (
           <div className="flex items-center gap-2 rounded-xl border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-2 dark:border-emerald-900 dark:bg-emerald-950/30">
-            <CheckCircle className="size-4 shrink-0 text-[#047857] dark:text-emerald-300" aria-hidden="true" />
+            <CheckCircle className="size-4 shrink-0 text-brand" aria-hidden="true" />
             <span className="flex min-w-0 flex-col">
-              <span className="text-[13px] font-bold text-[#065f46] dark:text-emerald-200">
+              <span className="text-[13px] font-bold text-brand-dark">
                 {formatSlotLabel(selectedSlot, "12h")} · {dateShort}
               </span>
-              <span className="text-[11px] font-medium text-[#047857] dark:text-emerald-300">
+              <span className="text-[11px] font-medium text-brand">
                 {durationMinutes} min {isVideo ? "video call" : "clinic visit"}
               </span>
             </span>
@@ -349,12 +349,12 @@ function SlotStepCompact({
           ) : null}
           {selectedSlot ? (
             <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-[#a7f3d0] bg-[#ecfdf5] px-3 py-2.5 dark:border-emerald-900 dark:bg-emerald-950/30">
-              <CheckCircle className="size-[18px] shrink-0 text-[#047857] dark:text-emerald-300" aria-hidden="true" />
+              <CheckCircle className="size-[18px] shrink-0 text-brand" aria-hidden="true" />
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-sm font-bold text-[#065f46] dark:text-emerald-200">
+                <span className="text-sm font-bold text-brand-dark">
                   Selected slot: {selectedSlot}
                 </span>
-                <span className="text-[11px] font-medium text-[#047857] dark:text-emerald-300">
+                <span className="text-[11px] font-medium text-brand">
                   {dateLong} · {durationMinutes} min video call
                 </span>
               </span>

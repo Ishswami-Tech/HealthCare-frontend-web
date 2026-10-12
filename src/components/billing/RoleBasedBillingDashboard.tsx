@@ -38,11 +38,12 @@ import type { BillingInvoiceActions, RenderPayAction } from "./staff/BillingInvo
 import {
   EMPTY_BILLING_FILTERS,
   PAY_BUTTON_CLASS,
-  formatRupees,
+  billingClosedNotice,
   roleLabel,
   type BillingAccess,
   type BillingFilterState,
 } from "./staff/billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 interface RoleBasedBillingDashboardProps {
   initialTab?: string;
@@ -100,9 +101,18 @@ export function RoleBasedBillingDashboard({
     isPatient,
     isReceptionist,
     canManageBilling: isAdmin || isReceptionist || isDoctor,
-    canMarkInvoicesPaid: isAdmin || isReceptionist,
+    // `POST /billing/invoices/:id/mark-paid` needs `invoices:update`, which reception lacks.
+    canMarkInvoicesPaid: isAdmin,
     showLedgerTab: isAdmin,
   };
+  // What the API allows: `POST /billing/invoices` needs `invoices:create` (admins and finance;
+  // reception is named on the route but lacks the permission, so the server answers 403);
+  // `POST /billing/invoices/:id/send-whatsapp` only for the clinic admin and the super admin.
+  // Other roles are not offered a control the server would refuse.
+  const canCreateInvoices = isAdmin;
+  // Staff roles the billing lists are not open to (pharmacist, nurse …) get a note, not tables.
+  const closed = billingClosedNotice(userRole);
+  const canSendWhatsApp = [Role.SUPER_ADMIN, Role.CLINIC_ADMIN].includes(userRole);
 
   const [filters, setFilters] = useState<BillingFilterState>(EMPTY_BILLING_FILTERS);
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
@@ -206,13 +216,15 @@ export function RoleBasedBillingDashboard({
   const header = {
     eyebrow: isPatient ? "BILLING" : isReceptionist ? "COLLECTIONS" : "BILLING DASHBOARD",
     title: isPatient ? "My Billing" : isReceptionist ? "Collections & Payments" : "Billing Dashboard",
-    description: isReceptionist
-      ? "Collections and invoice payments for your clinic."
-      : !isPatient
-        ? `Role-wise billing access active for ${roleLabel(userRole)}`
-        : !activeSubscription
-          ? "Select a plan to unlock in-person appointments"
-          : "Manage your billing, subscriptions, and history",
+    description: closed
+      ? "Clinic billing is handled by the clinic admin, finance and reception."
+      : isReceptionist
+        ? "Collections and invoice payments for your clinic."
+        : !isPatient
+          ? `Role-wise billing access active for ${roleLabel(userRole)}`
+          : !activeSubscription
+            ? "Select a plan to unlock in-person appointments"
+            : "Manage your billing, subscriptions, and history",
   };
 
   const handleGenerateInvoicePDF = async (invoice: Invoice) => {
@@ -273,7 +285,7 @@ export function RoleBasedBillingDashboard({
           markPaidPending: markInvoiceAsPaidMutation.isPending,
         }
       : {}),
-    ...(access.canManageBilling
+    ...(canSendWhatsApp
       ? {
           onSendWhatsApp: (invoice: Invoice) => sendInvoiceWhatsAppMutation.mutate(invoice.id),
           sendWhatsAppPending: sendInvoiceWhatsAppMutation.isPending,
@@ -285,6 +297,7 @@ export function RoleBasedBillingDashboard({
     <BillingDashboardView
       access={access}
       header={header}
+      closed={closed}
       tabs={roleTabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
@@ -292,7 +305,7 @@ export function RoleBasedBillingDashboard({
       loadError={loadError}
       syncing={isSyncing}
       onRefetch={() => onRefetch?.()}
-      onNewInvoice={access.canManageBilling ? () => setIsCreateInvoiceOpen(true) : undefined}
+      onNewInvoice={canCreateInvoices ? () => setIsCreateInvoiceOpen(true) : undefined}
       plans={plans}
       subscriptions={subscriptions}
       invoices={invoices}

@@ -15,7 +15,7 @@ import {
   selectClinicVisits,
   ticketHeadline,
   toQueueTicket,
-} from "@/app/(dashboard)/patient/queue/_components/queueData";
+} from "@/components/patient/queue/queueData";
 
 type PatientQueueCardProps = {
   appointmentsData?: unknown;

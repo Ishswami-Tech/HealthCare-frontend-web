@@ -5,11 +5,10 @@ import { useStableSnapshot } from "./use-stable-snapshot";
 import { useEffect, useState, type ReactNode } from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { AlertTriangle, FlaskConical } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { TabsContent } from "@/components/ui/tabs";
-import { Chip, EmptyBlock, Surface } from "@/components/tbd";
+import { Chip, LoadError, Surface, FIELD_LABEL } from "@/components/tbd";
 import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { cn } from "@/lib/utils";
 import {
@@ -28,7 +27,7 @@ import {
 } from "@/hooks/query/usePatientVisits";
 import type { PatientVisit, UpdatePatientVisitInput } from "@/types/patient-visit.types";
 import { BasicDetailsPanel } from "./BasicDetailsPanel";
-import { CaseSheetCard, FieldLabel, GroupLabel, SaveButton } from "./case-sheet-parts";
+import { CaseSheetCard, GroupLabel, SaveButton } from "./case-sheet-parts";
 import { ClassicalExamSection } from "./ClassicalExamSection";
 import { GeneralExaminationForm, PhysicalMeasurementForm } from "./ExaminationForms";
 import { FamilyHistoryTable } from "./FamilyHistoryTable";
@@ -206,16 +205,11 @@ export function CaseSheetLoading() {
 export function CaseSheetLoadError({ onRetry }: { onRetry: () => void }) {
   return (
     <Surface>
-      <EmptyBlock
+      <LoadError
         icon={AlertTriangle}
-        tone="rose"
         title="Could not load the case sheet"
-        description="Check the connection and try again."
-        action={
-          <Button variant="outline" size="md" onClick={onRetry}>
-            Try again
-          </Button>
-        }
+        message="Check the connection and try again."
+        onRetry={onRetry}
       />
     </Surface>
   );
@@ -245,7 +239,7 @@ export function ComplaintsPanel({ visit, onSave, isSaving }: ComplaintsPanelProp
 
   const field = (key: keyof typeof values, label: string, placeholder: string, tall = true) => (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <FieldLabel htmlFor={`complaint-${key}`}>{label}</FieldLabel>
+      <label htmlFor={`complaint-${key}`} className={FIELD_LABEL}>{label}</label>
       <Textarea
         id={`complaint-${key}`}
         rows={tall ? 3 : 2}

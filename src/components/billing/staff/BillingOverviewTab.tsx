@@ -9,7 +9,6 @@ import { InvoiceRowActions, type BillingInvoiceActions } from "./BillingInvoices
 import { BillingSplitChart } from "./BillingSplitChart";
 import {
   formatBillingDate,
-  formatRupees,
   invoiceNumberLabel,
   paymentDateValue,
   paymentMethodLabel,
@@ -17,6 +16,7 @@ import {
   sortPaymentsNewestFirst,
   type BillingTotals,
 } from "./billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 const PENDING_LIMIT = 5;
 const RECENT_LIMIT = 4;

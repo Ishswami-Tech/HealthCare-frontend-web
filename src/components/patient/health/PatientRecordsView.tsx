@@ -41,7 +41,6 @@ import {
 import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { ReportsTable } from "./ReportsTable";
 import {
-  dayTimeLabel,
   filterHistory,
   severityTone,
   type AllergyEntry,
@@ -50,6 +49,7 @@ import {
   type ReportRow,
   type VitalHistoryRow,
 } from "./patient-health.logic";
+import { formatDateTimeLabel } from "@/lib/utils/date-time";
 
 const RECORD_TABS = ["history", "prescriptions", "reports", "vitals", "allergies", "diet"] as const;
 const VITAL_COLUMNS = "190px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr)";
@@ -350,7 +350,7 @@ export function PatientRecordsView({
                     {vitals.slice(0, vitalsVisible).map((row) => (
                       <GridRow key={row.id} columns={VITAL_COLUMNS} className="gap-1.5 px-0 lg:min-h-[52px]">
                         <span role="cell" className="text-[13px] text-ink-muted">
-                          {dayTimeLabel(row.date) || "No date"}
+                          {formatDateTimeLabel(row.date) || "No date"}
                         </span>
                         <span role="cell" className="font-bold text-ink">
                           {row.name}

@@ -1,24 +1,24 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, CircleAlert, Loader2, Plus, Trash2, X } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Check, CircleAlert, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { InitialsAvatar, Note } from "@/components/tbd";
+import {
+  InitialsAvatar,
+  Note,
+  ConfirmDialog,
+  DialogActions,
+  DialogBody,
+  DialogShell,
+  Field,
+  fieldAria,
+} from "@/components/tbd";
 import { FAMILY_RELATION_SUGGESTIONS } from "@/lib/constants/case-sheet-fixed-lists";
-import { cn } from "@/lib/utils";
 import type { FamilyMember } from "@/types/patient-visit.types";
 import {
   EMPTY_FAMILY_MEMBER,
@@ -31,51 +31,6 @@ import {
 } from "./family.logic";
 
 const NO_GENDER = "none";
-
-const ACTION_BAR =
-  "flex flex-col-reverse gap-2.5 border-t border-hair bg-[#f8fafc] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-end sm:px-6 dark:bg-white/5";
-
-/** Label, control, optional hint and the validation message of one field. */
-function Field({
-  label,
-  htmlFor,
-  hint,
-  error,
-  className,
-  children,
-}: {
-  label: ReactNode;
-  htmlFor: string;
-  hint?: ReactNode;
-  error?: string | undefined;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <label htmlFor={htmlFor} className="text-xs font-bold text-ink-soft">
-        {label}
-      </label>
-      {children}
-      {error ? (
-        <span id={`${htmlFor}-error`} role="alert" className="text-xs font-semibold text-[#be123c] dark:text-rose-300">
-          {error}
-        </span>
-      ) : hint ? (
-        <span className="text-xs text-ink-muted">{hint}</span>
-      ) : null}
-    </div>
-  );
-}
-
-/** Props that link an input to its `Field` message. */
-function fieldAria(id: string, error?: string) {
-  return {
-    id,
-    "aria-invalid": error ? true : undefined,
-    "aria-describedby": error ? `${id}-error` : undefined,
-  } as const;
-}
 
 // ── Add / edit ─────────────────────────────────────────────────────────────
 
@@ -102,55 +57,38 @@ export function FamilyMemberFormDialog({
   const editing = Boolean(member);
   const title = editing ? "Edit details" : "Add family member";
   return (
-    <Dialog
+    <DialogShell
       open={open}
-      onOpenChange={(next) => {
-        // Closing while the request runs would hide its result.
-        if (!next && !isSaving) onClose();
+      onClose={onClose}
+      busy={isSaving}
+      title={title}
+      description={
+        editing
+          ? "Your clinic sees these details too."
+          : "Add someone you look after. Your clinic will see these details."
+      }
+      width={560}
+      onOpenAutoFocus={(event) => {
+        // Start in the first field, not on the close button.
+        const first = event.currentTarget instanceof HTMLElement ? event.currentTarget.querySelector("input") : null;
+        if (first) {
+          event.preventDefault();
+          first.focus();
+        }
       }}
     >
-      <DialogContent
-        showCloseButton={false}
-        className="gap-0 overflow-hidden p-0 sm:max-w-[560px]"
-        onOpenAutoFocus={(event) => {
-          // Start in the first field, not on the close button.
-          const first = event.currentTarget instanceof HTMLElement ? event.currentTarget.querySelector("input") : null;
-          if (first) {
-            event.preventDefault();
-            first.focus();
-          }
-        }}
-      >
-        <div className="flex items-start gap-3 px-5 pb-3.5 pt-[22px] sm:px-6">
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>
-              {editing
-                ? "Your clinic sees these details too."
-                : "Add someone you look after. Your clinic will see these details."}
-            </DialogDescription>
-          </div>
-          <DialogClose
-            disabled={isSaving}
-            className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-well text-ink-soft transition-colors hover:bg-line focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50"
-          >
-            <X className="size-4" aria-hidden="true" />
-            <span className="sr-only">Close</span>
-          </DialogClose>
-        </div>
-        {/* The form lives inside the content, so every opening starts clean. */}
-        {open ? (
-          <FamilyMemberForm
-            initialValues={member ? toFormValues(member) : EMPTY_FAMILY_MEMBER}
-            editing={editing}
-            isSaving={isSaving}
-            errorMessage={errorMessage}
-            onSubmit={onSubmit}
-            onClose={onClose}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
+      {/* The form lives inside the content, so every opening starts clean. */}
+      {open ? (
+        <FamilyMemberForm
+          initialValues={member ? toFormValues(member) : EMPTY_FAMILY_MEMBER}
+          editing={editing}
+          isSaving={isSaving}
+          errorMessage={errorMessage}
+          onSubmit={onSubmit}
+          onClose={onClose}
+        />
+      ) : null}
+    </DialogShell>
   );
 }
 
@@ -184,7 +122,7 @@ function FamilyMemberForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      <div className="flex max-h-[calc(100dvh-230px)] flex-col gap-4 overflow-y-auto px-5 pb-5 pt-1 sm:px-6">
+      <DialogBody>
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <Field label="First name" htmlFor={id("firstName")} error={errors.firstName?.message}>
             <Input
@@ -298,9 +236,9 @@ function FamilyMemberForm({
             </span>
           </Note>
         ) : null}
-      </div>
+      </DialogBody>
 
-      <div className={ACTION_BAR}>
+      <DialogActions>
         <Button type="button" variant="outline" size="md" disabled={isSaving} onClick={onClose}>
           Cancel
         </Button>
@@ -314,7 +252,7 @@ function FamilyMemberForm({
           )}
           {isSaving ? "Saving…" : editing ? "Save changes" : "Add family member"}
         </Button>
-      </div>
+      </DialogActions>
     </form>
   );
 }
@@ -341,47 +279,34 @@ export function RemoveFamilyMemberDialog({
 }: RemoveFamilyMemberDialogProps) {
   const name = member ? memberName(member) : "";
   return (
-    <AlertDialog
+    <ConfirmDialog
       open={open}
-      onOpenChange={(next) => {
-        if (!next && !isRemoving) onClose();
-      }}
+      onClose={onClose}
+      title="Remove this family member?"
+      description="They will leave your family list. Your clinic keeps their past visits and records."
+      tone="danger"
+      cancelLabel="Keep"
+      confirmLabel="Remove"
+      busyLabel="Removing…"
+      confirmIcon={<Trash2 aria-hidden="true" />}
+      busy={isRemoving}
+      confirmDisabled={!member}
+      onConfirm={onConfirm}
     >
-      <AlertDialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[460px]">
-        <div className="flex flex-col gap-4 px-5 pb-5 pt-[22px] sm:px-6">
-          <div className="flex flex-col gap-1">
-            <AlertDialogTitle className="text-lg font-extrabold leading-tight text-ink">
-              Remove this family member?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-[13px] text-ink-muted">
-              They will leave your family list. Your clinic keeps their past visits and records.
-            </AlertDialogDescription>
-          </div>
-          {member ? (
-            <div className="flex items-center gap-3 rounded-[14px] border border-hair bg-[#f8fafc] px-3.5 py-3 dark:bg-white/5">
-              <InitialsAvatar name={name} size={40} />
-              <span className="flex min-w-0 flex-col gap-px">
-                <span className="truncate text-[15px] font-extrabold text-ink">{name}</span>
-                <span className="truncate text-xs font-medium text-ink-muted">{member.relation}</span>
-              </span>
-            </div>
-          ) : null}
-          {errorMessage ? (
-            <Note tone="rose" icon={CircleAlert}>
-              <span role="alert">The family member was not removed. {errorMessage}</span>
-            </Note>
-          ) : null}
+      {member ? (
+        <div className="flex items-center gap-3 rounded-[14px] border border-hair bg-[#f8fafc] px-3.5 py-3 dark:bg-white/5">
+          <InitialsAvatar name={name} size={40} />
+          <span className="flex min-w-0 flex-col gap-px">
+            <span className="truncate text-[15px] font-extrabold text-ink">{name}</span>
+            <span className="truncate text-xs font-medium text-ink-muted">{member.relation}</span>
+          </span>
         </div>
-        <div className={ACTION_BAR}>
-          <AlertDialogCancel disabled={isRemoving} className="h-11 px-[18px]">
-            Keep
-          </AlertDialogCancel>
-          <Button type="button" variant="danger" size="md" disabled={isRemoving || !member} onClick={onConfirm}>
-            {isRemoving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
-            {isRemoving ? "Removing…" : "Remove"}
-          </Button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
+      ) : null}
+      {errorMessage ? (
+        <Note tone="rose" icon={CircleAlert}>
+          <span role="alert">The family member was not removed. {errorMessage}</span>
+        </Note>
+      ) : null}
+    </ConfirmDialog>
   );
 }

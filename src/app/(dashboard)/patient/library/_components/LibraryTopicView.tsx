@@ -4,9 +4,19 @@ import Link from "next/link";
 import { BookOpen, ChevronRight, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, PageHead, Pill, SegTabs, SoftCard, Surface, type TbdOption } from "@/components/tbd";
+import {
+  EmptyBlock,
+  PageHead,
+  Pill,
+  SegTabs,
+  SoftCard,
+  Surface,
+  Pager,
+  serverPaging,
+  type TbdOption,
+} from "@/components/tbd";
 import { cn } from "@/lib/utils";
-import { BookVisitCard, LIBRARY_FOCUS, LIBRARY_GRID, LibraryCover, LibraryError, LibraryPager } from "./LibraryBits";
+import { BookVisitCard, LIBRARY_FOCUS, LIBRARY_GRID, LibraryCover, LibraryError } from "./LibraryBits";
 import { BOOK_VIDEO_VISIT_HREF, LIBRARY_HREF, type LibraryCardItem } from "./library.logic";
 
 export type LibraryTopicState = "loading" | "error" | "ready";
@@ -161,7 +171,7 @@ export function LibraryTopicView({
                 <li key={item.id} className="min-w-0">
                   <Link href={item.href} className={cn(ROW, LIBRARY_FOCUS, "h-full transition-shadow hover:shadow-md")}>
                     <span
-                      className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#047857] text-[15px] font-extrabold text-white"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-[15px] font-extrabold text-white"
                       aria-hidden="true"
                     >
                       {firstNumber + index}
@@ -175,7 +185,11 @@ export function LibraryTopicView({
                 </li>
               ))}
             </ol>
-            <LibraryPager page={page} pageSize={pageSize} total={total} onPageChange={onPageChange} />
+            <Pager
+              paging={serverPaging({ page: page, pageSize: pageSize, total: total, onPageChange: onPageChange })}
+              hideWhenSinglePage
+              className="border-t-0 px-0 py-0"
+            />
           </section>
         </>
       )}

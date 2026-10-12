@@ -32,6 +32,8 @@ export const buttonVariants = cva(
       size: {
         default: "h-9 px-3.5 py-2 has-[>svg]:px-3",
         sm: "h-8 rounded-[10px] gap-1.5 px-3 has-[>svg]:px-2.5",
+        // 34 px: buttons inside table rows, pagers and other tight rows.
+        compact: "h-[34px] px-3.5 py-2 has-[>svg]:px-3",
         // 44 px: the standard height for page and card actions.
         md: "h-11 px-[18px] has-[>svg]:px-4",
         lg: "h-10 px-6 has-[>svg]:px-4",

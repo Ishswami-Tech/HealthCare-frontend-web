@@ -2,8 +2,9 @@
 
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Stethoscope } from "lucide-react";
-import { PROFILE_SWITCH, ProfileCard, ProfileField } from "./DoctorProfileParts";
+import { Info, Stethoscope } from "lucide-react";
+import { Field, Note } from "@/components/tbd";
+import { PROFILE_SWITCH, ProfileCard } from "./DoctorProfileParts";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
 
 interface DoctorProfileConsultationTabProps {
@@ -19,37 +20,24 @@ export function DoctorProfileConsultationTab({
 
   return (
     <ProfileCard icon={Stethoscope} title="Consultation Settings" className="gap-3.5">
+      {/* Fees are not shown: a doctor sees no money amounts, and the clinic admin sets them. */}
+      <Note tone="blue" icon={Info}>
+        These settings cannot be changed here yet. Your clinic admin sets the visit types and the visit length.
+      </Note>
+
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <ProfileField label="Consultation Fee (₹)" htmlFor="consultationFee">
-          <Input
-            id="consultationFee"
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={settings.consultationFee}
-            onChange={(e) => updateConsultationSettings("consultationFee", e.target.value)}
-          />
-        </ProfileField>
-        <ProfileField label="Follow-up Fee (₹)" htmlFor="followUpFee">
-          <Input
-            id="followUpFee"
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={settings.followUpFee}
-            onChange={(e) => updateConsultationSettings("followUpFee", e.target.value)}
-          />
-        </ProfileField>
-        <ProfileField label="Duration (minutes)" htmlFor="consultationDuration">
+        <Field labelClassName="min-h-5" label="Duration (minutes)" htmlFor="consultationDuration">
           <Input
             id="consultationDuration"
             type="number"
             min={0}
             inputMode="numeric"
+            disabled
+            placeholder="Not set"
             value={settings.consultationDuration}
             onChange={(e) => updateConsultationSettings("consultationDuration", e.target.value)}
           />
-        </ProfileField>
+        </Field>
       </div>
 
       <div className="flex flex-col">
@@ -110,6 +98,7 @@ function SettingRow({ id, label, description, checked, onCheckedChange }: Settin
         aria-describedby={`${id}-hint`}
         className={PROFILE_SWITCH}
         checked={checked}
+        disabled
         onCheckedChange={onCheckedChange}
       />
     </div>

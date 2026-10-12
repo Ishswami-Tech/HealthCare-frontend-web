@@ -22,10 +22,12 @@ import {
 } from "@/components/ui/select";
 import { InitialsAvatar, Note, Pill, SearchBox, statusLabel, statusTone } from "@/components/tbd";
 import { cn } from "@/lib/utils";
-import { useCompleteAppointment, useUpdateAppointment } from "@/hooks/query/useAppointments";
+import { useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useCreatePrescription, useMedicines } from "@/hooks/query/usePharmacy";
 import type { Medicine } from "@/types/pharmacy.types";
+import { prescriptionReference } from "@/lib/utils/labels";
+import { asRecord, trimmedString } from "@/lib/utils/coerce";
 
 /** What was really saved. The caller uses it for its confirmation message. */
 export interface PrescriptionSavedResult {
@@ -282,15 +284,10 @@ const formatMedicationSummary = (medication: PrescriptionMedicationRow) =>
  * "RX-" plus the first eight characters of its id (the same rule as the pharmacy screens).
  */
 function readPrescriptionReference(result: unknown): string | null {
-  if (!result || typeof result !== "object") return null;
-  const outer = result as Record<string, unknown>;
-  const record = (outer.data && typeof outer.data === "object" ? outer.data : outer) as Record<string, unknown>;
-  for (const key of ["prescriptionNumber", "referenceNumber"]) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  const compact = typeof record.id === "string" ? record.id.replace(/[^a-zA-Z0-9]/g, "") : "";
-  return compact ? `RX-${compact.slice(0, 8).toUpperCase()}` : null;
+  const outer = asRecord(result);
+  if (!outer) return null;
+  const record = asRecord(outer.data) ?? outer;
+  return prescriptionReference(trimmedString(record.id), record) || null;
 }
 
 const FIELD_LABEL = "text-[11px] font-bold text-ink-muted";
@@ -942,11 +939,13 @@ export function PrescriptionDialogView({
   );
 }
 
-/** Steps that already succeeded, so a retry does not send the medicines twice. */
+/** The step that already succeeded, so a retry does not send the medicines twice. */
 interface SaveProgress {
   pharmacy: { reference: string | null; medicineCount: number } | null;
-  appointmentSaved: boolean;
 }
+
+/** The longest text the complete-visit request accepts in one field. */
+const VISIT_TEXT_LIMIT = 1000;
 
 function QuickPrescriptionSession({
   isOpen,
@@ -962,10 +961,9 @@ function QuickPrescriptionSession({
   onSaved,
 }: QuickPrescriptionModalProps) {
   const { clinicId } = useClinicContext();
-  const [progress, setProgress] = useState<SaveProgress>({ pharmacy: null, appointmentSaved: false });
+  const [progress, setProgress] = useState<SaveProgress>({ pharmacy: null });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const updateAppointment = useUpdateAppointment();
   const completeAppointment = useCompleteAppointment();
   const createPharmacyPrescription = useCreatePrescription();
   const {
@@ -1050,7 +1048,7 @@ function QuickPrescriptionSession({
 
     setErrorMessage(null);
     let saved = progress;
-    let step: "pharmacy" | "appointment" | "complete" = "pharmacy";
+    let step: "pharmacy" | "complete" = "pharmacy";
 
     try {
       // 1. The pharmacy prescription: only medicines picked from pharmacy stock go to the pharmacy.
@@ -1075,6 +1073,10 @@ function QuickPrescriptionSession({
         setProgress(saved);
       }
 
+      // The visit record. The appointment has no diagnosis or prescription columns: the
+      // backend keeps this text in the appointment metadata, and completing a visit merges
+      // the metadata it is given. So the record is saved by the same request that completes
+      // the visit, and there is no step in between that could fail on its own.
       const metadata = {
         prescriptionIssued: cleanMedications.length > 0,
         medicineSkipped: cleanMedications.length === 0,
@@ -1086,46 +1088,30 @@ function QuickPrescriptionSession({
           diagnosis: diagnosis || null,
           notes: notes || null,
           treatmentPlan: advice || notes || null,
+          prescription: prescriptionText || null,
+          followUpDate: followUpDate || null,
+          followUpNotes: followUpNotes || null,
           medicationCount: cleanMedications.length,
           savedAt: new Date().toISOString(),
           savedBy: doctorId,
         },
+        source: "doctor-dashboard",
       };
 
       // No active appointment to attach consultation notes to when prescribing
       // directly from a patient record (e.g. a walk-in with no visit booked).
       if (appointmentId) {
-        // 2. The visit record: diagnosis, advice and the written prescription.
-        if (!saved.appointmentSaved) {
-          step = "appointment";
-          await updateAppointment.mutateAsync({
-            id: appointmentId,
-            data: {
-              // Empty fields are left out so they do not wipe what the visit already has
-              // (the booking note, for example).
-              ...(diagnosis ? { diagnosis } : {}),
-              ...(notes ? { notes } : {}),
-              ...(advice || notes ? { treatmentPlan: advice || notes } : {}),
-              metadata,
-              ...(prescriptionText ? { prescription: prescriptionText } : {}),
-              ...(followUpDate ? { followUpDate } : {}),
-              ...(followUpNotes ? { followUpNotes } : {}),
-            },
-          });
-          saved = { ...saved, appointmentSaved: true };
-          setProgress(saved);
-        }
-
-        // 3. Complete the visit.
+        // 2. Complete the visit and save its record. Only fields the complete-visit request
+        // accepts are sent; the follow-up note travels in the metadata above.
         step = "complete";
         await completeAppointment.mutateAsync({
           id: appointmentId,
           data: {
             ...(diagnosis ? { diagnosis } : {}),
-            ...(notes || advice ? { notes: (notes || advice).slice(0, 1000) } : {}),
+            ...(notes || advice ? { notes: (notes || advice).slice(0, VISIT_TEXT_LIMIT) } : {}),
+            ...(prescriptionText ? { prescription: prescriptionText.slice(0, VISIT_TEXT_LIMIT) } : {}),
             ...(followUpDate ? { followUpDate } : {}),
-            ...(followUpNotes ? { followUpNotes } : {}),
-            metadata: { ...metadata, source: "doctor-dashboard" },
+            metadata,
           },
         });
       }
@@ -1139,7 +1125,7 @@ function QuickPrescriptionSession({
         prescriptionNumber: saved.pharmacy?.reference ?? null,
         followUpDate: followUpDate || null,
       };
-      setProgress({ pharmacy: null, appointmentSaved: false });
+      setProgress({ pharmacy: null });
       onClose();
       await onSaved?.(result);
       return true;
@@ -1156,8 +1142,7 @@ function QuickPrescriptionSession({
     }
   };
 
-  const isSubmitting =
-    updateAppointment.isPending || createPharmacyPrescription.isPending || completeAppointment.isPending;
+  const isSubmitting = createPharmacyPrescription.isPending || completeAppointment.isPending;
 
   return (
     <PrescriptionDialogView
@@ -1187,7 +1172,7 @@ function QuickPrescriptionSession({
 
 /**
  * Prescribing dialog. With an appointment, "Save and complete" sends the stock medicines to
- * the pharmacy, saves the prescription on the visit and completes the appointment. Without one
+ * the pharmacy, then completes the appointment and saves the visit record with it. Without one
  * (from a patient record) it saves the pharmacy prescription only.
  */
 export function QuickPrescriptionModal(props: QuickPrescriptionModalProps) {

@@ -23,28 +23,30 @@ import {
   Pill,
   SearchBox,
   Surface,
+  Pager,
+  paginateRows,
   type IconTone,
   type TbdIcon,
+  statusTone,
 } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import {
   EMPTY_FILTERS,
   STATUS_LABEL,
-  STATUS_TONE,
   STOCK_FILTER_OPTIONS,
   expiringLine,
-  expiryMonthLabel,
   expiryPill,
   filterMedicines,
-  formatRupees,
   lowStockLine,
   medicineSubline,
-  paginate,
+  PAGE_SIZE,
   type InventoryFilters,
   type InventoryOverview,
   type MedicineRow,
   type StockFilter,
 } from "./pharmacy-inventory.logic";
+import { formatRupees } from "@/lib/utils/currency";
+import { formatMonthYearLabel } from "@/lib/utils/date-time";
 
 const ALL = "all";
 const VISIBLE_ALERTS = 5;
@@ -127,7 +129,7 @@ export function PharmacyInventoryStockTab({
 }: PharmacyInventoryStockTabProps) {
   const { summary, rows } = overview;
   const filtered = filterMedicines(rows, filters);
-  const paged = paginate(filtered, page);
+  const paged = paginateRows(filtered, page, PAGE_SIZE);
   const filtering =
     filters.search.trim() !== "" || filters.type !== "" || filters.category !== "" || filters.stock !== "all";
   const blank = "—";
@@ -206,11 +208,11 @@ export function PharmacyInventoryStockTab({
                         <span className="text-xs font-medium text-ink-muted">{lowStockLine(medicine)}</span>
                       </span>
                       <span className="flex shrink-0 items-center gap-2.5">
-                        <Pill tone={STATUS_TONE[medicine.status]}>{STATUS_LABEL[medicine.status]}</Pill>
+                        <Pill tone={statusTone(medicine.status)}>{STATUS_LABEL[medicine.status]}</Pill>
                         {canManage ? (
                           <Button
                             variant="soft"
-                            className="h-[34px]"
+                            size="compact"
                             onClick={() => onRestock(medicine)}
                             aria-label={`Receive stock for ${medicine.name}`}
                           >
@@ -411,7 +413,7 @@ export function PharmacyInventoryStockTab({
                   "Actions",
                 ]}
               />
-              {paged.items.map((medicine) => {
+              {paged.pageRows.map((medicine) => {
                 const soon = medicine.expiringSoon;
                 return (
                   <GridRow key={medicine.id} columns={COLUMNS}>
@@ -431,7 +433,7 @@ export function PharmacyInventoryStockTab({
                       >
                         <span className="mr-1 text-xs font-normal text-ink-muted lg:hidden">Expiry</span>
                         {soon ? <CircleAlert className="size-3.5 shrink-0" strokeWidth={2.4} aria-hidden="true" /> : null}
-                        {expiryMonthLabel(medicine.expiryDate) || blank}
+                        {formatMonthYearLabel(medicine.expiryDate) || blank}
                         {soon ? <span className="sr-only"> (expiring soon)</span> : null}
                       </span>
                       {medicine.batchNumber ? (
@@ -457,7 +459,7 @@ export function PharmacyInventoryStockTab({
                       ) : null}
                     </div>
                     <div role="cell">
-                      <Pill tone={STATUS_TONE[medicine.status]}>{STATUS_LABEL[medicine.status]}</Pill>
+                      <Pill tone={statusTone(medicine.status)}>{STATUS_LABEL[medicine.status]}</Pill>
                     </div>
                     <div role="cell" className="whitespace-nowrap font-bold text-ink">
                       <span className="mr-1 text-xs font-normal text-ink-muted lg:hidden">Price</span>
@@ -484,33 +486,11 @@ export function PharmacyInventoryStockTab({
               })}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair px-5 py-3 text-[13px] text-ink-muted">
-              <span aria-live="polite">
-                Showing {paged.from}–{paged.to} of {paged.total} {paged.total === 1 ? "medicine" : "medicines"}
-                {filtering ? ` (${rows.length} in all)` : ""}
-              </span>
-              <span className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="h-[34px]"
-                  onClick={() => onPageChange(paged.page - 1)}
-                  disabled={paged.page <= 1}
-                >
-                  Previous
-                </Button>
-                <span>
-                  Page {paged.page} of {paged.pageCount}
-                </span>
-                <Button
-                  variant="outline"
-                  className="h-[34px]"
-                  onClick={() => onPageChange(paged.page + 1)}
-                  disabled={paged.page >= paged.pageCount}
-                >
-                  Next
-                </Button>
-              </span>
-            </div>
+            <Pager
+              paging={{ ...paged, setPage: onPageChange }}
+              noun={paged.total === 1 ? "medicine" : "medicines"}
+              note={filtering ? `(${rows.length} in all)` : undefined}
+            />
           </>
         )}
       </Surface>

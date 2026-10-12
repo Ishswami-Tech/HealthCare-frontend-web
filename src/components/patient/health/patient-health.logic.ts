@@ -9,54 +9,20 @@
 import type { IconTone, PillTone } from "@/components/tbd";
 import { normalizeStatus, statusLabel, statusTone } from "@/components/tbd";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
-import { formatDateInIST, formatDateKeyInIST, formatTimeInIST } from "@/lib/utils/date-time";
+import { formatDateKeyInIST, formatDateLabel, formatTimeLabel } from "@/lib/utils/date-time";
 import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
+import {
+  asRecordOrEmpty,
+  firstIsoDate,
+  firstMeaningfulText,
+  numberOrZero,
+  unwrapRecords,
+} from "@/lib/utils/coerce";
+import { formatBytes, plural, prescriptionReference, sentenceCase } from "@/lib/utils/labels";
 
 export type Raw = Record<string, unknown>;
 
 // ── reading loose rows ─────────────────────────────────────────────────────
-
-export function asRecord(value: unknown): Raw {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
-}
-
-/** Lists arrive as an array or wrapped in an object (`{ prescriptions: [] }`). */
-export function asList(value: unknown, key?: string): Raw[] {
-  const list = Array.isArray(value) ? value : key ? asRecord(value)[key] : [];
-  return Array.isArray(list) ? list.filter((entry): entry is Raw => !!entry && typeof entry === "object") : [];
-}
-
-const EMPTY_WORDS = new Set(["undefined", "null", "nan", "n/a", "na", "-"]);
-
-/** First value that is real text (or a number). */
-export function text(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (trimmed && !EMPTY_WORDS.has(trimmed.toLowerCase())) return trimmed;
-    }
-  }
-  return "";
-}
-
-function amount(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-/** First value that parses as a date, as an ISO string. */
-export function dateValue(...values: unknown[]): string | null {
-  for (const value of values) {
-    if (value instanceof Date) {
-      if (!Number.isNaN(value.getTime())) return value.toISOString();
-      continue;
-    }
-    const raw = text(value);
-    if (raw && !Number.isNaN(new Date(raw).getTime())) return raw;
-  }
-  return null;
-}
 
 function timeOf(value: string | null): number {
   if (!value) return Number.NEGATIVE_INFINITY;
@@ -69,48 +35,6 @@ function newestFirst<T extends { date: string | null }>(rows: T[]): T[] {
     .map((row, index) => ({ row, index, time: timeOf(row.date) }))
     .sort((a, b) => (b.time === a.time ? a.index - b.index : b.time - a.time))
     .map((entry) => entry.row);
-}
-
-/** "28 Sept 2026" */
-export function dayLabel(value: string | null): string {
-  return value ? formatDateInIST(value, { day: "numeric", month: "short", year: "numeric" }) : "";
-}
-
-/** "8:30 am" */
-function timeLabel(value: string): string {
-  return formatTimeInIST(value).toLowerCase().replace(/^0/, "");
-}
-
-/** "28 Sept 2026, 8:30 am" */
-export function dayTimeLabel(value: string | null): string {
-  if (!value) return "";
-  return [dayLabel(value), timeLabel(value)].filter(Boolean).join(", ");
-}
-
-/** BLOOD_PRESSURE -> "Blood pressure" */
-export function readable(value: string): string {
-  const clean = value.replace(/[_-]+/g, " ").trim();
-  if (!clean) return "";
-  return clean === clean.toUpperCase() || clean === clean.toLowerCase()
-    ? clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
-    : clean;
-}
-
-const rupeeFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 });
-
-/** "₹1,240" */
-export function formatRupees(value: number): string {
-  return `₹${rupeeFormat.format(value)}`;
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${Number((bytes / (1024 * 1024)).toFixed(1))} MB`;
-}
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -166,39 +90,39 @@ interface VitalReading {
 function bloodPressureText(row: Raw): string {
   const direct = row.bp ?? row.bloodPressure;
   if (direct && typeof direct === "object") {
-    const pair = asRecord(direct);
-    const systolic = text(pair.systolic);
-    const diastolic = text(pair.diastolic);
+    const pair = asRecordOrEmpty(direct);
+    const systolic = firstMeaningfulText(pair.systolic);
+    const diastolic = firstMeaningfulText(pair.diastolic);
     return systolic && diastolic ? `${systolic}/${diastolic}` : "";
   }
-  const systolic = text(row.bloodPressureSystolic, row.systolic);
-  const diastolic = text(row.bloodPressureDiastolic, row.diastolic);
-  return text(direct) || (systolic && diastolic ? `${systolic}/${diastolic}` : "");
+  const systolic = firstMeaningfulText(row.bloodPressureSystolic, row.systolic);
+  const diastolic = firstMeaningfulText(row.bloodPressureDiastolic, row.diastolic);
+  return firstMeaningfulText(direct) || (systolic && diastolic ? `${systolic}/${diastolic}` : "");
 }
 
 /** Every reading in the list, whichever shape the row has (one vital per row, or one visit per row). */
 function readVitalRows(vitals: unknown): Array<{ slot: VitalSlot; reading: VitalReading }> {
   const readings: Array<{ slot: VitalSlot; reading: VitalReading }> = [];
-  for (const row of asList(vitals, "vitals")) {
-    const date = dateValue(row.recordedAt, row.date, row.createdAt);
-    const type = text(row.type, row.vitalType, row.name);
+  for (const row of unwrapRecords(vitals, "vitals")) {
+    const date = firstIsoDate(row.recordedAt, row.date, row.createdAt);
+    const type = firstMeaningfulText(row.type, row.vitalType, row.name);
     if (type) {
       const slot = classifyVital(type);
-      const value = text(row.value);
+      const value = firstMeaningfulText(row.value);
       if (!slot || !value) continue;
       const fasting = slot === "bloodSugar" && /fasting/i.test(type);
       const label = slot === "systolic" || slot === "diastolic" ? "" : VITAL_DEFAULTS[slot].label;
       readings.push({
         slot,
-        reading: { value, unit: text(row.unit), label: fasting ? `${label} (fasting)` : label, date },
+        reading: { value, unit: firstMeaningfulText(row.unit), label: fasting ? `${label} (fasting)` : label, date },
       });
       continue;
     }
     const wide: Array<[VitalKey, string]> = [
-      ["heartRate", text(row.hr, row.heartRate, row.pulse, row.pulseRate)],
+      ["heartRate", firstMeaningfulText(row.hr, row.heartRate, row.pulse, row.pulseRate)],
       ["bloodPressure", bloodPressureText(row)],
-      ["bloodSugar", text(row.bloodSugar, row.sugar, row.glucose)],
-      ["weight", text(row.weight)],
+      ["bloodSugar", firstMeaningfulText(row.bloodSugar, row.sugar, row.glucose)],
+      ["weight", firstMeaningfulText(row.weight)],
     ];
     for (const [slot, value] of wide) {
       if (value) readings.push({ slot, reading: { value, unit: "", label: VITAL_DEFAULTS[slot].label, date } });
@@ -248,9 +172,9 @@ export function vitalsUpdatedLabel(tiles: VitalTile[], now: Date = new Date()): 
   );
   if (!latest) return "";
   if (formatDateKeyInIST(latest) === formatDateKeyInIST(now)) {
-    return `Vitals updated today, ${timeLabel(latest)}`;
+    return `Vitals updated today, ${formatTimeLabel(latest)}`;
   }
-  return `Vitals updated ${dayLabel(latest)}`;
+  return `Vitals updated ${formatDateLabel(latest)}`;
 }
 
 export interface VitalHistoryRow {
@@ -264,28 +188,28 @@ export interface VitalHistoryRow {
 /** Every reading, newest first, for the Vitals tab of Records. */
 export function buildVitalHistory(vitals: unknown): VitalHistoryRow[] {
   const rows: VitalHistoryRow[] = [];
-  asList(vitals, "vitals").forEach((row, index) => {
-    const date = dateValue(row.recordedAt, row.date, row.createdAt);
-    const type = text(row.type, row.vitalType, row.name);
+  unwrapRecords(vitals, "vitals").forEach((row, index) => {
+    const date = firstIsoDate(row.recordedAt, row.date, row.createdAt);
+    const type = firstMeaningfulText(row.type, row.vitalType, row.name);
     if (type) {
-      const value = text(row.value);
+      const value = firstMeaningfulText(row.value);
       rows.push({
-        id: text(row.id) || `vital-${index}`,
+        id: firstMeaningfulText(row.id) || `vital-${index}`,
         date,
-        name: readable(type).replace(/^bp\b/i, "BP"),
-        value: value ? [value, text(row.unit)].filter(Boolean).join(" ") : "",
-        notes: text(row.notes),
+        name: sentenceCase(type).replace(/^bp\b/i, "BP"),
+        value: value ? [value, firstMeaningfulText(row.unit)].filter(Boolean).join(" ") : "",
+        notes: firstMeaningfulText(row.notes),
       });
       return;
     }
     const wide: Array<[string, string, string]> = [
       ["Blood pressure", bloodPressureText(row), "mmHg"],
-      ["Heart rate", text(row.hr, row.heartRate, row.pulse, row.pulseRate), "bpm"],
-      ["Weight", text(row.weight), "kg"],
-      ["BMI", text(row.bmi), ""],
+      ["Heart rate", firstMeaningfulText(row.hr, row.heartRate, row.pulse, row.pulseRate), "bpm"],
+      ["Weight", firstMeaningfulText(row.weight), "kg"],
+      ["BMI", firstMeaningfulText(row.bmi), ""],
     ];
     wide.forEach(([name, value, unit]) => {
-      if (value) rows.push({ id: `vital-${index}-${name}`, date, name, value: [value, unit].filter(Boolean).join(" "), notes: text(row.notes) });
+      if (value) rows.push({ id: `vital-${index}-${name}`, date, name, value: [value, unit].filter(Boolean).join(" "), notes: firstMeaningfulText(row.notes) });
     });
   });
   return newestFirst(rows);
@@ -345,16 +269,11 @@ export interface PatientPrescription {
   pdfUrl: string | null;
 }
 
-export function prescriptionNumber(id: string): string {
-  const compact = id.replace(/[^a-zA-Z0-9]/g, "");
-  return compact ? `RX-${compact.slice(0, 8).toUpperCase()}` : "Prescription";
-}
-
 function toLine(item: Raw, index: number): PrescriptionLine {
-  const medicine = asRecord(item.medicine);
-  const quantity = amount(item.quantity);
-  const given = amount(item.dispensedQuantity);
-  const history = asList(item.dispenseBatchHistory).filter((entry) => amount(entry.quantity) > 0);
+  const medicine = asRecordOrEmpty(item.medicine);
+  const quantity = numberOrZero(item.quantity);
+  const given = numberOrZero(item.dispensedQuantity);
+  const history = unwrapRecords(item.dispenseBatchHistory).filter((entry) => numberOrZero(entry.quantity) > 0);
   const supplyLabel =
     item.isDispensed === false
       ? "Pending dispense"
@@ -364,22 +283,22 @@ function toLine(item: Raw, index: number): PrescriptionLine {
           ? plural(quantity, "unit", "units")
           : "As prescribed";
   return {
-    id: text(item.id) || `${text(item.medicineId) || "line"}-${index}`,
-    name: text(medicine.name, item.medicineName, item.name) || "Medicine",
-    dosage: text(item.dosage),
-    frequency: text(item.frequency),
-    duration: text(item.duration),
-    instructions: text(item.instructions),
-    category: readable(text(medicine.category, medicine.type)),
-    description: text(medicine.description, medicine.properties),
+    id: firstMeaningfulText(item.id) || `${firstMeaningfulText(item.medicineId) || "line"}-${index}`,
+    name: firstMeaningfulText(medicine.name, item.medicineName, item.name) || "Medicine",
+    dosage: firstMeaningfulText(item.dosage),
+    frequency: firstMeaningfulText(item.frequency),
+    duration: firstMeaningfulText(item.duration),
+    instructions: firstMeaningfulText(item.instructions),
+    category: sentenceCase(firstMeaningfulText(medicine.category, medicine.type)),
+    description: firstMeaningfulText(medicine.description, medicine.properties),
     supplyLabel,
-    batches: history.map((entry) => `${text(entry.batchNumber) || "Batch"} × ${amount(entry.quantity)}`).join(", "),
+    batches: history.map((entry) => `${firstMeaningfulText(entry.batchNumber) || "Batch"} × ${numberOrZero(entry.quantity)}`).join(", "),
     dispensed: item.isDispensed === true || (quantity > 0 && given >= quantity),
   };
 }
 
 function pharmacyState(raw: Raw, lines: PrescriptionLine[], pendingAmount: number): PharmacyState {
-  const status = normalizeStatus(text(raw.status));
+  const status = normalizeStatus(firstMeaningfulText(raw.status));
   if (status === "CANCELLED") return "cancelled";
   if (["DISPENSED", "FILLED", "COMPLETED"].includes(status)) return "dispensed";
   if (status === "PARTIAL" || status === "PARTIALLY_DISPENSED") return "partially_dispensed";
@@ -392,44 +311,44 @@ function pharmacyState(raw: Raw, lines: PrescriptionLine[], pendingAmount: numbe
 
 /** The patient's prescriptions from `GET pharmacy/prescriptions/patient/:userId`, newest first. */
 export function buildPrescriptions(data: unknown): PatientPrescription[] {
-  const prescriptions = asList(data, "prescriptions").reduce<PatientPrescription[]>((list, raw) => {
-    const id = text(raw.id);
+  const prescriptions = unwrapRecords(data, "prescriptions").reduce<PatientPrescription[]>((list, raw) => {
+    const id = firstMeaningfulText(raw.id);
     if (!id) return list;
-    const items = asList(raw.items).length > 0 ? asList(raw.items) : asList(raw.medications);
+    const items = unwrapRecords(raw.items).length > 0 ? unwrapRecords(raw.items) : unwrapRecords(raw.medications);
     const lines = items.map(toLine);
-    const doctor = asRecord(raw.doctor);
-    const doctorName = text(
+    const doctor = asRecordOrEmpty(raw.doctor);
+    const doctorName = firstMeaningfulText(
       raw.doctorName,
-      asRecord(doctor.user).name,
+      asRecordOrEmpty(doctor.user).name,
       doctor.name,
-      `${text(doctor.firstName)} ${text(doctor.lastName)}`,
+      `${firstMeaningfulText(doctor.firstName)} ${firstMeaningfulText(doctor.lastName)}`,
     );
-    const pendingAmount = amount(raw.pendingAmount);
+    const pendingAmount = numberOrZero(raw.pendingAmount);
     const queue = normalizeQueueEntry(raw);
     const state = pharmacyState(raw, lines, pendingAmount);
     const open = state !== "dispensed" && state !== "cancelled";
-    const date = dateValue(raw.prescribedAt, raw.date, raw.createdAt, raw.updatedAt);
+    const date = firstIsoDate(raw.prescribedAt, raw.date, raw.createdAt, raw.updatedAt);
     list.push({
       id,
-      number: prescriptionNumber(id),
+      number: prescriptionReference(id, raw) || "Prescription",
       date,
-      dateLabel: dayLabel(date),
+      dateLabel: formatDateLabel(date),
       doctorName: doctorName && !/^unknown/i.test(doctorName) ? formatDoctorDisplayName(doctorName) : "",
-      diagnosis: text(raw.diagnosis),
-      notes: text(raw.notes),
-      locationName: text(raw.locationName, asRecord(raw.location).name),
+      diagnosis: firstMeaningfulText(raw.diagnosis),
+      notes: firstMeaningfulText(raw.notes),
+      locationName: firstMeaningfulText(raw.locationName, asRecordOrEmpty(raw.location).name),
       state,
       lines,
-      totalAmount: amount(raw.totalAmount),
-      paidAmount: amount(raw.paidAmount),
+      totalAmount: numberOrZero(raw.totalAmount),
+      paidAmount: numberOrZero(raw.paidAmount),
       pendingAmount,
-      paymentStatus: normalizeStatus(text(raw.paymentStatus)) || "PENDING",
-      validUntil: dateValue(raw.validUntil),
+      paymentStatus: normalizeStatus(firstMeaningfulText(raw.paymentStatus)) || "PENDING",
+      validUntil: firstIsoDate(raw.validUntil),
       queueLabel: open && queue.position > 0 ? getQueuePositionLabel({ position: queue.position }) : null,
       atDesk: open && Boolean(raw.activeQueueEntry ?? queue.position > 0),
-      invoiceId: text(raw.invoiceId) || null,
+      invoiceId: firstMeaningfulText(raw.invoiceId) || null,
       // Linked through the web route that forwards the request with the sign-in cookie.
-      pdfUrl: id && text(raw.pdfUrl) ? `/api/pharmacy/prescriptions/${encodeURIComponent(id)}/pdf` : null,
+      pdfUrl: firstMeaningfulText(raw.pdfUrl) ? `/api/pharmacy/prescriptions/${encodeURIComponent(id)}/pdf` : null,
     });
     return list;
   }, []);
@@ -528,19 +447,19 @@ export function buildCurrentMedicines(
     }
   }
 
-  asList(activeMedications, "medications").forEach((row, index) => {
-    const name = text(row.name, row.medicineName, row.medication);
+  unwrapRecords(activeMedications, "medications").forEach((row, index) => {
+    const name = firstMeaningfulText(row.name, row.medicineName, row.medication);
     if (!name || row.isActive === false) return;
-    const end = dateValue(row.endDate);
+    const end = firstIsoDate(row.endDate);
     if (end && timeOf(end) + DAY_MS < now.getTime()) return;
     const key = medicineKey(name);
     if (seen.has(key)) return;
     seen.add(key);
     medicines.push({
-      id: text(row.id) || `record-${index}`,
+      id: firstMeaningfulText(row.id) || `record-${index}`,
       name,
-      schedule: [text(row.dosage), text(row.frequency)].filter(Boolean).join(" · "),
-      instructions: text(row.purpose, row.notes),
+      schedule: [firstMeaningfulText(row.dosage), firstMeaningfulText(row.frequency)].filter(Boolean).join(" · "),
+      instructions: firstMeaningfulText(row.purpose, row.notes),
       prescriptionId: null,
       prescriptionNumber: "",
       state: null,
@@ -640,17 +559,17 @@ function fallbackStatus(date: string | null, now: number): ReportStatus | null {
 }
 
 function labRow(raw: Raw, index: number, now: number): ReportRow {
-  const date = dateValue(raw.date, raw.testDate, raw.reportedDate, raw.createdAt);
-  const result = text(raw.result);
-  const unit = text(raw.unit);
-  const range = text(raw.normalRange);
+  const date = firstIsoDate(raw.date, raw.testDate, raw.reportedDate, raw.createdAt);
+  const result = firstMeaningfulText(raw.result);
+  const unit = firstMeaningfulText(raw.unit);
+  const range = firstMeaningfulText(raw.normalRange);
   // Older payloads carry a list of parameters with their own status.
-  const parameters = asList(raw.results);
-  const flagged = parameters.filter((entry) => statusOf(text(entry.status))?.attention);
+  const parameters = unwrapRecords(raw.results);
+  const flagged = parameters.filter((entry) => statusOf(firstMeaningfulText(entry.status))?.attention);
 
-  let status = statusOf(text(raw.status));
+  let status = statusOf(firstMeaningfulText(raw.status));
   if (flagged.length > 0) {
-    const allHigh = flagged.every((entry) => normalizeStatus(text(entry.status)) === "HIGH");
+    const allHigh = flagged.every((entry) => normalizeStatus(firstMeaningfulText(entry.status)) === "HIGH");
     status = { label: `${flagged.length} ${allHigh ? "high" : "to review"}`, tone: "amber", attention: true };
   } else if (!status) {
     status = statusOf(resultFlag(result, range) ?? "");
@@ -660,49 +579,49 @@ function labRow(raw: Raw, index: number, now: number): ReportRow {
   if (result) details.push({ label: "Result", value: [result, unit].filter(Boolean).join(" ") });
   if (range) details.push({ label: "Normal range", value: [range, unit].filter(Boolean).join(" ") });
   parameters.forEach((entry) => {
-    const name = text(entry.parameter, entry.name);
-    const value = text(entry.value, entry.result);
+    const name = firstMeaningfulText(entry.parameter, entry.name);
+    const value = firstMeaningfulText(entry.value, entry.result);
     if (!name || !value) return;
-    const normal = text(entry.normalRange);
+    const normal = firstMeaningfulText(entry.normalRange);
     details.push({ label: name, value: normal ? `${value} (normal: ${normal})` : value });
   });
-  if (text(raw.notes)) details.push({ label: "Notes", value: text(raw.notes) });
+  if (firstMeaningfulText(raw.notes)) details.push({ label: "Notes", value: firstMeaningfulText(raw.notes) });
 
   return {
-    id: `lab-${text(raw.id) || index}`,
+    id: `lab-${firstMeaningfulText(raw.id) || index}`,
     kind: "lab",
-    title: text(raw.testName, raw.title, raw.reportType) || "Lab report",
-    source: text(raw.labName, raw.doctor, raw.doctorName) || "Lab report",
+    title: firstMeaningfulText(raw.testName, raw.title, raw.reportType) || "Lab report",
+    source: firstMeaningfulText(raw.labName, raw.doctor, raw.doctorName) || "Lab report",
     date,
-    dateLabel: dayLabel(date),
+    dateLabel: formatDateLabel(date),
     status: status ? { label: status.label, tone: status.tone } : fallbackStatus(date, now),
     needsAttention: Boolean(status?.attention),
     iconTone: status?.attention ? "amber" : "rose",
-    fileUrl: text(raw.fileUrl) || null,
+    fileUrl: firstMeaningfulText(raw.fileUrl) || null,
     href: null,
     details,
   };
 }
 
 function imagingRow(raw: Raw, index: number, now: number): ReportRow {
-  const date = dateValue(raw.date, raw.performedAt, raw.reportedAt, raw.createdAt);
-  const status = statusOf(text(raw.status));
+  const date = firstIsoDate(raw.date, raw.performedAt, raw.reportedAt, raw.createdAt);
+  const status = statusOf(firstMeaningfulText(raw.status));
   const details: ReportDetail[] = [
-    { label: "Findings", value: text(raw.findings) },
-    { label: "Conclusion", value: text(raw.conclusion, raw.impression) },
-    { label: "Notes", value: text(raw.notes) },
+    { label: "Findings", value: firstMeaningfulText(raw.findings) },
+    { label: "Conclusion", value: firstMeaningfulText(raw.conclusion, raw.impression) },
+    { label: "Notes", value: firstMeaningfulText(raw.notes) },
   ].filter((entry) => entry.value);
   return {
-    id: `imaging-${text(raw.id) || index}`,
+    id: `imaging-${firstMeaningfulText(raw.id) || index}`,
     kind: "imaging",
-    title: text(raw.imageType, raw.studyType, raw.title) || "Imaging report",
-    source: text(raw.facility, raw.radiologist) || "Imaging",
+    title: firstMeaningfulText(raw.imageType, raw.studyType, raw.title) || "Imaging report",
+    source: firstMeaningfulText(raw.facility, raw.radiologist) || "Imaging",
     date,
-    dateLabel: dayLabel(date),
+    dateLabel: formatDateLabel(date),
     status: status ? { label: status.label, tone: status.tone } : fallbackStatus(date, now),
     needsAttention: Boolean(status?.attention),
     iconTone: "blue",
-    fileUrl: text(raw.fileUrl) || null,
+    fileUrl: firstMeaningfulText(raw.fileUrl) || null,
     href: null,
     details,
   };
@@ -730,27 +649,27 @@ export const UPLOAD_CATEGORY_LABEL: Record<string, string> = {
 
 /** A file from `GET patients/:id/documents` (or the `documents` list of the health record). */
 function uploadRow(raw: Raw, index: number, userId: string, now: number): ReportRow {
-  const date = dateValue(raw.uploadedAt, raw.date, raw.createdAt);
-  const category = normalizeStatus(text(raw.category)) || "OTHER";
+  const date = firstIsoDate(raw.uploadedAt, raw.date, raw.createdAt);
+  const category = normalizeStatus(firstMeaningfulText(raw.category)) || "OTHER";
   const kind = UPLOAD_KIND[category] ?? "other";
-  const size = amount(raw.fileSize);
+  const size = numberOrZero(raw.fileSize);
   const details: ReportDetail[] = [
-    { label: "Type", value: UPLOAD_CATEGORY_LABEL[category] ?? readable(category) },
+    { label: "Type", value: UPLOAD_CATEGORY_LABEL[category] ?? sentenceCase(category) },
     { label: "File size", value: size > 0 ? formatBytes(size) : "" },
-    { label: "Notes", value: text(raw.description, raw.notes) },
+    { label: "Notes", value: firstMeaningfulText(raw.description, raw.notes) },
   ].filter((entry) => entry.value);
-  const uploader = text(raw.uploadedBy);
+  const uploader = firstMeaningfulText(raw.uploadedBy);
   return {
-    id: `upload-${text(raw.id) || index}`,
+    id: `upload-${firstMeaningfulText(raw.id) || index}`,
     kind,
-    title: text(raw.fileName, raw.title) || "Document",
+    title: firstMeaningfulText(raw.fileName, raw.title) || "Document",
     source: uploader && uploader === userId ? "Uploaded by you" : "Added by your clinic",
     date,
-    dateLabel: dayLabel(date),
+    dateLabel: formatDateLabel(date),
     status: fallbackStatus(date, now) ?? { label: "Uploaded", tone: "slate" },
     needsAttention: false,
     iconTone: kind === "imaging" ? "blue" : kind === "rx" ? "video" : kind === "lab" ? "rose" : "mint",
-    fileUrl: text(raw.url, raw.fileUrl) || null,
+    fileUrl: firstMeaningfulText(raw.url, raw.fileUrl) || null,
     href: null,
     details,
   };
@@ -787,9 +706,9 @@ export function buildReportRows(sources: ReportSources, now: Date = new Date()):
   const time = now.getTime();
   const seen = new Set<string>();
   const rows = [
-    ...asList(sources.labReports, "labReports").map((raw, index) => labRow(raw, index, time)),
-    ...asList(sources.radiologyReports, "radiologyReports").map((raw, index) => imagingRow(raw, index, time)),
-    ...asList(sources.uploads, "documents").map((raw, index) => uploadRow(raw, index, sources.userId ?? "", time)),
+    ...unwrapRecords(sources.labReports, "labReports").map((raw, index) => labRow(raw, index, time)),
+    ...unwrapRecords(sources.radiologyReports, "radiologyReports").map((raw, index) => imagingRow(raw, index, time)),
+    ...unwrapRecords(sources.uploads, "documents").map((raw, index) => uploadRow(raw, index, sources.userId ?? "", time)),
     ...(sources.prescriptions ?? []).map(prescriptionRow),
   ].filter((row) => (seen.has(row.id) ? false : (seen.add(row.id), true)));
   return newestFirst(rows);
@@ -824,20 +743,20 @@ export interface HistoryEntry {
 }
 
 export function buildHistory(medicalHistory: unknown): HistoryEntry[] {
-  const rows = asList(medicalHistory, "medicalHistory").map((raw, index) => {
-    const date = dateValue(raw.date, raw.createdAt, raw.updatedAt);
-    const title = text(raw.condition, raw.type, raw.title, raw.diagnosis) || "Health record";
-    const diagnosis = text(raw.diagnosis);
+  const rows = unwrapRecords(medicalHistory, "medicalHistory").map((raw, index) => {
+    const date = firstIsoDate(raw.date, raw.createdAt, raw.updatedAt);
+    const title = firstMeaningfulText(raw.condition, raw.type, raw.title, raw.diagnosis) || "Health record";
+    const diagnosis = firstMeaningfulText(raw.diagnosis);
     return {
-      id: text(raw.id) || `history-${index}`,
-      title: readable(title),
+      id: firstMeaningfulText(raw.id) || `history-${index}`,
+      title: sentenceCase(title),
       date,
-      dateLabel: dayLabel(date),
-      doctor: text(raw.doctor, raw.doctorName),
+      dateLabel: formatDateLabel(date),
+      doctor: firstMeaningfulText(raw.doctor, raw.doctorName),
       diagnosis: diagnosis === title ? "" : diagnosis,
-      treatment: text(raw.treatment),
-      notes: text(raw.notes),
-      status: text(raw.status),
+      treatment: firstMeaningfulText(raw.treatment),
+      notes: firstMeaningfulText(raw.notes),
+      status: firstMeaningfulText(raw.status),
     };
   });
   return newestFirst(rows);
@@ -867,24 +786,24 @@ export interface RecordPrescription {
 
 /** Prescriptions as the health record lists them (`prescriptions` of `GET ehr/comprehensive`). */
 export function buildRecordPrescriptions(prescriptions: unknown): RecordPrescription[] {
-  const rows = asList(prescriptions, "prescriptions").map((raw, index) => {
-    const id = text(raw.id) || `prescription-${index}`;
-    const date = dateValue(raw.date, raw.prescribedAt, raw.createdAt, raw.updatedAt);
-    const items = asList(raw.items).length > 0 ? asList(raw.items) : asList(raw.medications);
-    const doctor = text(raw.doctorName, raw.doctor);
+  const rows = unwrapRecords(prescriptions, "prescriptions").map((raw, index) => {
+    const id = firstMeaningfulText(raw.id) || `prescription-${index}`;
+    const date = firstIsoDate(raw.date, raw.prescribedAt, raw.createdAt, raw.updatedAt);
+    const items = unwrapRecords(raw.items).length > 0 ? unwrapRecords(raw.items) : unwrapRecords(raw.medications);
+    const doctor = firstMeaningfulText(raw.doctorName, raw.doctor);
     return {
       id,
-      number: text(raw.id) ? prescriptionNumber(id) : "Prescription",
+      number: (firstMeaningfulText(raw.id) && prescriptionReference(id, raw)) || "Prescription",
       date,
-      dateLabel: dayLabel(date),
+      dateLabel: formatDateLabel(date),
       doctor: doctor && !/^unknown/i.test(doctor) ? formatDoctorDisplayName(doctor) : "",
-      diagnosis: text(raw.diagnosis),
-      notes: text(raw.notes, raw.instructions),
-      status: text(raw.status),
+      diagnosis: firstMeaningfulText(raw.diagnosis),
+      notes: firstMeaningfulText(raw.notes, raw.instructions),
+      status: firstMeaningfulText(raw.status),
       medicines: items.map((item, itemIndex) => ({
-        id: text(item.id) || `${id}-${itemIndex}`,
-        name: text(item.medicineName, asRecord(item.medicine).name, item.name) || "Medicine",
-        detail: [text(item.dosage), text(item.frequency), text(item.duration)].filter(Boolean).join(" · "),
+        id: firstMeaningfulText(item.id) || `${id}-${itemIndex}`,
+        name: firstMeaningfulText(item.medicineName, asRecordOrEmpty(item.medicine).name, item.name) || "Medicine",
+        detail: [firstMeaningfulText(item.dosage), firstMeaningfulText(item.frequency), firstMeaningfulText(item.duration)].filter(Boolean).join(" · "),
       })),
     };
   });
@@ -908,16 +827,16 @@ export interface AllergyEntry {
 }
 
 export function buildAllergies(allergies: unknown): AllergyEntry[] {
-  return asList(allergies, "allergies").reduce<AllergyEntry[]>((list, raw, index) => {
-    const allergen = text(raw.allergen, raw.name);
+  return unwrapRecords(allergies, "allergies").reduce<AllergyEntry[]>((list, raw, index) => {
+    const allergen = firstMeaningfulText(raw.allergen, raw.name);
     if (!allergen) return list;
     list.push({
-      id: text(raw.id) || `allergy-${index}`,
+      id: firstMeaningfulText(raw.id) || `allergy-${index}`,
       allergen,
-      severity: text(raw.severity),
-      reaction: text(raw.reaction),
-      onsetLabel: dayLabel(dateValue(raw.onsetDate, raw.diagnosedDate)),
-      status: text(raw.status),
+      severity: firstMeaningfulText(raw.severity),
+      reaction: firstMeaningfulText(raw.reaction),
+      onsetLabel: formatDateLabel(firstIsoDate(raw.onsetDate, raw.diagnosedDate)),
+      status: firstMeaningfulText(raw.status),
     });
     return list;
   }, []);

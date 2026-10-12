@@ -17,6 +17,7 @@ import {
   isAppointmentOverdue,
 } from './clock';
 import type { AppointmentServiceDefinition } from '@/types/appointment.types';
+import { asRecord } from './coerce';
 
 export {
   IST_TIMEZONE,
@@ -104,13 +105,6 @@ export function normalizeAppointmentStatus(value: unknown): string {
 
 export function isVideoNoShowEnforced(): boolean {
   return APP_CONFIG.VIDEO.NO_SHOW_ENABLED;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
 }
 
 function asRecordArray(value: unknown): Record<string, unknown>[] {

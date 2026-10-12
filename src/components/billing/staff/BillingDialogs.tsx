@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Note } from "@/components/tbd";
 import type { BillingPlan } from "@/types/billing.types";
-import { formatRupees } from "./billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 export type PlanCycle = "MONTHLY" | "QUARTERLY" | "YEARLY";
 
@@ -46,7 +46,7 @@ export function CreateInvoiceDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Invoice</DialogTitle>
-          <DialogDescription>Add the charge, the amount and the due date.</DialogDescription>
+          <DialogDescription>Choose the patient, then add the charge, the amount and the due date.</DialogDescription>
         </DialogHeader>
         {children}
       </DialogContent>
@@ -126,7 +126,7 @@ export function CreatePlanDialog({
             <input
               id="billing-plan-unlimited"
               type="checkbox"
-              className="size-4 accent-[#047857]"
+              className="size-4 accent-brand"
               checked={form.unlimited}
               onChange={(event) => onChange({ unlimited: event.target.checked })}
             />

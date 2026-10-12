@@ -8,6 +8,21 @@ import { logger } from '@/lib/utils/logger';
 // ===== QUEUE MANAGEMENT ACTIONS =====
 
 /**
+ * The mutations below answer `{ success: true, data }` or `{ success: false, error }`.
+ * Their callers (useOptimisticQueue, useAppointments) read `result.success`; the bare
+ * backend payload (`{ jobId }`) that used to be returned has no such field, so every
+ * successful call was reported as a failure.
+ */
+type QueueActionResult =
+  | { success: true; data: unknown; error?: undefined }
+  | { success: false; error: string; data?: undefined };
+
+function queueActionFailure(error: unknown, fallback: string): QueueActionResult {
+  const message = error instanceof Error && error.message ? error.message : fallback;
+  return { success: false, error: message };
+}
+
+/**
  * Get queue data
  */
 export async function getQueue(filters?: {
@@ -83,9 +98,10 @@ export async function getQueueStats(locationId: string) {
 }
 
 /**
- * Update queue status
+ * Update queue status: PATCH /queue/:id/status with `{ status }` (roles DOCTOR, NURSE,
+ * RECEPTIONIST, CLINIC_ADMIN, SUPER_ADMIN, CLINIC_LOCATION_HEAD, THERAPIST, COUNSELOR).
  */
-export async function updateQueueStatus(patientId: string, status: string) {
+export async function updateQueueStatus(patientId: string, status: string): Promise<QueueActionResult> {
   try {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -98,17 +114,19 @@ export async function updateQueueStatus(patientId: string, status: string) {
     });
     revalidateCache('queue');
     revalidateCache('appointments');
-    return data;
+    return { success: true, data };
   } catch (error) {
     logger.error('updateQueueStatus failed', error instanceof Error ? error : new Error(String(error)));
-    return null;
+    return queueActionFailure(error, 'Failed to update queue status');
   }
 }
 
 /**
- * Call next patient in queue
+ * Call next patient in queue: POST /queue/call-next with `{ doctorId, appointmentId }`
+ * (roles DOCTOR, NURSE, RECEPTIONIST, CLINIC_ADMIN, SUPER_ADMIN, CLINIC_LOCATION_HEAD).
+ * `doctorId` is the Doctor record id that owns the queue.
  */
-export async function callNextPatient(doctorId: string, appointmentId: string) {
+export async function callNextPatient(doctorId: string, appointmentId: string): Promise<QueueActionResult> {
   try {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -121,10 +139,10 @@ export async function callNextPatient(doctorId: string, appointmentId: string) {
     });
     revalidateCache('queue');
     revalidateCache('appointments');
-    return data;
+    return { success: true, data };
   } catch (error) {
     logger.error('callNextPatient failed', error instanceof Error ? error : new Error(String(error)));
-    return null;
+    return queueActionFailure(error, 'Failed to call next patient');
   }
 }
 
@@ -135,7 +153,8 @@ export async function addToQueue(queueData: {
   patientId: string;
   appointmentId?: string;
   queueType: string;
-}) {
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+}): Promise<QueueActionResult> {
   try {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -148,17 +167,19 @@ export async function addToQueue(queueData: {
     });
     revalidateCache('queue');
     revalidateCache('appointments');
-    return data;
+    return { success: true, data };
   } catch (error) {
     logger.error('addToQueue failed', error instanceof Error ? error : new Error(String(error)));
-    return null;
+    return queueActionFailure(error, 'Failed to add patient to queue');
   }
 }
 
 /**
- * Remove patient from queue
+ * Remove patient from queue: DELETE /queue/:queueId (roles DOCTOR, RECEPTIONIST,
+ * CLINIC_ADMIN, SUPER_ADMIN, CLINIC_LOCATION_HEAD). The route reads no body (only the
+ * optional `doctorId` query), so `reason` is not sent.
  */
-export async function removeFromQueue(queueId: string, reason?: string) {
+export async function removeFromQueue(queueId: string, _reason?: string) {
   try {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -167,7 +188,6 @@ export async function removeFromQueue(queueId: string, reason?: string) {
 
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.REMOVE(queueId), {
       method: 'DELETE',
-      body: reason ? JSON.stringify({ reason }) : null
     });
     revalidateCache('queue');
     revalidateCache('appointments');
@@ -450,7 +470,10 @@ export async function getQueueWaitTimes(queueType?: string) {
       throw new Error('Unauthorized: Authentication required');
     }
 
-    const endpoint = queueType ? `${API_ENDPOINTS.QUEUE.WAIT_TIMES}?type=${queueType}` : API_ENDPOINTS.QUEUE.WAIT_TIMES;
+    // GET /queue/wait-times reads `queueName` (a `type` param is ignored).
+    const endpoint = queueType
+      ? `${API_ENDPOINTS.QUEUE.WAIT_TIMES}?queueName=${encodeURIComponent(queueType)}`
+      : API_ENDPOINTS.QUEUE.WAIT_TIMES;
     const { data } = await authenticatedApi(endpoint, {});
     return data;
   } catch (error) {

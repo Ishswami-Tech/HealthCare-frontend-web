@@ -4,15 +4,14 @@ import { Button } from "@/components/ui/button";
 import { SkeletonList } from "@/components/ui/loading";
 import { EmptyBlock, InitialsAvatar, Pill, Surface } from "@/components/tbd";
 import {
-  DESK_STATE_LABEL,
-  DESK_STATE_TONE,
   canDispense,
-  formatRupees,
   isUrgent,
   sentTimeLabel,
   type DeskQueueItem,
   type DeskQueueLine,
 } from "./pharmacist-dashboard.logic";
+import { formatRupees } from "@/lib/utils/currency";
+import { DESK_STATE_LABEL, DESK_STATE_TONE } from "@/lib/pharmacy/desk-state";
 
 interface PharmacistDashboardNextCardProps {
   /** The prescription to pick up next; null when the queue is empty. */
@@ -55,7 +54,7 @@ export function PharmacistDashboardNextCard({
   onPrintInvoice,
 }: PharmacistDashboardNextCardProps) {
   const heading = (
-    <span className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[1.2px] text-[#065f46] dark:text-emerald-300">
+    <span className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[1.2px] text-brand-dark">
       <PillIcon className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
       Next prescription
     </span>
@@ -170,7 +169,7 @@ export function PharmacistDashboardNextCard({
 
         <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5">
           {ready && item.paidAmount !== null && item.paidAmount > 0 ? (
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#065f46] dark:text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-brand-dark">
               <Check className="size-3.5" strokeWidth={2.6} aria-hidden="true" />
               Paid {formatRupees(item.paidAmount)}
               {item.paidInCash ? " in cash" : ""}

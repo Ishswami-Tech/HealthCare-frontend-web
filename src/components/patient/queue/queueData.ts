@@ -1,8 +1,9 @@
-import { asRow, firstText, text, toHomeVisit, type Row } from "@/components/patient/home/homeData";
+import { toHomeVisit, type Row } from "@/components/patient/home/homeData";
+import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
 import type { HomeVisit } from "@/components/patient/home/types";
 import type { MyQueuePosition } from "@/hooks/query/usePatientQueue";
 import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
-import { formatTimeInIST } from "@/lib/utils/date-time";
+import { formatTimeLabel } from "@/lib/utils/date-time";
 
 /**
  * View models for the patient check-in and live queue screens, and the pure functions that
@@ -26,7 +27,7 @@ export interface QueueTicket {
   isWithDoctor: boolean;
   /** Someone in this queue is with the doctor now. Null when the API did not say. */
   doctorBusy: boolean | null;
-  /** "1:42 PM" */
+  /** "01:42 pm" */
   checkedInLabel: string | null;
 }
 
@@ -51,8 +52,8 @@ export const EMPTY_VISIT_INFO: QueueVisitInfo = {
 
 /** `useMyAppointments` resolves to a list, `{ appointments }` or `{ data: { appointments } }`. */
 export function readAppointments(payload: unknown): Row[] {
-  const outer = asRow(payload);
-  const inner = asRow(outer?.data);
+  const outer = asRecord(payload);
+  const inner = asRecord(outer?.data);
   const list = Array.isArray(payload)
     ? payload
     : Array.isArray(outer?.appointments)
@@ -62,7 +63,7 @@ export function readAppointments(payload: unknown): Row[] {
         : Array.isArray(outer?.data)
           ? outer.data
           : [];
-  return list.map(asRow).filter((row): row is Row => !!row);
+  return list.map(asRecord).filter((row): row is Row => !!row);
 }
 
 const CLOSED = new Set(["CANCELLED", "COMPLETED", "NO_SHOW", "EXPIRED"]);
@@ -72,7 +73,7 @@ const CLOSED = new Set(["CANCELLED", "COMPLETED", "NO_SHOW", "EXPIRED"]);
  * (The same rule the check-in page has always used.)
  */
 export function isOpenClinicVisit(appointment: Row): boolean {
-  const status = normalizeAppointmentStatus(text(appointment.status));
+  const status = normalizeAppointmentStatus(textOf(appointment.status));
   const type = firstText(appointment.type, appointment.appointmentType).toUpperCase();
   return type === "IN_PERSON" && !CLOSED.has(String(status).toUpperCase());
 }
@@ -98,8 +99,8 @@ export function selectClinicVisits(appointments: Row[], now: number): Array<{ ro
 export function toVisitInfo(row: Row | null | undefined, visit?: HomeVisit | null): QueueVisitInfo {
   if (!row) return EMPTY_VISIT_INFO;
   const view = visit ?? toHomeVisit(row, Date.now());
-  const location = asRow(row.location);
-  const clinic = asRow(row.clinic);
+  const location = asRecord(row.location);
+  const clinic = asRecord(row.clinic);
   const address = firstText(location?.address, clinic?.address);
   return {
     doctorName: view.doctorName || null,
@@ -116,11 +117,9 @@ function countOrNull(value: unknown, min = 0): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= min ? Math.round(value) : null;
 }
 
-/** "1:42 PM" in clinic time. */
+/** "01:42 pm" in clinic time. */
 export function clockLabel(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const label = formatTimeInIST(value);
-  return label ? label.replace(/^0/, "").replace(/\b(am|pm)\b/i, (meridiem) => meridiem.toUpperCase()) : null;
+  return formatTimeLabel(value) || null;
 }
 
 /** The live queue entry (`GET queue/me`) as a ticket. */
@@ -168,10 +167,6 @@ export function formatWait(minutes: number): string {
   const hours = Math.floor(whole / 60);
   const rest = whole % 60;
   return rest ? `~${hours} h ${rest} min` : `~${hours} h`;
-}
-
-export function plural(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
 /** The big figure on the ticket: the token when the visit has one, otherwise the place in line. */

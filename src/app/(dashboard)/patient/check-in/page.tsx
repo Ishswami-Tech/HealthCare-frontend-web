@@ -37,7 +37,7 @@ import {
   selectClinicVisits,
   toCheckInTicket,
   toQueueTicket,
-} from "../queue/_components/queueData";
+} from "@/components/patient/queue/queueData";
 
 type CheckInCoordinates = { lat: number; lng: number };
 

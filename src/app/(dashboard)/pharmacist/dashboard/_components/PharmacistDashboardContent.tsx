@@ -14,10 +14,10 @@ import {
   buildInventorySummary,
   buildPharmacyStats,
   todayLabel,
-  unwrapList,
   type CashRecordedNotice,
   type DeskQueueItem,
 } from "./pharmacist-dashboard.logic";
+import { unwrapList } from "@/lib/utils/coerce";
 
 function errorText(error: unknown): string | null {
   if (!error) return null;

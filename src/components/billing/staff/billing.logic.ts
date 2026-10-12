@@ -8,12 +8,61 @@ import type { Invoice, Payment } from "@/types/billing.types";
 export interface BillingAccess {
   isPatient: boolean;
   isReceptionist: boolean;
-  /** New invoice and "send on WhatsApp" (admin, finance, receptionist, doctor). */
+  /** Staff roles that work with billing (admin, finance, receptionist, doctor). */
   canManageBilling: boolean;
-  /** "Mark paid" on a pending invoice (admin, finance, receptionist). */
+  /** "Mark paid" on a pending invoice (admin, finance: the roles that hold `invoices:update`). */
   canMarkInvoicesPaid: boolean;
   /** Ledger tab and the analytics summary (admin, finance). */
   showLedgerTab: boolean;
+}
+
+/**
+ * Who the billing API answers (billing.controller.ts + the role permissions in rbac.service.ts):
+ *  - the clinic lists (`GET /billing/invoices/clinic`, `/billing/payments/clinic`) are for
+ *    SUPER_ADMIN, CLINIC_ADMIN, FINANCE_BILLING and RECEPTIONIST only;
+ *  - a person's own lists (`/billing/invoices/user/:id`, `/billing/payments/user/:id`) need
+ *    `invoices:read` and `payments:read`, which these roles hold besides the four above.
+ * Every other staff role (pharmacist, nurse, therapist, lab technician, support staff,
+ * counsellor) is refused, so the screen asks for nothing and says so.
+ */
+export const CLINIC_BILLING_LIST_ROLES: readonly string[] = [
+  "SUPER_ADMIN",
+  "CLINIC_ADMIN",
+  "FINANCE_BILLING",
+  "RECEPTIONIST",
+];
+const OWN_BILLING_LIST_ROLES: readonly string[] = ["PATIENT", "DOCTOR", "ASSISTANT_DOCTOR", "CLINIC_LOCATION_HEAD"];
+
+/** True for a role the billing lists are not open to. */
+export function isBillingListsClosedRole(role: string | null | undefined): boolean {
+  const code = String(role ?? "").trim().toUpperCase();
+  if (!code) return false;
+  return !CLINIC_BILLING_LIST_ROLES.includes(code) && !OWN_BILLING_LIST_ROLES.includes(code);
+}
+
+/** What the screen shows instead of the tables when the lists are not open to the role. */
+export interface BillingClosedNotice {
+  title: string;
+  description: string;
+  /** Where this role's own money flow lives, when it has one. */
+  action?: { href: string; label: string } | undefined;
+}
+
+export function billingClosedNotice(role: string | null | undefined): BillingClosedNotice | null {
+  if (!isBillingListsClosedRole(role)) return null;
+  const code = String(role ?? "").trim().toUpperCase();
+  if (code === "PHARMACIST") {
+    return {
+      title: "Clinic billing lists are not open to the pharmacy role yet",
+      description:
+        "Clinic invoices and payments are seen by the clinic admin, finance and reception. You collect payment for medicines from the prescription.",
+      action: { href: "/pharmacist/prescriptions", label: "Open prescriptions" },
+    };
+  }
+  return {
+    title: `Clinic billing lists are not open to the ${roleLabel(code).toLowerCase()} role yet`,
+    description: "Clinic invoices and payments are seen by the clinic admin, finance and reception.",
+  };
 }
 
 export interface BillingFilterState {
@@ -69,10 +118,6 @@ const METHOD_LABELS: Record<string, string> = {
   CHEQUE: "Cheque",
 };
 
-/** Rupee amount as the billing screen has always shown it: ₹1,05,000. */
-export function formatRupees(amount: number | null | undefined): string {
-  return `₹${(amount ?? 0).toLocaleString("en-IN")}`;
-}
 
 export function formatBillingDate(value: string | null | undefined, day: "numeric" | "2-digit" = "numeric"): string {
   if (!value) return "-";

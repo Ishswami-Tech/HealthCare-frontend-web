@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, IconBox, Kpi, Note, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
 import type { BillingPlan, Payment, Subscription } from "@/types/billing.types";
-import { formatBillingDate, formatRupees } from "./billing.logic";
+import { formatBillingDate } from "./billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 /** The four numbers a patient sees above the tabs. */
 export function PatientBillingStats({

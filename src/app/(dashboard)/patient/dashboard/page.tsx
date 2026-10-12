@@ -24,16 +24,14 @@ import { PatientHomeView } from "@/components/patient/home/PatientHomeView";
 import {
   LIBRARY_FILTERS,
   LIBRARY_STRIP_SIZE,
-  asRow,
   findQueueAppointment,
-  firstText,
   positiveNumber,
   selectUpcomingAppointments,
-  text,
   toHomeVisit,
   toLibraryItem,
   type Row,
 } from "@/components/patient/home/homeData";
+import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
 import type {
   HomeLibraryItem,
   HomeLibraryTab,
@@ -73,11 +71,11 @@ export default function PatientDashboard() {
   // The clinic's doctor for the Home banner card (single-doctor practice: the first one).
   const { data: doctorsData } = useDoctors(clinicId, { limit: 1 }, { enabled: !!clinicId });
   const homeDoctor = useMemo(() => {
-    const doctor = Array.isArray(doctorsData) ? asRow(doctorsData[0]) : undefined;
+    const doctor = Array.isArray(doctorsData) ? asRecord(doctorsData[0]) : undefined;
     if (!doctor) return null;
-    const doctorUser = asRow(doctor.user);
+    const doctorUser = asRecord(doctor.user);
     const name =
-      text(doctor.name) ||
+      textOf(doctor.name) ||
       `${firstText(doctor.firstName, doctorUser?.firstName)} ${firstText(doctor.lastName, doctorUser?.lastName)}`.trim();
     const specializations = Array.isArray(doctor.specializations) ? doctor.specializations : [];
     const specialty = firstText(doctor.specialization, specializations[0], doctor.specialty);
@@ -92,7 +90,7 @@ export default function PatientDashboard() {
   const { data: summary, isPending: isPendingSummary } = usePatientDashboardSummary({ enabled: !!patientId });
 
   const summaryAppointments = useMemo<Row[]>(
-    () => (Array.isArray(summary?.appointments) ? summary.appointments.map(asRow).filter((row): row is Row => !!row) : []),
+    () => (Array.isArray(summary?.appointments) ? summary.appointments.map(asRecord).filter((row): row is Row => !!row) : []),
     [summary?.appointments]
   );
   // If it's the first load this session and the cache is empty, show a skeleton; otherwise
@@ -149,7 +147,7 @@ export default function PatientDashboard() {
   const stats = useMemo<HomeStat[]>(() => {
     if (!summary) return [];
     const failed = summary.errors ?? {};
-    const comprehensive = asRow(summary.comprehensive);
+    const comprehensive = asRecord(summary.comprehensive);
     const list: HomeStat[] = [];
     if (Array.isArray(summary.appointments) && !failed.appointments) {
       list.push({
@@ -179,7 +177,7 @@ export default function PatientDashboard() {
       list.push({
         key: "payments",
         label: "Payments due",
-        value: summary.invoices.filter((invoice) => text(asRow(invoice)?.status).toUpperCase() === "PENDING").length,
+        value: summary.invoices.filter((invoice) => textOf(asRecord(invoice)?.status).toUpperCase() === "PENDING").length,
         href: "/patient/payments",
       });
     }
@@ -242,9 +240,11 @@ export default function PatientDashboard() {
   const visitActions = useMemo(
     () => ({
       onJoin: (appointmentId: string) => push(buildVideoSessionRoute(appointmentId)),
-      // The reschedule and payment steps live on the appointments page.
-      onReschedule: () => push("/patient/appointments"),
-      onPay: () => push("/patient/appointments"),
+      // The reschedule and payment steps live on the appointments page: `?id=` opens the list
+      // at this visit, and `action=reschedule` opens its reschedule dialog when a move is allowed.
+      onReschedule: (appointmentId: string) =>
+        push(`/patient/appointments?id=${encodeURIComponent(appointmentId)}&action=reschedule`),
+      onPay: (appointmentId: string) => push(`/patient/appointments?id=${encodeURIComponent(appointmentId)}`),
       onCheckIn: startCheckIn,
     }),
     [push, startCheckIn]
@@ -267,7 +267,7 @@ export default function PatientDashboard() {
       visits={visits}
       isVisitsLoading={showSummarySkeleton}
       queue={queue}
-      queueVisitId={queueAppointment ? text(queueAppointment.id) : null}
+      queueVisitId={queueAppointment ? textOf(queueAppointment.id) : null}
       visitActions={visitActions}
       library={{
         tab: libraryTab,

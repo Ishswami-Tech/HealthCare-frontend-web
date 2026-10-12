@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { InitialsAvatar, Note } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { ProfileCard } from "./DoctorProfileParts";
-import { reviewDateLabel, summarizeReviews } from "./doctor-profile.logic";
+import { summarizeReviews } from "./doctor-profile.logic";
 import type { DoctorProfileReviewsState } from "./doctor-profile.types";
+import { formatDateLabel } from "@/lib/utils/date-time";
 
 type DoctorProfileReviewsTabProps = DoctorProfileReviewsState;
 
@@ -118,7 +119,7 @@ export function DoctorProfileReviewsTab({
         ) : (
           <ul className="m-0 flex min-w-0 list-none flex-col gap-2.5 p-0">
             {reviews.map((review) => {
-              const date = reviewDateLabel(review.date);
+              const date = formatDateLabel(review.date);
               return (
                 <li
                   key={review.id ?? `${review.patientName}-${review.date}`}

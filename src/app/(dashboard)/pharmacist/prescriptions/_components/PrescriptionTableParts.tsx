@@ -1,22 +1,17 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { CircleAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, InitialsAvatar, Pill } from "@/components/tbd";
+import { InitialsAvatar, Pill } from "@/components/tbd";
 import { getQueuePositionLabel } from "@/lib/queue/queue-adapter";
 import { cn } from "@/lib/utils";
 import {
   attentionLine,
-  dateTimeLabel,
   getPrescriptionState,
   moneyLabel,
   type PrescriptionRow,
 } from "./pharmacist-prescriptions.logic";
-
-/** Rows per page, the same as the old table. */
-export const PAGE_SIZE = 10;
+import { formatDateTimeLabel } from "@/lib/utils/date-time";
 
 /** Column header row of a grid table. Hidden while the rows are stacked (narrow card). */
 export const HEAD_ROW =
@@ -34,39 +29,6 @@ export function CellLabel({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Paging for a list held in memory. Goes back to page 1 when `resetKey` changes and jumps
- * to the page of `focusIndex` (a deep-linked row) when one is given.
- */
-export function usePagedRows<T>(rows: T[], resetKey: string, focusIndex = -1) {
-  const [pageIndex, setPageIndex] = useState(0);
-  const [appliedResetKey, setAppliedResetKey] = useState(resetKey);
-  if (appliedResetKey !== resetKey) {
-    setAppliedResetKey(resetKey);
-    setPageIndex(0);
-  }
-
-  useEffect(() => {
-    if (focusIndex >= 0) setPageIndex(Math.floor(focusIndex / PAGE_SIZE));
-  }, [focusIndex]);
-
-  const total = rows.length;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.min(pageIndex, pageCount - 1);
-  const pageRows = rows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
-  return {
-    pageRows,
-    total,
-    pageCount,
-    currentPage,
-    rangeStart: total === 0 ? 0 : currentPage * PAGE_SIZE + 1,
-    rangeEnd: total === 0 ? 0 : currentPage * PAGE_SIZE + pageRows.length,
-    goTo: (page: number) => setPageIndex(Math.max(0, Math.min(pageCount - 1, page))),
-  };
-}
-
-export type PagedRows<T> = ReturnType<typeof usePagedRows<T>>;
-
 export const prescriptionRowId = (prescriptionId: string) => `prescription-row-${prescriptionId}`;
 
 /** Scrolls the deep-linked row into view once it is on the page. */
@@ -78,99 +40,6 @@ export function useScrollToRow(highlightId: string | null, focusIndex: number) {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [focusIndex, highlightId]);
-}
-
-/** "Showing 1–3 of 3 active prescriptions" with Previous / Next. */
-export function PrescriptionsPager({
-  paging,
-  noun,
-}: {
-  paging: Pick<PagedRows<unknown>, "total" | "pageCount" | "currentPage" | "rangeStart" | "rangeEnd" | "goTo">;
-  /** What is counted, after the number ("active prescriptions", "entries"). */
-  noun?: string;
-}) {
-  const { total, pageCount, currentPage, rangeStart, rangeEnd, goTo } = paging;
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair px-5 py-3 text-[13px] text-ink-muted">
-      <span>
-        Showing {rangeStart}–{rangeEnd} of {total}
-        {noun ? ` ${noun}` : ""}
-      </span>
-      <nav aria-label="Pages" className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          className="h-[34px]"
-          onClick={() => goTo(currentPage - 1)}
-          disabled={currentPage === 0}
-        >
-          Previous
-        </Button>
-        <span className="whitespace-nowrap" aria-live="polite">
-          Page {currentPage + 1} of {pageCount}
-        </span>
-        <Button
-          variant="outline"
-          className="h-[34px]"
-          onClick={() => goTo(currentPage + 1)}
-          disabled={currentPage >= pageCount - 1}
-        >
-          Next
-        </Button>
-      </nav>
-    </div>
-  );
-}
-
-/** Placeholder rows while a list loads. */
-export function SkeletonRows({ rows = 4 }: { rows?: number }) {
-  return (
-    <div aria-hidden="true">
-      {Array.from({ length: rows }).map((_, index) => (
-        <div
-          key={index}
-          className="flex min-h-[72px] items-center gap-4 border-b border-hair px-5 py-3 last:border-b-0"
-        >
-          <Skeleton className="size-9 shrink-0 rounded-full" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <Skeleton className="h-3.5 w-36 max-w-full rounded" />
-            <Skeleton className="h-3 w-24 rounded" />
-          </div>
-          <div className="hidden flex-1 flex-col gap-1.5 sm:flex">
-            <Skeleton className="h-3.5 w-44 max-w-full rounded" />
-            <Skeleton className="h-3 w-28 rounded" />
-          </div>
-          <Skeleton className="h-[22px] w-24 shrink-0 rounded-lg" />
-          <Skeleton className="hidden h-10 w-36 shrink-0 rounded-xl md:block" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** "Could not be loaded" block with a retry button. */
-export function LoadError({
-  title,
-  message,
-  onRetry,
-}: {
-  title: string;
-  message: string;
-  onRetry?: (() => void) | undefined;
-}) {
-  return (
-    <EmptyBlock
-      icon={CircleAlert}
-      title={title}
-      description={message}
-      action={
-        onRetry ? (
-          <Button variant="outline" onClick={onRetry}>
-            Try again
-          </Button>
-        ) : undefined
-      }
-    />
-  );
 }
 
 // ── Cells shared by the Active and History tables ──────────────────────────
@@ -233,7 +102,7 @@ export function PrescribedByCell({ prescription }: { prescription: PrescriptionR
   return (
     <div className="flex min-w-0 flex-col gap-px">
       <span className="truncate text-[13px] font-semibold text-ink">{prescription.doctorName}</span>
-      <span className="truncate text-xs text-ink-muted">{dateTimeLabel(prescription.prescribedAt)}</span>
+      <span className="truncate text-xs text-ink-muted">{formatDateTimeLabel(prescription.prescribedAt)}</span>
     </div>
   );
 }

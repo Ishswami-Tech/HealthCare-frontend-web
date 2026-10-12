@@ -50,7 +50,7 @@ export async function getUserNotifications(userId?: string, filters?: {
 }
 
 /**
- * Mark notification as read - Use COMMUNICATION endpoint
+ * Mark notification as read: PATCH /communication/history/:id/read (no body).
  */
 export async function markNotificationAsRead(notificationId: string) {
   const session = await getServerSession();
@@ -66,7 +66,9 @@ export async function markNotificationAsRead(notificationId: string) {
 }
 
 /**
- * Mark all notifications as read - Use COMMUNICATION endpoint
+ * Mark all notifications as read: PATCH /communication/history/mark-all-read?userId=...
+ * The backend filters by the `userId` query only, so it is always sent; without it the
+ * update is not limited to one user. Defaults to the signed-in user.
  */
 export async function markAllNotificationsAsRead(userId?: string) {
   const session = await getServerSession();
@@ -74,11 +76,11 @@ export async function markAllNotificationsAsRead(userId?: string) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Use communication history endpoint
-  const params = userId ? `?userId=${userId}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.INBOX.MARK_ALL_READ}${params}`, {
-    method: 'PATCH',
-  });
+  const targetUserId = userId || session.user.id;
+  const { data } = await authenticatedApi(
+    `${API_ENDPOINTS.COMMUNICATION.INBOX.MARK_ALL_READ}?userId=${encodeURIComponent(targetUserId)}`,
+    { method: 'PATCH' }
+  );
   return data;
 }
 

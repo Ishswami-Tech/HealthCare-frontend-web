@@ -1,7 +1,5 @@
 "use client";
 
-import { nowIso } from '@/lib/utils/date-time';
-
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -18,7 +16,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useQueue } from "@/hooks/query/useQueue";
-import { useMedicineDeskQueue, useDispensePrescription } from "@/hooks/query/usePharmacy";
+import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   extractQueueEntries,
@@ -30,7 +28,6 @@ import {
   normalizeQueueEntry,
   resolveQueueDisplayLabel,
 } from "@/lib/queue/queue-adapter";
-import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { cn } from "@/lib/utils";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import {
@@ -140,20 +137,6 @@ export default function ReceptionistDashboard() {
     enabled: !!clinicId,
   });
   const { data: medicineDeskQueueResult, refetch: refetchMedicineDesk } = useMedicineDeskQueue(clinicId || "", !!clinicId);
-  const dispenseMutation = useDispensePrescription();
-
-  const handleDispense = async (prescriptionId: string) => {
-    try {
-      await dispenseMutation.mutateAsync({ 
-        prescriptionId, 
-        dispensingData: { dispensedAt: nowIso() } 
-      });
-      showSuccessToast("Medicine dispensed and handover complete");
-      refetchMedicineDesk?.();
-    } catch (error) {
-      // Error handled by mutation
-    }
-  };
 
   const medicineDeskQueue = useMemo(
     () =>
@@ -839,15 +822,12 @@ export default function ReceptionistDashboard() {
                           </Button>
                         )}
                         {(entry.readyForHandover || entry.paymentStatus === "PAID") && (
-                          <Button 
-                            size="sm" 
-                            className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm"
-                            onClick={() => handleDispense(entry.id)}
-                            disabled={dispenseMutation.isPending}
-                          >
+                          // Only the pharmacist can dispense (the server refuses anyone else), so the
+                          // front desk sees that the medicines are waiting at the pharmacy counter.
+                          <span className="inline-flex h-8 items-center gap-1 rounded-md bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                             <CheckCircle className="size-3.5" />
-                            Handover
-                          </Button>
+                            Ready at pharmacy counter
+                          </span>
                         )}
                       </div>
                     </div>

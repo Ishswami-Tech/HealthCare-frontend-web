@@ -5,7 +5,7 @@
  */
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getMessaging, getToken, Messaging, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, Messaging, onMessage, type MessagePayload } from 'firebase/messaging';
 import { APP_CONFIG } from '@/lib/config/config';
 
 let firebaseApp: FirebaseApp | null = null;
@@ -129,8 +129,18 @@ export async function getFCMToken(): Promise<string | null> {
   }
 
   try {
+    if (!('serviceWorker' in navigator)) {
+      return null;
+    }
+
+    // Use the same configured worker as PushNotificationProvider.
+    const serviceWorkerRegistration = await navigator.serviceWorker.register(
+      '/firebase-messaging-sw.js',
+      { scope: '/' }
+    );
     const token = await getToken(messagingInstance, {
       vapidKey,
+      serviceWorkerRegistration,
     });
 
     if (token) {
@@ -150,7 +160,7 @@ export async function getFCMToken(): Promise<string | null> {
  * Set up foreground message handler
  */
 export function onForegroundMessage(
-  callback: (payload: any) => void
+  callback: (payload: MessagePayload) => void
 ): (() => void) | null {
   if (typeof window === 'undefined') {
     return null;

@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import type { SupportedLanguage } from "@/lib/i18n/config";
 import { useLanguage } from "@/lib/i18n/context";
 import { PatientSettingsView } from "./PatientSettingsView";
-import { useDeactivateAccount } from "./useDeactivateAccount";
+import { useDeactivateAccount } from "@/hooks/query/useDeactivateAccount";
 
 /**
  * Language, security, data and notification settings of the patient. The layout is `PatientSettingsView`.

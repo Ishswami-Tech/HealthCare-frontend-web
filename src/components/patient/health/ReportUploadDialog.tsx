@@ -12,7 +12,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { MAX_UPLOAD_BYTES, UPLOAD_OPTIONS, formatBytes, uploadProblem, type UploadType } from "./patient-health.logic";
+import { MAX_UPLOAD_BYTES, UPLOAD_OPTIONS, uploadProblem, type UploadType } from "./patient-health.logic";
+import { formatBytes } from "@/lib/utils/labels";
 
 const TYPE_ICON: Record<UploadType, LucideIcon> = {
   LAB_TEST: FlaskConical,

@@ -15,6 +15,7 @@ import { useClinics, useClinicLocations, useMyClinic, useClinic } from "@/hooks/
 import { MapPin, Building, ChevronRight, Loader2, Plus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { IconBox, Pill } from "@/components/tbd";
+import type { ClinicLocation } from "@/types/clinic.types";
 
 
 interface ClinicSelectDialogProps {
@@ -46,9 +47,9 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
   const locations = Array.isArray(locationsData)
     ? locationsData
     : Array.isArray(locationSource.locations)
-      ? ((locationSource.locations as any[]) || [])
+      ? (locationSource.locations as ClinicLocation[])
       : Array.isArray(locationSource.data)
-        ? ((locationSource.data as any[]) || [])
+        ? (locationSource.data as ClinicLocation[])
         : [];
 
   const handleSelectLocation = useCallback(

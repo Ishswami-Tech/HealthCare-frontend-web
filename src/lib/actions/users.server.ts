@@ -98,6 +98,17 @@ export async function getUserProfile() {
   });
 }
 
+/**
+ * Save the signed-in user's own profile.
+ * Backend: POST /profile/completion/update — any signed-in role (patient, doctor, pharmacist, ...).
+ * Accepted fields (anything else is rejected with 400): `firstName`, `lastName`, `email`, `phone`,
+ * `phoneVerified`, `emailVerified`, `dateOfBirth`, `gender` (MALE | FEMALE | OTHER), `address`,
+ * `city`, `state`, `country`, `zipCode`, `availability` (object), `emergencyContact
+ * { name, phone, relationship }`, `specialization`, `experience` (number), `clinicName`,
+ * `clinicAddress`.
+ * A doctor's consultation settings (fee, follow-up fee, duration, visit types) are not among them:
+ * the only route that stores a consultation fee is POST /doctors, for CLINIC_ADMIN / SUPER_ADMIN.
+ */
 export async function updateUserProfile(profileData: Record<string, unknown>) {
   // Manual implementation to return error object instead of throwing
   // This ensures the client receives the actual error message avoiding Next.js error obscuring
@@ -305,7 +316,9 @@ export async function deleteUser(id: string) {
     throw new Error('Unauthorized: Authentication required');
   }
   return executeAction('deleteUser', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.DELETE(id), { method: 'DELETE' });
+    // Backend: DELETE /user/:id — SUPER_ADMIN only. A JSON request without a body is answered 400
+    // by the backend (Fastify), so an empty object is sent.
+    return await requestUserApi(API_ENDPOINTS.USERS.DELETE(id), { method: 'DELETE', body: JSON.stringify({}) });
   }, { userId: id });
 }
 
@@ -400,10 +413,11 @@ export async function updateUserRole(
     throw new Error('Unauthorized: Authentication required');
   }
   return executeAction('updateUserRole', async () => {
-    const body: { role: string; clinicId?: string; locationId?: string; permissions?: string[] } = { role };
+    // PUT /user/:id/role (SUPER_ADMIN, CLINIC_ADMIN) accepts `role`, `clinicId` and `locationId` only;
+    // the server rejects unknown fields, so `permissions` is not sent (roles carry them).
+    const body: { role: string; clinicId?: string; locationId?: string } = { role };
     if (options?.clinicId) body.clinicId = options.clinicId;
     if (options?.locationId) body.locationId = options.locationId;
-    if (options?.permissions) body.permissions = options.permissions;
     return await requestUserApi(API_ENDPOINTS.USERS.UPDATE_ROLE(userId), {
       method: 'PUT',
       body: JSON.stringify(body)
@@ -466,14 +480,9 @@ export async function searchUsers(query: string, filters?: {
     throw new Error('Unauthorized: Authentication required');
   }
   return executeAction('searchUsers', async () => {
+    // GET /user/search reads `q`, `roles`, `limit` and `offset` (clinic scope comes from the session).
     const params = new URLSearchParams({ q: query });
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) {
-          params.append(key, value.toString());
-        }
-      });
-    }
+    if (filters?.role) params.append('roles', filters.role);
     return await requestUserApi(`${API_ENDPOINTS.USERS.SEARCH}?${params.toString()}`, { method: 'GET' });
   }, { query, filters });
 }
@@ -597,7 +606,10 @@ export async function terminateUserSession(userId: string, sessionId: string) {
   }
   return executeAction('terminateUserSession', async () => {
     // TERMINATE_SESSION takes only sessionId
-    return await requestUserApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId), { method: 'DELETE' });
+    return await requestUserApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId), {
+      method: 'DELETE',
+      body: JSON.stringify({}),
+    });
   }, { userId, sessionId });
 }
 

@@ -6,10 +6,32 @@ import { isApiError } from '@/lib/utils/error-handler';
 import { formatISODateInIST } from '@/lib/utils';
 import { API_ENDPOINTS } from '../config/config';
 
+// EHR contract (backend `ehr.controller.ts`, verified by reading):
+//   - Every read is GET /ehr/<section>/:userId and every create takes `userId` in the body. That id
+//     is the patient's USER id (User.id) — never the Patient-record id. A PATIENT may only read their
+//     own user id (PatientSelfAccessGuard).
+//   - Updates are PUT /ehr/<section>/:id and deletes are DELETE /ehr/<section>/:id, where `:id` is the
+//     id of the record itself.
+//   - The server rejects any body field its DTO does not declare, so every write below sends an
+//     explicit list of fields.
+
+/**
+ * The API client always sends `Content-Type: application/json`, and the backend (Fastify) answers
+ * 400 "Body cannot be empty" to a JSON request without a body. The delete routes read no body.
+ */
+const EMPTY_JSON_BODY = JSON.stringify({});
+
+/** Drops the keys whose value is undefined (JSON would drop them too; this keeps the intent visible). */
+function definedOnly<T extends Record<string, unknown>>(payload: T): Partial<T> {
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
+
 // ===== COMPREHENSIVE HEALTH RECORD =====
 
 /**
- * Get comprehensive health record for a user
+ * Get comprehensive health record for a user.
+ * Backend: GET /ehr/comprehensive/:userId (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR, NURSE,
+ * CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  * Requires authentication - throws error if not authenticated
  */
 export async function getComprehensiveHealthRecord(userId: string) {
@@ -44,12 +66,11 @@ export async function getComprehensiveHealthRecord(userId: string) {
 // ===== MEDICAL HISTORY =====
 
 /**
- * Create medical history record
+ * Create medical history record.
+ * Backend: POST /ehr/medical-history — DOCTOR, ASSISTANT_DOCTOR, NURSE, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `userId` (patient's USER id), `condition`, `date`, `notes?`. The other fields of
+ * `createDto` have no column on the server and are not sent.
  */
-// ... imports
-
-// ===== MEDICAL HISTORY =====
-
 export async function createMedicalHistory(createDto: {
   userId: string;
   condition: string;
@@ -81,7 +102,9 @@ export async function createMedicalHistory(createDto: {
 }
 
 /**
- * Get medical history for a user
+ * Get medical history for a user.
+ * Backend: GET /ehr/medical-history/:userId (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR, NURSE,
+ * CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getMedicalHistory(userId: string) {
   const session = await getServerSession();
@@ -94,7 +117,9 @@ export async function getMedicalHistory(userId: string) {
 }
 
 /**
- * Update medical history record
+ * Update medical history record.
+ * Backend: PUT /ehr/medical-history/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, NURSE, CLINIC_ADMIN,
+ * SUPER_ADMIN. Accepted body: `condition?`, `notes?`, `date?` (`startDate` is sent as `date`).
  */
 export async function updateMedicalHistory(id: string, updates: {
   condition?: string;
@@ -110,12 +135,11 @@ export async function updateMedicalHistory(id: string, updates: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  // Map frontend DTO to backend structure if needed
-  const payload = {
-    ...updates,
-    date: updates.startDate, 
-    // clinicId, userId - typically not modifiable or taken from context
-  };
+  const payload = definedOnly({
+    condition: updates.condition,
+    notes: updates.notes,
+    date: updates.startDate,
+  });
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.UPDATE(id), {
     method: 'PUT',
@@ -125,7 +149,9 @@ export async function updateMedicalHistory(id: string, updates: {
 }
 
 /**
- * Delete medical history record
+ * Delete medical history record.
+ * Backend: DELETE /ehr/medical-history/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN,
+ * SUPER_ADMIN.
  */
 export async function deleteMedicalHistory(id: string) {
   const session = await getServerSession();
@@ -135,12 +161,19 @@ export async function deleteMedicalHistory(id: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.DELETE(id), {
     method: 'DELETE',
+    body: EMPTY_JSON_BODY,
   });
   return data;
 }
 
 // ===== LAB REPORTS =====
 
+/**
+ * Create lab report.
+ * Backend: POST /ehr/lab-reports — DOCTOR, ASSISTANT_DOCTOR, LAB_TECHNICIAN, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `userId` (patient's USER id), `testName`, `result` (text), `date`, `unit?`,
+ * `normalRange?` (text), `status?`, `notes?`, `doctorId?`, `appointmentId?`, `fileUrl?`, `fileKey?`.
+ */
 export async function createLabReport(createDto: {
   userId: string;
   testName: string;
@@ -177,7 +210,9 @@ export async function createLabReport(createDto: {
 }
 
 /**
- * Get lab reports for a user
+ * Get lab reports for a user.
+ * Backend: GET /ehr/lab-reports/:userId (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR, NURSE,
+ * LAB_TECHNICIAN, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getLabReports(userId: string) {
   const session = await getServerSession();
@@ -190,7 +225,10 @@ export async function getLabReports(userId: string) {
 }
 
 /**
- * Update lab report
+ * Update lab report.
+ * Backend: PUT /ehr/lab-reports/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, LAB_TECHNICIAN,
+ * CLINIC_ADMIN, SUPER_ADMIN. Accepted body: `testName?`, `result?`, `unit?`, `normalRange?`, `date?`,
+ * `status?`, `notes?`.
  */
 export async function updateLabReport(id: string, updates: {
   testName?: string;
@@ -205,10 +243,14 @@ export async function updateLabReport(id: string, updates: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const payload: any = { ...updates };
-  if (updates.testDate) payload.date = updates.testDate;
-  if (updates.results) payload.result = JSON.stringify(updates.results);
-  if (updates.normalRange) payload.normalRange = JSON.stringify(updates.normalRange);
+  const payload = definedOnly({
+    testName: updates.testName,
+    date: updates.testDate,
+    result: updates.results ? JSON.stringify(updates.results) : undefined,
+    normalRange: updates.normalRange ? JSON.stringify(updates.normalRange) : undefined,
+    status: updates.status,
+    notes: updates.notes,
+  });
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.UPDATE(id), {
     method: 'PUT',
@@ -218,7 +260,9 @@ export async function updateLabReport(id: string, updates: {
 }
 
 /**
- * Delete lab report
+ * Delete lab report.
+ * Backend: DELETE /ehr/lab-reports/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, LAB_TECHNICIAN,
+ * CLINIC_ADMIN, SUPER_ADMIN.
  */
 export async function deleteLabReport(id: string) {
   const session = await getServerSession();
@@ -228,12 +272,19 @@ export async function deleteLabReport(id: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.DELETE(id), {
     method: 'DELETE',
+    body: EMPTY_JSON_BODY,
   });
   return data;
 }
 
 // ===== RADIOLOGY REPORTS =====
 
+/**
+ * Create radiology report.
+ * Backend: POST /ehr/radiology-reports — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `userId` (patient's USER id), `imageType`, `findings`, `conclusion`, `date`,
+ * `recommendations?`, `images?`, `doctorId?`, `appointmentId?`.
+ */
 export async function createRadiologyReport(createDto: {
   userId: string;
   studyType: string;
@@ -270,7 +321,9 @@ export async function createRadiologyReport(createDto: {
 }
 
 /**
- * Get radiology reports for a user
+ * Get radiology reports for a user.
+ * Backend: GET /ehr/radiology-reports/:userId (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR,
+ * CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only). NURSE is not allowed.
  */
 export async function getRadiologyReports(userId: string) {
   const session = await getServerSession();
@@ -283,7 +336,10 @@ export async function getRadiologyReports(userId: string) {
 }
 
 /**
- * Update radiology report
+ * Update radiology report.
+ * Backend: PUT /ehr/radiology-reports/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN,
+ * SUPER_ADMIN. Accepted body: `imageType?`, `findings?`, `conclusion?`, `date?`, `recommendations?`,
+ * `images?`.
  */
 export async function updateRadiologyReport(id: string, updates: {
   studyType?: string;
@@ -298,10 +354,14 @@ export async function updateRadiologyReport(id: string, updates: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const payload: any = { ...updates };
-  if (updates.studyType) payload.imageType = updates.studyType;
-  if (updates.studyDate) payload.date = updates.studyDate;
-  if (updates.impression) payload.conclusion = updates.impression;
+  const payload = definedOnly({
+    imageType: updates.studyType,
+    date: updates.studyDate,
+    findings: updates.findings,
+    conclusion: updates.impression,
+    recommendations: updates.recommendations,
+    images: updates.images,
+  });
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.UPDATE(id), {
     method: 'PUT',
@@ -311,7 +371,9 @@ export async function updateRadiologyReport(id: string, updates: {
 }
 
 /**
- * Delete radiology report
+ * Delete radiology report.
+ * Backend: DELETE /ehr/radiology-reports/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN,
+ * SUPER_ADMIN.
  */
 export async function deleteRadiologyReport(id: string) {
   const session = await getServerSession();
@@ -321,12 +383,19 @@ export async function deleteRadiologyReport(id: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.DELETE(id), {
     method: 'DELETE',
+    body: EMPTY_JSON_BODY,
   });
   return data;
 }
 
 // ===== SURGICAL RECORDS =====
 
+/**
+ * Create surgical record.
+ * Backend: POST /ehr/surgical-records — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `userId` (patient's USER id), `surgeryName`, `surgeon`, `date`, `notes?`,
+ * `anesthesia?`, `complications?`, `outcome?`, `doctorId?`.
+ */
 export async function createSurgicalRecord(createDto: {
   userId: string;
   procedureName: string;
@@ -363,7 +432,9 @@ export async function createSurgicalRecord(createDto: {
 }
 
 /**
- * Get surgical records for a user
+ * Get surgical records for a user.
+ * Backend: GET /ehr/surgical-records/:userId (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR,
+ * CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getSurgicalRecords(userId: string) {
   const session = await getServerSession();
@@ -376,7 +447,10 @@ export async function getSurgicalRecords(userId: string) {
 }
 
 /**
- * Update surgical record
+ * Update surgical record.
+ * Backend: PUT /ehr/surgical-records/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN,
+ * SUPER_ADMIN. Accepted body: `surgeryName?`, `surgeon?`, `notes?`, `date?`, `anesthesia?`,
+ * `complications?`, `outcome?`.
  */
 export async function updateSurgicalRecord(id: string, updates: {
   procedureName?: string;
@@ -392,9 +466,15 @@ export async function updateSurgicalRecord(id: string, updates: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const payload: any = { ...updates };
-  if (updates.procedureName) payload.surgeryName = updates.procedureName;
-  if (updates.procedureDate) payload.date = updates.procedureDate;
+  const payload = definedOnly({
+    surgeryName: updates.procedureName,
+    date: updates.procedureDate,
+    surgeon: updates.surgeon,
+    anesthesia: updates.anesthesia,
+    complications: updates.complications,
+    outcome: updates.outcome,
+    notes: updates.notes,
+  });
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.UPDATE(id), {
     method: 'PUT',
@@ -404,7 +484,9 @@ export async function updateSurgicalRecord(id: string, updates: {
 }
 
 /**
- * Delete surgical record
+ * Delete surgical record.
+ * Backend: DELETE /ehr/surgical-records/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN,
+ * SUPER_ADMIN.
  */
 export async function deleteSurgicalRecord(id: string) {
   const session = await getServerSession();
@@ -414,12 +496,19 @@ export async function deleteSurgicalRecord(id: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.DELETE(id), {
     method: 'DELETE',
+    body: EMPTY_JSON_BODY,
   });
   return data;
 }
 
 // ===== VITALS =====
 
+/**
+ * Create a vital reading (one row per reading).
+ * Backend: POST /ehr/vitals — DOCTOR, ASSISTANT_DOCTOR, NURSE, RECEPTIONIST, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `userId` (patient's USER id), `type`, `value` (text), `recordedAt`, `unit?`,
+ * `recordedBy?`, `notes?`.
+ */
 export async function createVital(createDto: {
   userId: string;
   type: string;
@@ -452,7 +541,9 @@ export async function createVital(createDto: {
 }
 
 /**
- * Get vitals for a user
+ * Get vitals for a user.
+ * Backend: GET /ehr/vitals/:userId?type= (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR, NURSE,
+ * CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getVitals(userId: string, type?: string) {
   const session = await getServerSession();
@@ -465,7 +556,10 @@ export async function getVitals(userId: string, type?: string) {
 }
 
 /**
- * Update vital record
+ * Update vital record.
+ * Backend: PUT /ehr/vitals/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, NURSE, RECEPTIONIST,
+ * CLINIC_ADMIN, SUPER_ADMIN. Accepted body: `type?`, `value?` (text), `recordedAt?`, `unit?`, `notes?`
+ * (`recordedBy` cannot be changed and is not sent).
  */
 export async function updateVital(id: string, updates: {
   type?: string;
@@ -480,8 +574,13 @@ export async function updateVital(id: string, updates: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const payload: any = { ...updates };
-  if (updates.value !== undefined) payload.value = String(updates.value);
+  const payload = definedOnly({
+    type: updates.type,
+    value: updates.value !== undefined ? String(updates.value) : undefined,
+    unit: updates.unit,
+    recordedAt: updates.recordedAt,
+    notes: updates.notes,
+  });
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.UPDATE(id), {
     method: 'PUT',
@@ -491,7 +590,8 @@ export async function updateVital(id: string, updates: {
 }
 
 /**
- * Delete vital record
+ * Delete vital record.
+ * Backend: DELETE /ehr/vitals/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN.
  */
 export async function deleteVital(id: string) {
   const session = await getServerSession();
@@ -501,12 +601,19 @@ export async function deleteVital(id: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.DELETE(id), {
     method: 'DELETE',
+    body: EMPTY_JSON_BODY,
   });
   return data;
 }
 
 // ===== ALLERGIES =====
 
+/**
+ * Create allergy.
+ * Backend: POST /ehr/allergies — DOCTOR, ASSISTANT_DOCTOR, NURSE, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `userId` (patient's USER id), `allergen`, `severity`, `reaction`, `diagnosedDate`,
+ * `notes?`, `status?`.
+ */
 export async function createAllergy(createDto: {
   userId: string;
   allergen: string;
@@ -539,7 +646,9 @@ export async function createAllergy(createDto: {
 }
 
 /**
- * Get allergies for a user
+ * Get allergies for a user.
+ * Backend: GET /ehr/allergies/:userId (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR, NURSE,
+ * CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getAllergies(userId: string) {
   const session = await getServerSession();
@@ -552,7 +661,10 @@ export async function getAllergies(userId: string) {
 }
 
 /**
- * Update allergy record
+ * Update allergy record.
+ * Backend: PUT /ehr/allergies/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, NURSE, CLINIC_ADMIN,
+ * SUPER_ADMIN. Accepted body: `allergen?`, `severity?`, `reaction?`, `diagnosedDate?`, `notes?`,
+ * `status?` (`onsetDate` is sent as `diagnosedDate`).
  */
 export async function updateAllergy(id: string, updates: {
   allergen?: string;
@@ -567,8 +679,14 @@ export async function updateAllergy(id: string, updates: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const payload: any = { ...updates };
-  if (updates.onsetDate) payload.diagnosedDate = updates.onsetDate;
+  const payload = definedOnly({
+    allergen: updates.allergen,
+    severity: updates.severity,
+    reaction: updates.reaction,
+    diagnosedDate: updates.onsetDate,
+    status: updates.status,
+    notes: updates.notes,
+  });
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.UPDATE(id), {
     method: 'PUT',
@@ -578,7 +696,8 @@ export async function updateAllergy(id: string, updates: {
 }
 
 /**
- * Delete allergy record
+ * Delete allergy record.
+ * Backend: DELETE /ehr/allergies/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN.
  */
 export async function deleteAllergy(id: string) {
   const session = await getServerSession();
@@ -588,12 +707,19 @@ export async function deleteAllergy(id: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.DELETE(id), {
     method: 'DELETE',
+    body: EMPTY_JSON_BODY,
   });
   return data;
 }
 
 // ===== MEDICATIONS =====
 
+/**
+ * Create medication.
+ * Backend: POST /ehr/medications — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `userId` (patient's USER id), `name`, `dosage`, `frequency`, `startDate`,
+ * `prescribedBy`, `endDate?`, `purpose?`, `sideEffects?`, `instructions?`, `status?`.
+ */
 export async function createMedication(createDto: {
   userId: string;
   medicationName: string;
@@ -631,7 +757,9 @@ export async function createMedication(createDto: {
 }
 
 /**
- * Get medications for a user
+ * Get medications for a user.
+ * Backend: GET /ehr/medications/:userId?activeOnly= (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR,
+ * NURSE, THERAPIST, COUNSELOR, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getMedications(userId: string, activeOnly?: boolean) {
   const session = await getServerSession();
@@ -644,7 +772,11 @@ export async function getMedications(userId: string, activeOnly?: boolean) {
 }
 
 /**
- * Update medication record
+ * Update medication record.
+ * Backend: PUT /ehr/medications/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `name?`, `dosage?`, `frequency?`, `startDate?`, `endDate?`, `prescribedBy?`,
+ * `purpose?`, `sideEffects?`, `instructions?`, `status?` (`medicationName` is sent as `name`; `notes`
+ * is sent as `instructions` when no instructions are given).
  */
 export async function updateMedication(id: string, updates: {
   medicationName?: string;
@@ -662,9 +794,16 @@ export async function updateMedication(id: string, updates: {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const payload: any = { ...updates };
-  if (updates.medicationName) payload.name = updates.medicationName;
-  if (updates.notes) payload.instructions = updates.notes; // Map notes to instructions if provided
+  const payload = definedOnly({
+    name: updates.medicationName,
+    dosage: updates.dosage,
+    frequency: updates.frequency,
+    startDate: updates.startDate,
+    endDate: updates.endDate,
+    prescribedBy: updates.prescribedBy,
+    instructions: updates.instructions ?? updates.notes,
+    status: updates.status,
+  });
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.UPDATE(id), {
     method: 'PUT',
@@ -674,7 +813,9 @@ export async function updateMedication(id: string, updates: {
 }
 
 /**
- * Delete medication record
+ * Delete medication record.
+ * Backend: DELETE /ehr/medications/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN,
+ * SUPER_ADMIN.
  */
 export async function deleteMedication(id: string) {
   const session = await getServerSession();
@@ -684,12 +825,19 @@ export async function deleteMedication(id: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.DELETE(id), {
     method: 'DELETE',
+    body: EMPTY_JSON_BODY,
   });
   return data;
 }
 
 // ===== IMMUNIZATIONS =====
 
+/**
+ * Create immunization.
+ * Backend: POST /ehr/immunizations — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN.
+ * Accepted body: `userId` (patient's USER id), `vaccineName`, `dateAdministered`, `nextDueDate?`,
+ * `batchNumber?`, `administrator?`, `location?`, `notes?`, `manufacturer?`.
+ */
 export async function createImmunization(createDto: {
   userId: string;
   vaccineName: string;
@@ -724,7 +872,9 @@ export async function createImmunization(createDto: {
 }
 
 /**
- * Get immunizations for a user
+ * Get immunizations for a user.
+ * Backend: GET /ehr/immunizations/:userId (patient's USER id) — DOCTOR, ASSISTANT_DOCTOR,
+ * CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getImmunizations(userId: string) {
   const session = await getServerSession();
@@ -737,7 +887,10 @@ export async function getImmunizations(userId: string) {
 }
 
 /**
- * Update immunization record
+ * Update immunization record.
+ * Backend: PUT /ehr/immunizations/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN,
+ * SUPER_ADMIN. Accepted body: `vaccineName?`, `dateAdministered?`, `nextDueDate?`, `batchNumber?`,
+ * `administrator?`, `location?`, `notes?` (the manufacturer cannot be changed and is not sent).
  */
 export async function updateImmunization(id: string, updateDto: {
   vaccineName?: string;
@@ -753,15 +906,26 @@ export async function updateImmunization(id: string, updateDto: {
     throw new Error('Unauthorized: Authentication required');
   }
 
+  const payload = definedOnly({
+    vaccineName: updateDto.vaccineName,
+    dateAdministered: updateDto.vaccineDate,
+    nextDueDate: updateDto.nextDueDate,
+    batchNumber: updateDto.lotNumber,
+    administrator: updateDto.administeredBy,
+    notes: updateDto.notes,
+  });
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.IMMUNIZATIONS.UPDATE(id), {
     method: 'PUT',
-    body: JSON.stringify(updateDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
 
 /**
- * Delete immunization record
+ * Delete immunization record.
+ * Backend: DELETE /ehr/immunizations/:id (record id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN,
+ * SUPER_ADMIN.
  */
 export async function deleteImmunization(id: string) {
   const session = await getServerSession();
@@ -771,6 +935,7 @@ export async function deleteImmunization(id: string) {
 
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.IMMUNIZATIONS.DELETE(id), {
     method: 'DELETE',
+    body: EMPTY_JSON_BODY,
   });
   return data;
 }
@@ -778,7 +943,9 @@ export async function deleteImmunization(id: string) {
 // ===== ANALYTICS =====
 
 /**
- * Get health trends for a user
+ * Get health trends for a user.
+ * Backend: GET /ehr/analytics/health-trends/:userId?vitalType=&startDate=&endDate= (patient's USER
+ * id) — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getHealthTrends(
   userId: string,
@@ -798,7 +965,9 @@ export async function getHealthTrends(
 }
 
 /**
- * Get medication adherence for a user
+ * Get medication adherence for a user.
+ * Backend: GET /ehr/analytics/medication-adherence/:userId (patient's USER id) — DOCTOR,
+ * ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN, PATIENT (own id only).
  */
 export async function getMedicationAdherence(userId: string) {
   const session = await getServerSession();

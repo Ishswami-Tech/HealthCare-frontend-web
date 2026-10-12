@@ -7,15 +7,14 @@ import { Button } from "@/components/ui/button";
 import { SkeletonList } from "@/components/ui/loading";
 import { CellTitle, EmptyBlock, GridHead, GridRow, Pill, SearchBox, Surface } from "@/components/tbd";
 import {
-  DESK_STATE_LABEL,
-  DESK_STATE_TONE,
   canDispense,
   isUrgent,
-  itemsLabel,
   moneyLine,
   sentTimeLabel,
   type DeskQueueItem,
 } from "./pharmacist-dashboard.logic";
+import { plural } from "@/lib/utils/labels";
+import { DESK_STATE_LABEL, DESK_STATE_TONE } from "@/lib/pharmacy/desk-state";
 
 interface PharmacistDashboardQueueCardProps {
   /** Rows to show (already filtered by the search box). */
@@ -115,7 +114,7 @@ export function PharmacistDashboardQueueCard({
                   title={item.patientName}
                   description={[item.reference, sentTime].filter(Boolean).join(" · ")}
                 />
-                <CellTitle title={itemsLabel(item.itemsCount)} description={moneyLine(item)} />
+                <CellTitle title={plural(item.itemsCount, "item")} description={moneyLine(item)} />
                 <div className="flex flex-row flex-wrap items-start gap-1 lg:flex-col">
                   <Pill tone={DESK_STATE_TONE[item.state]}>{DESK_STATE_LABEL[item.state]}</Pill>
                   {isUrgent(item) ? <Pill tone="rose">Urgent</Pill> : null}

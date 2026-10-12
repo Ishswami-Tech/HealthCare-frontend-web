@@ -1,6 +1,6 @@
 import { isPaidPayment, paymentKind, type PaymentKind } from "@/components/billing/PaymentHistory";
 import { paymentDateValue, sortPaymentsNewestFirst } from "@/components/billing/staff/billing.logic";
-import { formatDateInIST, formatMonthShortInIST } from "@/lib/utils/date-time";
+import { EMPTY_DATE_LABEL, formatDateInIST, formatDateLabel, formatMonthShortInIST } from "@/lib/utils/date-time";
 import type { Invoice, Payment, Subscription } from "@/types/billing.types";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
@@ -12,49 +12,6 @@ export const PROFILE_ROUTE = "/patient/profile";
 
 export function invoiceRoute(invoiceId: string): string {
   return `/patient/payments/invoices/${encodeURIComponent(invoiceId)}`;
-}
-
-// ── Money and dates ────────────────────────────────────────────────────────
-
-/**
- * Rupee amount as this page has always shown it (₹1,250). Amounts are in rupees, never paise.
- * Paise are shown only when the amount has them (₹114.50).
- */
-export function formatAmount(amount: number | null | undefined, currency?: string | null): string {
-  const value = Number(amount ?? 0);
-  const digits = Number.isInteger(value) ? 0 : 2;
-  return value.toLocaleString("en-IN", {
-    style: "currency",
-    currency: currency || "INR",
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
-}
-
-/** The same amount with paise always shown (₹570.00) — used on the invoice itself. */
-export function formatAmountExact(amount: number | null | undefined, currency?: string | null): string {
-  return Number(amount ?? 0).toLocaleString("en-IN", {
-    style: "currency",
-    currency: currency || "INR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-export function formatDate(date: string | null | undefined): string {
-  if (!date) return "--";
-  return formatDateInIST(date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN") || "--";
-}
-
-/** "28 Sept 2026, 09:12 AM" */
-export function formatDateTime(date: string | null | undefined): string {
-  if (!date) return "--";
-  const text = formatDateInIST(
-    date,
-    { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true },
-    "en-IN",
-  );
-  return text ? text.replace(/\b(am|pm)\b/i, (match) => match.toUpperCase()) : "--";
 }
 
 // ── Invoices ───────────────────────────────────────────────────────────────
@@ -438,7 +395,7 @@ export function getPeriodEnd(sub: Subscription) {
 
 export function getPeriodEndLabel(sub: Subscription) {
   const periodEnd = getPeriodEnd(sub);
-  return periodEnd ? formatDate(periodEnd) : sub.autoRenew ? "Renews automatically" : "Ongoing";
+  return periodEnd ? formatDateLabel(periodEnd, EMPTY_DATE_LABEL) : sub.autoRenew ? "Renews automatically" : "Ongoing";
 }
 
 /** The status to show: an active plan whose period is over reads "EXPIRED". */

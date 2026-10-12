@@ -70,12 +70,6 @@ export const COPY: Record<
   },
 };
 
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 /**
  * The picker's `accept` list is a hint, not a guarantee — the user can still
  * choose "All files" on most platforms — so the extension is re-checked here.

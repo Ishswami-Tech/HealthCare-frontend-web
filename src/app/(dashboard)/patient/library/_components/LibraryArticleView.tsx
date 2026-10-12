@@ -158,7 +158,7 @@ function Article({ article }: { article: LibraryArticle }) {
         {article.whenToSeeDoctor.length > 0 ? (
           <SoftCard as="section" className="flex flex-col gap-3" aria-labelledby="library-see-doctor">
             <div className="flex items-center gap-2.5">
-              <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[11px] bg-[#047857] text-white" aria-hidden="true">
+              <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[11px] bg-primary text-white" aria-hidden="true">
                 <Stethoscope className="size-[18px]" strokeWidth={2.2} />
               </span>
               <h2 id="library-see-doctor" className="m-0 text-base font-extrabold text-brand-dark">

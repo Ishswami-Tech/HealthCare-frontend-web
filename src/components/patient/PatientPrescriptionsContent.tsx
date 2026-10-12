@@ -1,23 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { PatientMedicinesView } from "@/app/(dashboard)/patient/health/_components/PatientMedicinesView";
+import { PatientMedicinesView } from "@/components/patient/health/PatientMedicinesView";
 import {
   buildCurrentMedicines,
   buildPrescriptions,
-  formatRupees,
   medicinesSourceLabel,
   type PatientPrescription,
-} from "@/app/(dashboard)/patient/health/_components/patient-health.logic";
+} from "@/components/patient/health/patient-health.logic";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMedicationAdherence } from "@/hooks/query/useMedicalRecords";
 import { usePrescriptions } from "@/hooks/query/usePharmacy";
-import { showErrorToast } from "@/hooks/utils/use-toast";
-import { clinicApiClient } from "@/lib/api/client";
+import { formatRupees } from "@/lib/utils/currency";
+import { useInvoicePdfDownload } from "@/hooks/query/useInvoicePdfDownload";
 
 type PatientPrescriptionsProps = {
   /** True when a page already provides the page column (the screen is drawn without its own shell). */
@@ -33,7 +32,9 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
   const { session, isPending: authLoading } = useAuth();
   const user = session?.user;
   const searchParams = useSearchParams();
-  const [downloadingBillId, setDownloadingBillId] = useState<string | null>(null);
+  const { downloadingPdfId: downloadingBillId, downloadPdf: downloadBill } = useInvoicePdfDownload(
+    "The bill could not be opened. Please try again.",
+  );
 
   const {
     data: prescriptionsData,
@@ -49,29 +50,6 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
 
   const prescriptions = useMemo(() => buildPrescriptions(prescriptionsData), [prescriptionsData]);
   const medicines = useMemo(() => buildCurrentMedicines(prescriptions, adherenceData), [prescriptions, adherenceData]);
-
-  // Same call the patient billing screen makes for an invoice PDF.
-  const handleDownloadBill = async (invoiceId: string) => {
-    try {
-      setDownloadingBillId(invoiceId);
-      const result = await clinicApiClient.get<Blob>(`/billing/invoices/${invoiceId}/download`);
-      const blob = result.data;
-      if (!(blob instanceof Blob)) throw new Error("The bill could not be downloaded");
-      const url = window.URL.createObjectURL(blob);
-      // An anchor click is not blocked as a popup after the wait.
-      const link = document.createElement("a");
-      link.href = url;
-      link.target = "_blank";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
-    } catch (downloadError) {
-      showErrorToast(downloadError instanceof Error ? downloadError.message : "The bill could not be downloaded");
-    } finally {
-      setDownloadingBillId(null);
-    }
-  };
 
   // Paying always goes through PaymentButton (prescription id + the amount still due).
   const renderPay = (prescription: PatientPrescription, placement: "card" | "dialog") => (
@@ -99,7 +77,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
       failed={Boolean(error) && prescriptionsData === undefined}
       onRetry={() => void refetch()}
       renderPay={renderPay}
-      onDownloadBill={(invoiceId) => void handleDownloadBill(invoiceId)}
+      onDownloadBill={(invoiceId) => void downloadBill(invoiceId)}
       downloadingBillId={downloadingBillId}
       initialPrescriptionId={initialPrescriptionId}
     />

@@ -2,7 +2,7 @@
 
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHero, SearchBox, SegTabs, Surface } from "@/components/tbd";
+import { PageHero, SearchBox, SegTabs, Surface, DateField } from "@/components/tbd";
 import type { PharmacyBatchAuditEntry } from "@/types/pharmacy.types";
 import { PharmacistCashPaymentDialog } from "../../dashboard/_components/PharmacistCashPaymentDialog";
 import type { DeskQueueItem } from "../../dashboard/_components/pharmacist-dashboard.logic";
@@ -60,40 +60,6 @@ export interface PharmacistPrescriptionsViewProps {
   cashPaymentError?: string | null;
   onConfirmCashPayment: (item: DeskQueueItem) => void;
   onCloseCashPayment: () => void;
-}
-
-function DateField({
-  id,
-  label,
-  value,
-  max,
-  min,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  min?: string | undefined;
-  max?: string | undefined;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label
-      htmlFor={id}
-      className="flex min-h-11 min-w-0 basis-full items-center gap-2 rounded-xl border border-line bg-card px-3 text-sm focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 @md:flex-1 @md:basis-0 @2xl:flex-none @2xl:basis-auto"
-    >
-      <span className="text-xs font-bold text-ink-muted">{label}</span>
-      <input
-        id={id}
-        type="date"
-        value={value}
-        min={min}
-        max={max}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 flex-1 bg-transparent font-semibold text-ink outline-hidden dark:[color-scheme:dark]"
-      />
-    </label>
-  );
 }
 
 /** Prescriptions screen layout. Props only — data and mutations live in `PharmacistPrescriptionsContent`. */
@@ -171,6 +137,8 @@ export function PharmacistPrescriptionsView({
                 className="basis-full @2xl:max-w-[330px] @2xl:flex-1 @2xl:basis-0"
               />
               <DateField
+                variant="inline"
+                className="basis-full @md:flex-1 @md:basis-0 @2xl:flex-none @2xl:basis-auto"
                 id="audit-start-date"
                 label="From"
                 value={auditStartDate}
@@ -178,6 +146,8 @@ export function PharmacistPrescriptionsView({
                 onChange={onAuditStartDateChange}
               />
               <DateField
+                variant="inline"
+                className="basis-full @md:flex-1 @md:basis-0 @2xl:flex-none @2xl:basis-auto"
                 id="audit-end-date"
                 label="To"
                 value={auditEndDate}

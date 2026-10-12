@@ -65,7 +65,7 @@ function DeskCard({
         <span
           className={cn(
             "flex size-11 shrink-0 items-center justify-center rounded-[14px] text-white",
-            due ? "bg-[#ea580c]" : "bg-[#047857]",
+            due ? "bg-[#ea580c]" : "bg-primary",
           )}
           aria-hidden="true"
         >

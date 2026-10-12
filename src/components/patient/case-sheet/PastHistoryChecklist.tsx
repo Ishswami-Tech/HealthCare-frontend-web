@@ -17,6 +17,8 @@ import {
   Surface,
   statusLabel,
   statusTone,
+  FIELD_LABEL,
+  ChoiceChip,
 } from "@/components/tbd";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { PAST_HISTORY_CONDITIONS } from "@/lib/constants/case-sheet-fixed-lists";
@@ -25,7 +27,7 @@ import {
   useDeleteMedicalHistory,
   useMedicalHistory,
 } from "@/hooks/query/useMedicalRecords";
-import { CaseSheetCard, ChoiceChip, FieldLabel, SaveButton } from "./case-sheet-parts";
+import { CaseSheetCard, SaveButton } from "./case-sheet-parts";
 
 /** One MedicalHistory row as the API returns it (only the fields this screen reads). */
 export type PastHistoryRow = {
@@ -176,7 +178,7 @@ export function PastHistoryChecklistView({
           })}
         </div>
         <div className="flex flex-col gap-1.5">
-          <FieldLabel htmlFor="past-history-notes">Other past history</FieldLabel>
+          <label htmlFor="past-history-notes" className={FIELD_LABEL}>Other past history</label>
           <Textarea
             id="past-history-notes"
             className="min-h-[84px]"

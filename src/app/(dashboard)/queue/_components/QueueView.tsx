@@ -1,22 +1,11 @@
 "use client";
 
-import { Activity, CheckCircle, CircleAlert, Loader2, Stethoscope, Timer, TriangleAlert, Users } from "lucide-react";
+import { Activity, CheckCircle, Loader2, Stethoscope, Timer, TriangleAlert, Users } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  EmptyBlock,
-  FilterChips,
-  Kpi,
-  LiveTag,
-  Note,
-  PageHero,
-  Pill,
-  SectionTitle,
-  Surface,
-  type TbdOption,
-} from "@/components/tbd";
+import { FilterChips, Kpi, LiveTag, LoadError, Note, PageHero, Pill, SectionTitle, Surface, type TbdOption } from "@/components/tbd";
 import { QueueLaneCard, type QueueLaneCardProps, type QueueRowActions } from "./QueueLaneCard";
 import type { QueueStatsSummary, QueueTabKey } from "./queue.logic";
 
@@ -133,15 +122,11 @@ export function QueueErrorView({
     <DashboardPageShell>
       <PageHero eyebrow={scopeLabel} title="Queue Management" description="View patient queue status." />
       <Surface flush role="alert">
-        <EmptyBlock
-          icon={CircleAlert}
+        <LoadError
           title="We could not load the queue"
-          description={message || "Please check your connection and try again."}
-          action={
-            <Button size="md" variant="outline" onClick={onRetry}>
-              Retry
-            </Button>
-          }
+          message={message || "Please check your connection and try again."}
+          onRetry={onRetry}
+          retryLabel="Retry"
         />
       </Surface>
     </DashboardPageShell>

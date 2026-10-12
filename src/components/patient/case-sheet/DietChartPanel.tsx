@@ -2,7 +2,7 @@
 
 import { runSave } from "./run-save";
 import { useStableSnapshot } from "./use-stable-snapshot";
-import { PLAN_HEAD_BUTTON, PlanCardHeader, PlanField, PlanToggle } from "./PlanShared";
+import { PLAN_HEAD_BUTTON, PlanCardHeader, PlanToggle } from "./PlanShared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Command as CommandPrimitive } from "cmdk";
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Note, Pill, Surface, type PillTone } from "@/components/tbd";
+import { Note, Pill, Surface, Field, type PillTone } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import {
@@ -558,7 +558,7 @@ export function DietChartView({
       )}
 
       <div className="grid items-start gap-4 md:grid-cols-[240px_minmax(0,1fr)]">
-        <PlanField
+        <Field
           label="Print language"
           htmlFor={`diet-print-language-${visitId}`}
           hint="Default language of the printed sheet."
@@ -579,8 +579,8 @@ export function DietChartView({
               ))}
             </SelectContent>
           </Select>
-        </PlanField>
-        <PlanField label="Notes for the patient" htmlFor={`diet-notes-${visitId}`}>
+        </Field>
+        <Field label="Notes for the patient" htmlFor={`diet-notes-${visitId}`}>
           <Textarea
             id={`diet-notes-${visitId}`}
             value={draft.notes}
@@ -591,7 +591,7 @@ export function DietChartView({
             disabled={controlsDisabled}
             className="min-h-[84px]"
           />
-        </PlanField>
+        </Field>
       </div>
 
       {isLoading ? null : (

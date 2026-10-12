@@ -18,10 +18,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Note, PageHead } from "@/components/tbd";
+import { Note, PageHead, TBD_SURFACE } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { HomeLibraryItem } from "@/components/patient/home/types";
-import type { VitalKey, VitalTile } from "./patient-health.logic";
+import type { VitalKey, VitalTile } from "@/components/patient/health/patient-health.logic";
 
 const VITAL_LOOK: Record<VitalKey, { icon: LucideIcon; well: string; filled?: boolean }> = {
   heartRate: { icon: Heart, well: "bg-[#fee2e2] text-[#dc2626] dark:bg-red-500/15 dark:text-red-300", filled: true },
@@ -30,7 +30,7 @@ const VITAL_LOOK: Record<VitalKey, { icon: LucideIcon; well: string; filled?: bo
   weight: { icon: Weight, well: "bg-[#d1fae5] text-[#047857] dark:bg-emerald-500/15 dark:text-emerald-300" },
 };
 
-const CARD = "min-w-0 rounded-[20px] bg-card text-ink shadow-card dark:border dark:border-border/70";
+const CARD = cn(TBD_SURFACE, "min-w-0 text-ink");
 const FOCUS = "transition-shadow hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40";
 
 export interface HealthHubCard {

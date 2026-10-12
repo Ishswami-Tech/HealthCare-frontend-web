@@ -1,6 +1,17 @@
 'use server';
 
-import { authenticatedApi, getServerSession } from './auth.server';
+import { authenticatedApi } from './auth.server';
+import {
+  actionFailure,
+  actionSuccess,
+  caughtFailure,
+  clinicHeaders,
+  resolveClinicContext,
+  statusFailure,
+  type ActionErrorCode,
+  type ActionFailure,
+} from './_shared';
+import { API_ENDPOINTS } from '../config/config';
 
 /**
  * Health Library — wellness articles and videos written by the clinic.
@@ -12,8 +23,6 @@ import { authenticatedApi, getServerSession } from './auth.server';
  * The actions mirror `fetchPatientDashboardSummary`: they resolve the clinic from the
  * session, send it as `X-Clinic-ID`, and return a discriminated result instead of throwing.
  */
-
-const HEALTH_LIBRARY_ENDPOINT = '/health-library';
 
 export type HealthLibraryTab = 'ARTICLES' | 'GUIDES' | 'PRACTICES' | 'COURSES';
 export type HealthLibraryMediaType = 'ARTICLE' | 'VIDEO';
@@ -81,74 +90,9 @@ export interface HealthLibraryOverview {
   courses: HealthLibraryList;
 }
 
-export type HealthLibraryErrorCode =
-  | 'UNAUTHENTICATED'
-  | 'CLINIC_CONTEXT_REQUIRED'
-  | 'FORBIDDEN'
-  | 'NOT_FOUND'
-  | 'NETWORK'
-  | 'UNKNOWN';
+export type HealthLibraryErrorCode = ActionErrorCode;
 
-type HealthLibraryFailure = { success: false; error: string; code?: HealthLibraryErrorCode };
-
-type ClinicContext = { clinicId: string } | HealthLibraryFailure;
-
-async function resolveClinicContext(): Promise<ClinicContext> {
-  const session = await getServerSession();
-  const sessionUser = session?.user as
-    | { clinicId?: string; primaryClinicId?: string; id?: string; sub?: string }
-    | undefined;
-
-  const userId = sessionUser?.id || sessionUser?.sub;
-  if (!userId) {
-    return { success: false, error: 'Not authenticated', code: 'UNAUTHENTICATED' };
-  }
-
-  const clinicId = sessionUser?.clinicId || sessionUser?.primaryClinicId;
-  if (!clinicId) {
-    return {
-      success: false,
-      error: 'Clinic context is required to load the health library',
-      code: 'CLINIC_CONTEXT_REQUIRED',
-    };
-  }
-
-  return { clinicId };
-}
-
-function statusFailure(status: number, what: string): HealthLibraryFailure | null {
-  if (status === 401) {
-    return { success: false, error: 'Session expired. Please sign in again.', code: 'UNAUTHENTICATED' };
-  }
-  if (status === 403) {
-    return { success: false, error: 'Access denied', code: 'FORBIDDEN' };
-  }
-  if (status === 404) {
-    return { success: false, error: `${what} was not found`, code: 'NOT_FOUND' };
-  }
-  if (status >= 400) {
-    return { success: false, error: `${what} request failed with status ${status}`, code: 'NETWORK' };
-  }
-  return null;
-}
-
-function caughtFailure(error: unknown): HealthLibraryFailure {
-  const statusCode =
-    typeof error === 'object' && error !== null && 'statusCode' in error
-      ? Number((error as { statusCode?: unknown }).statusCode)
-      : NaN;
-  const message = error instanceof Error ? error.message : 'Unknown error';
-  if (statusCode === 404) {
-    return { success: false, error: message, code: 'NOT_FOUND' };
-  }
-  if (statusCode === 401) {
-    return { success: false, error: message, code: 'UNAUTHENTICATED' };
-  }
-  if (statusCode === 403) {
-    return { success: false, error: message, code: 'FORBIDDEN' };
-  }
-  return { success: false, error: message, code: 'NETWORK' };
-}
+type HealthLibraryFailure = ActionFailure;
 
 type HealthLibraryListResult = { success: true; data: HealthLibraryList } | HealthLibraryFailure;
 
@@ -171,9 +115,9 @@ async function listHealthLibraryPosts(
   const query = params.toString();
 
   const { status, data } = await authenticatedApi<HealthLibraryList>(
-    query ? `${HEALTH_LIBRARY_ENDPOINT}?${query}` : HEALTH_LIBRARY_ENDPOINT,
+    query ? `${API_ENDPOINTS.HEALTH_LIBRARY.BASE}?${query}` : API_ENDPOINTS.HEALTH_LIBRARY.BASE,
     {
-      headers: { 'X-Clinic-ID': clinicId },
+      headers: clinicHeaders(clinicId),
       omitClinicId: true,
       cache: 'no-store',
     }
@@ -187,7 +131,7 @@ async function listHealthLibraryPosts(
   // Backend returns the DTO directly: { items, total }.
   const items = Array.isArray(data?.items) ? data.items : [];
   const total = typeof data?.total === 'number' ? data.total : items.length;
-  return { success: true, data: { items, total } };
+  return actionSuccess({ items, total });
 }
 
 /** Lists health library posts for the signed-in user's clinic. */
@@ -195,8 +139,8 @@ export async function fetchHealthLibraryPosts(
   filters: HealthLibraryListFilters = {}
 ): Promise<HealthLibraryListResult> {
   try {
-    const context = await resolveClinicContext();
-    if (!('clinicId' in context)) {
+    const context = await resolveClinicContext('load the health library');
+    if (!context.success) {
       return context;
     }
     return await listHealthLibraryPosts(context.clinicId, filters);
@@ -217,8 +161,8 @@ export async function fetchHealthLibraryOverview(): Promise<
   { success: true; data: HealthLibraryOverview } | HealthLibraryFailure
 > {
   try {
-    const context = await resolveClinicContext();
-    if (!('clinicId' in context)) {
+    const context = await resolveClinicContext('load the health library');
+    if (!context.success) {
       return context;
     }
     const { clinicId } = context;
@@ -263,18 +207,18 @@ export async function fetchHealthLibraryPost(
   try {
     const postId = String(id || '').trim();
     if (!postId) {
-      return { success: false, error: 'A library item id is required', code: 'NOT_FOUND' };
+      return actionFailure('A library item id is required', 'NOT_FOUND');
     }
 
-    const context = await resolveClinicContext();
-    if (!('clinicId' in context)) {
+    const context = await resolveClinicContext('load the health library');
+    if (!context.success) {
       return context;
     }
 
     const { status, data } = await authenticatedApi<HealthLibraryPost>(
-      `${HEALTH_LIBRARY_ENDPOINT}/${encodeURIComponent(postId)}`,
+      API_ENDPOINTS.HEALTH_LIBRARY.GET_BY_ID(postId),
       {
-        headers: { 'X-Clinic-ID': context.clinicId },
+        headers: clinicHeaders(context.clinicId),
         omitClinicId: true,
         cache: 'no-store',
       }
@@ -285,10 +229,10 @@ export async function fetchHealthLibraryPost(
       return failure;
     }
     if (!data || typeof data !== 'object' || !data.id) {
-      return { success: false, error: 'Library item was not found', code: 'NOT_FOUND' };
+      return actionFailure('Library item was not found', 'NOT_FOUND');
     }
 
-    return { success: true, data };
+    return actionSuccess(data);
   } catch (error) {
     return caughtFailure(error);
   }

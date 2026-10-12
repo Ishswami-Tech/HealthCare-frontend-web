@@ -5,6 +5,7 @@
  */
 
 import { QueueCategory, type CanonicalQueueEntry } from '@/types/queue.types';
+import { asRecordOrEmpty } from '@/lib/utils/coerce';
 
 type QueueLabelSource = {
   serviceBucket?: string | null;
@@ -20,12 +21,6 @@ type ServiceCatalogEntry = {
   queueCategory?: string;
 };
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
 export function toTitleCase(value: string): string {
   return value
     .split(/[_\s-]+/)
@@ -39,8 +34,8 @@ export function toTitleCase(value: string): string {
  * Used by receptionist, clinic-admin, doctor, pharmacist, and patient dashboards
  */
 export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
-  const metadata = asRecord(raw?.metadata);
-  const appointmentObj = asRecord(raw?.appointment);
+  const metadata = asRecordOrEmpty(raw?.metadata);
+  const appointmentObj = asRecordOrEmpty(raw?.appointment);
   const metadataAppointmentId =
     typeof metadata['appointmentId'] === 'string' ? metadata['appointmentId'] : '';
   const appointmentId =
@@ -99,27 +94,27 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
     position,
     totalInQueue: typeof raw.totalInQueue === 'number' ? raw.totalInQueue : 0,
     status: raw.status || 'WAITING',
-    serviceBucket: raw.serviceBucket || asRecord(raw.raw)?.serviceBucket,
-    treatmentType: raw.treatmentType || asRecord(raw.raw)?.treatmentType,
+    serviceBucket: raw.serviceBucket || asRecordOrEmpty(raw.raw)?.serviceBucket,
+    treatmentType: raw.treatmentType || asRecordOrEmpty(raw.raw)?.treatmentType,
     appointmentTime: raw.appointmentTime || raw.time || raw.raw?.appointmentTime || raw.raw?.time,
     checkedInAt: raw.checkedInAt || raw.raw?.checkedInAt,
     confirmedAt: raw.confirmedAt || raw.raw?.confirmedAt,
     updatedAt: raw.updatedAt || raw.raw?.updatedAt,
     waitTime: raw.waitTime || raw.raw?.waitTime,
-    estimatedWaitTime: raw.estimatedWaitTime || asRecord(raw.raw)?.estimatedWaitTime,
-    estimatedDuration: raw.estimatedDuration || asRecord(raw.raw)?.estimatedDuration,
-    paymentStatus: raw.paymentStatus || asRecord(raw.raw)?.paymentStatus,
+    estimatedWaitTime: raw.estimatedWaitTime || asRecordOrEmpty(raw.raw)?.estimatedWaitTime,
+    estimatedDuration: raw.estimatedDuration || asRecordOrEmpty(raw.raw)?.estimatedDuration,
+    paymentStatus: raw.paymentStatus || asRecordOrEmpty(raw.raw)?.paymentStatus,
     waitingForPayment:
       typeof raw.waitingForPayment === 'boolean'
         ? raw.waitingForPayment
-        : (raw.paymentStatus || asRecord(raw.raw)?.paymentStatus) === 'PENDING',
+        : (raw.paymentStatus || asRecordOrEmpty(raw.raw)?.paymentStatus) === 'PENDING',
     readyForHandover:
       typeof raw.readyForHandover === 'boolean'
         ? raw.readyForHandover
-        : (raw.paymentStatus || asRecord(raw.raw)?.paymentStatus) === 'PAID',
+        : (raw.paymentStatus || asRecordOrEmpty(raw.raw)?.paymentStatus) === 'PAID',
     // Projection fields
-    paused: typeof raw.paused === 'boolean' ? raw.paused : (typeof asRecord(raw.raw)?.paused === 'boolean' ? asRecord(raw.raw)?.paused : false),
-    ...(raw.tokenNumber != null ? { tokenNumber: String(raw.tokenNumber) } : asRecord(raw.raw)?.tokenNumber != null ? { tokenNumber: String(asRecord(raw.raw)?.tokenNumber) } : {}),
+    paused: typeof raw.paused === 'boolean' ? raw.paused : (typeof asRecordOrEmpty(raw.raw)?.paused === 'boolean' ? asRecordOrEmpty(raw.raw)?.paused : false),
+    ...(raw.tokenNumber != null ? { tokenNumber: String(raw.tokenNumber) } : asRecordOrEmpty(raw.raw)?.tokenNumber != null ? { tokenNumber: String(asRecordOrEmpty(raw.raw)?.tokenNumber) } : {}),
     ...(raw.scheduledDate != null ? { scheduledDate: raw.scheduledDate as string } : {}),
     ...(raw.startedAt != null ? { startedAt: raw.startedAt as string } : {}),
     ...(raw.completedAt != null ? { completedAt: raw.completedAt as string } : {}),

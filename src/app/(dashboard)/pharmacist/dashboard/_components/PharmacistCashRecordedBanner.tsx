@@ -1,7 +1,8 @@
 import { CircleCheck, X } from "lucide-react";
 import { IconBox } from "@/components/tbd";
-import { formatTimeInIST } from "@/lib/utils/date-time";
-import { formatRupees, type CashRecordedNotice } from "./pharmacist-dashboard.logic";
+import { formatTimeLabel } from "@/lib/utils/date-time";
+import { type CashRecordedNotice } from "./pharmacist-dashboard.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 interface PharmacistCashRecordedBannerProps {
   notice: CashRecordedNotice;
@@ -10,7 +11,7 @@ interface PharmacistCashRecordedBannerProps {
 
 /** Shown right after a cash payment was recorded, built from the server's answer. */
 export function PharmacistCashRecordedBanner({ notice, onDismiss }: PharmacistCashRecordedBannerProps) {
-  const time = formatTimeInIST(notice.recordedAt).toLowerCase();
+  const time = formatTimeLabel(notice.recordedAt);
   const readyNow = notice.stillDue <= 0;
 
   const title = notice.alreadyPaid

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Activity, AlertCircle, Ban, CheckCircle2, Clock, Download, FileText, Loader2, Share2 } from "lucide-react";
+import { Activity, AlertCircle, Ban, CheckCircle2, Clock, Download, FileText, Loader2 } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { EmptyBlock, IconBox, Kv, PageHead, Surface } from "@/components/tbd";
 import { invoiceNumberLabel, invoiceOrderId, paymentMethodLabel } from "@/components/billing/staff/billing.logic";
@@ -14,9 +14,6 @@ import type { RenderInvoicePay } from "./BillingOverviewCards";
 import {
   BILLING_ROUTE,
   HELP_ROUTE,
-  formatAmountExact,
-  formatDate,
-  formatDateTime,
   invoiceDiscount,
   invoiceIssuedAt,
   invoiceLines,
@@ -27,6 +24,8 @@ import {
   isPayableInvoice,
   type InvoicePaymentInfo,
 } from "./patientBilling.logic";
+import { formatRupees } from "@/lib/utils/currency";
+import { EMPTY_DATE_LABEL, formatDateLabel, formatDateTimeLabel } from "@/lib/utils/date-time";
 
 export type PatientInvoiceState = "loading" | "ready" | "missing" | "error";
 
@@ -41,20 +40,19 @@ export interface PatientInvoiceViewProps {
   renderPay: RenderInvoicePay;
   onDownloadPdf: (invoiceId: string) => void;
   downloadingPdf: boolean;
-  onShare: () => void;
   onRetry: () => void;
 }
 
 const STAMPS = {
-  PAID: { text: "Paid", className: "border-[#047857] text-[#047857] dark:border-emerald-400 dark:text-emerald-300" },
+  PAID: { text: "Paid", className: "border-brand text-brand" },
   PENDING: { text: "Due", className: "border-[#b45309] text-[#b45309] dark:border-amber-400 dark:text-amber-300" },
   VOID: { text: "Void", className: "border-[#64748b] text-[#64748b] dark:border-slate-400 dark:text-slate-300" },
 } as const;
 
-function Shell({ actions, children }: { actions?: ReactNode; children: ReactNode }) {
+function Shell({ children }: { children: ReactNode }) {
   return (
     <DashboardPageShell className="mx-auto max-w-[720px]">
-      <PageHead backHref={BILLING_ROUTE} backLabel="Billing & Payments" title="Invoice" actions={actions} />
+      <PageHead backHref={BILLING_ROUTE} backLabel="Billing & Payments" title="Invoice" />
       {children}
     </DashboardPageShell>
   );
@@ -69,7 +67,6 @@ export function PatientInvoiceView({
   renderPay,
   onDownloadPdf,
   downloadingPdf,
-  onShare,
   onRetry,
 }: PatientInvoiceViewProps) {
   if (state === "loading") {
@@ -149,14 +146,9 @@ export function PatientInvoiceView({
   const number = invoiceNumberLabel(invoice);
 
   return (
-    <Shell
-      actions={
-        <Button variant="outline" className="h-10" onClick={onShare}>
-          <Share2 aria-hidden="true" />
-          Share
-        </Button>
-      }
-    >
+    // No "Share" here: a link to this page opens only for the signed-in patient. The PDF is
+    // the copy that can be sent to someone else.
+    <Shell>
       <article
         aria-label={`Invoice ${number}`}
         className="overflow-hidden rounded-[24px] bg-card text-card-foreground shadow-[0_10px_30px_rgba(15,27,45,0.08)] dark:border dark:border-border/70 dark:shadow-none"
@@ -181,16 +173,16 @@ export function PatientInvoiceView({
           <div className="flex flex-col gap-0.5">
             <span className="text-[13px] text-ink-muted">{paid ? "Amount paid" : payable ? "Amount due" : "Amount"}</span>
             <span className="text-[30px] font-extrabold leading-[1.2] tracking-[-0.5px] text-ink">
-              {formatAmountExact(total, currency)}
+              {formatRupees(total, { currency, paise: "always" })}
             </span>
             <span className="text-[13px] text-ink-muted">
               {paid
                 ? paidWhen
-                  ? formatDateTime(paidWhen)
+                  ? formatDateTimeLabel(paidWhen, EMPTY_DATE_LABEL)
                   : "Paid"
                 : payable
-                  ? `Due ${formatDate(invoice.dueDate)}`
-                  : `Issued ${formatDate(invoiceIssuedAt(invoice))}`}
+                  ? `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}`
+                  : `Issued ${formatDateLabel(invoiceIssuedAt(invoice), EMPTY_DATE_LABEL)}`}
             </span>
           </div>
         </header>
@@ -199,7 +191,7 @@ export function PatientInvoiceView({
           <Kv label="Invoice no." value={<span className="break-words">{number}</span>} />
           <Kv label="Order ID" value={<span className="break-all">{invoiceOrderId(invoice)}</span>} />
           <Kv label="Billed to" value={<span className="break-words">{billedTo || invoice.patientName || "You"}</span>} />
-          <Kv label="Issued" value={formatDate(invoiceIssuedAt(invoice))} />
+          <Kv label="Issued" value={formatDateLabel(invoiceIssuedAt(invoice), EMPTY_DATE_LABEL)} />
         </div>
 
         <div className="mx-6 border-t-2 border-dashed border-line sm:mx-8" role="separator" />
@@ -212,29 +204,29 @@ export function PatientInvoiceView({
                   <span className="break-words font-bold">{line.description}</span>
                   {line.quantity !== 1 ? (
                     <span className="text-xs text-ink-muted">
-                      Qty {line.quantity} × {formatAmountExact(line.unitPrice, currency)}
+                      Qty {line.quantity} × {formatRupees(line.unitPrice, { currency, paise: "always" })}
                     </span>
                   ) : null}
                 </span>
-                <span className="shrink-0 font-bold">{formatAmountExact(line.total, currency)}</span>
+                <span className="shrink-0 font-bold">{formatRupees(line.total, { currency, paise: "always" })}</span>
               </li>
             ))}
           </ul>
           {discount > 0 ? (
             <div className="flex justify-between gap-3 font-semibold text-brand">
               <span>Discount</span>
-              <span>−{formatAmountExact(discount, currency)}</span>
+              <span>−{formatRupees(discount, { currency, paise: "always" })}</span>
             </div>
           ) : null}
           {tax > 0 ? (
             <div className="flex justify-between gap-3 text-[13px] text-ink-muted">
               <span>Tax</span>
-              <span>{formatAmountExact(tax, currency)}</span>
+              <span>{formatRupees(tax, { currency, paise: "always" })}</span>
             </div>
           ) : null}
           <div className="flex justify-between gap-3 border-t border-hair pt-3.5 text-lg font-extrabold">
             <span>Total</span>
-            <span>{formatAmountExact(total, currency)}</span>
+            <span>{formatRupees(total, { currency, paise: "always" })}</span>
           </div>
         </div>
 
@@ -251,10 +243,10 @@ export function PatientInvoiceView({
             {paid ? (
               <>
                 {payment?.transactionId ? <span className="break-all">Txn ID {payment.transactionId}</span> : null}
-                {paidWhen ? <span>{formatDateTime(paidWhen)}</span> : null}
+                {paidWhen ? <span>{formatDateTimeLabel(paidWhen, EMPTY_DATE_LABEL)}</span> : null}
               </>
             ) : payable ? (
-              <span>Due {formatDate(invoice.dueDate)}</span>
+              <span>Due {formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}</span>
             ) : (
               <span>No payment is needed.</span>
             )}
@@ -281,6 +273,7 @@ export function PatientInvoiceView({
           Need help with this bill?
         </Link>
       </div>
+      <p className="m-0 text-xs text-ink-muted">To send this bill to someone, download the PDF and share the file.</p>
     </Shell>
   );
 }

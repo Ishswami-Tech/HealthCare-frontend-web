@@ -6,6 +6,7 @@ import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
 import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
 import { RoleBasedBillingDashboard } from "@/components/billing";
+import { CLINIC_BILLING_LIST_ROLES, isBillingListsClosedRole } from "@/components/billing/staff/billing.logic";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import {
@@ -47,27 +48,24 @@ function BillingPageContent() {
   const isAdminRole = [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.FINANCE_BILLING].includes(
     currentRole
   );
-  const usesClinicBillingData = [
-    Role.SUPER_ADMIN,
-    Role.CLINIC_ADMIN,
-    Role.FINANCE_BILLING,
-    Role.RECEPTIONIST,
-  ].includes(
-    (session?.user?.role as Role) || Role.PATIENT
-  );
+  const usesClinicBillingData = CLINIC_BILLING_LIST_ROLES.includes(currentRole);
+  // Pharmacist, nurse and the other staff roles the API refuses the billing lists (and, for
+  // pharmacy and nursing, the plans): nothing is requested and the screen says so.
+  const listsClosed = isBillingListsClosedRole(session?.user?.role);
+  const ownListsUserId = listsClosed ? "" : userId;
 
   const {
     data: clinicPlans = [],
     isPending: clinicPlansPending,
     isFetching: clinicPlansFetching,
     refetch: refetchClinicPlans,
-  } = useBillingPlans(clinicId, !!clinicId);
+  } = useBillingPlans(clinicId, !!clinicId && !listsClosed);
   const {
     data: fallbackPlans = [],
     isPending: fallbackPlansPending,
     isFetching: fallbackPlansFetching,
     refetch: refetchFallbackPlans,
-  } = useBillingPlans(undefined, !clinicId);
+  } = useBillingPlans(undefined, !clinicId && !listsClosed);
   const {
     data: userSubscriptions = [],
     isPending: userSubscriptionsPending,
@@ -80,7 +78,7 @@ function BillingPageContent() {
     isFetching: userInvoicesFetching,
     error: userInvoicesError,
     refetch: refetchUserInvoices,
-  } = useInvoices(userId, clinicId);
+  } = useInvoices(ownListsUserId, clinicId);
   const {
     data: clinicInvoices = [],
     isPending: clinicInvoicesPending,
@@ -94,7 +92,7 @@ function BillingPageContent() {
     isFetching: userPaymentsFetching,
     error: userPaymentsError,
     refetch: refetchUserPayments,
-  } = usePayments(userId, clinicId);
+  } = usePayments(ownListsUserId, clinicId);
   const {
     data: clinicPayments = [],
     isPending: clinicPaymentsPending,
@@ -105,7 +103,7 @@ function BillingPageContent() {
   const { data: analytics } = useBillingAnalytics(isAdminRole ? clinicId : "");
   const { data: clinicLedger, refetch: refetchLedger } = useClinicLedger(undefined, isAdminRole);
 
-  const hasUserId = !!userId;
+  const hasUserId = !!ownListsUserId;
   const subscriptions = isPatientRole ? userSubscriptions : [];
   const invoices = usesClinicBillingData ? clinicInvoices : userInvoices;
   const payments = usesClinicBillingData ? clinicPayments : userPayments;
@@ -133,6 +131,8 @@ function BillingPageContent() {
   const loadError = loadFailure ? loadFailure.message || "Please try again." : null;
 
   const handleRefetchAll = useCallback(() => {
+    // `refetch()` runs even a switched-off query, so a closed role must not reach it.
+    if (listsClosed) return;
     void refetchClinicPlans();
     void refetchFallbackPlans();
     if (isAdminRole) {
@@ -150,6 +150,7 @@ function BillingPageContent() {
   }, [
     isAdminRole,
     hasUserId,
+    listsClosed,
     refetchClinicInvoices,
     refetchClinicPayments,
     refetchClinicPlans,

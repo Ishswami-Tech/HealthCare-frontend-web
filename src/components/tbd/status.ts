@@ -55,7 +55,15 @@ const STATUS_TONES: Record<string, PillTone> = {
   LOW_STOCK: "amber",
   OUT_OF_STOCK: "rose",
   EXPIRING: "amber",
+  EXPIRING_SOON: "amber",
   EXPIRED_STOCK: "rose",
+  // purchase orders
+  SENT: "blue",
+  PROCESSING: "blue",
+  PARTIALLY_RECEIVED: "blue",
+  SHIPPED: "amber",
+  RECEIVED: "green",
+  DELIVERED: "green",
   // generic
   URGENT: "rose",
   HIGH: "rose",
@@ -82,6 +90,24 @@ export function statusLabel(status?: string | null): string {
   const key = normalizeStatus(status);
   if (!key) return "Unknown";
   if (key === "NO_SHOW") return "Missed";
+  const text = key.replace(/_/g, " ").toLowerCase();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "video" for a video visit, "clinic" for one at the clinic, null for anything else. */
+export function visitTypeKind(type?: string | null): "video" | "clinic" | null {
+  const key = normalizeStatus(type);
+  if (key.includes("VIDEO")) return "video";
+  if (key.includes("PERSON") || key.includes("CLINIC")) return "clinic";
+  return null;
+}
+
+/** "VIDEO_CALL" -> "Video call", "IN_PERSON" -> "In-clinic", anything else in sentence case. */
+export function visitTypeLabel(type?: string | null): string {
+  const key = normalizeStatus(type);
+  if (!key) return "Consultation";
+  if (key === "VIDEO_CALL" || key === "VIDEO") return "Video call";
+  if (key === "IN_PERSON" || key === "IN_CLINIC") return "In-clinic";
   const text = key.replace(/_/g, " ").toLowerCase();
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

@@ -1,11 +1,10 @@
 "use client";
 
 import { runSave } from "./run-save";
-import { PLAN_DIALOG_CONTENT, PlanDialogBody, PlanDialogFooter, PlanDialogHeader, PlanField } from "./PlanShared";
 import { useState, type ReactNode } from "react";
 import { ClipboardPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { DialogActions, DialogBody, DialogShell, Field } from "@/components/tbd";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -98,100 +97,100 @@ export function RecordTherapySessionDialogView({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent showCloseButton={false} className={cn(PLAN_DIALOG_CONTENT, "sm:max-w-[560px]")}>
-        <PlanDialogHeader
-          title={`Record session ${nextNumber} of ${plan.plannedSessions}`}
-          description={therapyProcedureLabel(plan)}
-        />
-
-        <PlanDialogBody>
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <PlanField label="Date" htmlFor="therapy-session-date">
-              <Input
-                id="therapy-session-date"
-                type="date"
-                value={draft.sessionDate}
-                max={formatISODateInIST(new Date())}
-                onChange={(event) => setDraft((prev) => ({ ...prev, sessionDate: event.target.value }))}
-              />
-            </PlanField>
-            <PlanField label="Duration (minutes)" htmlFor="therapy-session-duration">
-              <Input
-                id="therapy-session-duration"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={600}
-                placeholder="e.g. 45"
-                value={draft.durationMinutes}
-                onChange={(event) => setDraft((prev) => ({ ...prev, durationMinutes: event.target.value }))}
-              />
-            </PlanField>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <span id="therapy-session-pain-label" className="text-xs font-bold text-ink-soft">
-              Pain score (0 = none, 10 = worst)
-            </span>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby="therapy-session-pain-label">
-              {PAIN_SCORES.map((score) => {
-                const active = draft.painScore === score;
-                return (
-                  <button
-                    key={score}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setDraft((prev) => ({ ...prev, painScore: active ? null : score }))}
-                    className={cn(
-                      "flex size-[38px] items-center justify-center rounded-full border text-sm transition-colors",
-                      "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
-                      active
-                        ? "border-primary bg-primary font-extrabold text-primary-foreground"
-                        : "border-line bg-card font-semibold text-ink hover:bg-mint-soft",
-                    )}
-                  >
-                    {score}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <PlanField label="Observations" htmlFor="therapy-session-observations">
-            <Textarea
-              id="therapy-session-observations"
-              rows={2}
-              placeholder="Procedure notes, tolerance, sweating, etc."
-              value={draft.observations}
-              onChange={(event) => setDraft((prev) => ({ ...prev, observations: event.target.value }))}
-              className="min-h-[72px]"
+    <DialogShell
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={trigger}
+      title={`Record session ${nextNumber} of ${plan.plannedSessions}`}
+      description={therapyProcedureLabel(plan)}
+      width={560}
+      stretch
+    >
+      <DialogBody>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Field label="Date" htmlFor="therapy-session-date">
+            <Input
+              id="therapy-session-date"
+              type="date"
+              value={draft.sessionDate}
+              max={formatISODateInIST(new Date())}
+              onChange={(event) => setDraft((prev) => ({ ...prev, sessionDate: event.target.value }))}
             />
-          </PlanField>
-          <PlanField label="Patient response" htmlFor="therapy-session-response">
-            <Textarea
-              id="therapy-session-response"
-              rows={2}
-              placeholder="How the patient felt after the session"
-              value={draft.patientResponse}
-              onChange={(event) => setDraft((prev) => ({ ...prev, patientResponse: event.target.value }))}
-              className="min-h-[72px]"
+          </Field>
+          <Field label="Duration (minutes)" htmlFor="therapy-session-duration">
+            <Input
+              id="therapy-session-duration"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={600}
+              placeholder="e.g. 45"
+              value={draft.durationMinutes}
+              onChange={(event) => setDraft((prev) => ({ ...prev, durationMinutes: event.target.value }))}
             />
-          </PlanField>
-        </PlanDialogBody>
+          </Field>
+        </div>
 
-        <PlanDialogFooter>
-          <Button variant="outline" size="md" onClick={() => handleOpenChange(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button size="md" onClick={() => void handleSave()} disabled={!canSave}>
-            {saving ? "Saving..." : "Save session"}
-          </Button>
-        </PlanDialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="flex flex-col gap-2">
+          <span id="therapy-session-pain-label" className="text-xs font-bold text-ink-soft">
+            Pain score (0 = none, 10 = worst)
+          </span>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby="therapy-session-pain-label">
+            {PAIN_SCORES.map((score) => {
+              const active = draft.painScore === score;
+              return (
+                <button
+                  key={score}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setDraft((prev) => ({ ...prev, painScore: active ? null : score }))}
+                  className={cn(
+                    "flex size-[38px] items-center justify-center rounded-full border text-sm transition-colors",
+                    "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
+                    active
+                      ? "border-primary bg-primary font-extrabold text-primary-foreground"
+                      : "border-line bg-card font-semibold text-ink hover:bg-mint-soft",
+                  )}
+                >
+                  {score}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <Field label="Observations" htmlFor="therapy-session-observations">
+          <Textarea
+            id="therapy-session-observations"
+            rows={2}
+            placeholder="Procedure notes, tolerance, sweating, etc."
+            value={draft.observations}
+            onChange={(event) => setDraft((prev) => ({ ...prev, observations: event.target.value }))}
+            className="min-h-[72px]"
+          />
+        </Field>
+        <Field label="Patient response" htmlFor="therapy-session-response">
+          <Textarea
+            id="therapy-session-response"
+            rows={2}
+            placeholder="How the patient felt after the session"
+            value={draft.patientResponse}
+            onChange={(event) => setDraft((prev) => ({ ...prev, patientResponse: event.target.value }))}
+            className="min-h-[72px]"
+          />
+        </Field>
+      </DialogBody>
+
+      <DialogActions>
+        <Button variant="outline" size="md" onClick={() => handleOpenChange(false)} disabled={saving}>
+          Cancel
+        </Button>
+        <Button size="md" onClick={() => void handleSave()} disabled={!canSave}>
+          {saving ? "Saving..." : "Save session"}
+        </Button>
+      </DialogActions>
+    </DialogShell>
   );
 }
 

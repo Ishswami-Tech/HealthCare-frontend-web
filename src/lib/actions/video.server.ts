@@ -11,10 +11,20 @@ import type {
   VideoProviderType,
 } from '@/types/video.types';
 
+// Video contract (backend `video.controller.ts` + `video.dto.ts`, verified by reading).
+// The controller rejects any body field its DTO does not declare. Ids named `consultationId` may be
+// the appointment id: the server resolves either. `appointmentId` / `userId` must be UUIDs.
+
+/** UUID v4, the only id shape the video DTOs accept for `userId` / `clinicId`. */
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // ===== VIDEO TOKEN MANAGEMENT =====
 
 /**
- * Generate video meeting token
+ * Generate video meeting token.
+ * Backend: POST /video/token — PATIENT, DOCTOR, ASSISTANT_DOCTOR, NURSE, THERAPIST, COUNSELOR,
+ * RECEPTIONIST, CLINIC_ADMIN. Body: `appointmentId`, `userId`, `userRole`
+ * ('patient' | 'doctor' | 'receptionist' | 'clinic_admin'), `userInfo { displayName, email?, avatar? }`.
  */
 export async function generateVideoToken(data: {
   appointmentId: string;
@@ -42,7 +52,9 @@ export async function generateVideoToken(data: {
 // ===== CONSULTATION MANAGEMENT =====
 
 /**
- * Start video consultation
+ * Start video consultation.
+ * Backend: POST /video/consultation/start — PATIENT, DOCTOR, ASSISTANT_DOCTOR, THERAPIST, COUNSELOR,
+ * NURSE, RECEPTIONIST. Body: `appointmentId`, `userId`, `userRole`.
  */
 export async function startVideoConsultation(data: {
   appointmentId: string;
@@ -63,7 +75,9 @@ export async function startVideoConsultation(data: {
 }
 
 /**
- * End video consultation
+ * End video consultation.
+ * Backend: POST /video/consultation/end — PATIENT, DOCTOR, ASSISTANT_DOCTOR, THERAPIST, COUNSELOR,
+ * NURSE, RECEPTIONIST. Body: `appointmentId`, `userId`, `userRole`, `meetingNotes?`, `endReason?`.
  */
 export async function endVideoConsultation(data: {
   appointmentId: string;
@@ -92,7 +106,10 @@ export async function endVideoConsultation(data: {
 }
 
 /**
- * Get consultation status
+ * Get consultation status.
+ * Backend: GET /video/consultation/:appointmentId/status — PATIENT, DOCTOR, ASSISTANT_DOCTOR, NURSE,
+ * THERAPIST, COUNSELOR, RECEPTIONIST, CLINIC_ADMIN. Returns null when the session does not exist or
+ * the caller may not see it.
  */
 export async function getConsultationStatus(appointmentId: string, clinicId?: string) {
   try {
@@ -147,7 +164,10 @@ export async function getConsultationStatus(appointmentId: string, clinicId?: st
 }
 
 /**
- * Report technical issue during consultation
+ * Report technical issue during consultation.
+ * Backend: POST /video/consultation/:appointmentId/report — PATIENT, DOCTOR, ASSISTANT_DOCTOR.
+ * Body (nothing else is accepted): `issueType` ('audio' | 'video' | 'connection' | 'other') and
+ * `description`. `severity` and `timestamp` have no field on the server and are not sent.
  */
 export async function reportConsultationIssue(appointmentId: string, data: {
   issueType: string;
@@ -159,18 +179,22 @@ export async function reportConsultationIssue(appointmentId: string, data: {
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
+  const issueType = ['audio', 'video', 'connection'].includes(data.issueType) ? data.issueType : 'other';
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.CONSULTATION.REPORT(appointmentId),
     {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ issueType, description: data.description }),
     }
   );
   return response;
 }
 
 /**
- * Share medical image during consultation
+ * Share medical image during consultation.
+ * Backend: POST /video/consultation/:appointmentId/share-image — PATIENT, DOCTOR, ASSISTANT_DOCTOR.
+ * Body (nothing else is accepted): `callId`, `userId` and `imageData` (an object). The image details
+ * given here travel inside `imageData`; the server takes the room from the appointment.
  */
 export async function shareMedicalImage(appointmentId: string, data: {
   imageUrl: string;
@@ -184,7 +208,11 @@ export async function shareMedicalImage(appointmentId: string, data: {
   }
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.SHARE_IMAGE(appointmentId), {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      callId: appointmentId,
+      userId: session.user.id,
+      imageData: data,
+    }),
   });
   return response;
 }
@@ -192,7 +220,12 @@ export async function shareMedicalImage(appointmentId: string, data: {
 // ===== CONSULTATION HISTORY =====
 
 /**
- * Get video consultation history
+ * Get video consultation history (the signed-in user's own calls).
+ * Backend: GET /video/history — PATIENT, DOCTOR, ASSISTANT_DOCTOR, NURSE, THERAPIST, COUNSELOR,
+ * CLINIC_ADMIN (not RECEPTIONIST, not PHARMACIST). Query (nothing else is accepted): `userId` and
+ * `clinicId` (both must be UUIDs), `page`, `limit` (100 at most). The server lists the calls of the
+ * authenticated user and takes the clinic from the request context, so a clinic code (CL0001) or any
+ * other non-UUID value is left out instead of being rejected with 400.
  */
 export async function getVideoConsultationHistory(filters?: {
   userId?: string;
@@ -210,10 +243,10 @@ export async function getVideoConsultationHistory(filters?: {
     throw new Error('Unauthorized: Authentication required');
   }
   const params = new URLSearchParams();
-  if (filters?.userId) {
+  if (filters?.userId && UUID_V4.test(filters.userId)) {
     params.append('userId', filters.userId);
   }
-  if (filters?.clinicId) {
+  if (filters?.clinicId && UUID_V4.test(filters.clinicId)) {
     params.append('clinicId', filters.clinicId);
   }
   if (filters?.page !== undefined) {
@@ -230,8 +263,32 @@ export async function getVideoConsultationHistory(filters?: {
 
 // ===== PARTICIPANT MANAGEMENT =====
 
+/** Actions POST /video/participant/manage accepts. */
+type ParticipantAction = 'kick' | 'mute' | 'unmute' | 'forceUnpublish';
+
+/** Maps the UI action names to the ones the backend accepts; null when it has no equivalent. */
+function toParticipantAction(action: string): ParticipantAction | null {
+  switch (action) {
+    case 'mute':
+    case 'unmute':
+    case 'kick':
+    case 'forceUnpublish':
+      return action;
+    case 'remove':
+      return 'kick';
+    case 'disable_video':
+    case 'revoke_screen_share':
+      return 'forceUnpublish';
+    default:
+      return null;
+  }
+}
+
 /**
- * Manage participant (mute, unmute, remove, etc.)
+ * Manage participant (mute, unmute, remove).
+ * Backend: POST /video/participant/manage. Body (nothing else is accepted): `appointmentId`,
+ * `connectionId` and `action` ('kick' | 'mute' | 'unmute' | 'forceUnpublish'). `participantId` is
+ * sent as the connection id; promote / demote have no equivalent on the server.
  */
 export async function manageParticipant(data: {
   appointmentId: string;
@@ -243,15 +300,25 @@ export async function manageParticipant(data: {
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
+  const action = toParticipantAction(data.action);
+  if (!action) {
+    throw new Error(`This participant action is not supported by the server: ${data.action}`);
+  }
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.PARTICIPANTS.MANAGE, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      appointmentId: data.appointmentId,
+      connectionId: data.participantId,
+      action,
+    }),
   });
   return response;
 }
 
 /**
- * Get participants for appointment
+ * Get participants for appointment.
+ * Backend: GET /video/participants/:appointmentId — any role with the `video:read` permission
+ * (patient, doctor, assistant doctor, nurse, receptionist, clinic admin). Returns [] on failure.
  */
 export async function getParticipants(appointmentId: string) {
   try {
@@ -377,7 +444,10 @@ export interface ChatMessage {
 }
 
 /**
- * Send chat message during video consultation
+ * Send chat message during video consultation.
+ * Backend: POST /video/chat/send — any role with `video:create`. Body (nothing else is accepted):
+ * `consultationId`, `userId`, `message`, `messageType?` (TEXT | IMAGE | DOCUMENT | PRESCRIPTION | FILE),
+ * `fileUrl?`, `fileName?`, `fileSize?`, `fileType?`, `replyToId?`.
  */
 export async function sendChatMessage(
   appointmentId: string,
@@ -417,7 +487,8 @@ export async function sendChatMessage(
 }
 
 /**
- * Get chat messages for consultation
+ * Get chat messages for consultation.
+ * Backend: GET /video/chat/:consultationId/history?limit=&before= — any role with `video:read`.
  */
 export async function getChatMessages(
   appointmentId: string,
@@ -649,7 +720,11 @@ export interface MedicalNote {
 }
 
 /**
- * Create medical note during consultation
+ * Create medical note during consultation.
+ * Backend: POST /video/notes — any role with `video:create` (the doctor in practice). Body:
+ * `consultationId`, `userId`, `noteType` (GENERAL | PRESCRIPTION | SYMPTOM | TREATMENT_PLAN |
+ * DIAGNOSIS), `content`, `title?`, `prescription?`, `symptoms?`, `treatmentPlan?`.
+ * The UI's `TREATMENT` is sent as `TREATMENT_PLAN`.
  */
 export async function createMedicalNote(
   appointmentId: string,
@@ -682,6 +757,7 @@ export async function createMedicalNote(
         consultationId,
         userId, // Extract from session
         ...data,
+        noteType: data.noteType === 'TREATMENT' ? 'TREATMENT_PLAN' : data.noteType,
       }),
     }
   );
@@ -689,7 +765,9 @@ export async function createMedicalNote(
 }
 
 /**
- * Update medical note during consultation
+ * Update medical note during consultation.
+ * Backend: PATCH /video/notes/:noteId — body: `userId`, `title?`, `content?`, `prescription?`,
+ * `symptoms?`, `treatmentPlan?`.
  */
 export async function updateMedicalNote(
   noteId: string,
@@ -714,7 +792,9 @@ export async function updateMedicalNote(
 }
 
 /**
- * Get medical notes for consultation
+ * Get medical notes for consultation.
+ * Backend: GET /video/notes/:consultationId — any role with `video:read`. The route takes no
+ * filters: `noteType` and `limit` are applied to the list here.
  */
 export async function getMedicalNotes(
   appointmentId: string,
@@ -729,14 +809,12 @@ export async function getMedicalNotes(
       throw new Error('Unauthorized: Authentication required');
     }
     const consultationId = await getConsultationId(appointmentId);
-    const params = new URLSearchParams();
-    if (filters?.noteType) params.append('noteType', filters.noteType);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-
-    const endpoint = `${API_ENDPOINTS.VIDEO.NOTES.GET(consultationId)}${params.toString() ? `?${params.toString()}` : ''}`;
-    const { data: response } = await authenticatedApi(endpoint, {});
+    const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.NOTES.GET(consultationId), {});
     // Backend returns MedicalNote[] directly, wrap for consistency
-    const notes = Array.isArray(response) ? response as MedicalNote[] : (response as { notes?: MedicalNote[] })?.notes || [];
+    const all = Array.isArray(response) ? response as MedicalNote[] : (response as { notes?: MedicalNote[] })?.notes || [];
+    const wantedType = filters?.noteType === 'TREATMENT' ? 'TREATMENT_PLAN' : filters?.noteType;
+    const ofType = wantedType ? all.filter((note) => String(note.noteType) === wantedType) : all;
+    const notes = filters?.limit && filters.limit > 0 ? ofType.slice(0, filters.limit) : ofType;
     return { notes };
   } catch (error) {
     void error;
@@ -745,21 +823,16 @@ export async function getMedicalNotes(
 }
 
 /**
- * Delete medical note
+ * Delete medical note.
+ * The backend has no route that deletes a consultation note (notes can be created, updated and saved
+ * to the EHR only), so this fails with a readable message without sending a request.
  */
-export async function deleteMedicalNote(_appointmentId: string, noteId: string) {
+export async function deleteMedicalNote(_appointmentId: string, _noteId: string): Promise<{ success: boolean }> {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
-  const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.NOTES.DELETE(noteId),
-    {
-      method: 'DELETE',
-      body: JSON.stringify({}),
-    }
-  );
-  return response as { success: boolean };
+  throw new Error('A consultation note cannot be deleted: the server keeps every note. Edit the note instead.');
 }
 
 /**
@@ -815,7 +888,10 @@ export interface CallQualityMetrics {
 }
 
 /**
- * Update quality metrics
+ * Update quality metrics.
+ * Backend: POST /video/quality/update. Body (nothing else is accepted): `consultationId`, `userId`,
+ * `networkMetrics? { latency, bandwidth, packetLoss, jitter }`,
+ * `videoQuality? { resolution, frameRate, bitrate, quality }`, `audioQuality? { bitrate, sampleRate, quality }`.
  */
 export async function updateQualityMetrics(
   appointmentId: string,
@@ -840,7 +916,36 @@ export async function updateQualityMetrics(
       body: JSON.stringify({
         consultationId,
         userId, // Extract from session
-        ...metrics,
+        ...(metrics.network
+          ? {
+              networkMetrics: {
+                latency: metrics.network.latency,
+                bandwidth: metrics.network.bandwidth,
+                packetLoss: metrics.network.packetLoss,
+                jitter: metrics.network.jitter,
+              },
+            }
+          : {}),
+        ...(metrics.video
+          ? {
+              videoQuality: {
+                resolution: metrics.video.resolution,
+                frameRate: metrics.video.framerate,
+                bitrate: metrics.video.bitrate,
+                quality: metrics.video.quality,
+              },
+            }
+          : {}),
+        ...(metrics.audio
+          ? {
+              audioQuality: {
+                bitrate: metrics.audio.bitrate,
+                // The UI does not measure the sample rate; 48 kHz is what WebRTC audio uses.
+                sampleRate: 48000,
+                quality: metrics.audio.quality,
+              },
+            }
+          : {}),
       }),
     }
   );
@@ -1216,7 +1321,11 @@ export async function updateVirtualBackground(
 // Note: Participant management still uses appointmentId
 
 /**
- * Enhanced participant management
+ * Enhanced participant management.
+ * Backend: POST /video/participant/manage. Body (nothing else is accepted): `appointmentId`,
+ * `connectionId` and `action` ('kick' | 'mute' | 'unmute' | 'forceUnpublish'). `remove` is sent as
+ * `kick`, `disable_video` / `revoke_screen_share` as `forceUnpublish`; promote, demote, enable_video
+ * and grant_screen_share have no equivalent on the server and fail with a readable message.
  */
 export async function manageParticipantEnhanced(
   appointmentId: string,
@@ -1230,13 +1339,18 @@ export async function manageParticipantEnhanced(
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
+  const action = toParticipantAction(data.action);
+  if (!action) {
+    throw new Error(`This participant action is not supported by the server: ${data.action}`);
+  }
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.PARTICIPANTS.MANAGE,
     {
       method: 'POST',
       body: JSON.stringify({
         appointmentId,
-        ...data,
+        connectionId: data.participantId,
+        action,
       }),
     }
   );

@@ -4,12 +4,12 @@ import { Pill, SoftCard, Surface, statusLabel, statusTone } from "@/components/t
 import { cn } from "@/lib/utils";
 import {
   formatWait,
-  plural,
   queueProgress,
   ticketHeadline,
   type QueueTicket,
   type QueueVisitInfo,
-} from "./queueData";
+} from "@/components/patient/queue/queueData";
+import { plural } from "@/lib/utils/labels";
 
 /**
  * Pieces shared by the checked-in screen and the live queue. Props-driven: no data hooks here.
@@ -75,7 +75,7 @@ function Tile({ label, value, last = false }: { label: string; value: string; la
     <div
       className={cn(
         "flex min-w-0 flex-col items-center gap-0.5 px-1 text-center",
-        !last && "border-r border-[#047857]/20 dark:border-emerald-400/20",
+        !last && "border-r border-brand/20",
       )}
     >
       <span className="text-xs text-ink-muted">{label}</span>

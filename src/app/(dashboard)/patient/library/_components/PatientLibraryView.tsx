@@ -5,7 +5,17 @@ import Link from "next/link";
 import { BookOpen, ChevronDown, ChevronRight, ChevronUp, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, PageHead, SearchBox, SegTabs, SoftCard, Surface, type TbdOption } from "@/components/tbd";
+import {
+  EmptyBlock,
+  PageHead,
+  SearchBox,
+  SegTabs,
+  SoftCard,
+  Surface,
+  Pager,
+  serverPaging,
+  type TbdOption,
+} from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import {
   LIBRARY_FOCUS,
@@ -13,7 +23,6 @@ import {
   LibraryCardGridSkeleton,
   LibraryCover,
   LibraryError,
-  LibraryPager,
 } from "./LibraryBits";
 import {
   SHELF_LABEL,
@@ -319,7 +328,11 @@ function Listing({ tab, listing }: { tab: LibraryTabKey; listing: LibraryListing
       ) : listing.items.length > 0 ? (
         <>
           <LibraryCardGrid items={listing.items} />
-          <LibraryPager page={listing.page} pageSize={listing.pageSize} total={listing.total} onPageChange={listing.onPageChange} />
+          <Pager
+            paging={serverPaging({ page: listing.page, pageSize: listing.pageSize, total: listing.total, onPageChange: listing.onPageChange })}
+            hideWhenSinglePage
+            className="border-t-0 px-0 py-0"
+          />
         </>
       ) : searching ? (
         <Surface flush>

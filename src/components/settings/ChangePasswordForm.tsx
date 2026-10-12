@@ -5,14 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, CheckCircle2, CircleAlert, Eye, EyeOff } from 'lucide-react';
-import { Note } from '@/components/tbd';
+import { Note, FIELD_LABEL } from '@/components/tbd';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { getDashboardByRole } from '@/lib/config/routes';
 import { Role } from '@/types/auth.types';
 
 type PasswordField = 'current' | 'new' | 'confirm';
 
-const FIELD_LABEL = 'text-xs font-bold text-ink-soft';
 
 function PasswordInput({
   id,

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Clock, FileText, Loader2, Play, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,8 @@ import {
   SectionTitle,
   Surface,
   statusTone,
+  Pager,
+  usePagedRows,
   type TbdIcon,
 } from "@/components/tbd";
 import { getQueuePatientDisplayName, getQueuePositionLabel } from "@/lib/queue/queue-adapter";
@@ -33,7 +34,7 @@ import {
  * `@5xl` is a container width, so the layout follows the card, not the window.
  */
 const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:items-center @5xl:gap-x-4";
-/** Doctors get one more button on a row (Start / Case sheet), so the last column is wider. */
+/** A row with all three buttons (Start / Case sheet, Assign doctor, Move to) has a wider last column. */
 const COLUMNS_WITH_MAIN_ACTION =
   "@5xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_108px_78px_366px]";
 const COLUMNS =
@@ -45,6 +46,8 @@ export interface QueueRowActions {
   /** Doctors: reserve room for the Start / Case sheet button. */
   hasMainAction: boolean;
   canAssignDoctor: boolean;
+  /** Only roles the backend lets move a patient to another queue get the "Move to" button. */
+  canMoveTo: boolean;
   isAssignPending: boolean;
   /** Entry being moved to another queue right now. */
   transferringId: string | null;
@@ -120,15 +123,17 @@ function RowButtons({
         </Button>
       ) : null}
 
-      <Button
-        variant="outline"
-        onClick={() => actions.onMoveTo(item)}
-        disabled={isMoving}
-        aria-label={`Move to another queue: ${name}`}
-      >
-        Move to
-        {isMoving ? <Loader2 className="animate-spin" /> : <ArrowRight />}
-      </Button>
+      {actions.canMoveTo ? (
+        <Button
+          variant="outline"
+          onClick={() => actions.onMoveTo(item)}
+          disabled={isMoving}
+          aria-label={`Move to another queue: ${name}`}
+        >
+          Move to
+          {isMoving ? <Loader2 className="animate-spin" /> : <ArrowRight />}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -147,20 +152,10 @@ export function QueueLaneCard({
   actions,
   resetKey,
 }: QueueLaneCardProps) {
-  const [pageIndex, setPageIndex] = useState(0);
-  const [appliedResetKey, setAppliedResetKey] = useState(resetKey);
-  if (appliedResetKey !== resetKey) {
-    setAppliedResetKey(resetKey);
-    setPageIndex(0);
-  }
-
-  const total = items.length;
-  const pageCount = Math.max(1, Math.ceil(total / QUEUE_PAGE_SIZE));
-  const currentPage = Math.min(pageIndex, pageCount - 1);
-  const pageRows = items.slice(currentPage * QUEUE_PAGE_SIZE, currentPage * QUEUE_PAGE_SIZE + QUEUE_PAGE_SIZE);
-  const rangeStart = total === 0 ? 0 : currentPage * QUEUE_PAGE_SIZE + 1;
-  const rangeEnd = total === 0 ? 0 : currentPage * QUEUE_PAGE_SIZE + pageRows.length;
-  const rowGrid = cn(ROW_GRID, actions.hasMainAction ? COLUMNS_WITH_MAIN_ACTION : COLUMNS);
+  const paging = usePagedRows(items, QUEUE_PAGE_SIZE, { resetKey });
+  const { pageRows, total } = paging;
+  // Three buttons (Start / Case sheet, Assign doctor, Move to) need the wider last column.
+  const rowGrid = cn(ROW_GRID, actions.hasMainAction && actions.canMoveTo ? COLUMNS_WITH_MAIN_ACTION : COLUMNS);
   const tableLabel = `${activeLaneTitle} queue`;
 
   return (
@@ -256,34 +251,7 @@ export function QueueLaneCard({
         )}
       </div>
 
-      {total === 0 ? null : (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair px-5 py-3 text-[13px] text-ink-muted">
-          <span>
-            {rangeStart}–{rangeEnd} of {total}
-          </span>
-          <nav aria-label={`${tableLabel} pages`} className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="h-[34px]"
-              onClick={() => setPageIndex(Math.max(0, currentPage - 1))}
-              disabled={currentPage === 0}
-            >
-              Previous
-            </Button>
-            <span className="whitespace-nowrap" aria-live="polite">
-              Page {currentPage + 1} of {pageCount}
-            </span>
-            <Button
-              variant="outline"
-              className="h-[34px]"
-              onClick={() => setPageIndex(Math.min(pageCount - 1, currentPage + 1))}
-              disabled={currentPage >= pageCount - 1}
-            >
-              Next
-            </Button>
-          </nav>
-        </div>
-      )}
+      {total === 0 ? null : <Pager paging={paging} label={`${tableLabel} pages`} />}
     </Surface>
   );
 }

@@ -6,13 +6,13 @@ import Link from "next/link";
 import { ChevronRight, CircleAlert, Lock, Plus, RefreshCw, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, IconBox, InitialsAvatar, PageHead, Pill, Surface } from "@/components/tbd";
+import { EmptyBlock, IconBox, InitialsAvatar, PageHead, Pill, Surface, TBD_SURFACE } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { FamilyMember } from "@/types/patient-visit.types";
-import { ageLabel, genderLabel, memberName } from "./family.logic";
+import { ageLabel, memberName } from "./family.logic";
+import { genderLabel } from "@/lib/utils/labels";
 
-const CARD =
-  "flex min-w-0 flex-col gap-4 rounded-[20px] bg-card p-[18px] text-ink shadow-card dark:border dark:border-border/70";
+const CARD = cn(TBD_SURFACE, "flex min-w-0 flex-col gap-4 p-[18px] text-ink");
 const FOCUS =
   "transition-shadow hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40";
 const GRID = "grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
@@ -75,7 +75,7 @@ function YouAvatar({ you }: { you: FamilyAccountHolder }) {
       />
     );
   }
-  return <InitialsAvatar name={you.name} size={56} className="border-[3px] border-[#d1fae5] dark:border-emerald-500/30" />;
+  return <InitialsAvatar name={you.name} size={56} className="border-[3px] border-mint" />;
 }
 
 function AddMemberCard({ onAdd }: { onAdd: () => void }) {

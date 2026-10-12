@@ -66,7 +66,7 @@ export function BookingVisitFor({
                 "flex min-h-[108px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border-2 px-2 text-center outline-none transition-colors",
                 "focus-visible:ring-2 focus-visible:ring-brand/40",
                 selected
-                  ? "border-[#047857] bg-mint-soft dark:border-emerald-500"
+                  ? "border-brand bg-mint-soft"
                   : "border-line bg-card hover:border-[#a7f3d0] dark:hover:border-emerald-800",
                 locked && !selected && "cursor-not-allowed opacity-50 hover:border-line",
                 locked && selected && "cursor-default",

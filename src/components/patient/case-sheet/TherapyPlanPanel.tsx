@@ -7,8 +7,6 @@ import {
   PLAN_INNER_CARD,
   PlanCaption,
   PlanCardHeader,
-  PlanConfirmDialog,
-  PlanField,
 } from "./PlanShared";
 import { useState } from "react";
 import { Ban, ChevronDown, ChevronUp, ClipboardList, Pause, Play, Plus, UserRound } from "lucide-react";
@@ -17,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyBlock, Note, Pill, Surface, statusTone, type PillTone } from "@/components/tbd";
+import { EmptyBlock, Note, Pill, Surface, statusTone, ConfirmDialog, Field, type PillTone } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { formatDateInIST, formatISODateInIST } from "@/lib/utils/date-time";
 import {
@@ -220,9 +218,12 @@ function PlanCard({ clinicId, plan, onStatus, busy }: PlanCardProps) {
         {showSessions ? <SessionList sessions={plan.sessions} /> : null}
       </div>
 
-      <PlanConfirmDialog
+      <ConfirmDialog
         open={confirmCancel}
         onOpenChange={setConfirmCancel}
+        tone="danger"
+        closeButton
+        closeOnConfirm
         title="Cancel this therapy plan?"
         description={`"${therapyProcedureLabel(plan)}" will be marked as cancelled. Recorded sessions are kept.`}
         cancelLabel="Keep plan"
@@ -303,7 +304,7 @@ function AddPlanForm({ clinicId, onSubmit, onCancel, isSaving }: AddPlanFormProp
     <div className="flex flex-col gap-3.5 rounded-2xl border border-[#a7f3d0] bg-mint-soft p-[18px] dark:border-emerald-800">
       <h3 className="m-0 text-sm font-bold text-ink">New therapy plan</h3>
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-        <PlanField label="Procedure" htmlFor="therapy-procedure">
+        <Field label="Procedure" htmlFor="therapy-procedure">
           <Select
             value={draft.procedure}
             onValueChange={(value) => set("procedure", value as TherapyProcedure)}
@@ -319,16 +320,16 @@ function AddPlanForm({ clinicId, onSubmit, onCancel, isSaving }: AddPlanFormProp
               ))}
             </SelectContent>
           </Select>
-        </PlanField>
-        <PlanField label="Label (optional)" htmlFor="therapy-label">
+        </Field>
+        <Field label="Label (optional)" htmlFor="therapy-label">
           <Input
             id="therapy-label"
             placeholder="e.g. Sarvanga Abhyanga"
             value={draft.procedureLabel}
             onChange={(event) => set("procedureLabel", event.target.value)}
           />
-        </PlanField>
-        <PlanField label="Sessions" htmlFor="therapy-sessions">
+        </Field>
+        <Field label="Sessions" htmlFor="therapy-sessions">
           <Input
             id="therapy-sessions"
             type="number"
@@ -339,8 +340,8 @@ function AddPlanForm({ clinicId, onSubmit, onCancel, isSaving }: AddPlanFormProp
             aria-invalid={!sessionsValid}
             onChange={(event) => set("plannedSessions", event.target.value)}
           />
-        </PlanField>
-        <PlanField label="Frequency" htmlFor="therapy-frequency">
+        </Field>
+        <Field label="Frequency" htmlFor="therapy-frequency">
           <Input
             id="therapy-frequency"
             list="therapy-frequency-suggestions"
@@ -353,16 +354,16 @@ function AddPlanForm({ clinicId, onSubmit, onCancel, isSaving }: AddPlanFormProp
               <option key={option} value={option} />
             ))}
           </datalist>
-        </PlanField>
-        <PlanField label="Start date" htmlFor="therapy-start">
+        </Field>
+        <Field label="Start date" htmlFor="therapy-start">
           <Input
             id="therapy-start"
             type="date"
             value={draft.startDate}
             onChange={(event) => set("startDate", event.target.value)}
           />
-        </PlanField>
-        <PlanField label="End date (optional)" htmlFor="therapy-end">
+        </Field>
+        <Field label="End date (optional)" htmlFor="therapy-end">
           <Input
             id="therapy-end"
             type="date"
@@ -371,8 +372,8 @@ function AddPlanForm({ clinicId, onSubmit, onCancel, isSaving }: AddPlanFormProp
             aria-invalid={!datesValid}
             onChange={(event) => set("endDate", event.target.value)}
           />
-        </PlanField>
-        <PlanField label="Therapist" htmlFor="therapy-therapist">
+        </Field>
+        <Field label="Therapist" htmlFor="therapy-therapist">
           <Select
             value={draft.therapistUserId}
             onValueChange={(value) => set("therapistUserId", value)}
@@ -389,16 +390,16 @@ function AddPlanForm({ clinicId, onSubmit, onCancel, isSaving }: AddPlanFormProp
               ))}
             </SelectContent>
           </Select>
-        </PlanField>
-        <PlanField label="Medicines / oils used" htmlFor="therapy-medicines" className="sm:col-span-2">
+        </Field>
+        <Field label="Medicines / oils used" htmlFor="therapy-medicines" className="sm:col-span-2">
           <Input
             id="therapy-medicines"
             placeholder="e.g. Dhanwantharam taila"
             value={draft.medicinesUsed}
             onChange={(event) => set("medicinesUsed", event.target.value)}
           />
-        </PlanField>
-        <PlanField label="Notes" htmlFor="therapy-notes" className="sm:col-span-2 lg:col-span-3">
+        </Field>
+        <Field label="Notes" htmlFor="therapy-notes" className="sm:col-span-2 lg:col-span-3">
           <Textarea
             id="therapy-notes"
             rows={2}
@@ -407,7 +408,7 @@ function AddPlanForm({ clinicId, onSubmit, onCancel, isSaving }: AddPlanFormProp
             onChange={(event) => set("notes", event.target.value)}
             className="min-h-16"
           />
-        </PlanField>
+        </Field>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="m-0 min-w-0 flex-1 basis-60 text-xs text-ink-muted">

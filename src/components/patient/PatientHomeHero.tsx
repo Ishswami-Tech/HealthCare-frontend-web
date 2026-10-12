@@ -115,7 +115,7 @@ export function PatientHomeHero({
               />
             )}
             <span className="relative flex w-[min(220px,calc(100%-120px))] flex-col gap-1 pl-5 pt-[18px]">
-              <span className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase text-[#047857] dark:text-emerald-300">
+              <span className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase text-brand">
                 <span aria-hidden="true" className="size-2 rounded-full bg-[#10b981]" />
                 Your doctor
               </span>

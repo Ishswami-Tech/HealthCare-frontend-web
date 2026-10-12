@@ -43,11 +43,11 @@ export function DoctorDashboardSentBanner({ visit }: { visit: CompletedVisitSumm
       role="status"
       className="flex flex-wrap items-center gap-x-3.5 gap-y-3 rounded-[18px] border border-[#6ee7b7] bg-[#ecfdf5] px-[18px] py-3.5 dark:border-emerald-800 dark:bg-emerald-950/30"
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#047857] text-white" aria-hidden="true">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-white" aria-hidden="true">
         <Check className="size-5" strokeWidth={2.8} />
       </span>
       <span className="flex min-w-[220px] flex-1 flex-col gap-0.5">
-        <span className="text-[15px] font-extrabold text-[#065f46] dark:text-emerald-200">
+        <span className="text-[15px] font-extrabold text-brand-dark">
           Visit completed for {visit.patientName}
         </span>
         <span className="text-[13px] text-ink-soft" suppressHydrationWarning>

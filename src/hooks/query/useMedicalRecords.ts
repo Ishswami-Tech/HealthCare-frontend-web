@@ -45,13 +45,10 @@ import {
   deleteMedicalRecord,
   getMedicalRecordById,
   uploadMedicalRecordFile,
-  getMedicalRecordTemplates,
-  createMedicalRecordTemplate,
   getPatientPrescriptions,
   getPrescriptionById,
   createPrescription,
   updatePrescription,
-  generatePrescriptionPDF,
   getMedicines,
   searchMedicines,
   createMedicine,
@@ -62,10 +59,15 @@ import {
   updateMedicineInventory,
 } from '@/lib/actions/medical-records.server';
 
+// Ids (see `ehr.server.ts` and `medical-records.server.ts`):
+//   - every `/ehr/<section>/:userId` hook below takes the patient's USER id (User.id);
+//   - the medical-record hooks (`/ehr/medical-records`) take the Patient-RECORD id (Patient.id);
+//   - update / delete hooks take the id of the record itself.
+
 // ===== COMPREHENSIVE HEALTH RECORD HOOKS =====
 
 /**
- * Hook to get comprehensive health record for a user
+ * Hook to get comprehensive health record for a user (the patient's USER id).
  */
 export const useComprehensiveHealthRecord = (userId: string) => {
   const { isConnected } = useWebSocketStatus();
@@ -539,7 +541,9 @@ export const useMedicationAdherence = (userId: string) => {
 // ===== PRESCRIPTIONS HOOKS =====
 
 /**
- * Hook to get patient prescriptions
+ * Hook to get the prescriptions of one patient (a plain list).
+ * Backend: GET /pharmacy/prescriptions/patient/:userId — `patientId` is the patient's USER id.
+ * PHARMACIST, CLINIC_ADMIN, DOCTOR, PATIENT (own id only). The server does not filter by status.
  */
 export const usePatientPrescriptions = (patientId: string, status?: 'active' | 'completed' | 'cancelled') => {
   const { isConnected } = useWebSocketStatus();
@@ -565,7 +569,10 @@ export const usePrescription = (prescriptionId: string) => {
 };
 
 /**
- * Hook to create prescription
+ * Hook to create prescription.
+ * Backend: POST /pharmacy/prescriptions — DOCTOR, ASSISTANT_DOCTOR. `patientId` is the Patient-record
+ * id, `doctorId` the Doctor-record id, and every medicine needs a whole-number `quantity`.
+ * The screens prescribe through `useCreatePrescription` of `usePharmacy.ts`.
  */
 export const useCreatePrescription = () => {
   return useMutationOperation(
@@ -575,6 +582,7 @@ export const useCreatePrescription = () => {
       appointmentId?: string;
       medicines: Array<{
         medicineId: string;
+        quantity?: number;
         dosage: string;
         frequency: string;
         duration: string;
@@ -594,7 +602,9 @@ export const useCreatePrescription = () => {
 };
 
 /**
- * Hook to update prescription
+ * Hook to update prescription.
+ * Backend: only PATCH /pharmacy/prescriptions/:id/status (FILLED / CANCELLED), PHARMACIST only.
+ * A saved prescription cannot be edited; other roles get a readable error.
  */
 export const useUpdatePrescription = () => {
   return useMutationOperation(
@@ -624,22 +634,29 @@ export const useUpdatePrescription = () => {
 };
 
 /**
- * Hook to generate prescription PDF
+ * Hook to generate prescription PDF.
+ * The backend has no prescription PDF route and a prescription carries no `pdfUrl`, so this fails
+ * with a readable message and sends nothing. (Raised here, in the browser: Next.js hides the message
+ * of an error thrown inside a server action in production builds.)
  */
 export const useGeneratePrescriptionPDF = () => {
   return useMutationOperation(
-    async (prescriptionId: string) => {
-      return await generatePrescriptionPDF(prescriptionId);
+    async (_prescriptionId: string): Promise<{ pdfUrl: string }> => {
+      throw new Error('A prescription PDF is not available yet: the server has no prescription PDF service.');
     },
     {
       toastId: TOAST_IDS.PRESCRIPTION.PDF,
       loadingMessage: 'Generating prescription PDF...',
       successMessage: 'Prescription PDF generated successfully',
+      showLoading: false,
     }
   );
 };
 
 // ===== MEDICINES HOOKS =====
+//
+// Legacy: the backend has no /medicines routes, so these hooks cannot work. Every screen uses the
+// medicine hooks of `usePharmacy.ts` (GET/POST /pharmacy/inventory) instead.
 
 /**
  * Hook to get medicines
@@ -804,7 +821,8 @@ export const useUpdateMedicineInventory = () => {
 // ===== MEDICAL RECORDS HOOKS =====
 
 /**
- * Hook to get patient medical records
+ * Hook to get patient medical records.
+ * Backend: GET /ehr/medical-records/patient/:patientId — `patientId` is the Patient-RECORD id.
  */
 export const usePatientMedicalRecords = (patientId: string, filters?: {
   type?: string;
@@ -832,7 +850,10 @@ export const useMedicalRecord = (recordId: string) => {
 };
 
 /**
- * Hook to create medical record
+ * Hook to create medical record.
+ * Backend: POST /ehr/medical-records — DOCTOR, ASSISTANT_DOCTOR, NURSE, CLINIC_ADMIN, SUPER_ADMIN.
+ * `patientId` is the Patient-RECORD id and `doctorId` a Doctor-record id (required by the server);
+ * `fileUrl` and `appointmentId` are not accepted and are not sent.
  */
 export const useCreateMedicalRecord = (options?: { silent?: boolean }) => {
   const silent = options?.silent === true;
@@ -926,20 +947,27 @@ export const useUploadMedicalRecordFile = (options?: { silent?: boolean }) => {
 };
 
 /**
- * Hook to get medical record templates
+ * Hook to get medical record templates.
+ * The backend has no template routes: the result is `{ available: false, items: [], message }` and
+ * no request is sent.
  */
 export const useMedicalRecordTemplates = (type?: string) => {
-  return useQueryData(['medicalRecordTemplates', type], async () => {
-    return await getMedicalRecordTemplates(type);
+  return useQueryData(['medicalRecordTemplates', type], async () => ({
+    available: false as const,
+    items: [] as unknown[],
+    message: 'Medical record templates are not available yet: the server has no service for them.',
+  }), {
+    staleTime: Infinity,
   });
 };
 
 /**
- * Hook to create medical record template
+ * Hook to create medical record template.
+ * The backend has no template routes, so this fails with a readable message and sends nothing.
  */
 export const useCreateMedicalRecordTemplate = () => {
   return useMutationOperation(
-    async (templateData: {
+    async (_templateData: {
       name: string;
       type: string;
       content: string;
@@ -949,14 +977,14 @@ export const useCreateMedicalRecordTemplate = () => {
         required: boolean;
         options?: string[];
       }>;
-    }) => {
-      return await createMedicalRecordTemplate(templateData);
+    }): Promise<never> => {
+      throw new Error('Medical record templates cannot be saved yet: the server has no service for them.');
     },
     {
       toastId: TOAST_IDS.MEDICAL_RECORD.TEMPLATE_CREATE,
       loadingMessage: 'Creating medical record template...',
       successMessage: 'Medical record template created successfully',
-      invalidateQueries: [['medicalRecordTemplates'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
+      showLoading: false,
     }
   );
 };

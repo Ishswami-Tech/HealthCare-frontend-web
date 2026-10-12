@@ -6,9 +6,9 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useLabReports, useRadiologyReports } from "@/hooks/query/useMedicalRecords";
 import { usePrescriptions } from "@/hooks/query/usePharmacy";
 import { PatientReportsView } from "./PatientReportsView";
-import { ReportUploadDialog } from "./ReportUploadDialog";
-import { buildPrescriptions, buildReportRows, type UploadType } from "./patient-health.logic";
-import { usePatientUploads, useUploadPatientFile } from "./usePatientUploads";
+import { ReportUploadDialog } from "@/components/patient/health/ReportUploadDialog";
+import { buildPrescriptions, buildReportRows, type UploadType } from "@/components/patient/health/patient-health.logic";
+import { usePatientUploads, useUploadPatientFile } from "@/hooks/query/usePatientUploads";
 
 /** Reports & Lab: loads the patient's lab reports, imaging, prescriptions and uploaded files. */
 export default function PatientReportsContent() {

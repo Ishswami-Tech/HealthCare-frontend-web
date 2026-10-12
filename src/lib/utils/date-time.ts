@@ -130,20 +130,14 @@ export function formatTimeInIST(
   const parsed = normalizeDateInput(value);
   if (!parsed) return '';
 
-  if (options.hour12 === false) {
-    return parsed.toLocaleTimeString('en-US', {
-      timeZone: IST_TIMEZONE,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  }
-
-  return parsed.toLocaleTimeString(locale, {
+  // 24-hour times are always written the en-US way ("09:30"), whatever the locale.
+  const twentyFourHour = options.hour12 === false;
+  return parsed.toLocaleTimeString(twentyFourHour ? 'en-US' : locale, {
     timeZone: IST_TIMEZONE,
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
+    ...options,
+    hour12: !twentyFourHour,
   });
 }
 
@@ -213,6 +207,88 @@ export function formatDateTimeInIST(
     timeZone: IST_TIMEZONE,
     ...options,
   });
+}
+
+// ── Labels shown to people ─────────────────────────────────────────────────
+// One spelling for every screen: "3 Oct 2026", "08:30 am", "3 Oct 2026, 08:30 am".
+
+type DateLabelInput = Date | string | null | undefined;
+
+/** Shown where a date is missing or cannot be read. */
+export const EMPTY_DATE_LABEL = '—';
+
+/** "3 Oct 2026" in IST. `fallback` (default "") when the date is missing or invalid. */
+export function formatDateLabel(value: DateLabelInput, fallback = ''): string {
+  if (!value) return fallback;
+  return formatDateInIST(value, { day: 'numeric', month: 'short', year: 'numeric' }) || fallback;
+}
+
+/** "Oct 2026" in IST (an expiry month). `fallback` when the date is missing or invalid. */
+export function formatMonthYearLabel(value: DateLabelInput, fallback = ''): string {
+  if (!value) return fallback;
+  return formatDateInIST(value, { month: 'short', year: 'numeric' }) || fallback;
+}
+
+/** Writes the am / pm of a time label in lower case ("10:00 AM" -> "10:00 am"), the one style of the app. */
+export function lowerMeridiem(label: string): string {
+  return label.replace(/\b(am|pm)\b/gi, (meridiem) => meridiem.toLowerCase());
+}
+
+/** "08:30 am" in IST, am / pm in lower case. `fallback` when the time is missing or invalid. */
+export function formatTimeLabel(value: DateLabelInput, fallback = ''): string {
+  if (!value) return fallback;
+  return lowerMeridiem(formatTimeInIST(value)) || fallback;
+}
+
+/** "3 Oct 2026, 08:30 am" in IST. `fallback` when the date is missing or invalid. */
+export function formatDateTimeLabel(value: DateLabelInput, fallback = ''): string {
+  const date = formatDateLabel(value);
+  if (!date) return fallback;
+  return [date, formatTimeLabel(value)].filter(Boolean).join(', ');
+}
+
+// ── Age ────────────────────────────────────────────────────────────────────
+
+const DATE_KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})/;
+
+/** Oldest age shown; a birth date further back is treated as a data-entry mistake. */
+const MAX_AGE_YEARS = 130;
+
+function calendarParts(value: Date | string): { year: number; month: number; day: number } | null {
+  if (typeof value === 'string') {
+    // A stored birthday is UTC midnight ("2018-04-12T00:00:00.000Z"): its first ten characters
+    // are the day that was entered, whatever the time zone of this device.
+    const match = DATE_KEY_PATTERN.exec(value.trim());
+    if (match) return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  }
+  const parsed = normalizeDateInput(value);
+  if (!parsed) return null;
+  return { year: parsed.getFullYear(), month: parsed.getMonth() + 1, day: parsed.getDate() };
+}
+
+/**
+ * Completed months between a birth date and `today` (this device's calendar day).
+ * `null` when the birth date is missing, invalid or in the future.
+ */
+export function ageInMonths(dateOfBirth: DateLabelInput, today: Date = new Date()): number | null {
+  if (!dateOfBirth) return null;
+  const born = calendarParts(dateOfBirth);
+  if (!born) return null;
+  const now = { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() };
+  let months = (now.year - born.year) * 12 + (now.month - born.month);
+  if (now.day < born.day) months -= 1;
+  return months >= 0 ? months : null;
+}
+
+/**
+ * Age in whole years from a birth date. `null` when the birth date is missing, invalid, in
+ * the future or more than 130 years back.
+ */
+export function ageInYears(dateOfBirth: DateLabelInput, today: Date = new Date()): number | null {
+  const months = ageInMonths(dateOfBirth, today);
+  if (months === null) return null;
+  const years = Math.floor(months / 12);
+  return years < MAX_AGE_YEARS ? years : null;
 }
 
 function getNowIso(): string {

@@ -77,6 +77,8 @@ export const ROUTES = {
   PATIENT_APPOINTMENTS: '/patient/appointments',
   PATIENT_HEALTH: '/patient/health',
   PATIENT_PAYMENTS: '/patient/payments',
+  PATIENT_LIBRARY: '/patient/library',
+  DOCTOR_APPOINTMENTS: '/doctor/appointments',
 };
 
 export const ROLE_DASHBOARDS = {

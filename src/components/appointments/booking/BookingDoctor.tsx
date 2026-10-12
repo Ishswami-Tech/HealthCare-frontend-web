@@ -230,7 +230,7 @@ export function BookingDoctorPage({
           <Surface className="gap-2.5 p-3.5 max-lg:order-3">
             <div className="flex items-center gap-2">
               <span
-                className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-[#047857] text-white"
+                className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-primary text-white"
                 aria-hidden="true"
               >
                 <Clock className="size-3.5" strokeWidth={2.2} />

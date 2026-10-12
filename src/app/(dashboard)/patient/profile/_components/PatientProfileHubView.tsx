@@ -25,8 +25,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHead, Pill, Surface } from "@/components/tbd";
-import { LoadErrorNote, MenuRow, ProfileAvatar } from "./ProfileParts";
+import { PageHead, Pill, Surface, LoadErrorNote } from "@/components/tbd";
+import { MenuRow, ProfileAvatar } from "./ProfileParts";
 import { HELP_ROUTE, PROFILE_EDIT_ROUTE, PROFILE_SETTINGS_ROUTE } from "./patient-profile.logic";
 
 export interface ProfileHubStat {
@@ -107,7 +107,7 @@ export function PatientProfileHubView({
                 name={name}
                 photoUrl={photoUrl}
                 size={72}
-                className="border-[3px] border-[#d1fae5] dark:border-emerald-900"
+                className="border-[3px] border-mint"
               />
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate text-xl font-extrabold tracking-[-0.3px] text-ink">

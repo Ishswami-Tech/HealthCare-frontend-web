@@ -3,19 +3,28 @@
 import { useMemo } from "react";
 import { AlertCircle, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CellTitle, EmptyBlock, InitialsAvatar, Pill, Surface, statusLabel } from "@/components/tbd";
+import {
+  CellTitle,
+  EmptyBlock,
+  InitialsAvatar,
+  Pill,
+  Surface,
+  statusLabel,
+  PAGE_SIZE_OPTIONS,
+  Pager,
+  usePagedRows,
+} from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { Payment } from "@/types/billing.types";
-import { BillingPager, useBillingPaging } from "./BillingPager";
 import {
   formatBillingDate,
-  formatRupees,
   paymentDateValue,
   paymentMethodLabel,
   paymentReference,
   paymentStatusTone,
   sortPaymentsNewestFirst,
 } from "./billing.logic";
+import { formatRupees } from "@/lib/utils/currency";
 
 /** Wide card: one line per payment. Narrow card: reference and status, then patient and amount. */
 const ROW_GRID =
@@ -56,7 +65,7 @@ export function BillingPaymentsTable({
 }: BillingPaymentsTableProps) {
   const blank = loading || failed;
   const sorted = useMemo(() => sortPaymentsNewestFirst(payments), [payments]);
-  const paging = useBillingPaging(sorted, resetKey);
+  const paging = usePagedRows(sorted, PAGE_SIZE_OPTIONS[0], { resetKey });
   const completed = sorted.filter((payment) => payment.status === "COMPLETED");
   const totalCompleted = completed.reduce((sum, payment) => sum + (payment.amount ?? 0), 0);
 
@@ -157,7 +166,7 @@ export function BillingPaymentsTable({
         )}
       </div>
 
-      {blank ? null : <BillingPager paging={paging} id="billing-payments" />}
+      {blank ? null : <Pager paging={paging} noun="row(s)" pageSizeOptions={PAGE_SIZE_OPTIONS} id="billing-payments" />}
     </Surface>
   );
 }

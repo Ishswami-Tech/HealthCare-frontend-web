@@ -21,15 +21,19 @@ import type {
   HealthLibraryListFilters,
   HealthLibraryPost,
 } from "@/lib/actions/health-library.server";
+import { plural } from "@/lib/utils/labels";
+import { extractYouTubeVideoId } from "@/components/media/youtube-video-utils";
+import { ROUTES } from "@/lib/config/routes";
+import { Role } from "@/types/auth.types";
 
 /**
  * Pure helpers for the patient Health Library screens. Nothing here fetches: the containers
  * pass API posts in and the views get plain, display-ready values out.
  */
 
-export const LIBRARY_HREF = "/patient/library";
-export const BOOK_VISIT_HREF = "/patient/appointments?openBooking=1";
-export const BOOK_VIDEO_VISIT_HREF = "/patient/appointments?openBooking=1&mode=VIDEO";
+export const LIBRARY_HREF = ROUTES.PATIENT_LIBRARY;
+export const BOOK_VISIT_HREF = `${ROUTES.PATIENT_APPOINTMENTS}?openBooking=1`;
+export const BOOK_VIDEO_VISIT_HREF = `${ROUTES.PATIENT_APPOINTMENTS}?openBooking=1&mode=VIDEO`;
 
 export function libraryItemHref(id: string): string {
   return `${LIBRARY_HREF}/${encodeURIComponent(id)}`;
@@ -107,9 +111,9 @@ export const LIBRARY_TONES: Record<LibraryToneKey, LibraryTone> = {
   },
   green: {
     solid: "bg-[#059669] shadow-[0_4px_10px_rgba(5,150,105,0.3)]",
-    text: "text-[#047857] dark:text-emerald-300",
+    text: "text-brand",
     soft: "bg-[#ecfdf5] text-[#059669] dark:bg-emerald-500/10 dark:text-emerald-300",
-    wash: "bg-[#ecfdf5] dark:bg-emerald-500/10",
+    wash: "bg-mint-soft",
     pill: "green",
   },
   violet: {
@@ -234,14 +238,14 @@ export function publishedLabel(iso: string | null | undefined): string {
 
 /** What the author is to the patient. The API sends the user role, not a speciality. */
 export function authorRoleLabel(role: string | null | undefined): string {
-  return String(role ?? "").toUpperCase() === "DOCTOR" ? "Doctor at your clinic" : "Your clinic team";
+  return String(role ?? "").toUpperCase() === Role.DOCTOR ? "Doctor at your clinic" : "Your clinic team";
 }
 
 /** "Dr. " is added for doctors whose stored name does not already carry it. */
 export function authorDisplayName(name: string | null | undefined, role: string | null | undefined): string {
   const clean = String(name ?? "").trim();
   if (!clean) return "";
-  if (String(role ?? "").toUpperCase() !== "DOCTOR" || /^dr\.?\s/i.test(clean)) return clean;
+  if (String(role ?? "").toUpperCase() !== Role.DOCTOR || /^dr\.?\s/i.test(clean)) return clean;
   return `Dr. ${clean}`;
 }
 
@@ -353,10 +357,6 @@ export function mostRead(posts: HealthLibraryPost[], size: number): HealthLibrar
     .slice(0, size);
 }
 
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
-
 /** "24 articles · 9 videos · 3 guides" for a list that is fully loaded. */
 export function topicBreakdown(posts: HealthLibraryPost[]): string {
   const counts = { articles: 0, videos: 0, guides: 0, practices: 0, courses: 0 };
@@ -386,10 +386,6 @@ export function decodeTopicParam(value: string | null | undefined): string {
   } catch {
     return raw.trim();
   }
-}
-
-export function itemsLabel(total: number): string {
-  return plural(total, "item", "items");
 }
 
 // ── Article body ───────────────────────────────────────────────────────────
@@ -437,16 +433,13 @@ export type LibraryVideoSource =
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 const VIDEO_FILE = /\.(mp4|m4v|webm|ogv|ogg|mov)$/i;
 
+const YOUTUBE_HOSTS = new Set(["youtu.be", "youtube.com", "youtube-nocookie.com", "music.youtube.com"]);
+
+/** The video id of a link to YouTube itself (other hosts are never read as YouTube). */
 function youTubeId(url: URL): string | null {
   const host = url.hostname.replace(/^(www|m)\./, "").toLowerCase();
-  const parts = url.pathname.split("/").filter(Boolean);
-  let id: string | undefined;
-  if (host === "youtu.be") {
-    id = parts[0];
-  } else if (host === "youtube.com" || host === "youtube-nocookie.com" || host === "music.youtube.com") {
-    if (parts[0] === "watch") id = url.searchParams.get("v") ?? undefined;
-    else if (parts[0] === "embed" || parts[0] === "shorts" || parts[0] === "live" || parts[0] === "v") id = parts[1];
-  }
+  if (!YOUTUBE_HOSTS.has(host)) return null;
+  const id = extractYouTubeVideoId(url.href);
   return id && YOUTUBE_ID.test(id) ? id : null;
 }
 
@@ -521,7 +514,7 @@ export function toArticle(post: HealthLibraryPost): LibraryArticle {
     video: isVideo ? parseVideoSource(post.videoUrl) : null,
     authorName: authorDisplayName(post.authorName, post.authorRole),
     authorRole: authorRoleLabel(post.authorRole),
-    isDoctorAuthor: String(post.authorRole ?? "").toUpperCase() === "DOCTOR",
+    isDoctorAuthor: String(post.authorRole ?? "").toUpperCase() === Role.DOCTOR,
     views: viewsLabel(post.viewCount),
     published: publishedLabel(post.publishedAt),
     summary: toParagraphs(post.summary),

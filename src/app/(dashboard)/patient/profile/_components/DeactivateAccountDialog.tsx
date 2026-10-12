@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Note } from "@/components/tbd";
+import { Field, Note } from "@/components/tbd";
 
 /** The word the patient has to type before the account is deactivated. */
 export const DEACTIVATE_CONFIRM_WORD = "DEACTIVATE";
@@ -59,10 +59,7 @@ export function DeactivateAccountDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="deactivate-confirm" className="text-xs font-bold text-ink-soft">
-              Type {DEACTIVATE_CONFIRM_WORD} to confirm
-            </label>
+          <Field label={`Type ${DEACTIVATE_CONFIRM_WORD} to confirm`} htmlFor="deactivate-confirm">
             <Input
               id="deactivate-confirm"
               value={typed}
@@ -72,7 +69,7 @@ export function DeactivateAccountDialog({
               spellCheck={false}
               disabled={pending}
             />
-          </div>
+          </Field>
 
           {error ? (
             <Note tone="rose" icon={CircleAlert}>

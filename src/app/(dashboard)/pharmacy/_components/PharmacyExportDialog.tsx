@@ -8,14 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { TbdIcon } from "@/components/tbd";
 import { cn } from "@/lib/utils";
-import {
-  DialogError,
-  Field,
-  PharmacyDialog,
-  PharmacyDialogActions,
-  PharmacyDialogBody,
-  fieldAria,
-} from "./PharmacyDialogParts";
 import { todayKey } from "./pharmacy-inventory.logic";
 import {
   EXPORTABLE_FORMATS,
@@ -25,6 +17,7 @@ import {
   type ExportType,
   type ExportValues,
 } from "./pharmacy-inventory.schemas";
+import { DialogActions, DialogBody, DialogError, DialogShell, Field, fieldAria } from "@/components/tbd";
 
 const TYPE_OPTIONS: { value: ExportType; label: string; icon: TbdIcon; about: string }[] = [
   { value: "medicines", label: "Medicines", icon: PillIcon, about: "Every medicine with its maker, type and price." },
@@ -61,7 +54,7 @@ function Choice({
         "inline-flex min-h-11 min-w-0 flex-1 basis-[120px] items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm transition-colors",
         "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-50",
         selected
-          ? "border-[1.5px] border-[#047857] bg-mint-soft font-bold text-[#065f46] dark:text-emerald-300"
+          ? "border-[1.5px] border-brand bg-mint-soft font-bold text-brand-dark"
           : "border border-line bg-card font-semibold text-ink hover:bg-mint-soft",
       )}
     >
@@ -91,7 +84,7 @@ export function PharmacyExportDialog({
   onClose,
 }: PharmacyExportDialogProps) {
   return (
-    <PharmacyDialog
+    <DialogShell
       open={open}
       onClose={onClose}
       busy={isExporting}
@@ -102,7 +95,7 @@ export function PharmacyExportDialog({
       {open ? (
         <ExportForm isExporting={isExporting} errorMessage={errorMessage} onSubmit={onSubmit} onClose={onClose} />
       ) : null}
-    </PharmacyDialog>
+    </DialogShell>
   );
 }
 
@@ -134,7 +127,7 @@ function ExportForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      <PharmacyDialogBody>
+      <DialogBody>
         <Controller
           control={control}
           name="type"
@@ -213,9 +206,9 @@ function ExportForm({
         ) : null}
 
         <DialogError lead="The file was not created." message={errorMessage} />
-      </PharmacyDialogBody>
+      </DialogBody>
 
-      <PharmacyDialogActions>
+      <DialogActions>
         <Button size="md" variant="outline" onClick={onClose} disabled={isExporting}>
           Cancel
         </Button>
@@ -223,7 +216,7 @@ function ExportForm({
           <Download aria-hidden="true" />
           {isExporting ? "Exporting…" : "Export"}
         </Button>
-      </PharmacyDialogActions>
+      </DialogActions>
     </form>
   );
 }

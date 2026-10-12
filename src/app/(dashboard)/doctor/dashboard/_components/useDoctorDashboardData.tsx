@@ -102,8 +102,12 @@ export function useDoctorDashboardData() {
     endDate: futureEndDate,
     limit: 500,
   });
+  // GET /queue?doctorId= reads the queue keyed on the Doctor RECORD id (check-in enqueues
+  // under appointment.doctorId), so the user id would always answer with an empty queue.
+  // Until the record id is resolved the user id keeps the same (empty) result as before.
+  const queueDoctorId = doctorEntityId || doctorId;
   const { data: queueData } = useQueue(clinicId || undefined, {
-    ...(doctorId ? { doctorId } : {}),
+    ...(queueDoctorId ? { doctorId: queueDoctorId } : {}),
     enabled: !!clinicId,
   });
   const startAppointmentMutation = useStartAppointment();
@@ -168,10 +172,21 @@ export function useDoctorDashboardData() {
 
   const currentInPersonConsult = useMemo(() => {
     const activeQueueAppointmentId = String((highlightedQueuePatient as any)?.appointmentId || "");
+    // An appointment carries the Doctor record id; older payloads carried the user id.
+    // Only today's visits count, so a visit left open on an earlier day never takes the card.
+    const isOwnAppointment = (appointment: AppointmentWithRelations) => {
+      if (!appointment.doctorId || (appointment.doctorId !== doctorEntityId && appointment.doctorId !== doctorId)) {
+        return false;
+      }
+      const startsAt = getAppointmentDateTimeValue(appointment);
+      return startsAt
+        ? formatDateInIST(startsAt, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA") === today
+        : false;
+    };
     return (
       visibleAppointmentsArray.find(
         (appointment: AppointmentWithRelations) =>
-          appointment.doctorId === doctorId &&
+          isOwnAppointment(appointment) &&
           appointment.type === "IN_PERSON" &&
           String(appointment.status || "").toUpperCase() === "IN_PROGRESS"
       ) ||
@@ -180,14 +195,14 @@ export function useDoctorDashboardData() {
         : null) ||
       visibleAppointmentsArray.find(
         (appointment: AppointmentWithRelations) =>
-          appointment.doctorId === doctorId &&
+          isOwnAppointment(appointment) &&
           appointment.type === "IN_PERSON" &&
           !["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(appointment.status || "").toUpperCase()) &&
           Boolean(appointment.checkedInAt)
       ) ||
       null
     );
-  }, [doctorId, highlightedQueuePatient, visibleAppointmentsArray]);
+  }, [doctorEntityId, doctorId, highlightedQueuePatient, today, visibleAppointmentsArray]);
 
   const currentConsultStatus = String(currentInPersonConsult?.status || "").toUpperCase();
   const currentConsultStartOverride =
@@ -430,7 +445,6 @@ export function useDoctorDashboardData() {
       id: currentInPersonConsult.id,
       data: {
         notes: summaryText,
-        treatmentPlan: summaryText,
         metadata: {
           medicineSkipped: true,
           prescriptionIssued: false,

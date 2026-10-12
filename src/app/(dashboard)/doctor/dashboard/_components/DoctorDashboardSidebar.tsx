@@ -1,12 +1,15 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, UserX, Users, Video } from "lucide-react";
+import { Activity, CalendarDays, ChevronRight, Pill, UserX, Users } from "lucide-react";
 import { Surface, type TbdIcon } from "@/components/tbd";
 
+// One shortcut per screen. The design listed "Master Calendar", "Appointments" and
+// "Appointment Manager", which all open the same appointments page; the two repeats are
+// replaced by the queue and the prescriptions screens.
 const TOOLS: Array<{ label: string; href: string; icon: TbdIcon }> = [
-  { label: "Master Calendar", href: "/doctor/appointments", icon: CalendarDays },
+  { label: "Appointments", href: "/doctor/appointments", icon: CalendarDays },
   { label: "Patient Directory", href: "/doctor/patients", icon: Users },
-  { label: "Appointments", href: "/doctor/appointments", icon: Video },
-  { label: "Appointment Manager", href: "/doctor/appointments", icon: CalendarDays },
+  { label: "Live Queue", href: "/queue", icon: Activity },
+  { label: "Prescriptions", href: "/doctor/prescriptions", icon: Pill },
   { label: "Missed Appointments", href: "/doctor/appointments?view=NO_SHOW", icon: UserX },
 ];
 

@@ -4,8 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserRound } from "lucide-react";
-import { Pill } from "@/components/tbd";
-import { ProfileCard, ProfileField } from "./DoctorProfileParts";
+import { Field, Pill } from "@/components/tbd";
+import { ProfileCard } from "./DoctorProfileParts";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
 
 interface DoctorProfilePersonalTabProps {
@@ -24,35 +24,39 @@ export function DoctorProfilePersonalTab({
   return (
     <ProfileCard icon={UserRound} title="Personal Information">
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-        <ProfileField label="First Name" htmlFor="firstName">
+        <Field labelClassName="min-h-5" label="First Name" htmlFor="firstName">
           <Input
             id="firstName"
             autoComplete="given-name"
             value={personalInfo.firstName}
             onChange={(e) => updatePersonalInfo("firstName", e.target.value)}
           />
-        </ProfileField>
-        <ProfileField label="Last Name" htmlFor="lastName">
+        </Field>
+        <Field labelClassName="min-h-5" label="Last Name" htmlFor="lastName">
           <Input
             id="lastName"
             autoComplete="family-name"
             value={personalInfo.lastName}
             onChange={(e) => updatePersonalInfo("lastName", e.target.value)}
           />
-        </ProfileField>
+        </Field>
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-        <ProfileField label="Email Address" htmlFor="email">
+        {/* Read-only: the profile save does not change the sign-in e-mail. */}
+        <Field labelClassName="min-h-5" label="Email Address" htmlFor="email" hint="Your e-mail cannot be changed here.">
           <Input
             id="email"
             type="email"
-            autoComplete="email"
             value={personalInfo.email}
-            onChange={(e) => updatePersonalInfo("email", e.target.value)}
+            placeholder="Not set"
+            aria-describedby="email-hint"
+            readOnly
+            disabled
           />
-        </ProfileField>
-        <ProfileField
+        </Field>
+        <Field
+          labelClassName="min-h-5"
           label="Phone Number"
           htmlFor="phone"
           aside={phoneVerified ? <Pill tone="green">Verified</Pill> : null}
@@ -64,19 +68,19 @@ export function DoctorProfilePersonalTab({
             value={personalInfo.phone}
             onChange={(e) => updatePersonalInfo("phone", e.target.value)}
           />
-        </ProfileField>
+        </Field>
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <ProfileField label="Date of Birth" htmlFor="dateOfBirth">
+        <Field labelClassName="min-h-5" label="Date of Birth" htmlFor="dateOfBirth">
           <Input
             id="dateOfBirth"
             type="date"
             value={personalInfo.dateOfBirth}
             onChange={(e) => updatePersonalInfo("dateOfBirth", e.target.value)}
           />
-        </ProfileField>
-        <ProfileField label="Gender" htmlFor="gender">
+        </Field>
+        <Field labelClassName="min-h-5" label="Gender" htmlFor="gender">
           <Select
             value={personalInfo.gender}
             onValueChange={(value) => updatePersonalInfo("gender", value)}
@@ -90,8 +94,8 @@ export function DoctorProfilePersonalTab({
               <SelectItem value="Other">Other</SelectItem>
             </SelectContent>
           </Select>
-        </ProfileField>
-        <ProfileField label="ZIP Code" htmlFor="zipCode">
+        </Field>
+        <Field labelClassName="min-h-5" label="ZIP Code" htmlFor="zipCode">
           <Input
             id="zipCode"
             inputMode="numeric"
@@ -99,10 +103,10 @@ export function DoctorProfilePersonalTab({
             value={personalInfo.zipCode}
             onChange={(e) => updatePersonalInfo("zipCode", e.target.value)}
           />
-        </ProfileField>
+        </Field>
       </div>
 
-      <ProfileField label="Address" htmlFor="address">
+      <Field labelClassName="min-h-5" label="Address" htmlFor="address">
         <Textarea
           id="address"
           className="min-h-[72px] border-line"
@@ -110,7 +114,7 @@ export function DoctorProfilePersonalTab({
           onChange={(e) => updatePersonalInfo("address", e.target.value)}
           rows={2}
         />
-      </ProfileField>
+      </Field>
     </ProfileCard>
   );
 }

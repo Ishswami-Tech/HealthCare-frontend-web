@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointment } from "@/hooks/query/useAppointments";
 import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
-import { getDashboardByRole } from "@/lib/config/routes";
+import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
 import {
   formatDoctorDisplayName,
   getAppointmentDoctorName,
@@ -24,15 +24,11 @@ import {
   videoAppointmentsRoute,
 } from "@/components/video/lobby/videoVisitPeople";
 import { LeftCallView, type LeftCallState } from "./LeftCallView";
+import { asRecord } from "@/lib/utils/coerce";
+import { Role } from "@/types/auth.types";
 
 /** How often the open page re-checks the appointment (has the doctor completed the visit?). */
 const STATUS_POLL_MS = 10_000;
-
-type Row = Record<string, unknown>;
-
-function asRow(value: unknown): Row | null {
-  return value && typeof value === "object" ? (value as Row) : null;
-}
 
 /**
  * Where a person lands after leaving a video visit that is still open, or after the call dropped
@@ -46,7 +42,7 @@ export function LeftCallContent({ appointmentId, reason }: { appointmentId: stri
   const { replace } = useRouter();
   const { session } = useAuth();
   const role = normalizeVideoViewerRole(session?.user?.role);
-  const viewerIsPatient = role === "" || role === "PATIENT";
+  const viewerIsPatient = role === "" || role === Role.PATIENT;
 
   const { data: appointmentData, refetch: refetchAppointment } = useAppointment(appointmentId);
   // The backend's own join answer for this visit (canJoin, join window, blocked reason).
@@ -92,12 +88,12 @@ export function LeftCallContent({ appointmentId, reason }: { appointmentId: stri
   }, [appointmentId]);
 
   const record = useMemo(() => {
-    const data = asRow(appointmentData);
-    return asRow(data?.appointment) ?? asRow(data?.data) ?? data;
+    const data = asRecord(appointmentData);
+    return asRecord(data?.appointment) ?? asRecord(data?.data) ?? data;
   }, [appointmentData]);
   const consultation = useMemo(() => {
-    const data = asRow(consultationData);
-    return asRow(data?.appointment) ?? asRow(data?.data);
+    const data = asRecord(consultationData);
+    return asRecord(data?.appointment) ?? asRecord(data?.data);
   }, [consultationData]);
 
   // Same rule as the waiting room: the appointment record wins, the consultation adds the join answer.
@@ -181,7 +177,7 @@ export function LeftCallContent({ appointmentId, reason }: { appointmentId: stri
       {...(notOpenYet ? { opensLabel: VIDEO_JOIN_WINDOW_TEXT } : {})}
       canRejoin={canRejoin}
       rejoinHref={buildVideoSessionMeetRoute(appointmentId)}
-      homeHref={role ? getDashboardByRole(role) : "/patient/dashboard"}
+      homeHref={role ? getDashboardByRole(role) : ROUTES.DASHBOARD.PATIENT}
     />
   );
 }

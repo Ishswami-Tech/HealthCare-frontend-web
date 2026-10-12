@@ -5,8 +5,8 @@ import { CircleAlert, FileText, FlaskConical, RefreshCw, Upload } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, FilterChips, Note, PageHead, Pill, Surface, type TbdOption } from "@/components/tbd";
-import { ReportsTable } from "./ReportsTable";
-import { filterReports, type ReportFilter, type ReportRow } from "./patient-health.logic";
+import { ReportsTable } from "@/components/patient/health/ReportsTable";
+import { filterReports, type ReportFilter, type ReportRow } from "@/components/patient/health/patient-health.logic";
 
 const EMPTY_COPY: Record<ReportFilter, string> = {
   all: "No reports yet",

@@ -2,23 +2,11 @@
 
 import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmptyBlock } from "@/components/tbd";
+import { EmptyBlock, Pager, usePagedRows, LoadError, SkeletonRows } from "@/components/tbd";
 import { cn } from "@/lib/utils";
-import { canReverseDispense, dateTimeLabel, type PrescriptionRow } from "./pharmacist-prescriptions.logic";
-import {
-  CellLabel,
-  HEAD_ROW,
-  LoadError,
-  MedicinesCell,
-  PatientCell,
-  PrescribedByCell,
-  PrescriptionsPager,
-  SkeletonRows,
-  StateCell,
-  prescriptionRowId,
-  usePagedRows,
-  useScrollToRow,
-} from "./PrescriptionTableParts";
+import { canReverseDispense, type PrescriptionRow } from "./pharmacist-prescriptions.logic";
+import { CellLabel, HEAD_ROW, MedicinesCell, PatientCell, PrescribedByCell, StateCell, prescriptionRowId, useScrollToRow } from "./PrescriptionTableParts";
+import { formatDateTimeLabel } from "@/lib/utils/date-time";
 
 const ROW_GRID =
   "grid grid-cols-1 gap-x-3 px-5 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)_104px_146px] @4xl:gap-x-4 @5xl:grid-cols-[172px_minmax(0,1fr)_195px_150px_104px_146px]";
@@ -50,7 +38,7 @@ export function PrescriptionsHistoryTable({
   reversePending = false,
 }: PrescriptionsHistoryTableProps) {
   const focusIndex = highlightId ? prescriptions.findIndex((row) => row.id === highlightId) : -1;
-  const paging = usePagedRows(prescriptions, resetKey, focusIndex);
+  const paging = usePagedRows(prescriptions, 10, { resetKey, focusIndex });
   useScrollToRow(highlightId, focusIndex);
 
   if (loading) return <SkeletonRows />;
@@ -110,8 +98,8 @@ export function PrescriptionsHistoryTable({
               <div role="cell" className="order-5 min-w-0 @4xl:order-none">
                 <CellLabel>Handed over</CellLabel>
                 {prescription.handedOverAt ? (
-                  <span className="block truncate text-[13px] font-semibold text-ink">
-                    {dateTimeLabel(prescription.handedOverAt)}
+                  <span className="block text-[13px] font-semibold leading-[1.35] text-ink">
+                    {formatDateTimeLabel(prescription.handedOverAt)}
                   </span>
                 ) : (
                   <span className="text-[13px] font-medium text-ink-muted">
@@ -142,7 +130,7 @@ export function PrescriptionsHistoryTable({
           );
         })}
       </div>
-      <PrescriptionsPager paging={paging} />
+      <Pager paging={paging} />
     </>
   );
 }

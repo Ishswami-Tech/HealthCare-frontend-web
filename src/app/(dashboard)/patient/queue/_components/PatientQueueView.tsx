@@ -2,10 +2,11 @@ import Link from "next/link";
 import { Activity, Home, RefreshCw, ScanLine, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, IconBox, PageHead, Surface } from "@/components/tbd";
+import { EmptyBlock, IconBox, PageHead, Surface, LoadError } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { QueueClinicCard, QueueTokenCard } from "./QueueParts";
-import { formatWait, plural, ticketHeadline, type QueueTicket, type QueueVisitInfo } from "./queueData";
+import { formatWait, ticketHeadline, type QueueTicket, type QueueVisitInfo } from "@/components/patient/queue/queueData";
+import { plural } from "@/lib/utils/labels";
 
 /**
  * Live Queue (patient): the patient's own token, place, people ahead and estimated wait.
@@ -16,7 +17,7 @@ const BACK_HREF = "/patient/dashboard";
 
 function LiveBadge() {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#047857] px-2.5 py-[5px] text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-white">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-2.5 py-[5px] text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-white">
       <span className="tbd-pulse size-1.5 rounded-full bg-[#a7f3d0]" aria-hidden="true" />
       Live
     </span>
@@ -71,9 +72,9 @@ function LineDot({ kind }: { kind: LineRow["dot"] }) {
       <span
         className={cn(
           "size-3 rounded-full",
-          kind === "now" && "bg-[#047857] shadow-[0_0_0_4px_#d1fae5] dark:shadow-[0_0_0_4px_rgba(16,185,129,0.25)]",
-          kind === "open" && "border-2 border-[#047857] dark:border-emerald-400",
-          kind === "you" && "bg-[#047857] dark:bg-emerald-400",
+          kind === "now" && "bg-primary shadow-[0_0_0_4px_#d1fae5] dark:shadow-[0_0_0_4px_rgba(16,185,129,0.25)]",
+          kind === "open" && "border-2 border-brand",
+          kind === "you" && "bg-primary",
           kind === "muted" && "border-2 border-[#cbd5e1] dark:border-white/25",
         )}
       />
@@ -109,7 +110,7 @@ function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: st
               <span
                 className={cn(
                   "w-[88px] shrink-0 text-sm sm:w-[120px]",
-                  isYou ? "font-extrabold text-[#047857] dark:text-emerald-300" : "font-semibold text-ink",
+                  isYou ? "font-extrabold text-brand" : "font-semibold text-ink",
                   row.dot === "now" && "font-bold",
                 )}
               >
@@ -119,9 +120,9 @@ function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: st
                 className={cn(
                   "min-w-0 flex-1 text-[13px]",
                   isYou
-                    ? "font-bold text-[#047857] dark:text-emerald-300"
+                    ? "font-bold text-brand"
                     : row.dot === "now"
-                      ? "font-semibold text-[#047857] dark:text-emerald-300"
+                      ? "font-semibold text-brand"
                       : "text-ink-muted",
                 )}
               >
@@ -131,7 +132,7 @@ function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: st
                 <span
                   className={cn(
                     "shrink-0 text-[13px]",
-                    isYou ? "font-bold text-[#047857] dark:text-emerald-300" : "text-ink-muted",
+                    isYou ? "font-bold text-brand" : "text-ink-muted",
                   )}
                 >
                   {row.right}
@@ -240,11 +241,10 @@ export function PatientQueueErrorView({ onRetry, isRetrying }: { onRetry: () => 
     <div className="flex flex-col gap-5">
       <PageHead title="Live Queue" backHref={BACK_HREF} />
       <Surface role="alert">
-        <EmptyBlock
+        <LoadError
           icon={TriangleAlert}
-          tone="rose"
           title="We could not load your queue"
-          description="Check your internet connection and try again. Your place in the queue is not lost."
+          message="Check your internet connection and try again. Your place in the queue is not lost."
           action={
             <Button size="md" onClick={onRetry} disabled={isRetrying} aria-busy={isRetrying}>
               <RefreshCw className={cn(isRetrying && "animate-spin")} aria-hidden="true" />

@@ -5,16 +5,24 @@ import { AlertCircle, Check, CheckCircle2, CreditCard, Download, FileText, Loade
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EmptyBlock, IconBox, Note, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
-import { BillingPager, useBillingPaging } from "@/components/billing/staff/BillingPager";
+import {
+  EmptyBlock,
+  IconBox,
+  Note,
+  Pill,
+  Surface,
+  statusLabel,
+  statusTone,
+  PAGE_SIZE_OPTIONS,
+  Pager,
+  usePagedRows,
+} from "@/components/tbd";
 import { invoiceNumberLabel } from "@/components/billing/staff/billing.logic";
 import { cn } from "@/lib/utils";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
 import type { RenderInvoicePay } from "./BillingOverviewCards";
 import {
   cycleLabel,
-  formatAmount,
-  formatDate,
   getPeriodEndLabel,
   getPeriodStart,
   getSubscriptionDisplayStatus,
@@ -28,6 +36,8 @@ import {
   isPayableInvoice,
   type SubscriptionGroups,
 } from "./patientBilling.logic";
+import { formatRupees } from "@/lib/utils/currency";
+import { EMPTY_DATE_LABEL, formatDateLabel } from "@/lib/utils/date-time";
 
 export const PATIENT_BILLING_TABS = ["invoices", "plans", "subscriptions"] as const;
 export type PatientBillingTab = (typeof PATIENT_BILLING_TABS)[number];
@@ -63,8 +73,8 @@ const INVOICE_GRID =
 const AUTO = "@3xl:col-auto @3xl:row-auto";
 
 function invoiceDateLine(invoice: Invoice): string {
-  if (isPaidInvoice(invoice)) return `Paid ${formatDate(invoicePaidAt(invoice) ?? invoice.updatedAt)}`;
-  return `Due ${formatDate(invoice.dueDate)}`;
+  if (isPaidInvoice(invoice)) return `Paid ${formatDateLabel(invoicePaidAt(invoice) ?? invoice.updatedAt, EMPTY_DATE_LABEL)}`;
+  return `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}`;
 }
 
 function InvoicesList({
@@ -78,7 +88,7 @@ function InvoicesList({
   loading: boolean;
   failed: boolean;
 }) {
-  const paging = useBillingPaging(invoices, "invoices");
+  const paging = usePagedRows(invoices);
 
   if (loading) {
     return (
@@ -150,14 +160,14 @@ function InvoicesList({
               <span className="truncate text-xs text-ink-muted">{invoiceSubject(invoice)}</span>
             </Link>
             <span className={cn("col-[1] row-[2] flex min-w-0 flex-col gap-px text-[13px] text-ink-soft", AUTO)}>
-              <span>Issued {formatDate(invoiceIssuedAt(invoice))}</span>
+              <span>Issued {formatDateLabel(invoiceIssuedAt(invoice), EMPTY_DATE_LABEL)}</span>
               <span className="text-xs text-ink-muted">{invoiceDateLine(invoice)}</span>
             </span>
             <span className={cn("col-[2] row-[2] flex justify-self-end @3xl:justify-self-start", AUTO)}>
               <Pill tone={statusTone(invoice.status)}>{statusLabel(invoice.status)}</Pill>
             </span>
             <span className={cn("col-[2] row-[1] text-right font-bold text-ink @3xl:text-left", AUTO)}>
-              {formatAmount(invoiceTotal(invoice), invoice.currency)}
+              {formatRupees(invoiceTotal(invoice), { currency: invoice.currency })}
             </span>
             <span className={cn("col-span-2 row-[3] flex flex-wrap items-center gap-2 @3xl:justify-end", AUTO)}>
               <Button
@@ -174,7 +184,7 @@ function InvoicesList({
           </li>
         ))}
       </ul>
-      {paging.total > 10 ? <BillingPager paging={paging} id="patient-invoices" /> : null}
+      {paging.total > 10 ? <Pager paging={paging} noun="row(s)" pageSizeOptions={PAGE_SIZE_OPTIONS} id="patient-invoices" /> : null}
     </Surface>
   );
 }
@@ -242,7 +252,7 @@ function PlansGrid({
               </div>
               <p className="m-0 flex items-baseline gap-1.5">
                 <span className="text-[28px] font-extrabold leading-tight tracking-[-0.5px] text-brand">
-                  {formatAmount(plan.price, plan.currency)}
+                  {formatRupees(plan.price, { currency: plan.currency })}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-[0.6px] text-ink-muted">
                   / {cycleLabel(plan.billingCycle).toLowerCase()}
@@ -366,7 +376,7 @@ function SubscriptionsList({
                   </span>
                   <span className="text-xs text-ink-muted">
                     {subscription.plan?.billingCycle ? `${cycleLabel(subscription.plan.billingCycle)} · ` : ""}
-                    {start ? formatDate(start) : "--"} to {getPeriodEndLabel(subscription)}
+                    {formatDateLabel(start, EMPTY_DATE_LABEL)} to {getPeriodEndLabel(subscription)}
                   </span>
                 </span>
                 <span className="text-[13px] text-ink-soft">

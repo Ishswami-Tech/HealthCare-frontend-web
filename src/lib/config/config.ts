@@ -389,7 +389,7 @@ export const API_ENDPOINTS = {
     REQUEST_OTP: '/auth/request-otp',        // POST /auth/request-otp
     VERIFY_OTP: '/auth/verify-otp',           // POST /auth/verify-otp
     VERIFY_PHONE: '/auth/verify-phone',       // POST /auth/verify-phone
-    SESSIONS: '/auth/sessions',              // GET /auth/sessions ✅ Added
+    SESSIONS: '/auth/sessions',              // GET /auth/sessions (list). One session is ended with POST /auth/logout { sessionId }
     GOOGLE_LOGIN: '/auth/google',            // POST /auth/google
     CHECK_OTP_STATUS: '/auth/check-otp-status',
     INVALIDATE_OTP: '/auth/invalidate-otp',
@@ -441,7 +441,7 @@ export const API_ENDPOINTS = {
     MY_APPOINTMENTS: '/appointments/my-appointments', // Patient-specific endpoint
     GET_BY_TENANT: (tenantId: string) => `/appointments/tenant/${tenantId}`,
     GET_BY_ID: (id: string) => `/appointments/${id}`,
-    UPDATE: (id: string) => `/appointments/${id}`,
+    UPDATE: (id: string) => `/appointments/${id}`, // PUT (the backend has no PATCH /appointments/:id)
     REASSIGN_DOCTOR: (id: string) => `/appointments/${id}/reassign-doctor`,
     REASSIGNMENT_CANDIDATES: (id: string) => `/appointments/${id}/reassignment-candidates`,
     ASSISTANT_COVERAGE: '/appointments/assistant-coverage',
@@ -453,7 +453,9 @@ export const API_ENDPOINTS = {
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
     FORCE_CHECK_IN: (id: string) => `/appointments/${id}/force-check-in`,
     SCAN_QR: '/appointments/check-in/scan-qr',
-    START: (id: string) => `/appointments/${id}/start-consultation`,
+    // The backend has no /start-consultation route: a visit is started with
+    // PATCH /appointments/:id/status and body { status: 'IN_PROGRESS' }.
+    START: (id: string) => `/appointments/${id}/status`,
     COMPLETE: (id: string) => `/appointments/${id}/complete`,
     COMPLETE_BULK: '/appointments/complete/bulk',
     RESCHEDULE: (id: string) => `/appointments/${id}/reschedule`,
@@ -498,6 +500,8 @@ export const API_ENDPOINTS = {
   QUEUE: {
     BASE: '/queue',
     GET: '/queue',
+    // The signed-in patient's own queue entry for today (optionally `?appointmentId=`).
+    ME: '/queue/me',
     DASHBOARD: '/queue/dashboard',
     FILTERS: '/queue/filters',
     GET_BY_TYPE: (queueType: string) => `/queue/${queueType}`,
@@ -649,23 +653,28 @@ export const API_ENDPOINTS = {
     BASE: '/patients',
     GET_ALL: '/patients',
     GET_CLINIC_PATIENTS: (clinicId: string) => `/clinics/${clinicId}/patients`,
-    GET_BY_ID: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}`,
+    // GET /patients/:id — `:id` is the patient's USER id (User.id), never the Patient-record id.
+    // The backend has no /clinics/:clinicId/patients/:patientId route; clinic scope comes from the
+    // X-Clinic-ID header, so the first argument is kept for callers only.
+    GET_BY_ID: (_clinicId: string, patientUserId: string) => `/patients/${patientUserId}`,
     CREATE: '/patients',
+    // PUT / DELETE /patients/:id are keyed on the patient's USER id too.
     UPDATE: (patientId: string) => `/patients/${patientId}`,
     DELETE: (patientId: string) => `/patients/${patientId}`,
+    // No backend routes exist for a patient's appointments (use GET /appointments), medical history,
+    // vitals and lab results (use EHR.* — keyed on the user id), timeline, stats, search
+    // (use GET /patients?search=), export or care plan, so there are no entries for them here.
     /** Composed single-round-trip summary for the patient dashboard.
      *  Replaces 5+ separate calls (appointments, vitals, prescriptions,
      *  comprehensive EHR, invoices, payments) on `/patient/dashboard`. */
     DASHBOARD_SUMMARY: '/patients/me/dashboard-summary',
-    MEDICAL_HISTORY: {
-      GET: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}/medical-history`,
-      CREATE: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}/medical-history`,
-    },
-    SEARCH: '/patients/search',
-    EXPORT: '/patients/export',
+    // Files on a patient's own record: GET lists them, POST uploads one (`:id` = patient or user id).
+    DOCUMENTS: (patientId: string) => `/patients/${encodeURIComponent(patientId)}/documents`,
   },
   
   // Doctors Endpoints
+  // `:id` is the doctor's USER id. Dead routes (DELETE, STATS, APPOINTMENTS, SEARCH, PERFORMANCE,
+  // PROFILE, EARNINGS, EXPORT, SPECIALIZATIONS) were removed; earnings live under ANALYTICS.
   DOCTORS: {
     BASE: '/doctors',
     GET_ALL: '/doctors',
@@ -707,6 +716,8 @@ export const API_ENDPOINTS = {
   USERS: {
     BASE: '/user',
     PROFILE: '/user/profile',
+    // Self-service soft delete of the signed-in user's own account.
+    DEACTIVATE_ME: '/user/me/deactivate',
     GET_BY_ID: (id: string) => `/user/${id}`,
     UPDATE: (id: string) => `/user/${id}`,
     DELETE: (id: string) => `/user/${id}`,
@@ -727,7 +738,11 @@ export const API_ENDPOINTS = {
     EXPORT: '/user/export',
     CHANGE_PASSWORD: (id: string) => `/user/${id}/change-password`,
     TOGGLE_VERIFICATION: (id: string) => `/user/${id}/toggle-verification`,
-    ACTIVITY_LOGS: (id: string) => `/user/${id}/activity-logs`,
+    // Backend: GET /user/:id/activity (there is no /activity-logs route).
+    ACTIVITY_LOGS: (id: string) => `/user/${id}/activity`,
+    // NOT IMPLEMENTED BY THE BACKEND: the users controller has no /user/sessions routes
+    // (list, revoke one, revoke all). The only session routes are GET /auth/sessions and
+    // POST /auth/logout. These entries are kept so existing imports keep compiling.
     TERMINATE_SESSION: (sessionId: string) => `/user/sessions/${sessionId}`,
     SESSIONS: {
       GET_ALL: '/user/sessions',
@@ -787,6 +802,8 @@ export const API_ENDPOINTS = {
       SEND_WHATSAPP: (id: string) => `/billing/invoices/${id}/send-whatsapp`,
       // Next.js proxy route (src/app/api/billing/invoices/[id]/download) — keyed by invoice id.
       DOWNLOAD: (id: string) => `/api/billing/invoices/${id}/download`,
+      // Backend route behind that proxy, for calls made through the API client (returns the PDF).
+      DOWNLOAD_PDF: (id: string) => `/billing/invoices/${id}/download`,
       // Offline collection at the desk (cash / UPI / card): creates a COMPLETED payment.
       RECORD_PAYMENT: (id: string) => `/billing/invoices/${id}/record-payment`,
     },
@@ -854,9 +871,18 @@ export const API_ENDPOINTS = {
     DELETE: (documentId: string) => `/patient-documents/${documentId}`,
   },
 
+  // Health Library (wellness articles and videos written by the clinic)
+  HEALTH_LIBRARY: {
+    BASE: '/health-library',
+    GET_BY_ID: (id: string) => `/health-library/${encodeURIComponent(id)}`,
+  },
+
   // Family members (dependents under a head-of-family patient)
   FAMILY_MEMBERS: {
     CREATE: '/family-members',
+    // Patient self-service: the head of the family is the signed-in patient.
+    ME: '/family-members/me',
+    ME_BY_ID: (id: string) => `/family-members/me/${encodeURIComponent(id)}`,
     LIST_BY_PATIENT: (patientId: string) => `/family-members/patient/${patientId}`,
     UPDATE: (id: string) => `/family-members/${id}`,
     DELETE: (id: string) => `/family-members/${id}`,
@@ -944,9 +970,13 @@ export const API_ENDPOINTS = {
       STATUS: (appointmentId: string) => `/video/consultation/${appointmentId}/status`,
       REPORT: (appointmentId: string) => `/video/consultation/${appointmentId}/report`,
       SHARE_IMAGE: (appointmentId: string) => `/video/consultation/${appointmentId}/share-image`,
+      // Post-call: the visit summary and the patient's star rating.
+      SUMMARY: (appointmentId: string) => `/video/consultation/${encodeURIComponent(appointmentId)}/summary`,
+      RATE: (appointmentId: string) => `/video/consultation/${encodeURIComponent(appointmentId)}/rate`,
     },
     HISTORY: '/video/history',
     PARTICIPANTS: {
+      // POST body: { appointmentId, connectionId, action: 'kick' | 'mute' | 'unmute' | 'forceUnpublish' }
       MANAGE: '/video/participant/manage',
       GET: (appointmentId: string) => `/video/participants/${appointmentId}`,
     },
@@ -968,6 +998,7 @@ export const API_ENDPOINTS = {
       CREATE: '/video/notes',
       UPDATE: (noteId: string) => `/video/notes/${noteId}`,
       GET: (consultationId: string) => `/video/notes/${consultationId}`,
+      // No backend route: a consultation note can be created, updated (PATCH) and saved to the EHR only.
       DELETE: (noteId: string) => `/video/notes/${noteId}`,
       SAVE_TO_EHR: (noteId: string) => `/video/notes/${noteId}/save-to-ehr`,
     },
@@ -1024,6 +1055,14 @@ export const API_ENDPOINTS = {
     EMAIL: {
       SEND: '/communication/email',
     },
+    // In-app notification inbox (Notification rows), not chat messages.
+    NOTIFICATIONS: {
+      HISTORY: (userId: string) => `/communication/history/${userId}`,                    // GET ?type&isRead&limit&offset
+      UNREAD_COUNT: (userId: string) => `/communication/history/${userId}/unread-count`, // GET
+      MARK_READ: (notificationId: string) => `/communication/history/${notificationId}/read`, // PATCH, no body
+      MARK_ALL_READ: '/communication/history/mark-all-read',                                // PATCH ?userId=
+      DELETE: (notificationId: string) => `/communication/${notificationId}`,              // DELETE
+    },
     CHAT: {
       BACKUP: '/communication/chat/backup',
       HISTORY: (userId: string) => `/communication/chat/history/${userId}`,
@@ -1059,10 +1098,12 @@ export const API_ENDPOINTS = {
   NOTIFICATION_PREFERENCES: {
     BASE: '/notification-preferences',
     GET_MY: '/notification-preferences/me',
-    GET_BY_USER: (userId: string) => `/notification-preferences/${userId}`,
+    GET_BY_USER: (userId: string) => `/notification-preferences/${userId}`, // GET, SUPER_ADMIN / CLINIC_ADMIN only
     CREATE: '/notification-preferences',
-    UPDATE: (userId: string) => `/notification-preferences/${userId}`,
-    DELETE: (userId: string) => `/notification-preferences/${userId}`,
+    UPDATE_MY: '/notification-preferences/me',                              // PUT (own preferences)
+    UPDATE: (userId: string) => `/notification-preferences/${userId}`,      // PUT, SUPER_ADMIN / CLINIC_ADMIN only
+    DELETE_MY: '/notification-preferences/me',                              // DELETE (own preferences)
+    DELETE: (userId: string) => `/notification-preferences/${userId}`,      // DELETE, SUPER_ADMIN / CLINIC_ADMIN only
   },
   
   // Email Unsubscribe Endpoints (Backend-only - no frontend integration needed)
@@ -1112,8 +1153,8 @@ export const API_ENDPOINTS = {
   
   // Medical Records Endpoints
   // Served by the EHR controller (@Controller('ehr')), so every path is /ehr-scoped.
-  // CREATE and UPLOAD are the two the backend implements today; the rest are kept
-  // for the legacy client surface and will 404 until the backend adds them.
+  // `patientId` is the Patient-RECORD id (HealthRecord.patientId), not the user id.
+  // UPDATE is PUT. The backend has no template routes (TEMPLATES below will 404).
   MEDICAL_RECORDS: {
     BASE: '/ehr/medical-records',
     GET_BY_PATIENT: (patientId: string) => `/ehr/medical-records/patient/${patientId}`,
@@ -1129,15 +1170,19 @@ export const API_ENDPOINTS = {
   },
   
   // Prescriptions Endpoints (align with pharmacy backend)
+  // GET_BY_PATIENT takes the patient's USER id. UPDATE is PATCH, PHARMACIST only, body
+  // `{ status: 'FILLED' | 'CANCELLED', notes? }`. There is no edit, delete or PDF route.
   PRESCRIPTIONS: {
     BASE: '/pharmacy/prescriptions',
-    GET_BY_PATIENT: (patientId: string) => `/pharmacy/prescriptions/patient/${patientId}`,
+    GET_BY_PATIENT: (patientUserId: string) => `/pharmacy/prescriptions/patient/${patientUserId}`,
     CREATE: '/pharmacy/prescriptions',
     UPDATE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
     GET_BY_ID: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
   },
   
   // Medicines Endpoints
+  // The backend has NO /medicines routes: the medicine catalogue is the pharmacy stock list
+  // (PHARMACY.* / `/pharmacy/inventory`). Kept only for the legacy actions in medical-records.server.ts.
   MEDICINES: {
     BASE: '/medicines',
     GET_ALL: '/medicines',

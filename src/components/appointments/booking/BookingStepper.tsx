@@ -35,7 +35,7 @@ export function BookingStepper<T extends BookingStepperStep>({
                 aria-hidden="true"
                 className={cn(
                   "pointer-events-none absolute top-3 left-[calc(50%+12px)] right-[calc(-50%+12px)] h-0.5 rounded-full",
-                  done ? "bg-[#047857]" : "bg-line",
+                  done ? "bg-primary" : "bg-line",
                 )}
               />
             ) : null}
@@ -49,7 +49,7 @@ export function BookingStepper<T extends BookingStepperStep>({
               <span
                 className={cn(
                   "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold transition-colors",
-                  done || active ? "bg-[#047857] text-white" : "bg-well text-ink-muted",
+                  done || active ? "bg-primary text-white" : "bg-well text-ink-muted",
                   active && "ring-[3px] ring-[#d1fae5] dark:ring-emerald-500/25",
                 )}
               >

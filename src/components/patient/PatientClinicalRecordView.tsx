@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import {
   Calendar,
@@ -15,7 +15,6 @@ import {
   Receipt,
   UserRound,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
@@ -31,16 +30,22 @@ import {
   statusLabel,
   statusTone,
   normalizeStatus,
+  Pager,
+  usePagedRows,
   type PillTone,
   type TbdIcon,
+  VisitTypeChip,
 } from "@/components/tbd";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { canViewCaseSheet } from "@/lib/utils/case-sheet-access";
 import type { AppointmentHistoryTab } from "./PatientAppointmentHistory";
 import { cn } from "@/lib/utils";
-import { formatDateInIST, formatDateTimeInIST } from "@/lib/utils/date-time";
+import { EMPTY_DATE_LABEL, ageInYears, formatDateLabel, formatDateTimeLabel } from "@/lib/utils/date-time";
 import { useAuthStore } from "@/stores/auth.store";
 import { Role } from "@/types/auth.types";
+import { asRecordOrEmpty, firstIsoDate, firstText, unwrapList } from "@/lib/utils/coerce";
+import { sentenceCase } from "@/lib/utils/labels";
+import { patientRecordName } from "@/lib/utils/display-name";
 
 type RecordLike = Record<string, unknown>;
 
@@ -84,49 +89,13 @@ const TAB_IDS = ["overview", "timeline", "appointments", "history", "vitals", "r
 type TabId = (typeof TAB_IDS)[number];
 
 const PAGE_SIZE = 10;
-const DATE_FORMAT = { day: "numeric", month: "short", year: "numeric" } as const;
-const DATE_TIME_FORMAT = { ...DATE_FORMAT, hour: "numeric", minute: "2-digit", hour12: true } as const;
 
 function toArray(value: unknown): RecordLike[] {
-  if (Array.isArray(value)) return value as RecordLike[];
-  if (value && typeof value === "object") {
-    const record = value as RecordLike;
-    for (const key of ["data", "items", "records", "appointments", "history", "labs", "results"]) {
-      const candidate = record[key];
-      if (Array.isArray(candidate)) return candidate as RecordLike[];
-    }
-  }
-  return [];
-}
-
-const asRecord = (value: unknown): RecordLike =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as RecordLike) : {};
-
-/** First value that is a non-empty string or a number, as text. */
-function text(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return "";
+  return unwrapList(value, "data", "items", "records", "appointments", "history", "labs", "results") as RecordLike[];
 }
 
 function dateValue(...values: unknown[]): string {
-  for (const value of values) {
-    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return "";
-}
-
-/** "28 Sept 2026, 11:15 am" */
-function formatDateTime(value: string): string {
-  return (value && formatDateTimeInIST(value, DATE_TIME_FORMAT)) || "-";
-}
-
-/** "22 Sept 2026" */
-function formatDate(value: string): string {
-  return (value && formatDateInIST(value, DATE_FORMAT)) || "-";
+  return firstIsoDate(...values) ?? "";
 }
 
 function timeOf(value: string): number {
@@ -142,38 +111,11 @@ function newestFirst(rows: RecordLike[], dateOf: (row: RecordLike) => string): R
     .map((entry) => entry.row);
 }
 
-/** BLOOD_PRESSURE -> "Blood pressure" */
-function readable(value: string): string {
-  const clean = value.replace(/[_-]+/g, " ").trim();
-  if (!clean) return "";
-  return clean === clean.toUpperCase() || clean === clean.toLowerCase()
-    ? clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
-    : clean;
-}
-
-function getDisplayName(patient: RecordLike): string {
-  const user = asRecord(patient.user);
-  return (
-    text(
-      patient.name,
-      `${text(patient.firstName)} ${text(patient.lastName)}`,
-      user.name,
-      `${text(user.firstName)} ${text(user.lastName)}`,
-      patient.email,
-      user.email,
-    ) || "Patient Record"
-  );
-}
-
 function getAge(patient: RecordLike): string {
   const given = Number(patient.age);
   if (Number.isFinite(given) && given > 0) return String(given);
-  const birth = new Date(dateValue(patient.dateOfBirth, asRecord(patient.user).dateOfBirth));
-  if (Number.isNaN(birth.getTime())) return "";
-  const today = new Date();
-  const months = today.getMonth() - birth.getMonth();
-  const years = today.getFullYear() - birth.getFullYear() - (months < 0 || (months === 0 && today.getDate() < birth.getDate()) ? 1 : 0);
-  return years >= 0 ? String(years) : "";
+  const years = ageInYears(dateValue(patient.dateOfBirth, asRecordOrEmpty(patient.user).dateOfBirth));
+  return years === null ? "" : String(years);
 }
 
 function summaryValue(value: unknown): string {
@@ -192,11 +134,11 @@ const prescriptionDate = (row: RecordLike) => dateValue(row.date, row.createdAt)
 /** A medicine the patient is taking now: not switched off and not marked stopped. */
 function isCurrentMedication(row: RecordLike): boolean {
   if (row.isActive === false) return false;
-  return !["INACTIVE", "STOPPED", "DISCONTINUED", "COMPLETED", "CANCELLED"].includes(normalizeStatus(text(row.status)));
+  return !["INACTIVE", "STOPPED", "DISCONTINUED", "COMPLETED", "CANCELLED"].includes(normalizeStatus(firstText(row.status)));
 }
 
 function medicationStatus(row: RecordLike): string {
-  return text(row.status) || (row.isActive === true ? "ACTIVE" : row.isActive === false ? "INACTIVE" : "");
+  return firstText(row.status) || (row.isActive === true ? "ACTIVE" : row.isActive === false ? "INACTIVE" : "");
 }
 
 /** Lab results read differently from visit statuses: normal is good news. */
@@ -214,12 +156,9 @@ function StatusPill({ status, tones }: { status: string; tones?: Record<string, 
 }
 
 function VisitTypePill({ row }: { row: RecordLike }) {
-  const type = text(row.type, row.appointmentType, row.consultationType, row.consultationMode);
+  const type = firstText(row.type, row.appointmentType, row.consultationType, row.consultationMode);
   if (!type) return <span className="text-ink-muted">-</span>;
-  const code = normalizeStatus(type);
-  if (code.includes("VIDEO")) return <Pill tone="video">Video call</Pill>;
-  if (code.includes("PERSON") || code.includes("CLINIC")) return <Pill tone="clinic">In-clinic</Pill>;
-  return <Pill tone="slate">{readable(type)}</Pill>;
+  return <VisitTypeChip type={type} />;
 }
 
 // ── Grid table with its own paging ─────────────────────────────────────────
@@ -251,13 +190,8 @@ function RecordTable({
   emptyTitle: string;
   emptyDescription?: string;
 }) {
-  const [pageIndex, setPageIndex] = useState(0);
-  const total = rows.length;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.min(pageIndex, pageCount - 1);
-  const pageRows = rows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
-  const rangeStart = total === 0 ? 0 : currentPage * PAGE_SIZE + 1;
-  const rangeEnd = currentPage * PAGE_SIZE + pageRows.length;
+  const paging = usePagedRows(rows, PAGE_SIZE);
+  const { pageRows, total, page: currentPage } = paging;
 
   return (
     <Surface flush as="section" aria-label={title}>
@@ -282,7 +216,7 @@ function RecordTable({
         <div role="table" aria-label={title}>
           <GridHead columns={grid} labels={columns.map((column) => column.label)} />
           {pageRows.map((row, index) => (
-            <GridRow key={text(row.id) || `${currentPage}-${index}`} columns={grid}>
+            <GridRow key={firstText(row.id) || `${currentPage}-${index}`} columns={grid}>
               {columns.map((column) => (
                 <div key={column.label} role="cell">
                   <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:hidden">
@@ -296,34 +230,7 @@ function RecordTable({
         </div>
       )}
 
-      {loading || total === 0 ? null : (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair px-5 py-3 text-[13px] text-ink-muted">
-          <span>
-            Showing {rangeStart}–{rangeEnd} of {total}
-          </span>
-          <nav aria-label={`${title} pages`} className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="h-[34px]"
-              onClick={() => setPageIndex(currentPage - 1)}
-              disabled={currentPage <= 0}
-            >
-              Previous
-            </Button>
-            <span className="whitespace-nowrap" aria-live="polite">
-              Page {currentPage + 1} of {pageCount}
-            </span>
-            <Button
-              variant="outline"
-              className="h-[34px]"
-              onClick={() => setPageIndex(currentPage + 1)}
-              disabled={currentPage >= pageCount - 1}
-            >
-              Next
-            </Button>
-          </nav>
-        </div>
-      )}
+      {loading || total === 0 ? null : <Pager paging={paging} label={`${title} pages`} />}
     </Surface>
   );
 }
@@ -332,63 +239,63 @@ const muted = (value: string) => <span className="text-ink-muted">{value || "-"}
 const strong = (value: string) => <span className="font-bold text-ink">{value || "-"}</span>;
 
 const APPOINTMENT_COLUMNS: RecordColumn[] = [
-  { label: "When", cell: (row) => strong(formatDateTime(appointmentDate(row))) },
-  { label: "Status", cell: (row) => <StatusPill status={text(row.status)} /> },
+  { label: "When", cell: (row) => strong(formatDateTimeLabel(appointmentDate(row), EMPTY_DATE_LABEL)) },
+  { label: "Status", cell: (row) => <StatusPill status={firstText(row.status)} /> },
   {
     label: "Doctor",
     cell: (row) => {
-      const doctor = asRecord(row.doctor);
-      return muted(text(row.doctorName, doctor.name, asRecord(doctor.user).name) || "Not recorded");
+      const doctor = asRecordOrEmpty(row.doctor);
+      return muted(firstText(row.doctorName, doctor.name, asRecordOrEmpty(doctor.user).name) || "Not recorded");
     },
   },
   { label: "Type", cell: (row) => <VisitTypePill row={row} /> },
 ];
 
 const HISTORY_COLUMNS: RecordColumn[] = [
-  { label: "Date", cell: (row) => muted(formatDate(historyDate(row))) },
-  { label: "Condition", cell: (row) => strong(text(row.condition, row.diagnosis, row.title) || "Record") },
-  { label: "Details", cell: (row) => muted(text(row.treatment, row.description, row.notes)) },
-  { label: "Status", cell: (row) => <StatusPill status={text(row.status)} /> },
+  { label: "Date", cell: (row) => muted(formatDateLabel(historyDate(row), EMPTY_DATE_LABEL)) },
+  { label: "Condition", cell: (row) => strong(firstText(row.condition, row.diagnosis, row.title) || "Record") },
+  { label: "Details", cell: (row) => muted(firstText(row.treatment, row.description, row.notes)) },
+  { label: "Status", cell: (row) => <StatusPill status={firstText(row.status)} /> },
 ];
 
 const VITAL_COLUMNS: RecordColumn[] = [
-  { label: "Recorded", cell: (row) => muted(formatDateTime(vitalDate(row))) },
-  { label: "Vital", cell: (row) => strong(readable(text(row.type, row.vitalType, row.name)) || "Vital") },
+  { label: "Recorded", cell: (row) => muted(formatDateTimeLabel(vitalDate(row), EMPTY_DATE_LABEL)) },
+  { label: "Vital", cell: (row) => strong(sentenceCase(firstText(row.type, row.vitalType, row.name)) || "Vital") },
   {
     label: "Value",
     cell: (row) => {
-      const value = text(row.value);
-      return strong(value ? [value, text(row.unit)].filter(Boolean).join(" ") : "");
+      const value = firstText(row.value);
+      return strong(value ? [value, firstText(row.unit)].filter(Boolean).join(" ") : "");
     },
   },
-  { label: "Notes", cell: (row) => muted(text(row.notes)) },
+  { label: "Notes", cell: (row) => muted(firstText(row.notes)) },
 ];
 
 const LAB_COLUMNS: RecordColumn[] = [
-  { label: "Date", cell: (row) => muted(formatDate(labDate(row))) },
+  { label: "Date", cell: (row) => muted(formatDateLabel(labDate(row), EMPTY_DATE_LABEL)) },
   {
     label: "Report",
     cell: (row) => (
       <CellTitle
         left={<IconBox icon={FlaskConical} tone="amber" size={36} />}
-        title={text(row.testName, row.reportType, row.imageType, row.type) || "Report"}
+        title={firstText(row.testName, row.reportType, row.imageType, row.type) || "Report"}
       />
     ),
   },
   {
     label: "Result",
     cell: (row) => {
-      const result = text(row.result, row.results, row.findings, row.impression);
-      return muted(result ? [result, text(row.unit)].filter(Boolean).join(" ") : "");
+      const result = firstText(row.result, row.results, row.findings, row.impression);
+      return muted(result ? [result, firstText(row.unit)].filter(Boolean).join(" ") : "");
     },
   },
-  { label: "Status", cell: (row) => <StatusPill status={text(row.status)} tones={RESULT_TONES} /> },
+  { label: "Status", cell: (row) => <StatusPill status={firstText(row.status)} tones={RESULT_TONES} /> },
 ];
 
 const PRESCRIPTION_COLUMNS: RecordColumn[] = [
-  { label: "Visit date", cell: (row) => strong(formatDateTime(prescriptionDate(row))) },
-  { label: "Doctor", cell: (row) => muted(text(row.doctorName) || "Not recorded") },
-  { label: "Diagnosis", cell: (row) => <span className="text-ink">{text(row.diagnosis) || "-"}</span> },
+  { label: "Visit date", cell: (row) => strong(formatDateTimeLabel(prescriptionDate(row), EMPTY_DATE_LABEL)) },
+  { label: "Doctor", cell: (row) => muted(firstText(row.doctorName) || "Not recorded") },
+  { label: "Diagnosis", cell: (row) => <span className="text-ink">{firstText(row.diagnosis) || "-"}</span> },
   {
     label: "Medicines given",
     cell: (row) => {
@@ -397,11 +304,11 @@ const PRESCRIPTION_COLUMNS: RecordColumn[] = [
       return (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]">
           {items.map((item, index) => {
-            const details = [text(item.dosage), text(item.frequency), text(item.duration)].filter(Boolean).join(", ");
-            const quantity = text(item.quantity);
+            const details = [firstText(item.dosage), firstText(item.frequency), firstText(item.duration)].filter(Boolean).join(", ");
+            const quantity = firstText(item.quantity);
             return (
-              <li key={text(item.id) || index} className="leading-normal">
-                <span className="font-bold text-ink">{text(item.medicineName) || "Unknown medicine"}</span>
+              <li key={firstText(item.id) || index} className="leading-normal">
+                <span className="font-bold text-ink">{firstText(item.medicineName) || "Unknown medicine"}</span>
                 {details ? <span className="text-ink-muted"> · {details}</span> : null}
                 {quantity ? <span className="text-ink-muted"> (Qty: {quantity})</span> : null}
               </li>
@@ -411,7 +318,7 @@ const PRESCRIPTION_COLUMNS: RecordColumn[] = [
       );
     },
   },
-  { label: "Status", cell: (row) => <StatusPill status={text(row.status)} /> },
+  { label: "Status", cell: (row) => <StatusPill status={firstText(row.status)} /> },
 ];
 
 const MEDICATION_COLUMNS: RecordColumn[] = [
@@ -420,12 +327,12 @@ const MEDICATION_COLUMNS: RecordColumn[] = [
     cell: (row) => (
       <CellTitle
         left={<IconBox icon={PillIcon} tone="mint" size={36} />}
-        title={text(row.name, row.medicineName, row.medication) || "Medication"}
+        title={firstText(row.name, row.medicineName, row.medication) || "Medication"}
       />
     ),
   },
-  { label: "Dosage", cell: (row) => <span className="text-ink">{text(row.dosage) || "-"}</span> },
-  { label: "Frequency", cell: (row) => muted(text(row.frequency)) },
+  { label: "Dosage", cell: (row) => <span className="text-ink">{firstText(row.dosage) || "-"}</span> },
+  { label: "Frequency", cell: (row) => muted(firstText(row.frequency)) },
   { label: "Status", cell: (row) => <StatusPill status={medicationStatus(row)} /> },
 ];
 
@@ -465,9 +372,9 @@ export function PatientClinicalRecordView({
   loading = false,
   className,
 }: PatientClinicalRecordViewProps) {
-  const patientRecord = asRecord(patient);
-  const patientUser = asRecord(patientRecord.user);
-  const ehrRecord = asRecord(ehr);
+  const patientRecord = asRecordOrEmpty(patient);
+  const patientUser = asRecordOrEmpty(patientRecord.user);
+  const ehrRecord = asRecordOrEmpty(ehr);
 
   // A doctor sees no money: no Bills tab, and `billing` is never mounted for them.
   const role = useAuthStore((state) => String(state.session?.user?.role ?? "").toUpperCase());
@@ -487,7 +394,7 @@ export function PatientClinicalRecordView({
   const tabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
   const { tab, setTab } = useHashTab<TabId>({ tabs: tabIds, defaultValue: "overview" });
 
-  const patientDisplayName = getDisplayName(patientRecord);
+  const patientDisplayName = patientRecordName(patientRecord) || "Patient Record";
   const currentMedications = useMemo(
     () => toArray(ehrRecord.medications).filter(isCurrentMedication),
     [ehrRecord.medications],
@@ -525,11 +432,11 @@ export function PatientClinicalRecordView({
 
   const snapshot: Array<[string, string]> = [
     ["Name", patientDisplayName],
-    ["Email", text(patientRecord.email, patientUser.email)],
-    ["Phone", text(patientRecord.phone, patientUser.phone)],
+    ["Email", firstText(patientRecord.email, patientUser.email)],
+    ["Phone", firstText(patientRecord.phone, patientUser.phone)],
     ["Age", getAge(patientRecord)],
-    ["Blood group", text(patientRecord.bloodGroup, ehrRecord.bloodGroup)],
-    ["Gender", readable(text(patientRecord.gender, patientUser.gender))],
+    ["Blood group", firstText(patientRecord.bloodGroup, ehrRecord.bloodGroup)],
+    ["Gender", sentenceCase(firstText(patientRecord.gender, patientUser.gender))],
     ["Allergies", String(allergies.length)],
     ["Active medications", String(currentMedications.length)],
   ];
@@ -581,7 +488,7 @@ export function PatientClinicalRecordView({
           <Kpi
             label="Lab Reports"
             value={count(labs.length)}
-            hint={latestLab ? `Latest ${formatDate(latestLab)}` : "None on file"}
+            hint={latestLab ? `Latest ${formatDateLabel(latestLab, EMPTY_DATE_LABEL)}` : "None on file"}
             icon={FlaskConical}
             tone="amber"
           />
@@ -654,14 +561,14 @@ export function PatientClinicalRecordView({
               {carePlan.map((item, index) => {
                 const goals = Array.isArray(item.goals) ? item.goals : [];
                 return (
-                  <div key={text(item.id) || index} className={cn(TILE, "flex items-start gap-3 px-4 py-3.5")}>
+                  <div key={firstText(item.id) || index} className={cn(TILE, "flex items-start gap-3 px-4 py-3.5")}>
                     <IconBox icon={Check} tone="mint" size={36} />
                     <div className="flex min-w-0 flex-col gap-1">
                       <span className="text-sm font-bold text-ink">
-                        {text(goals[0], item.title, item.name) || `Plan item ${index + 1}`}
+                        {firstText(goals[0], item.title, item.name) || `Plan item ${index + 1}`}
                       </span>
                       <span className="text-[13px] leading-normal text-ink-muted">
-                        {text(item.followUpInstructions, item.instructions, item.description, item.notes) || "-"}
+                        {firstText(item.followUpInstructions, item.instructions, item.description, item.notes) || "-"}
                       </span>
                     </div>
                   </div>

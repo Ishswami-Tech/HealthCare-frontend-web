@@ -61,7 +61,7 @@ export function DoctorDashboardOpenVisitsCard({
     <section
       aria-label="Complete this visit"
       data-testid="open-video-visits"
-      className={cn(TBD_SURFACE, "flex flex-col gap-3.5 border-l-4 border-l-[#047857] px-[22px] py-[18px] dark:border-l-emerald-500")}
+      className={cn(TBD_SURFACE, "flex flex-col gap-3.5 border-l-4 border-l-brand px-[22px] py-[18px]")}
     >
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
         <Check className="size-5 shrink-0 text-brand" strokeWidth={2.6} aria-hidden="true" />
