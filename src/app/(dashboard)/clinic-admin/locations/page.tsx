@@ -260,6 +260,11 @@ function buildLocationPayload<T extends object>(
   delete source.permissions;
   delete source.raw;
   delete source.googlePlaceId;
+  // Server-owned fields: the API rejects a body that carries them ("property id should not exist").
+  delete source.id;
+  delete source.clinicId;
+  delete source.createdAt;
+  delete source.updatedAt;
   if (source.latitude === "") {
     delete source.latitude;
   } else if (source.latitude !== undefined) {
