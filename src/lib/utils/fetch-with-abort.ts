@@ -1,5 +1,4 @@
 import { APP_CONFIG } from '@/lib/config/config';
-import { dedupeRequest } from '@/hooks/core/requestDeduper';
 
 export interface FetchWithAbortOptions extends RequestInit {
   timeout?: number;
@@ -73,24 +72,16 @@ export async function fetchWithAbort(
       headers.set(BACKEND_PROTECTION_HEADER, backendProtectionKey);
     }
 
-    const response = await dedupeRequest(
-      'fetch',
-      {
-        url,
-        method: fetchOptions.method || 'GET',
-        body: typeof fetchOptions.body === 'string'
-          ? fetchOptions.body
-          : fetchOptions.body
-            ? JSON.stringify(fetchOptions.body)
-            : '',
-        requireAuth,
-      },
-      () => fetch(url, {
-        ...fetchOptions,
-        headers,
-        signal: controller.signal,
-      })
-    );
+    // No in-flight sharing here. A Response body can be read once, so handing the same Response to
+    // several callers made the second reader fail with "Body is unusable: Body has already been
+    // read" (the video room status check, 500 for the doctor), and the key carried no user or
+    // session, so two people asking for the same URL at once could be given the same answer.
+    // Callers that want de-duplication do it on the parsed result, scoped to the session.
+    const response = await fetch(url, {
+      ...fetchOptions,
+      headers,
+      signal: controller.signal,
+    });
 
     clearTimeout(timeoutId);
     return response;
