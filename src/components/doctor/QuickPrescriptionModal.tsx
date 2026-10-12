@@ -477,7 +477,7 @@ export function PrescriptionDialogView({
       }}
     >
       <DialogContent
-        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1040px] flex-col gap-0 overflow-hidden p-0 focus-visible:outline-hidden sm:w-[calc(100vw-2rem)] sm:max-w-[1040px]"
+        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1040px] flex-col gap-0 overflow-hidden p-0 focus-visible:outline-hidden sm:w-[calc(100vw-2rem)] sm:max-w-[1040px] xl:max-w-[1440px]"
         onOpenAutoFocus={(event) => {
           // Focus the dialog itself, not its first control (which would be the stock switch).
           event.preventDefault();
@@ -693,7 +693,8 @@ export function PrescriptionDialogView({
                     No medicines added yet. Press Add next to a medicine in the pharmacy stock.
                   </div>
                 ) : (
-                  form.medications.map((medication, index) => {
+                  <div className="grid grid-cols-1 items-start gap-2.5 xl:grid-cols-2">
+                  {form.medications.map((medication, index) => {
                     const medicine = medication.medicineId ? medicinesById.get(medication.medicineId) : undefined;
                     const stock = medicine ? stockOf(medicine) : 0;
                     const left = stock - quantityOf(medication);
@@ -736,7 +737,7 @@ export function PrescriptionDialogView({
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[1fr_2fr_0.7fr_0.9fr]">
+                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[1fr_2fr_0.7fr_0.9fr] xl:grid-cols-2">
                           <div className="flex min-w-0 flex-col gap-1">
                             <label htmlFor={`${rowId}-dose`} className={FIELD_LABEL}>
                               Dose
@@ -827,7 +828,8 @@ export function PrescriptionDialogView({
                         )}
                       </fieldset>
                     );
-                  })
+                  })}
+                  </div>
                 )}
               </div>
 
