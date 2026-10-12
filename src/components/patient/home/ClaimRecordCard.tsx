@@ -4,7 +4,12 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useClaimRecord, useClaimableRecords, toClaimInput } from "@/hooks/query/usePatientRecordClaim";
+import {
+  describeClaimEntryProblem,
+  useClaimRecord,
+  useClaimableRecords,
+  toClaimInput,
+} from "@/hooks/query/usePatientRecordClaim";
 import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { logout as logoutAction } from "@/lib/actions/auth.server";
 
@@ -23,7 +28,9 @@ export function ClaimRecordCard({ userId, enabled }: { userId: string; enabled: 
 
   if (!enabled || !claimable.data || claimable.data.available < 1) return null;
 
-  const ready = fullName.trim().length >= 3 && receiptNumber.trim().length >= 4 && !claim.isPending;
+  const entryProblem = describeClaimEntryProblem(fullName, receiptNumber);
+  const ready =
+    fullName.trim().length >= 3 && receiptNumber.trim().length >= 4 && !entryProblem && !claim.isPending;
 
   const submit = async () => {
     if (!ready) return;
@@ -81,6 +88,11 @@ export function ClaimRecordCard({ userId, enabled }: { userId: string; enabled: 
           Link my record
         </Button>
       </div>
+      {entryProblem ? (
+        <p role="status" className="m-0 text-[13px] font-semibold text-[#92400e] dark:text-amber-300">
+          {entryProblem}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="m-0 text-[13px] font-semibold text-[#9f1239] dark:text-rose-300">
           {error}

@@ -15,6 +15,23 @@ export interface ClaimRecordInput {
 
 const UHID_SHAPE = /^[A-Za-z0-9]{2,8}-\d{9}$/;
 
+/**
+ * What is wrong with the typed details, in words the patient can act on, or null when they look
+ * usable. Catches the usual slips before they cost an attempt (the server allows only a few):
+ * the word "UHID" typed instead of the number, or digits and symbols typed into the name.
+ */
+export function describeClaimEntryProblem(fullName: string, receiptNumber: string): string | null {
+  const name = fullName.trim();
+  const number = receiptNumber.trim();
+  if (name.length > 0 && !/^[\p{L}][\p{L}\s.'-]*$/u.test(name)) {
+    return "Use letters only in the name, as the clinic has it.";
+  }
+  if (number.length > 0 && !/\d/.test(number)) {
+    return "Type the number printed on your receipt or card (for example CL0002-000012345), not the word UHID.";
+  }
+  return null;
+}
+
 /** Sends the typed receipt number as a UHID when it looks like one, else as the old patient number. */
 export function toClaimInput(fullName: string, receiptNumber: string): ClaimRecordInput {
   const number = receiptNumber.trim();
