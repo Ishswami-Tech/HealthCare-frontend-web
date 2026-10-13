@@ -138,10 +138,11 @@ function normalizeDailyCameraErrorEvent(event: unknown): unknown {
   const error = payload.error;
   if (!error || typeof error !== "object") return event;
 
-  const needsMissing =
-    error.type === "not-found" && !Array.isArray(error.missingMedia);
-  const needsBlocked =
-    error.type === "permissions" && !Array.isArray(error.blockedMedia);
+  // daily-react reads both lists for several error types (not only not-found /
+  // permissions), so any non-array value (null/undefined) must be normalized
+  // (HEALTHCAREFRONTEND-WEB-4 still fired after the type-scoped guard).
+  const needsMissing = !Array.isArray(error.missingMedia);
+  const needsBlocked = !Array.isArray(error.blockedMedia);
   if (!needsMissing && !needsBlocked) return event;
 
   const nestedMsg =
@@ -161,8 +162,12 @@ function normalizeDailyCameraErrorEvent(event: unknown): unknown {
     ...payload,
     error: {
       ...error,
-      ...(needsMissing ? { missingMedia: inferred } : {}),
-      ...(needsBlocked ? { blockedMedia: inferred } : {}),
+      ...(needsMissing
+        ? { missingMedia: error.type === "not-found" ? inferred : [] }
+        : {}),
+      ...(needsBlocked
+        ? { blockedMedia: error.type === "permissions" ? inferred : [] }
+        : {}),
     },
   };
 }
