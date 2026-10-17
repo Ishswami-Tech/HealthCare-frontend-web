@@ -831,6 +831,7 @@ export default function DoctorAppointments() {
       isLoadingAppointments={isLoadingAppointments}
       appointmentsLoadFailed={appointmentsLoadFailed}
       retryLoadAppointments={retryLoadAppointments}
+      refreshAppointments={retryLoadAppointments}
       todayLabel={todayLabel}
       clinicId={clinicId}
       userId={user?.id}

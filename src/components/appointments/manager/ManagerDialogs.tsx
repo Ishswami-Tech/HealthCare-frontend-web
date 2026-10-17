@@ -46,6 +46,8 @@ export function RescheduleDialog({
   slotPeriods,
   slotsLoading = false,
   slotsError = null,
+  reason,
+  onReasonChange,
   submitting,
   onSubmit,
 }: {
@@ -65,10 +67,14 @@ export function RescheduleDialog({
   slotPeriods?: BookingSlotPeriod[] | undefined;
   slotsLoading?: boolean;
   slotsError?: string | null;
+  /** An optional reason for the move (staff tell the patient why); the field shows when both are given. */
+  reason?: string | undefined;
+  onReasonChange?: ((value: string) => void) | undefined;
   submitting: boolean;
   onSubmit: () => void;
 }) {
   const useSlotGrid = slotPeriods !== undefined;
+  const askReason = reason !== undefined && onReasonChange !== undefined;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
@@ -121,6 +127,20 @@ export function RescheduleDialog({
               </div>
             )}
           </div>
+          {askReason ? (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="appointment-reschedule-reason" className="text-[13px] font-semibold text-ink">
+                Reason (optional)
+              </label>
+              <Textarea
+                id="appointment-reschedule-reason"
+                value={reason}
+                maxLength={500}
+                placeholder="For example: the doctor is held up at the hospital"
+                onChange={(event) => onReasonChange(event.target.value)}
+              />
+            </div>
+          ) : null}
           {visit?.rescheduleHint ? (
             <Note tone="blue">
               <strong className="font-bold">{visit.rescheduleHint}.</strong> A visit can be moved{" "}
