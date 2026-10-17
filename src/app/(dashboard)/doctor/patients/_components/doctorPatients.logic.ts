@@ -207,23 +207,6 @@ export function matchesLastVisitRange(
   return true;
 }
 
-/**
- * Most recent visit first; patients with no visit date go last. Returns a new array.
- * The server list has no sort option, so this orders the rows that are already loaded.
- */
-export function sortByLatestVisit<T extends Pick<DoctorPatientRow, "lastVisit">>(rows: readonly T[]): T[] {
-  const time = (row: T): number => {
-    const value = row.lastVisit ? new Date(row.lastVisit).getTime() : Number.NaN;
-    return Number.isNaN(value) ? Number.NEGATIVE_INFINITY : value;
-  };
-  return [...rows].sort((a, b) => {
-    const left = time(a);
-    const right = time(b);
-    if (left === right) return 0;
-    return right > left ? 1 : -1;
-  });
-}
-
 /** The "This Week" number next to "Total Patients", worked out from the doctor's appointments. */
 export function computeDoctorPatientsStats(appointments: Raw[], now: Date = new Date()): DoctorPatientsStats {
   const weekEnd = new Date(now);
