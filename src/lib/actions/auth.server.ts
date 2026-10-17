@@ -1217,23 +1217,26 @@ export async function clearSession() {
   });
 }
 
-export async function login(data: { email: string; password?: string; otp?: string; rememberMe?: boolean; clinicId?: string | undefined }) {
+/**
+ * Email + password login (`POST /auth/login`). OTP sign-in is a different flow: the code is
+ * requested with `requestOTP` and exchanged for a session with `verifyOTP`, never passed here.
+ */
+export async function login(data: { email: string; password: string; rememberMe?: boolean; clinicId?: string | undefined }) {
   try {
     if (!data.email) {
       throw new Error('Email is required');
     }
 
-    if (!data.password && !data.otp) {
-      throw new Error('Either password or OTP must be provided');
+    if (!data.password) {
+      throw new Error('Password is required');
     }
-    
+
     const requestBody: Record<string, unknown> = {
       email: data.email,
+      password: data.password,
       clinicId: requireClinicContextId(data.clinicId, 'login'),
     };
 
-    if (data.password) requestBody.password = data.password;
-    if (data.otp) requestBody.otp = data.otp;
     if (data.rememberMe !== undefined) requestBody.rememberMe = data.rememberMe;
     
     const response = await clinicApiClient.login(requestBody as any);

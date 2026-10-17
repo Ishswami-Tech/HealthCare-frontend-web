@@ -3,6 +3,18 @@ import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
+import { useAuthStore } from '@/stores/auth.store';
+import { Role } from '@/types/auth.types';
+
+/**
+ * `PUT|DELETE /notification-preferences/:userId` is the admin route (SUPER_ADMIN, CLINIC_ADMIN);
+ * everyone else edits their own preferences on the bare route. Returns true when the signed-in
+ * user may address another user's preferences.
+ */
+function useCanManageOtherPreferences(): boolean {
+  const role = useAuthStore((state) => String(state.session?.user?.role ?? '').toUpperCase());
+  return role === Role.SUPER_ADMIN || role === Role.CLINIC_ADMIN;
+}
 
 export const useNotificationPreferences = () => {
   return useQueryData(
@@ -48,8 +60,10 @@ export const useCreateNotificationPreferences = () => {
 };
 
 export const useUpdateNotificationPreferences = () => {
+  const canManageOthers = useCanManageOtherPreferences();
   return useMutationOperation(
     async (data: {
+      /** Another user's preferences; only an admin may address them, others always edit their own. */
       userId?: string;
       emailEnabled?: boolean;
       smsEnabled?: boolean;
@@ -62,9 +76,10 @@ export const useUpdateNotificationPreferences = () => {
       systemEnabled?: boolean;
     }) => {
       const { userId, ...payload } = data;
-      const endpoint = userId
-        ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
-        : API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE;
+      const endpoint =
+        userId && canManageOthers
+          ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
+          : API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE;
       return await clinicApiClient.put(endpoint, payload);
     },
     {
@@ -77,11 +92,13 @@ export const useUpdateNotificationPreferences = () => {
 };
 
 export const useDeleteNotificationPreferences = () => {
+  const canManageOthers = useCanManageOtherPreferences();
   return useMutationOperation(
     async (userId?: string) => {
-      const endpoint = userId
-        ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
-        : API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE;
+      const endpoint =
+        userId && canManageOthers
+          ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
+          : API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE;
       return await clinicApiClient.delete(endpoint);
     },
     {
