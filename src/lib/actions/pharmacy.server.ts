@@ -221,16 +221,27 @@ export interface MedicineListFilters {
   category?: string;
   /** Classification (CLASSICAL, PROPRIETARY, HERBAL). */
   type?: string;
-  manufacturer?: string;
   /** Only `true` is sent: the server has no "out of stock only" switch. */
   inStock?: boolean;
+  /** At or below the reorder level, or out of stock. */
   lowStock?: boolean;
   expiringSoon?: boolean;
-  prescriptionRequired?: boolean;
   expiringDays?: number;
   limit?: number;
-  offset?: number;
 }
+
+/** The query keys the inventory route declares; anything else would be rejected (forbidNonWhitelisted). */
+const INVENTORY_QUERY_KEYS = new Set([
+  "search",
+  "category",
+  "type",
+  "inStock",
+  "lowStock",
+  "expiringSoon",
+  "expiringDays",
+  "page",
+  "limit",
+]);
 
 /** One server page of medicines (`GET /pharmacy/inventory?page=`). */
 export interface MedicinePage {
@@ -246,6 +257,7 @@ const INVENTORY_LIMIT_MAX = 500;
 function inventoryQuery(filters: MedicineListFilters & { page?: number }): string {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
+    if (!INVENTORY_QUERY_KEYS.has(key)) return;
     if (value === undefined || value === null || value === "" || value === false) return;
     params.append(key, String(value));
   });

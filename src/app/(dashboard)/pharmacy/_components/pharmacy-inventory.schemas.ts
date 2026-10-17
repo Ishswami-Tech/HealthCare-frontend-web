@@ -102,7 +102,8 @@ export const editMedicineSchema = z.object({
   unit: z.string().trim().min(1, "Enter the unit (tablet, ml, gm …).").max(20, "Use 20 characters or fewer."),
   /** "" = no supplier. */
   supplierId: z.string(),
-  expiryDate: z.string().regex(DATE_KEY, "Choose the expiry date."),
+  /** "" = no expiry recorded (kept as is; it cannot be cleared here). */
+  expiryDate: z.string().refine((value) => value === "" || DATE_KEY.test(value), "Choose the expiry date."),
   minStockLevel: wholeNumber("the minimum stock level", 0),
   unitPrice: rupees("the price per unit", true),
 });
@@ -114,7 +115,10 @@ export function medicineDosageForm(medicine: Pick<MedicineRow, "category" | "typ
   return parseDosageForm(medicine.category) ?? parseDosageForm(medicine.typeCode);
 }
 
-/** What the edit form starts with, from the list row. */
+/**
+ * What the edit form starts with, from the list row. A row whose form is not a known one shows
+ * "Other"; the payload diffs against these same values, so that default is never sent untouched.
+ */
 export function toEditMedicineValues(medicine: MedicineRow): EditMedicineValues {
   return {
     name: medicine.name,
@@ -130,23 +134,24 @@ export function toEditMedicineValues(medicine: MedicineRow): EditMedicineValues 
 }
 
 /**
- * The `updates` of `useUpdateMedicine`: only the fields that differ from the row. Stock is not
- * editable here, because a bare stock number would move `Medicine.stock` without a batch behind
- * it. Returns null when nothing changed.
+ * The `updates` of `useUpdateMedicine`: only the fields that differ from what the form started
+ * with. Stock is not editable here, because a bare stock number would move `Medicine.stock`
+ * without a batch behind it. Returns null when nothing changed.
  */
 export function toUpdateMedicinePayload(values: EditMedicineValues, current: MedicineRow): UpdateMedicineInput | null {
   const before = toEditMedicineValues(current);
   const classification = parseMedicineClassification(values.classification);
+  const expiryDate = values.expiryDate.trim();
   const updates: UpdateMedicineInput = {
     ...(values.name.trim() !== before.name ? { name: values.name.trim() } : {}),
     ...(values.manufacturer.trim() !== before.manufacturer ? { manufacturer: values.manufacturer.trim() } : {}),
-    ...(values.dosageForm !== medicineDosageForm(current) ? { dosageForm: values.dosageForm } : {}),
+    ...(values.dosageForm !== before.dosageForm ? { dosageForm: values.dosageForm } : {}),
     ...(classification && values.classification !== before.classification ? { classification } : {}),
     ...(values.unit.trim() !== before.unit ? { unit: values.unit.trim() } : {}),
     ...(values.supplierId !== before.supplierId ? { supplierId: values.supplierId || null } : {}),
-    ...(values.expiryDate !== before.expiryDate ? { expiryDate: values.expiryDate } : {}),
-    ...(Number(values.minStockLevel) !== current.minStock ? { minStockLevel: Number(values.minStockLevel) } : {}),
-    ...(Number(values.unitPrice) !== current.price ? { unitPrice: Number(values.unitPrice) } : {}),
+    ...(expiryDate && expiryDate !== before.expiryDate ? { expiryDate } : {}),
+    ...(Number(values.minStockLevel) !== Number(before.minStockLevel) ? { minStockLevel: Number(values.minStockLevel) } : {}),
+    ...(Number(values.unitPrice) !== Number(before.unitPrice) ? { unitPrice: Number(values.unitPrice) } : {}),
   };
   return Object.keys(updates).length > 0 ? updates : null;
 }

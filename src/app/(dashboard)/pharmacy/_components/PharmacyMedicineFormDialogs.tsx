@@ -20,7 +20,7 @@ import {
   RupeeField,
   fieldAria,
 } from "./PharmacyDialogParts";
-import { MEDICINE_CLASSIFICATIONS } from "@/lib/constants/medicine-types";
+import { MEDICINE_CLASSIFICATIONS, parseMedicineClassification } from "@/lib/constants/medicine-types";
 import { DOSAGE_FORMS, todayKey, type MedicineRow } from "./pharmacy-inventory.logic";
 import {
   ADD_MEDICINE_DEFAULTS,
@@ -348,6 +348,9 @@ function EditMedicineForm({
   const values = useWatch({ control });
   const parsed = editMedicineSchema.safeParse(values);
   const changed = parsed.success ? toUpdateMedicinePayload(parsed.data, medicine) !== null : true;
+  // A classification, once set, cannot be unset through PATCH, so "Not set" is offered only to a
+  // row that has none.
+  const hasClassification = parseMedicineClassification(medicine.typeCode) !== null;
   // The row's supplier may be one the list no longer has; it stays choosable so nothing is lost.
   const supplierOptions =
     medicine.supplierId && !suppliers.some((supplier) => supplier.id === medicine.supplierId)
@@ -410,7 +413,7 @@ function EditMedicineForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NO_CLASSIFICATION_OPTION}>Not set</SelectItem>
+                    {hasClassification ? null : <SelectItem value={NO_CLASSIFICATION_OPTION}>Not set</SelectItem>}
                     {MEDICINE_CLASSIFICATIONS.map((entry) => (
                       <SelectItem key={entry.value} value={entry.value}>
                         {entry.label}

@@ -31,12 +31,15 @@ import {
 } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import {
+  CATEGORY_FILTER_OPTIONS,
   EMPTY_FILTERS,
   STATUS_LABEL,
   STOCK_FILTER_OPTIONS,
+  TYPE_FILTER_OPTIONS,
   expiringLine,
   expiryPill,
   filterMedicines,
+  isServerStockFilter,
   lowStockLine,
   medicineSubline,
   type InventoryFilters,
@@ -107,6 +110,13 @@ function MoreButton({ count, label, onClick }: { count: number; label: string; o
   );
 }
 
+/** The fixed choices, plus the chosen value when it is not one of them, so it can always be cleared. */
+function withSelected(options: readonly { value: string; label: string }[], selected: string) {
+  return selected && !options.some((option) => option.value === selected)
+    ? [...options, { value: selected, label: selected }]
+    : options;
+}
+
 function lowStockCount(overview: InventoryOverview): string {
   const { lowCount, outCount } = overview.summary;
   return [lowCount > 0 ? `${lowCount} low` : "", outCount > 0 ? `${outCount} out of stock` : ""]
@@ -132,9 +142,10 @@ export function PharmacyInventoryStockTab({
   onAddMedicine,
 }: PharmacyInventoryStockTabProps) {
   const { summary, rows } = overview;
-  // The server applies the search, type, category and "in stock" filters; the client filter runs
-  // again on the page rows for the stock statuses the server has no switch for (low, out, expiring).
+  // The server applies the search, type, category, in-stock, low-stock and expiring filters; the
+  // client filter runs again on the page rows, and alone cuts "out of stock" from the low-stock page.
   const filtered = filterMedicines(rows, filters);
+  const serverFiltered = isServerStockFilter(filters.stock);
   const paging = serverPaging({ page, pageSize, total, rowCount: filtered.length, onPageChange });
   const paged = rows.length < total;
   const filtering =
@@ -144,7 +155,9 @@ export function PharmacyInventoryStockTab({
     onFiltersChange({ ...filters, ...patch });
     onPageChange(1);
   };
-  const hasCategories = overview.categoryOptions.length > 0;
+  const hasCategories = rows.some((row) => row.category);
+  const typeOptions = withSelected(TYPE_FILTER_OPTIONS, filters.type);
+  const categoryOptions = withSelected(CATEGORY_FILTER_OPTIONS, filters.category);
 
   return (
     <div className="flex flex-col gap-5">
@@ -311,39 +324,35 @@ export function PharmacyInventoryStockTab({
             }
             className="min-w-[220px] flex-1 basis-[280px]"
           />
-          {overview.typeOptions.length > 1 ? (
-            <Select value={filters.type || ALL} onValueChange={(value) => setFilters({ type: value === ALL ? "" : value })}>
-              <SelectTrigger aria-label="Filter by type" className="w-full sm:w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All types</SelectItem>
-                {overview.typeOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-          {overview.categoryOptions.length > 1 ? (
-            <Select
-              value={filters.category || ALL}
-              onValueChange={(value) => setFilters({ category: value === ALL ? "" : value })}
-            >
-              <SelectTrigger aria-label="Filter by category" className="w-full sm:w-[170px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All categories</SelectItem>
-                {overview.categoryOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
+          <Select value={filters.type || ALL} onValueChange={(value) => setFilters({ type: value === ALL ? "" : value })}>
+            <SelectTrigger aria-label="Filter by type" className="w-full sm:w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All types</SelectItem>
+              {typeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.category || ALL}
+            onValueChange={(value) => setFilters({ category: value === ALL ? "" : value })}
+          >
+            <SelectTrigger aria-label="Filter by category" className="w-full sm:w-[170px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All categories</SelectItem>
+              {categoryOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={filters.stock} onValueChange={(value) => setFilters({ stock: value as StockFilter })}>
             <SelectTrigger aria-label="Filter by stock status" className="w-full sm:w-[190px]">
               <SelectValue />
@@ -495,7 +504,14 @@ export function PharmacyInventoryStockTab({
               })}
             </div>
 
-            <Pager paging={paging} noun={paging.total === 1 ? "medicine" : "medicines"} busy={loading} />
+            {serverFiltered ? (
+              <Pager paging={paging} noun={paging.total === 1 ? "medicine" : "medicines"} busy={loading} />
+            ) : (
+              <p className="m-0 border-t border-hair px-5 py-3 text-[13px] text-ink-muted" role="status">
+                {filtered.length} {filtered.length === 1 ? "medicine" : "medicines"} out of stock on this page
+                {paged ? ` (${total} low or out of stock in all; use the Low or out of stock filter to page through them)` : ""}
+              </p>
+            )}
           </>
         )}
       </Surface>

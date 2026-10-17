@@ -149,7 +149,8 @@ export default function PharmacyInventoryContent() {
 
   // ── Queries ──────────────────────────────────────────────────────────────
   // The stock list is paged and searched by the server: `category` is the dosage form token, `type`
-  // the classification, `inStock` only when that filter is on. The other stock filters are local.
+  // the classification; `inStock`, `lowStock` (low or out) and `expiringSoon` follow the stock
+  // filter. "Out of stock" alone is cut from the low-stock page on the client.
   const debouncedSearch = useDebouncedValue(filters.search.trim(), 300);
   const inventoryParams = useMemo(() => {
     const categoryToken = parseDosageForm(filters.category);
@@ -160,6 +161,8 @@ export default function PharmacyInventoryContent() {
       ...(categoryToken ? { category: categoryToken } : {}),
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.stock === "in_stock" ? { inStock: true } : {}),
+      ...(filters.stock === "restock" || filters.stock === "out_of_stock" ? { lowStock: true } : {}),
+      ...(filters.stock === "expiring" ? { expiringSoon: true } : {}),
     };
   }, [debouncedSearch, filters.category, filters.stock, filters.type, page]);
   const {
