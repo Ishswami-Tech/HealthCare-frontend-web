@@ -39,7 +39,10 @@ import { InitialsAvatar, Note, Pill, SearchBox, statusLabel, statusTone } from "
 import { cn } from "@/lib/utils";
 import { useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useCreatePrescription, useMedicines } from "@/hooks/query/usePharmacy";
+import { useCreateEhrPrescriptionNote } from "@/hooks/query/useMedicalRecords";
+import { useCreatePrescription, useMedicines, useMedicinesPage } from "@/hooks/query/usePharmacy";
+import { useDebouncedValue } from "@/hooks/core/useDebouncedValue";
+import { dosageFormLabel } from "@/lib/constants/medicine-types";
 import type { Medicine } from "@/types/pharmacy.types";
 import { prescriptionReference } from "@/lib/utils/labels";
 import { asRecord, trimmedString } from "@/lib/utils/coerce";
@@ -120,7 +123,9 @@ const emptyPrescriptionForm = (): PrescriptionFormValues => ({
   followUpDate: "",
   followUpNotes: "",
   medicineSearch: "",
-  inStockOnly: true,
+  // Off by default: a medicine that is out of stock is still prescribed (the pharmacy gives it once
+  // stock arrives), so the whole catalogue shows, each row with its stock.
+  inStockOnly: false,
   medications: [],
 });
 
@@ -356,6 +361,10 @@ export interface PrescriptionDialogViewProps {
   initialValues?: PrescriptionFormValues;
   /** Saves the form. Resolves true when everything was saved. */
   onSubmit: (values: PrescriptionFormValues) => Promise<boolean>;
+  /** The search text as typed, so the owner can ask the server for matches beyond the loaded list. */
+  onSearchChange?: (value: string) => void;
+  /** The server is being asked for matches to the typed text. */
+  isSearching?: boolean;
 }
 
 /** The prescribing dialog. Props only: the data hooks live in `QuickPrescriptionModal`. */
@@ -375,6 +384,8 @@ export function PrescriptionDialogView({
   medicinesLocked = false,
   initialValues,
   onSubmit,
+  onSearchChange,
+  isSearching = false,
 }: PrescriptionDialogViewProps) {
   const [form, dispatch] = useReducer(prescriptionFormReducer, initialValues, (initial) => initial ?? emptyPrescriptionForm());
   const fieldId = useId();
@@ -493,10 +504,11 @@ export function PrescriptionDialogView({
     return medicine ? quantityOf(medication) > stockOf(medicine) : false;
   }).length;
 
+  // Without a visit, a diagnosis or advice alone is saved in the patient's record (EHR); with one,
+  // outside medicines count too because they travel in the visit notes.
+  const hasNote = Boolean(form.diagnosis.trim() || form.advice.trim());
   const hasContent =
-    mode === "complete"
-      ? Boolean(form.diagnosis.trim() || form.advice.trim() || stockRows.length > 0 || namedOutsideRows.length > 0)
-      : stockRows.length > 0;
+    mode === "complete" ? hasNote || stockRows.length > 0 || namedOutsideRows.length > 0 : hasNote || stockRows.length > 0;
   const canSubmit = hasContent && incompleteCount === 0 && !isSubmitting;
 
   const medicineWord = (count: number) => `${count} ${count === 1 ? "medicine" : "medicines"}`;
@@ -509,7 +521,12 @@ export function PrescriptionDialogView({
         : `Set the dose, how often and days for ${incompleteCount === 1 ? "1 medicine" : `${incompleteCount} medicines`}.`;
     footerWarn = true;
   } else if (form.medications.length === 0) {
-    footerText = mode === "complete" ? "No medicines added. Nothing goes to the pharmacy." : "Add at least one medicine from the stock list.";
+    footerText =
+      mode === "complete"
+        ? "No medicines added. Nothing goes to the pharmacy."
+        : hasNote
+          ? "No medicines added. The diagnosis and advice are saved in the patient's record; nothing goes to the pharmacy."
+          : "Add a medicine from the stock list, or write a diagnosis or advice, to save this prescription.";
   } else {
     const parts: string[] = [];
     if (stockRows.length > 0) {
@@ -596,11 +613,21 @@ export function PrescriptionDialogView({
                   value={form.medicineSearch}
                   onChange={(value) => {
                     dispatch({ type: "setField", field: "medicineSearch", value });
+                    onSearchChange?.(value);
                     resetList();
                   }}
                   placeholder="Search by name, brand or ingredient"
                 />
-                <span className="text-xs text-ink-muted">Search by name, brand or ingredient</span>
+                <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted" role="status">
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                      Searching the pharmacy list…
+                    </>
+                  ) : (
+                    "Search by name, brand or ingredient"
+                  )}
+                </span>
               </div>
 
               <div className="grid grid-cols-3 gap-1 rounded-[12px] bg-well p-1" role="tablist" aria-label="Medicine list">
@@ -646,7 +673,7 @@ export function PrescriptionDialogView({
                     <SelectItem value={ALL_OPTION}>All forms</SelectItem>
                     {formOptions.map((option) => (
                       <SelectItem key={option} value={option}>
-                        {option}
+                        {dosageFormLabel(option)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -743,6 +770,8 @@ export function PrescriptionDialogView({
                                 <span className="ml-1.5 whitespace-nowrap text-xs font-bold text-[#e11d48] dark:text-rose-300">Out of stock</span>
                               ) : stockTracked && isLowStock(medicine) ? (
                                 <span className="ml-1.5 whitespace-nowrap text-xs font-bold text-[#b45309] dark:text-amber-300">{stock} left</span>
+                              ) : stockTracked ? (
+                                <span className="ml-1.5 whitespace-nowrap text-xs font-bold text-brand">{stock} in stock</span>
                               ) : null}
                             </span>
                             <button
@@ -1106,6 +1135,23 @@ interface SaveProgress {
 /** The longest text the complete-visit request accepts in one field. */
 const VISIT_TEXT_LIMIT = 1000;
 
+/** The server is asked for matches once this many characters are typed. */
+const SERVER_SEARCH_MIN_LENGTH = 2;
+const SERVER_SEARCH_LIMIT = 50;
+const SERVER_SEARCH_DEBOUNCE_MS = 300;
+
+/** The medicines of either list shape: a bare array, or `{ data }` / `{ medicines }` / `{ items }`. */
+function toMedicineList(data: unknown): Medicine[] {
+  if (Array.isArray(data)) return data as Medicine[];
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    for (const key of ["medicines", "data", "items"] as const) {
+      if (Array.isArray(record[key])) return record[key] as Medicine[];
+    }
+  }
+  return [];
+}
+
 function QuickPrescriptionSession({
   isOpen,
   onClose,
@@ -1125,39 +1171,30 @@ function QuickPrescriptionSession({
 
   const completeAppointment = useCompleteAppointment();
   const createPharmacyPrescription = useCreatePrescription();
+  const createEhrNote = useCreateEhrPrescriptionNote();
+  // The catalogue: the clinic's list (favourites and recent medicines are looked up in it), plus
+  // the server's matches for what the doctor types, so a medicine beyond the loaded rows is found.
   const {
     data: medicinesData,
     isPending: medicinesLoading,
     error: medicinesError,
-  } = useMedicines(clinicId || "", {
-    limit: 200,
-    inStock: false,
-  });
+  } = useMedicines(clinicId || "", { limit: 200 });
+  const [searchText, setSearchText] = useState("");
+  const debouncedSearch = useDebouncedValue(searchText.trim(), SERVER_SEARCH_DEBOUNCE_MS);
+  const serverSearch = debouncedSearch.length >= SERVER_SEARCH_MIN_LENGTH ? debouncedSearch : "";
+  const searchQuery = useMedicinesPage(
+    clinicId || "",
+    { search: serverSearch, page: 1, limit: SERVER_SEARCH_LIMIT },
+    { enabled: Boolean(clinicId && serverSearch) },
+  );
 
   const inventoryMedicines = useMemo(() => {
-    const data = medicinesData as unknown;
-
-    if (Array.isArray(data)) {
-      return data as Medicine[];
-    }
-
-    if (data && typeof data === "object") {
-      const record = data as Record<string, unknown>;
-      if (Array.isArray(record.medicines)) {
-        return record.medicines as Medicine[];
-      }
-
-      if (Array.isArray(record.data)) {
-        return record.data as Medicine[];
-      }
-
-      if (Array.isArray(record.items)) {
-        return record.items as Medicine[];
-      }
-    }
-
-    return [];
-  }, [medicinesData]);
+    const loaded = toMedicineList(medicinesData);
+    const found = serverSearch ? toMedicineList(searchQuery.data?.data) : [];
+    if (found.length === 0) return loaded;
+    const known = new Set(loaded.map((medicine) => medicine.id));
+    return [...loaded, ...found.filter((medicine) => !known.has(medicine.id))];
+  }, [medicinesData, searchQuery.data, serverSearch]);
 
   const handleSubmit = async (form: PrescriptionFormValues): Promise<boolean> => {
     const cleanMedications = form.medications.reduce<PrescriptionMedicationRow[]>((acc, medication) => {
@@ -1207,9 +1244,21 @@ function QuickPrescriptionSession({
 
     setErrorMessage(null);
     let saved = progress;
-    let step: "pharmacy" | "complete" = "pharmacy";
+    let step: "pharmacy" | "note" | "complete" = "pharmacy";
 
     try {
+      // No visit and no stock medicine: the diagnosis and advice would otherwise go nowhere. They
+      // are saved as a prescription record in the patient's EHR (POST /ehr/prescriptions).
+      if (!appointmentId && structuredMedications.length === 0) {
+        step = "note";
+        await createEhrNote.mutateAsync({
+          patientId,
+          ...(doctorId ? { doctorId } : {}),
+          ...(diagnosis ? { diagnosis } : {}),
+          ...(advice ? { notes: advice } : {}),
+        });
+      }
+
       // 1. The pharmacy prescription: only medicines picked from pharmacy stock go to the pharmacy.
       if (!saved.pharmacy && structuredMedications.length > 0) {
         if (!clinicId) {
@@ -1291,17 +1340,19 @@ function QuickPrescriptionSession({
     } catch (error) {
       console.error("Failed to save prescription:", { step, error });
       setErrorMessage(
-        step === "pharmacy"
-          ? "The medicines could not be sent to the pharmacy. Nothing was saved. Please try again."
-          : saved.pharmacy
-            ? "The medicines reached the pharmacy, but the visit is not completed yet. Press Save and complete again to finish."
-            : "The visit could not be completed. Please try again."
+        step === "note"
+          ? "The prescription could not be saved to the patient's record. Nothing was saved. Please try again."
+          : step === "pharmacy"
+            ? "The medicines could not be sent to the pharmacy. Nothing was saved. Please try again."
+            : saved.pharmacy
+              ? "The medicines reached the pharmacy, but the visit is not completed yet. Press Save and complete again to finish."
+              : "The visit could not be completed. Please try again."
       );
       return false;
     }
   };
 
-  const isSubmitting = createPharmacyPrescription.isPending || completeAppointment.isPending;
+  const isSubmitting = createPharmacyPrescription.isPending || completeAppointment.isPending || createEhrNote.isPending;
 
   return (
     <PrescriptionDialogView
@@ -1318,13 +1369,15 @@ function QuickPrescriptionSession({
         !clinicId
           ? "No clinic is selected, so the pharmacy stock cannot be shown."
           : medicinesError
-            ? "The pharmacy stock could not be loaded. Close this and try again."
+            ? "The pharmacy stock could not be loaded: you may not have access to this clinic's pharmacy. Close this and try again."
             : null
       }
       isSubmitting={isSubmitting}
       errorMessage={errorMessage}
       medicinesLocked={Boolean(progress.pharmacy)}
       onSubmit={handleSubmit}
+      onSearchChange={setSearchText}
+      isSearching={Boolean(serverSearch) && searchQuery.isFetching}
     />
   );
 }
@@ -1332,7 +1385,8 @@ function QuickPrescriptionSession({
 /**
  * Prescribing dialog. With an appointment, "Save and complete" sends the stock medicines to
  * the pharmacy, then completes the appointment and saves the visit record with it. Without one
- * (from a patient record) it saves the pharmacy prescription only.
+ * (from a patient record) it saves the pharmacy prescription, or, with no stock medicine, the
+ * diagnosis and advice as a prescription record in the patient's EHR.
  */
 export function QuickPrescriptionModal(props: QuickPrescriptionModalProps) {
   // A new key per patient and visit gives each prescription its own empty form.
