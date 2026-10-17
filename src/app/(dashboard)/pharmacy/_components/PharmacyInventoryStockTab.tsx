@@ -24,7 +24,7 @@ import {
   SearchBox,
   Surface,
   Pager,
-  paginateRows,
+  serverPaging,
   type IconTone,
   type TbdIcon,
   statusTone,
@@ -39,7 +39,6 @@ import {
   filterMedicines,
   lowStockLine,
   medicineSubline,
-  PAGE_SIZE,
   type InventoryFilters,
   type InventoryOverview,
   type MedicineRow,
@@ -59,8 +58,11 @@ export interface PharmacyInventoryStockTabProps {
   onRetry?: () => void;
   filters: InventoryFilters;
   onFiltersChange: (filters: InventoryFilters) => void;
+  /** The server page shown; `overview.rows` are its rows, `total` counts every matching medicine. */
   page: number;
   onPageChange: (page: number) => void;
+  total: number;
+  pageSize: number;
   /** False hides Receive and Add (no `MANAGE_INVENTORY` permission). */
   canManage: boolean;
   onView: (medicine: MedicineRow) => void;
@@ -122,14 +124,19 @@ export function PharmacyInventoryStockTab({
   onFiltersChange,
   page,
   onPageChange,
+  total,
+  pageSize,
   canManage,
   onView,
   onRestock,
   onAddMedicine,
 }: PharmacyInventoryStockTabProps) {
   const { summary, rows } = overview;
+  // The server applies the search, type, category and "in stock" filters; the client filter runs
+  // again on the page rows for the stock statuses the server has no switch for (low, out, expiring).
   const filtered = filterMedicines(rows, filters);
-  const paged = paginateRows(filtered, page, PAGE_SIZE);
+  const paging = serverPaging({ page, pageSize, total, rowCount: filtered.length, onPageChange });
+  const paged = rows.length < total;
   const filtering =
     filters.search.trim() !== "" || filters.type !== "" || filters.category !== "" || filters.stock !== "all";
   const blank = "—";
@@ -144,8 +151,8 @@ export function PharmacyInventoryStockTab({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
           label="Total Medicines"
-          value={loading ? blank : summary.totalMedicines}
-          hint={loading ? "Loading" : `${summary.inStock} in stock now`}
+          value={loading ? blank : Math.max(total, summary.totalMedicines)}
+          hint={loading ? "Loading" : paged ? `${rows.length} on this page` : `${summary.inStock} in stock now`}
           icon={PillIcon}
           tone="aqua"
         />
@@ -156,8 +163,10 @@ export function PharmacyInventoryStockTab({
             loading
               ? "Loading"
               : summary.outCount > 0
-                ? `And ${summary.outCount} out of stock`
-                : "At or below minimum"
+                ? `And ${summary.outCount} out of stock${paged ? " on this page" : ""}`
+                : paged
+                  ? "On this page"
+                  : "At or below minimum"
           }
           icon={CircleAlert}
           tone="amber"
@@ -165,14 +174,14 @@ export function PharmacyInventoryStockTab({
         <Kpi
           label="Expiring Soon"
           value={loading ? blank : overview.expiring.length}
-          hint={loading ? "Loading" : "Within 90 days"}
+          hint={loading ? "Loading" : paged ? "Within 90 days, on this page" : "Within 90 days"}
           icon={CalendarDays}
           tone="rose"
         />
         <Kpi
           label="Total Value"
           value={loading ? blank : formatRupees(Math.round(overview.totalValue))}
-          hint={loading ? "Loading" : "Current stock"}
+          hint={loading ? "Loading" : paged ? "Stock on this page" : "Current stock"}
           icon={Wallet}
           tone="blue"
         />
@@ -366,7 +375,7 @@ export function PharmacyInventoryStockTab({
               ) : undefined
             }
           />
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && !filtering ? (
           <EmptyBlock
             icon={PackageSearch}
             title="No medicines in the stock list yet"
@@ -413,7 +422,7 @@ export function PharmacyInventoryStockTab({
                   "Actions",
                 ]}
               />
-              {paged.pageRows.map((medicine) => {
+              {filtered.map((medicine) => {
                 const soon = medicine.expiringSoon;
                 return (
                   <GridRow key={medicine.id} columns={COLUMNS}>
@@ -486,11 +495,7 @@ export function PharmacyInventoryStockTab({
               })}
             </div>
 
-            <Pager
-              paging={{ ...paged, setPage: onPageChange }}
-              noun={paged.total === 1 ? "medicine" : "medicines"}
-              note={filtering ? `(${rows.length} in all)` : undefined}
-            />
+            <Pager paging={paging} noun={paging.total === 1 ? "medicine" : "medicines"} busy={loading} />
           </>
         )}
       </Surface>

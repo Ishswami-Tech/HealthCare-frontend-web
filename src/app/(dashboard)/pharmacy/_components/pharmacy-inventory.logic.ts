@@ -21,12 +21,15 @@ export { formatRupees };
 // ── What the backend can do today ──────────────────────────────────────────
 
 /**
- * `PATCH /pharmacy/inventory/:id` accepts only `quantityChange` and `price` (the web sends the
- * price only: stock moves through batches), and there is no DELETE route the web can rely on,
- * so a medicine cannot be removed yet. Set to `true` when the backend supports it:
- * the Remove button (danger, with a confirm dialog, wired to `useDeleteMedicine`) appears.
+ * There is no DELETE route the web can rely on, so a medicine cannot be removed yet (its details
+ * are edited with `PATCH /pharmacy/inventory/:id`; stock moves through batches). Set to `true` when
+ * the backend supports it: the Remove button (danger, with a confirm dialog, wired to
+ * `useDeleteMedicine`) appears.
  */
 export const CAN_REMOVE_MEDICINE = false;
+
+/** Rows per server page of the stock list (`GET /pharmacy/inventory?page=&limit=`). */
+export const INVENTORY_PAGE_SIZE = 50;
 
 export { DOSAGE_FORMS, type DosageFormValue } from "@/lib/constants/medicine-types";
 

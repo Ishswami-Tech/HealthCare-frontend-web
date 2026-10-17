@@ -15,7 +15,8 @@ import {
   useExportPharmacyData,
   useInventoryAlerts,
   useMedicine,
-  useMedicines,
+  useMedicinesPage,
+  medicinesPageQueryKey,
   usePharmacyOrder,
   usePharmacyOrders,
   usePharmacySales,
@@ -29,10 +30,12 @@ import {
   useUpdateMedicine,
   useUpdateSupplier,
 } from "@/hooks/query/usePharmacy";
+import { useDebouncedValue } from "@/hooks/core/useDebouncedValue";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePharmacyPermissions } from "@/hooks/utils/useRBAC";
 import { APP_CONFIG } from "@/lib/config/config";
+import { parseDosageForm } from "@/lib/constants/medicine-types";
 import {
   INVENTORY_TABS,
   PharmacyInventoryView,
@@ -42,6 +45,7 @@ import {
 import {
   CAN_REMOVE_MEDICINE,
   EMPTY_FILTERS,
+  INVENTORY_PAGE_SIZE,
   buildAnalytics,
   buildInventoryOverview,
   buildOrders,
@@ -144,12 +148,28 @@ export default function PharmacyInventoryContent() {
   }, []);
 
   // ── Queries ──────────────────────────────────────────────────────────────
+  // The stock list is paged and searched by the server: `category` is the dosage form token, `type`
+  // the classification, `inStock` only when that filter is on. The other stock filters are local.
+  const debouncedSearch = useDebouncedValue(filters.search.trim(), 300);
+  const inventoryParams = useMemo(() => {
+    const categoryToken = parseDosageForm(filters.category);
+    return {
+      page,
+      limit: INVENTORY_PAGE_SIZE,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      ...(categoryToken ? { category: categoryToken } : {}),
+      ...(filters.type ? { type: filters.type } : {}),
+      ...(filters.stock === "in_stock" ? { inStock: true } : {}),
+    };
+  }, [debouncedSearch, filters.category, filters.stock, filters.type, page]);
   const {
-    data: medicinesData,
+    data: medicinesPage,
     isPending: medicinesPending,
     error: medicinesError,
     refetch: refetchMedicines,
-  } = useMedicines(scopedClinicId);
+  } = useMedicinesPage(scopedClinicId, inventoryParams);
+  const medicinesData = medicinesPage?.data;
+  const inventoryTotal = medicinesPage?.total ?? 0;
   const {
     data: suppliersData,
     isPending: suppliersPending,
@@ -221,7 +241,7 @@ export default function PharmacyInventoryContent() {
     return buildInventoryOverview([medicineData], supplierNames).rows.find((row) => row.id === detailsId) ?? null;
   }, [detailsId, medicineData, supplierNames]);
 
-  const lastSyncedAt = queryClient.getQueryState(["medicines", scopedClinicId, undefined])?.dataUpdatedAt;
+  const lastSyncedAt = queryClient.getQueryState(medicinesPageQueryKey(scopedClinicId, inventoryParams))?.dataUpdatedAt;
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const createMedicine = useCreateMedicine();
@@ -357,6 +377,8 @@ export default function PharmacyInventoryContent() {
       onFiltersChange={setFilters}
       page={page}
       onPageChange={setPage}
+      inventoryTotal={inventoryTotal}
+      inventoryPageSize={INVENTORY_PAGE_SIZE}
       canManage={canManage}
       canRemove={CAN_REMOVE_MEDICINE}
       suppliers={suppliers}
@@ -390,7 +412,7 @@ export default function PharmacyInventoryContent() {
       settingsInfo={{
         appVersion: APP_CONFIG.APP.VERSION,
         partnerCount: suppliersPending || suppliersError ? null : suppliers.length,
-        medicineCount: inventoryLoading || medicinesError || !clinicId ? null : overview.rows.length,
+        medicineCount: inventoryLoading || medicinesError || !clinicId ? null : inventoryTotal,
         lastSyncedAt: lastSyncedAt ? new Date(lastSyncedAt).toISOString() : null,
       }}
       dialog={dialog}

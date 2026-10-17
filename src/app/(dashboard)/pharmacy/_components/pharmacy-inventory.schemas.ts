@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { DOSAGE_FORMS, todayKey, type DosageFormValue } from "./pharmacy-inventory.logic";
+import {
+  MEDICINE_CLASSIFICATIONS,
+  parseDosageForm,
+  parseMedicineClassification,
+  type MedicineClassification,
+} from "@/lib/constants/medicine-types";
+import type { UpdateMedicineInput } from "@/lib/actions/pharmacy.server";
+import { DOSAGE_FORMS, todayKey, type DosageFormValue, type MedicineRow } from "./pharmacy-inventory.logic";
 
 /**
  * Form schemas for the inventory dialogs. Inputs keep what the pharmacist typed (strings);
@@ -77,25 +84,71 @@ export function toCreateMedicinePayload(values: AddMedicineValues) {
   };
 }
 
-// ── Edit medicine (price) ──────────────────────────────────────────────────
+// ── Edit medicine ──────────────────────────────────────────────────────────
+
+const classificationValues = MEDICINE_CLASSIFICATIONS.map((entry) => entry.value) as [
+  MedicineClassification,
+  ...MedicineClassification[],
+];
+
+/** "" = not set (an older row without a classification keeps none). */
+export const NO_CLASSIFICATION = "";
 
 export const editMedicineSchema = z.object({
-  unitPrice: rupees("the price per unit", false),
+  name: z.string().trim().min(2, "Enter the medicine name.").max(120, "Use 120 characters or fewer."),
+  manufacturer: z.string().trim().min(2, "Enter the manufacturer.").max(120, "Use 120 characters or fewer."),
+  dosageForm: z.enum(dosageFormValues, { message: "Choose a dosage form." }),
+  classification: z.enum([NO_CLASSIFICATION, ...classificationValues]),
+  unit: z.string().trim().min(1, "Enter the unit (tablet, ml, gm …).").max(20, "Use 20 characters or fewer."),
+  /** "" = no supplier. */
+  supplierId: z.string(),
+  expiryDate: z.string().regex(DATE_KEY, "Choose the expiry date."),
+  minStockLevel: wholeNumber("the minimum stock level", 0),
+  unitPrice: rupees("the price per unit", true),
 });
 
 export type EditMedicineValues = z.infer<typeof editMedicineSchema>;
 
+/** The dosage form of a row: `category` holds it; an older row kept it in `type`. */
+export function medicineDosageForm(medicine: Pick<MedicineRow, "category" | "typeCode">): DosageFormValue | null {
+  return parseDosageForm(medicine.category) ?? parseDosageForm(medicine.typeCode);
+}
+
+/** What the edit form starts with, from the list row. */
+export function toEditMedicineValues(medicine: MedicineRow): EditMedicineValues {
+  return {
+    name: medicine.name,
+    manufacturer: medicine.manufacturer,
+    dosageForm: medicineDosageForm(medicine) ?? "OTHER",
+    classification: parseMedicineClassification(medicine.typeCode) ?? NO_CLASSIFICATION,
+    unit: medicine.unit,
+    supplierId: medicine.supplierId,
+    expiryDate: medicine.expiryDate ? medicine.expiryDate.slice(0, 10) : "",
+    minStockLevel: String(medicine.minStock),
+    unitPrice: String(medicine.price),
+  };
+}
+
 /**
- * The `updates` of `useUpdateMedicine`: the price only. Stock is not editable here, because a
- * bare stock number would move `Medicine.stock` without a batch behind it. Returns null when
- * nothing changed.
+ * The `updates` of `useUpdateMedicine`: only the fields that differ from the row. Stock is not
+ * editable here, because a bare stock number would move `Medicine.stock` without a batch behind
+ * it. Returns null when nothing changed.
  */
-export function toUpdateMedicinePayload(
-  values: EditMedicineValues,
-  current: { price: number },
-): { unitPrice: number } | null {
-  const price = Number(values.unitPrice);
-  return price !== current.price ? { unitPrice: price } : null;
+export function toUpdateMedicinePayload(values: EditMedicineValues, current: MedicineRow): UpdateMedicineInput | null {
+  const before = toEditMedicineValues(current);
+  const classification = parseMedicineClassification(values.classification);
+  const updates: UpdateMedicineInput = {
+    ...(values.name.trim() !== before.name ? { name: values.name.trim() } : {}),
+    ...(values.manufacturer.trim() !== before.manufacturer ? { manufacturer: values.manufacturer.trim() } : {}),
+    ...(values.dosageForm !== medicineDosageForm(current) ? { dosageForm: values.dosageForm } : {}),
+    ...(classification && values.classification !== before.classification ? { classification } : {}),
+    ...(values.unit.trim() !== before.unit ? { unit: values.unit.trim() } : {}),
+    ...(values.supplierId !== before.supplierId ? { supplierId: values.supplierId || null } : {}),
+    ...(values.expiryDate !== before.expiryDate ? { expiryDate: values.expiryDate } : {}),
+    ...(Number(values.minStockLevel) !== current.minStock ? { minStockLevel: Number(values.minStockLevel) } : {}),
+    ...(Number(values.unitPrice) !== current.price ? { unitPrice: Number(values.unitPrice) } : {}),
+  };
+  return Object.keys(updates).length > 0 ? updates : null;
 }
 
 // ── Receive stock (a batch that did not come through a purchase order) ─────

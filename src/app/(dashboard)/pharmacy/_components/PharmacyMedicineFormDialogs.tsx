@@ -20,17 +20,22 @@ import {
   RupeeField,
   fieldAria,
 } from "./PharmacyDialogParts";
+import { MEDICINE_CLASSIFICATIONS } from "@/lib/constants/medicine-types";
 import { DOSAGE_FORMS, todayKey, type MedicineRow } from "./pharmacy-inventory.logic";
 import {
   ADD_MEDICINE_DEFAULTS,
+  NO_CLASSIFICATION,
   addMedicineSchema,
   editMedicineSchema,
+  toEditMedicineValues,
   toUpdateMedicinePayload,
   type AddMedicineValues,
   type EditMedicineValues,
 } from "./pharmacy-inventory.schemas";
 
 const NO_SUPPLIER = "none";
+/** Select value for "no classification" (a Radix select item cannot have an empty value). */
+const NO_CLASSIFICATION_OPTION = "none";
 
 // ── Add medicine ───────────────────────────────────────────────────────────
 
@@ -268,6 +273,8 @@ function AddMedicineForm({
 interface PharmacyEditMedicineDialogProps {
   /** The medicine to edit; null closes the dialog. */
   medicine: MedicineRow | null;
+  /** Suppliers for the supplier list. */
+  suppliers: { id: string; name: string }[];
   isSaving?: boolean;
   errorMessage?: string | null;
   onSubmit: (medicine: MedicineRow, values: EditMedicineValues) => void;
@@ -275,11 +282,13 @@ interface PharmacyEditMedicineDialogProps {
 }
 
 /**
- * Board `PhInventoryEditMedicine`. `PATCH /pharmacy/inventory/:id` changes the price (and a stock
- * count, which the web never sends: stock moves through batches), so the price is the one field.
+ * Board `PhInventoryEditMedicine`. Edits what `PATCH /pharmacy/inventory/:id` stores: name,
+ * manufacturer, dosage form, classification, unit, supplier, expiry date, minimum stock level and
+ * price. Only the fields that changed are sent. Stock is not edited here: it moves through batches.
  */
 export function PharmacyEditMedicineDialog({
   medicine,
+  suppliers,
   isSaving = false,
   errorMessage = null,
   onSubmit,
@@ -291,13 +300,14 @@ export function PharmacyEditMedicineDialog({
       onClose={onClose}
       busy={isSaving}
       title="Edit medicine"
-      description={medicine ? `${medicine.name} · price` : undefined}
-      width={640}
+      description={medicine ? medicine.name : undefined}
+      width={780}
     >
       {medicine ? (
         <EditMedicineForm
           key={medicine.id}
           medicine={medicine}
+          suppliers={suppliers}
           isSaving={isSaving}
           errorMessage={errorMessage}
           onSubmit={onSubmit}
@@ -310,12 +320,14 @@ export function PharmacyEditMedicineDialog({
 
 function EditMedicineForm({
   medicine,
+  suppliers,
   isSaving,
   errorMessage,
   onSubmit,
   onClose,
 }: {
   medicine: MedicineRow;
+  suppliers: { id: string; name: string }[];
   isSaving: boolean;
   errorMessage: string | null;
   onSubmit: (medicine: MedicineRow, values: EditMedicineValues) => void;
@@ -330,32 +342,150 @@ function EditMedicineForm({
     formState: { errors },
   } = useForm<EditMedicineValues>({
     resolver: zodResolver(editMedicineSchema),
-    defaultValues: {
-      unitPrice: medicine.price > 0 ? String(medicine.price) : "",
-    },
+    defaultValues: toEditMedicineValues(medicine),
     mode: "onTouched",
   });
   const values = useWatch({ control });
   const parsed = editMedicineSchema.safeParse(values);
   const changed = parsed.success ? toUpdateMedicinePayload(parsed.data, medicine) !== null : true;
+  // The row's supplier may be one the list no longer has; it stays choosable so nothing is lost.
+  const supplierOptions =
+    medicine.supplierId && !suppliers.some((supplier) => supplier.id === medicine.supplierId)
+      ? [{ id: medicine.supplierId, name: medicine.supplierName || "Current supplier" }, ...suppliers]
+      : suppliers;
 
   return (
     <form onSubmit={handleSubmit((formValues) => onSubmit(medicine, formValues))} noValidate>
       <PharmacyDialogBody>
         <MedicineSummary medicine={medicine} />
-        <Field label="Price per unit" htmlFor={id("unitPrice")} error={errors.unitPrice?.message}>
-          <RupeeField>
+
+        <FormSectionLabel>Medicine</FormSectionLabel>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Field label="Medicine name" htmlFor={id("name")} error={errors.name?.message}>
+            <Input {...register("name")} {...fieldAria(id("name"), errors.name?.message)} autoComplete="off" />
+          </Field>
+          <Field label="Manufacturer" htmlFor={id("manufacturer")} error={errors.manufacturer?.message}>
             <Input
-              inputMode="decimal"
-              {...register("unitPrice")}
-              {...fieldAria(id("unitPrice"), errors.unitPrice?.message)}
+              {...register("manufacturer")}
+              {...fieldAria(id("manufacturer"), errors.manufacturer?.message)}
               autoComplete="off"
             />
-          </RupeeField>
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+          <Field label="Dosage form" htmlFor={id("dosageForm")} error={errors.dosageForm?.message}>
+            <Controller
+              control={control}
+              name="dosageForm"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    className="w-full"
+                    onBlur={field.onBlur}
+                    {...fieldAria(id("dosageForm"), errors.dosageForm?.message)}
+                  >
+                    <SelectValue placeholder="Choose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DOSAGE_FORMS.map((form) => (
+                      <SelectItem key={form.value} value={form.value}>
+                        {form.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+          <Field label="Classification" htmlFor={id("classification")} error={errors.classification?.message}>
+            <Controller
+              control={control}
+              name="classification"
+              render={({ field }) => (
+                <Select
+                  value={field.value || NO_CLASSIFICATION_OPTION}
+                  onValueChange={(value) => field.onChange(value === NO_CLASSIFICATION_OPTION ? NO_CLASSIFICATION : value)}
+                >
+                  <SelectTrigger className="w-full" id={id("classification")} onBlur={field.onBlur}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_CLASSIFICATION_OPTION}>Not set</SelectItem>
+                    {MEDICINE_CLASSIFICATIONS.map((entry) => (
+                      <SelectItem key={entry.value} value={entry.value}>
+                        {entry.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+          <Field label="Unit" htmlFor={id("unit")} hint="tablet, ml, gm …" error={errors.unit?.message}>
+            <Input {...register("unit")} {...fieldAria(id("unit"), errors.unit?.message)} autoComplete="off" />
+          </Field>
+        </div>
+        <Field
+          label="Supplier"
+          htmlFor={id("supplierId")}
+          hint={supplierOptions.length === 0 ? "No suppliers are set up for this clinic." : undefined}
+        >
+          <Controller
+            control={control}
+            name="supplierId"
+            render={({ field }) => (
+              <Select
+                value={field.value || NO_SUPPLIER}
+                onValueChange={(value) => field.onChange(value === NO_SUPPLIER ? "" : value)}
+                disabled={supplierOptions.length === 0}
+              >
+                <SelectTrigger className="w-full" id={id("supplierId")} onBlur={field.onBlur}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SUPPLIER}>No supplier</SelectItem>
+                  {supplierOptions.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
         </Field>
+
+        <FormSectionLabel>Price, expiry and reorder level</FormSectionLabel>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+          <Field label="Price per unit" htmlFor={id("unitPrice")} error={errors.unitPrice?.message}>
+            <RupeeField>
+              <Input
+                inputMode="decimal"
+                {...register("unitPrice")}
+                {...fieldAria(id("unitPrice"), errors.unitPrice?.message)}
+                autoComplete="off"
+              />
+            </RupeeField>
+          </Field>
+          <Field label="Expiry date" htmlFor={id("expiryDate")} error={errors.expiryDate?.message}>
+            <Input type="date" {...register("expiryDate")} {...fieldAria(id("expiryDate"), errors.expiryDate?.message)} />
+          </Field>
+          <Field
+            label="Minimum stock level"
+            htmlFor={id("minStockLevel")}
+            hint="Low stock warning at or below this"
+            error={errors.minStockLevel?.message}
+          >
+            <Input
+              inputMode="numeric"
+              {...register("minStockLevel")}
+              {...fieldAria(id("minStockLevel"), errors.minStockLevel?.message)}
+              autoComplete="off"
+            />
+          </Field>
+        </div>
         <Note tone="blue">
-          Only the price can be changed here. Stock changes through batches: use Receive stock for a delivery, or
-          Batches to correct a lot.
+          Stock is not changed here: use Receive stock for a delivery, or Batches to correct a lot.
         </Note>
         <DialogError lead="The changes were not saved." message={errorMessage} />
       </PharmacyDialogBody>

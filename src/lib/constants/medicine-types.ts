@@ -43,3 +43,23 @@ export function parseDosageForm(value: unknown): DosageFormValue | null {
   const upper = String(value ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   return DOSAGE_FORMS.find((form) => form.value === upper)?.value ?? null;
 }
+
+/** "Yavkut Kwath" for YAVKUT_KWATH; a value that is not a known form is shown as typed. */
+export function dosageFormLabel(value: unknown): string {
+  const form = parseDosageForm(value);
+  return form ? (DOSAGE_FORMS.find((entry) => entry.value === form)?.label ?? form) : String(value ?? "").trim();
+}
+
+/** The medicine classification (`Medicine.type`), what `PATCH /pharmacy/inventory/:id` calls `classification`. */
+export const MEDICINE_CLASSIFICATIONS = [
+  { value: "CLASSICAL", label: "Classical" },
+  { value: "PROPRIETARY", label: "Proprietary" },
+  { value: "HERBAL", label: "Herbal" },
+] as const;
+
+export type MedicineClassification = (typeof MEDICINE_CLASSIFICATIONS)[number]["value"];
+
+export function parseMedicineClassification(value: unknown): MedicineClassification | null {
+  const upper = String(value ?? "").trim().toUpperCase();
+  return MEDICINE_CLASSIFICATIONS.find((entry) => entry.value === upper)?.value ?? null;
+}
