@@ -5,17 +5,33 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { Note } from "@/components/tbd";
+import { CancelVisitDialog, RescheduleDialog } from "@/components/appointments/manager/ManagerDialogs";
+import { buildSlotPeriods } from "@/components/appointments/booking/slotDisplay";
+import {
+  useCancelAppointment,
+  useDoctorAvailability,
+  useRescheduleAppointment,
+} from "@/hooks/query/useAppointments";
+import { extractAvailabilitySlots, groupSlotsByPeriod } from "@/lib/utils/availabilitySlots";
 import { DoctorAppointmentsSummary } from "./DoctorAppointmentsSummary";
 import { DoctorAppointmentsTable, canCompleteConfirmedVideoVisit } from "./DoctorAppointmentsTable";
 import {
   DoctorAppointmentsDetailsDialog,
   type DoctorAppointmentDetailsTab,
 } from "./DoctorAppointmentsDetailsDialog";
+import { rescheduleHint } from "./appointmentPolicy";
+import { getVisitTypeLabel } from "./appointmentLabels";
 import type {
   DoctorAppointmentDateFilter,
   DoctorAppointmentViewFilter,
   TransformedAppointment,
 } from "../page";
+
+/** The move or cancel dialog that is open, and the visit it is about. */
+interface VisitAction {
+  kind: "reschedule" | "cancel";
+  appointment: TransformedAppointment;
+}
 
 interface Props {
   isLoadingAppointments: boolean;
@@ -172,6 +188,68 @@ export function DoctorAppointmentsContent(props: Props) {
     openAppointmentDetails(appointment);
   };
 
+  // ── Move / cancel a visit ──────────────────────────────────────────────
+  const [visitAction, setVisitAction] = useState<VisitAction | null>(null);
+  const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: "", time: "" });
+  const rescheduleMutation = useRescheduleAppointment();
+  const cancelMutation = useCancelAppointment();
+
+  const actionVisit = visitAction?.appointment ?? null;
+  const rescheduleOpen = visitAction?.kind === "reschedule";
+  // The open times of the chosen day for this visit's doctor, location and type (video or in-person).
+  const canLoadSlots = Boolean(clinicId && actionVisit?.doctorId);
+  const slotsQuery = useDoctorAvailability(
+    clinicId ?? "",
+    actionVisit?.doctorId ?? "",
+    rescheduleData.date,
+    actionVisit && !actionVisit.isVideo && actionVisit.locationId ? actionVisit.locationId : undefined,
+    actionVisit?.isVideo ? "VIDEO_CALL" : "IN_PERSON",
+    { enabled: rescheduleOpen && canLoadSlots && Boolean(rescheduleData.date) },
+  );
+  const slotPeriods = useMemo(
+    () => (canLoadSlots ? buildSlotPeriods(groupSlotsByPeriod(extractAvailabilitySlots(slotsQuery.data)), [], 0) : undefined),
+    [canLoadSlots, slotsQuery.data],
+  );
+  // Days before today cannot be picked (this component never renders on the server).
+  const rescheduleMinDate = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, []);
+  const visitLine = actionVisit
+    ? {
+        title: actionVisit.patientName,
+        whenLabel: `${getVisitTypeLabel(actionVisit.type)} · ${actionVisit.appointmentDate} · ${actionVisit.time}`,
+        rescheduleHint: rescheduleHint(actionVisit.rescheduleCount),
+      }
+    : null;
+
+  const openReschedule = (appointment: TransformedAppointment) => {
+    if (!appointment.canReschedule) return;
+    setRescheduleData({ date: appointment.appointmentDateKey, time: "" });
+    setVisitAction({ kind: "reschedule", appointment });
+  };
+  const openCancel = (appointment: TransformedAppointment) => {
+    if (!appointment.canCancel) return;
+    setVisitAction({ kind: "cancel", appointment });
+  };
+  // Closes the action dialog and the details dialog: the visit shown there is out of date now.
+  const finishVisitAction = () => {
+    setVisitAction(null);
+    setSelectedAppointment(null);
+  };
+  const submitReschedule = () => {
+    if (!actionVisit || !rescheduleData.date || !rescheduleData.time) return;
+    rescheduleMutation.mutate(
+      { id: actionVisit.id, data: { date: rescheduleData.date, time: rescheduleData.time } },
+      { onSuccess: finishVisitAction },
+    );
+  };
+  const submitCancel = () => {
+    if (!actionVisit) return;
+    cancelMutation.mutate({ id: actionVisit.id }, { onSuccess: finishVisitAction });
+  };
+
   return (
     <DashboardPageShell>
       <DoctorAppointmentsSummary
@@ -231,6 +309,8 @@ export function DoctorAppointmentsContent(props: Props) {
           onOpenDetails={openDetails}
           onStart={(appointment) => startConsultation(appointment.id, appointment.doctorId)}
           onComplete={completeAppointmentFromRow}
+          onReschedule={openReschedule}
+          onCancel={openCancel}
         />
       )}
 
@@ -249,6 +329,31 @@ export function DoctorAppointmentsContent(props: Props) {
         setConsultationNotes={setConsultationNotes}
         saveConsultationDraft={saveConsultationDraft}
         completeConsultation={completeConsultation}
+        onReschedule={openReschedule}
+        onCancel={openCancel}
+      />
+
+      <RescheduleDialog
+        open={rescheduleOpen}
+        onOpenChange={(open) => !open && setVisitAction(null)}
+        visit={visitLine}
+        date={rescheduleData.date}
+        time={rescheduleData.time}
+        onDateChange={(date) => setRescheduleData({ date, time: "" })}
+        onTimeChange={(time) => setRescheduleData((previous) => ({ ...previous, time }))}
+        minDate={rescheduleMinDate}
+        slotPeriods={slotPeriods}
+        slotsLoading={slotsQuery.isPending}
+        slotsError={slotsQuery.error ? "The open times could not be loaded. Try another date." : null}
+        submitting={rescheduleMutation.isPending}
+        onSubmit={submitReschedule}
+      />
+      <CancelVisitDialog
+        open={visitAction?.kind === "cancel"}
+        onOpenChange={(open) => !open && setVisitAction(null)}
+        visit={visitLine}
+        submitting={cancelMutation.isPending}
+        onConfirm={submitCancel}
       />
     </DashboardPageShell>
   );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
+  CalendarClock,
   CalendarPlus,
   CalendarX,
   CheckCircle,
@@ -20,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CellTitle, EmptyBlock, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
-import { VIDEO_JOIN_EARLY_WINDOW_MINUTES } from "@/lib/utils/appointmentUtils";
+import { VIDEO_JOIN_EARLY_WINDOW_MINUTES, isTerminalAppointmentStatus } from "@/lib/utils/appointmentUtils";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { cn } from "@/lib/utils";
 import type { DoctorAppointmentViewFilter, TransformedAppointment } from "../page";
@@ -59,6 +60,8 @@ interface DoctorAppointmentsTableProps {
   onOpenDetails: (appointment: TransformedAppointment, tab?: DoctorAppointmentDetailsTab) => void;
   onStart: (appointment: TransformedAppointment) => void;
   onComplete: (appointment: TransformedAppointment) => void;
+  onReschedule: (appointment: TransformedAppointment) => void;
+  onCancel: (appointment: TransformedAppointment) => void;
 }
 
 /**
@@ -70,6 +73,47 @@ export function canCompleteConfirmedVideoVisit(appointment: TransformedAppointme
   return appointment.status === "CONFIRMED" && appointment.isVideo && appointment.joinWindowOpen;
 }
 
+/**
+ * Why Complete (and "Generate Prescription") is not offered: the visit must be in progress, or a
+ * confirmed video visit whose join window has opened. Null when it can be completed now.
+ */
+export function completeBlockedReason(appointment: TransformedAppointment): string | null {
+  if (appointment.status === "IN_PROGRESS" || canCompleteConfirmedVideoVisit(appointment)) return null;
+  if (isTerminalAppointmentStatus(appointment.status)) return "This visit is closed.";
+  if (appointment.status === "CONFIRMED" && appointment.isVideo) {
+    return `A video visit can be completed once its join window opens, ${VIDEO_JOIN_EARLY_WINDOW_MINUTES} minutes before the visit time.`;
+  }
+  if (appointment.status === "CONFIRMED") return "Press Start first: an in-clinic visit is completed from In progress.";
+  return "The visit must be confirmed and started before it can be completed.";
+}
+
+/** An icon button that stays reachable when disabled: the reason is in its name and on hover. */
+function BlockableIconButton({
+  label,
+  blockedReason,
+  onClick,
+  children,
+}: {
+  label: string;
+  blockedReason: string | null;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <span title={blockedReason ?? label} className="inline-flex">
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={onClick}
+        disabled={blockedReason !== null}
+        aria-label={blockedReason ? `${label} unavailable: ${blockedReason}` : label}
+      >
+        {children}
+      </Button>
+    </span>
+  );
+}
+
 function RowActions({
   appointment: app,
   clinicId,
@@ -78,13 +122,23 @@ function RowActions({
   onOpenDetails,
   onStart,
   onComplete,
+  onReschedule,
+  onCancel,
 }: Pick<
   DoctorAppointmentsTableProps,
-  "clinicId" | "startAppointmentPending" | "completeAppointmentPending" | "onOpenDetails" | "onStart" | "onComplete"
+  | "clinicId"
+  | "startAppointmentPending"
+  | "completeAppointmentPending"
+  | "onOpenDetails"
+  | "onStart"
+  | "onComplete"
+  | "onReschedule"
+  | "onCancel"
 > & { appointment: TransformedAppointment }) {
   const openVideo = () => {
     window.location.assign(buildVideoSessionRoute(app.id));
   };
+  const closed = isTerminalAppointmentStatus(app.status);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -97,6 +151,25 @@ function RowActions({
       >
         <Eye />
       </Button>
+
+      {closed ? null : (
+        <>
+          <BlockableIconButton
+            label={`Reschedule ${app.patientName}`}
+            blockedReason={app.rescheduleBlockedReason}
+            onClick={() => onReschedule(app)}
+          >
+            <CalendarClock />
+          </BlockableIconButton>
+          <BlockableIconButton
+            label={`Cancel visit for ${app.patientName}`}
+            blockedReason={app.cancelBlockedReason}
+            onClick={() => onCancel(app)}
+          >
+            <CalendarX />
+          </BlockableIconButton>
+        </>
+      )}
 
       {app.patientId ? (
         <Button asChild variant="outline" size="icon">
@@ -245,6 +318,8 @@ export function DoctorAppointmentsTable({
   onOpenDetails,
   onStart,
   onComplete,
+  onReschedule,
+  onCancel,
 }: DoctorAppointmentsTableProps) {
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [pageIndex, setPageIndex] = useState(0);
@@ -408,6 +483,8 @@ export function DoctorAppointmentsTable({
                     onOpenDetails={onOpenDetails}
                     onStart={onStart}
                     onComplete={onComplete}
+                    onReschedule={onReschedule}
+                    onCancel={onCancel}
                   />
                 </div>
               </div>

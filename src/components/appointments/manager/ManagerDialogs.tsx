@@ -20,7 +20,10 @@ import type { BookingSlotPeriod } from "@/components/appointments/booking/types"
 import { DateField } from "./ManagerFilters";
 import type { ManagerVisit } from "./types";
 
-function VisitLine({ visit }: { visit: ManagerVisit | null }) {
+/** What the move and cancel dialogs show about the visit; a `ManagerVisit` fits, so does a plain line. */
+export type VisitLineInfo = Pick<ManagerVisit, "title" | "whenLabel">;
+
+function VisitLine({ visit }: { visit: VisitLineInfo | null }) {
   if (!visit) return null;
   return (
     <p className="m-0 rounded-xl bg-well px-3.5 py-2.5 text-[13px] text-ink">
@@ -48,7 +51,7 @@ export function RescheduleDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  visit: ManagerVisit | null;
+  visit: (VisitLineInfo & Pick<ManagerVisit, "rescheduleHint">) | null;
   date: string;
   time: string;
   onDateChange: (value: string) => void;
@@ -244,7 +247,7 @@ export function CancelVisitDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  visit: ManagerVisit | null;
+  visit: VisitLineInfo | null;
   submitting: boolean;
   onConfirm: () => void;
 }) {

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CheckCircle, FileText, Loader2, MessageSquare, Phone } from "lucide-react";
+import { CalendarClock, CalendarX, CheckCircle, FileText, Loader2, MessageSquare, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Divider, Kv, Note, Pill, statusLabel, statusTone } from "@/components/t
 import { cn } from "@/lib/utils";
 import type { TransformedAppointment } from "../page";
 import { getPatientContact, getVisitTypeLabel, joinRecordList } from "./appointmentLabels";
+import { completeBlockedReason } from "./DoctorAppointmentsTable";
 
 export type DoctorAppointmentDetailsTab = "patient-info" | "consultation" | "prescription";
 
@@ -33,6 +34,8 @@ interface DoctorAppointmentsDetailsDialogProps {
     appointmentId: string,
     data?: { diagnosis?: string; prescription?: string; notes?: string },
   ) => Promise<void>;
+  onReschedule: (appointment: TransformedAppointment) => void;
+  onCancel: (appointment: TransformedAppointment) => void;
 }
 
 /** Bordered fact tile at the top of the dialog (status, visit type, contact, queue). */
@@ -75,8 +78,12 @@ export function DoctorAppointmentsDetailsDialog({
   setConsultationNotes,
   saveConsultationDraft,
   completeConsultation,
+  onReschedule,
+  onCancel,
 }: DoctorAppointmentsDetailsDialogProps) {
   const vitals = selectedAppointment?.vitalSigns ?? null;
+  // Same gate as the table row: in progress, or a confirmed video visit whose join window opened.
+  const completeReason = selectedAppointment ? completeBlockedReason(selectedAppointment) : null;
 
   return (
     <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
@@ -171,6 +178,55 @@ export function DoctorAppointmentsDetailsDialog({
                       </InfoBlock>
                     </div>
                   </div>
+
+                  {selectedAppointmentIsClosed ? null : (
+                    <div className={cn(FORM_CARD, "mt-4 gap-3")}>
+                      <div className="flex flex-col gap-1.5">
+                        <h3 className="m-0 text-sm font-bold text-ink">Manage visit</h3>
+                        <p className="m-0 text-[13px] leading-normal text-ink-muted">
+                          Move the visit to another time, or cancel it. The patient is told either way.
+                        </p>
+                      </div>
+                      <div className="grid gap-2.5 sm:grid-cols-2">
+                        <div className="flex flex-col gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="md"
+                            className="w-full"
+                            onClick={() => onReschedule(selectedAppointment)}
+                            disabled={!selectedAppointment.canReschedule}
+                            aria-describedby={selectedAppointment.rescheduleBlockedReason ? "doctor-visit-reschedule-reason" : undefined}
+                          >
+                            <CalendarClock />
+                            Reschedule
+                          </Button>
+                          {selectedAppointment.rescheduleBlockedReason ? (
+                            <p id="doctor-visit-reschedule-reason" className="m-0 text-xs text-ink-muted">
+                              {selectedAppointment.rescheduleBlockedReason}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="md"
+                            className="w-full"
+                            onClick={() => onCancel(selectedAppointment)}
+                            disabled={!selectedAppointment.canCancel}
+                            aria-describedby={selectedAppointment.cancelBlockedReason ? "doctor-visit-cancel-reason" : undefined}
+                          >
+                            <CalendarX />
+                            Cancel visit
+                          </Button>
+                          {selectedAppointment.cancelBlockedReason ? (
+                            <p id="doctor-visit-cancel-reason" className="m-0 text-xs text-ink-muted">
+                              {selectedAppointment.cancelBlockedReason}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="consultation">
@@ -277,7 +333,8 @@ export function DoctorAppointmentsDetailsDialog({
                               notes: consultationNotes,
                             })
                           }
-                          disabled={completeAppointmentPending || selectedAppointmentIsClosed}
+                          disabled={completeAppointmentPending || selectedAppointmentIsClosed || completeReason !== null}
+                          aria-describedby={completeReason && !selectedAppointmentIsClosed ? "doctor-visit-complete-reason" : undefined}
                         >
                           {completeAppointmentPending ? (
                             <>
@@ -294,6 +351,11 @@ export function DoctorAppointmentsDetailsDialog({
                           )}
                         </Button>
                       </div>
+                      {completeReason && !selectedAppointmentIsClosed ? (
+                        <p id="doctor-visit-complete-reason" className="m-0 text-xs text-ink-muted" role="status">
+                          {completeReason} Save a draft meanwhile; it is kept with the visit.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </TabsContent>
