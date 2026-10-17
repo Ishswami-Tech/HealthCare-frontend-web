@@ -78,9 +78,12 @@ export function MedicinesCell({
   const visible = medicines.length > MAX_MEDICINE_LINES ? medicines.slice(0, MAX_MEDICINE_LINES - 1) : medicines;
   const hidden = medicines.length - visible.length;
   const attention = showAttention ? attentionLine(prescription) : "";
+  // A prescription written without pharmacy medicines: show what the doctor wrote instead.
+  const note = medicines.length === 0 ? [prescription.diagnosis, prescription.notes].filter(Boolean).join(" · ") : "";
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      {medicines.length === 0 ? <span className="text-[13px] text-ink-muted">No medicines listed</span> : null}
+      {medicines.length === 0 ? <span className="text-[13px] text-ink-muted">No medicines</span> : null}
+      {note ? <span className="truncate text-xs text-ink-soft" title={note}>{note}</span> : null}
       {visible.map((medicine) => (
         <span key={medicine.prescriptionItemId} className="truncate text-[13px] font-semibold text-ink">
           {medicine.name} <span className="font-medium text-ink-muted">× {medicine.prescribedQuantity}</span>

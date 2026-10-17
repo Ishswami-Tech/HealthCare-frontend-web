@@ -295,12 +295,24 @@ const LAB_COLUMNS: RecordColumn[] = [
 const PRESCRIPTION_COLUMNS: RecordColumn[] = [
   { label: "Visit date", cell: (row) => strong(formatDateTimeLabel(prescriptionDate(row), EMPTY_DATE_LABEL)) },
   { label: "Doctor", cell: (row) => muted(firstText(row.doctorName) || "Not recorded") },
-  { label: "Diagnosis", cell: (row) => <span className="text-ink">{firstText(row.diagnosis) || "-"}</span> },
+  {
+    label: "Diagnosis",
+    cell: (row) => {
+      // A prescription written without pharmacy medicines carries its advice in `notes`.
+      const notes = firstText(row.notes);
+      return (
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-ink">{firstText(row.diagnosis) || "-"}</span>
+          {notes ? <span className="text-xs text-ink-muted">{notes}</span> : null}
+        </span>
+      );
+    },
+  },
   {
     label: "Medicines given",
     cell: (row) => {
       const items = toArray(row.items);
-      if (items.length === 0) return muted("No medicines recorded");
+      if (items.length === 0) return muted("No medicines");
       return (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]">
           {items.map((item, index) => {

@@ -183,11 +183,14 @@ function buildLines(prescription: Raw): DeskQueueLine[] {
   }));
 }
 
+/** A prescription nothing more happens to at the desk (a note-only one is created FILLED). */
+const CLOSED_PRESCRIPTION_STATUSES = new Set(["FILLED", "DISPENSED", "COMPLETED", "CANCELLED"]);
+
 /** Normalises the medicine-desk queue payload into the rows the dashboard shows, in queue order. */
 export function buildDeskQueue(queueData: unknown): DeskQueueItem[] {
   return unwrapList(queueData, "queue").reduce<DeskQueueItem[]>((items, entryRaw) => {
     const prescription = asRecord(entryRaw);
-    if (!prescription.id) return items;
+    if (!prescription.id || CLOSED_PRESCRIPTION_STATUSES.has(upper(prescription.status))) return items;
 
     const entry = normalizeQueueEntry(prescription);
     const paymentStatus = upper(entry.paymentStatus);

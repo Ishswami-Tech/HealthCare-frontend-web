@@ -282,7 +282,9 @@ export function PatientRecordsView({
                                 </li>
                               ))}
                             </ul>
-                          ) : null}
+                          ) : (
+                            <span className="text-[13px] text-ink-muted">No medicines</span>
+                          )}
                           {prescription.notes ? (
                             <span className="text-xs text-ink-muted">Instructions: {prescription.notes}</span>
                           ) : null}

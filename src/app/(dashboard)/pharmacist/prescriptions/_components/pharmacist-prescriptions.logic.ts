@@ -85,6 +85,9 @@ export type PrescriptionRow = {
   doctorName: string;
   prescribedAt: string;
   locationName: string;
+  /** The doctor's diagnosis and advice: all there is to show on a prescription with no medicines. */
+  diagnosis: string;
+  notes: string;
   status: PrescriptionStatus;
   paymentStatus: "PENDING" | "PARTIAL" | "PAID";
   totalAmount: number;
@@ -216,6 +219,8 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
     doctorName: doctorName ? formatDoctorDisplayName(doctorName) : "Unknown Doctor",
     prescribedAt: text(raw.date) || text(raw.prescribedAt) || text(raw.createdAt) || nowIso(),
     locationName: text(raw.locationName) || text(asRecord(raw.location).name),
+    diagnosis: text(raw.diagnosis),
+    notes: text(raw.notes),
     status: normalizeStatus(raw.status),
     paymentStatus: normalizePaymentStatus(raw.paymentStatus),
     totalAmount: Number(raw.totalAmount || 0),
