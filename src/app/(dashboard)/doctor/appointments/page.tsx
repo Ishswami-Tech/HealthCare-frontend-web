@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useStartAppointment, useCompleteAppointment, useUpdateAppointment, useBulkCompleteAppointments } from "@/hooks/query/useAppointments";
+import {
+  useStartAppointment,
+  useCompleteAppointment,
+  useUpdateAppointment,
+  useBulkCompleteAppointments,
+  useCheckInAppointment,
+} from "@/hooks/query/useAppointments";
 import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
@@ -203,6 +209,11 @@ export interface TransformedAppointment {
     weight?: string;
   } | null;
   checkedInAt: string | null;
+  /**
+   * An in-clinic visit booked for today that is not checked in yet. Staff may check a patient in
+   * at any time on the visit day; checking in moves it to CONFIRMED, which unlocks Start.
+   */
+  canCheckIn: boolean;
   queuePosition: number | null;
   diagnosis?: string;
   prescription?: string;
@@ -497,6 +508,7 @@ export default function DoctorAppointments() {
   const completeAppointmentMutation = useCompleteAppointment();
   const updateAppointmentMutation = useUpdateAppointment();
   const bulkCompleteMutation = useBulkCompleteAppointments();
+  const checkInMutation = useCheckInAppointment();
 
   // Transform appointments data
   const appointments = useMemo(() => {
@@ -529,6 +541,16 @@ export default function DoctorAppointments() {
           Date.now() < joinOpensAtMs;
         const joinWindowOpen = isVideo && joinOpensAtMs !== null && Date.now() >= joinOpensAtMs;
         const changePolicy = visitChangePolicy(app, isVideo);
+        const appointmentDateKey = appointmentDateTime
+          ? formatDateKeyInIST(appointmentDateTime)
+          : app.startTime
+            ? formatDateKeyInIST(app.startTime)
+            : "";
+        const canCheckIn =
+          !isVideo &&
+          normalizedStatus === APPOINTMENT_STATUS.SCHEDULED &&
+          !app.checkedInAt &&
+          appointmentDateKey === formatDateKeyInIST(new Date());
 
         return {
           id: app.id,
@@ -557,11 +579,7 @@ export default function DoctorAppointments() {
           appointmentDate: appointmentDateTime
             ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
             : getReceptionistAppointmentDateLabel(app as Record<string, unknown>),
-          appointmentDateKey: appointmentDateTime
-            ? formatDateKeyInIST(appointmentDateTime)
-            : app.startTime
-              ? formatDateKeyInIST(app.startTime)
-              : "",
+          appointmentDateKey,
           startTime: app.startTime || "",
           createdAt: app.createdAt || app.updatedAt || "",
           patientPhone: personText(app.patient, "phone"),
@@ -572,6 +590,7 @@ export default function DoctorAppointments() {
           currentMedications: app.patient?.currentMedications || [],
           vitalSigns: app.vitalSigns || null,
           checkedInAt: app.checkedInAt ? formatTimeInIST(app.checkedInAt) : null,
+          canCheckIn,
           queuePosition: app.queuePosition || null,
           diagnosis: typeof app.diagnosis === "string" ? app.diagnosis : "",
           prescription: typeof app.prescription === "string" ? app.prescription : "",
@@ -717,6 +736,20 @@ export default function DoctorAppointments() {
       }
     },
     [push, startAppointmentMutation]
+  );
+
+  // The mutation marks the appointment caches stale without refetching, so reload this list
+  // to swap "Check in" for "Start".
+  const checkInPatient = useCallback(
+    async (appointmentId: string) => {
+      try {
+        await checkInMutation.mutateAsync(appointmentId);
+        void refetchAppointments();
+      } catch (error: unknown) {
+        console.error("Failed to check in patient", { appointmentId, error });
+      }
+    },
+    [checkInMutation, refetchAppointments]
   );
 
   const saveConsultationDraft = async (appointmentId: string) => {
@@ -871,6 +904,8 @@ export default function DoctorAppointments() {
       completeAppointmentFromRow={completeAppointmentFromRow}
       startConsultation={startConsultation}
       startAppointmentPending={startAppointmentMutation.isPending}
+      checkInPatient={checkInPatient}
+      checkInPending={checkInMutation.isPending}
       bulkCompleteSelected={bulkCompleteSelected}
       bulkCompletePending={bulkCompleteMutation.isPending}
     />

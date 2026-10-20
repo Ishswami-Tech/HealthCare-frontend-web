@@ -16,6 +16,8 @@ export const createAppointmentSchema = z.object({
   time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
   duration: z.number().min(3).max(480),
   type: appointmentTypeSchema,
+  // Clinical service (e.g. AGNIKARMA). The backend defaults to GENERAL_CONSULTATION when it is missing.
+  treatmentType: z.string().regex(/^[A-Z_]+$/).optional(),
   notes: z.string().max(1000).optional(),
   clinicId: z.string().trim().min(1).max(100).optional(),
   locationId: z.string().uuid().optional(),

@@ -1103,7 +1103,7 @@ export async function checkInAppointment(
     return { success: true };
   } catch (error) {
     logger.error('Failed to check in appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to check in appointment' };
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to check in appointment' };
   }
 }
 

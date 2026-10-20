@@ -27,8 +27,13 @@ function PatientAppointmentsContent() {
   const initialTab = tabParam === "past" || tabParam === "cancelled" ? tabParam : undefined;
   // `&familyMemberId=<id>`: open the booking wizard for that family member.
   const queryFamilyMemberId = getSearchParam("familyMemberId") || undefined;
-  const defaultConsultationMode =
-    bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
+  // `&mode=VIDEO` opens the video flow, `&mode=IN_PERSON` the in-clinic flow; no mode lets the
+  // patient choose.
+  const normalizedBookingMode = bookingMode?.toUpperCase();
+  const queryConsultationMode: "VIDEO" | "IN_PERSON" | undefined =
+    normalizedBookingMode === "VIDEO" || normalizedBookingMode === "IN_PERSON"
+      ? normalizedBookingMode
+      : undefined;
   const currentClinicId = useCurrentClinicId();
   const resolvedClinicId =
     queryClinicId ||
@@ -66,25 +71,39 @@ function PatientAppointmentsContent() {
   const [bookingFamilyMemberId, setBookingFamilyMemberId] = useState(
     shouldOpenBooking ? queryFamilyMemberId : undefined,
   );
+  const [bookingConsultationMode, setBookingConsultationMode] = useState(
+    shouldOpenBooking ? queryConsultationMode : undefined,
+  );
   const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
 
   useEffect(() => {
     if (shouldOpenBooking) {
       setIsBookingDialogOpen(true);
       setBookingFamilyMemberId(queryFamilyMemberId);
+      setBookingConsultationMode(queryConsultationMode);
     }
 
     if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
       document.getElementById("appointment-manager")?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
-  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking, queryFamilyMemberId]);
+  }, [
+    queryClinicId,
+    queryLocationId,
+    queryClinicName,
+    bookingMode,
+    shouldOpenBooking,
+    queryFamilyMemberId,
+    queryConsultationMode,
+  ]);
 
-  // Closing the wizard forgets the family member, so the next booking starts with "Myself".
+  // Closing the wizard forgets the family member and the deep-linked mode, so the next booking
+  // starts with "Myself" and the video / in-clinic choice.
   const handleBookingDialogOpenChange = (open: boolean) => {
     setIsBookingDialogOpen(open);
     if (!open) {
       setBookingFamilyMemberId(undefined);
+      setBookingConsultationMode(undefined);
     }
   };
 
@@ -105,12 +124,12 @@ function PatientAppointmentsContent() {
         open={isBookingDialogOpen}
         onOpenChange={handleBookingDialogOpenChange}
         hideTrigger
-        {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
+        {...(bookingConsultationMode ? { initialConsultationMode: bookingConsultationMode } : {})}
         {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
         {...(queryLocationId ? { locationId: queryLocationId } : {})}
         {...(queryClinicName ? { clinicName: queryClinicName } : {})}
         {...(bookingFamilyMemberId ? { initialFamilyMemberId: bookingFamilyMemberId } : {})}
-        onBooked={() => setIsBookingDialogOpen(false)}
+        onBooked={() => handleBookingDialogOpenChange(false)}
       />
 
       {isBookingDialogOpening && (
@@ -136,7 +155,7 @@ function PatientAppointmentsContent() {
           }}
           onBookAppointment={() => setIsBookingDialogOpen(true)}
           initialTab={initialTab}
-          {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
+          {...(queryConsultationMode ? { defaultConsultationMode: queryConsultationMode } : {})}
           {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
         />
       </div>

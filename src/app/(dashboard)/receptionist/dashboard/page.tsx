@@ -553,6 +553,7 @@ export default function ReceptionistDashboard() {
               </Link>
             </Button>
             <BookAppointmentDialog
+              videoOnly
               trigger={
                 <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2 animate-pulse">
                   <Video className="size-4" />
@@ -882,6 +883,7 @@ export default function ReceptionistDashboard() {
                 Book walk-ins or assisted front-desk appointments.
               </p>
               <BookAppointmentDialog
+                videoOnly
                 trigger={
                   <Button size="sm" className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white animate-pulse">
                     <Video className="size-4 mr-2" />

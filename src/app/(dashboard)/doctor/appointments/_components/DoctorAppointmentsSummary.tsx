@@ -4,11 +4,11 @@ import type { ReactNode } from "react";
 import {
   AlertCircle,
   Calendar as CalendarIcon,
+  CalendarPlus,
   CheckCircle,
   Clock,
   Play,
   UserX,
-  Video,
   XCircle,
 } from "lucide-react";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
@@ -191,8 +191,8 @@ export function DoctorAppointmentsSummary({
             {...(userId ? { initialDoctorId: userId } : {})}
             trigger={
               <Button size="md" className="w-full sm:w-auto">
-                <Video />
-                Book Video Appointment
+                <CalendarPlus />
+                Book appointment
               </Button>
             }
           />

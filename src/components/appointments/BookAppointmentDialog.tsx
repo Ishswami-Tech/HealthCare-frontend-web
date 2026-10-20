@@ -201,7 +201,10 @@ interface BookAppointmentDialogProps {
   initialPatientId?: string;
   /** Patients only: open with this family member chosen under "Who is this visit for?". */
   initialFamilyMemberId?: string;
-  /** When true, forces VIDEO mode and skips mode selection step */
+  /**
+   * When true, forces VIDEO and skips the mode step (video vs in-clinic).
+   * Defaults to true only when the dialog opens in VIDEO mode.
+   */
   videoOnly?: boolean;
 }
 
@@ -358,6 +361,12 @@ const STEP_LABELS: Record<WizardStepId, string> = {
 const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
 const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
+/** Where staff land after booking; everyone else goes to the patient appointments page. */
+const POST_BOOKING_ROUTE_BY_ROLE: Partial<Record<string, string>> = {
+  RECEPTIONIST: "/receptionist/appointments",
+  DOCTOR: "/doctor/appointments",
+  CLINIC_ADMIN: "/clinic-admin/appointments",
+};
 
 interface BookAppointmentStepBarProps {
   activeSteps: readonly WizardStepId[];
@@ -412,6 +421,8 @@ interface BookAppointmentStep1Props {
   selectedServiceId: string;
   setSelectedServiceId: (value: string) => void;
   setSelectedDoctorId: (value: string) => void;
+  /** Doctor the dialog was opened for; kept when the mode or location changes. */
+  defaultDoctorId: string;
   setSelectedDate: (value: Date | undefined) => void;
   setSelectedSlot: (value: string) => void;
   goNext: () => void;
@@ -437,13 +448,38 @@ function BookAppointmentStep1({
   selectedServiceId,
   setSelectedServiceId,
   setSelectedDoctorId,
+  defaultDoctorId,
   setSelectedDate,
   setSelectedSlot,
   goNext,
   setConsultationMode,
 }: BookAppointmentStep1Props) {
+  const handleModeSelect = (value: "IN_PERSON" | "VIDEO") => {
+    setConsultationMode(value);
+    if (value === "VIDEO") {
+      setSelectedLocationId("");
+      setSelectedServiceId(VIDEO_CONSULTATION_TREATMENT_TYPE);
+    } else if (selectedServiceId === VIDEO_CONSULTATION_TREATMENT_TYPE) {
+      setSelectedServiceId("");
+    }
+    if (value !== consultationMode) {
+      setSelectedDoctorId(defaultDoctorId);
+      setSelectedDate(getTodayIST());
+      setSelectedSlot("");
+    }
+    // An in-clinic visit needs a location first; picking one in the list below moves on.
+    if (value === "VIDEO" || selectedLocationId) {
+      setTimeout(goNext, 150);
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-5">
+      <ConsultationModeToggle
+        consultationMode={consultationMode}
+        onSelect={handleModeSelect}
+      />
+
       {consultationMode === "VIDEO" ? (
         <Note tone="blue" icon={Video}>
           Video consultations do not require a physical location.
@@ -526,7 +562,7 @@ function BookAppointmentStep1({
                   aria-pressed={selectedLocationId === loc.id}
                   onClick={() => {
                     setSelectedLocationId(loc.id);
-                    setSelectedDoctorId("");
+                    setSelectedDoctorId(defaultDoctorId);
                     setSelectedDate(getTodayIST());
                     setSelectedSlot("");
                     setTimeout(goNext, 150);
@@ -566,63 +602,58 @@ function BookAppointmentStep1({
           )}
         </div>
       )}
+    </div>
+  );
+}
 
-      <div className="flex flex-col gap-2">
-        <BookingGroupLabel>Consultation Mode</BookingGroupLabel>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          {(
-            [
-              {
-                value: "IN_PERSON",
-                label: "In-Clinic",
-                desc: "Visit the clinic",
-                icon: (
-                  <Building
-                    className="size-[22px] text-[#059669] dark:text-emerald-300"
-                    strokeWidth={2.2}
-                  />
-                ),
-              },
-              {
-                value: "VIDEO",
-                label: "Video",
-                desc: "Remote consultation",
-                icon: (
-                  <Video className="size-[22px] fill-[#4f46e5] text-[#4f46e5] dark:fill-indigo-400 dark:text-indigo-400" />
-                ),
-              },
-            ] as const
-          ).map(({ value, label, desc, icon }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={consultationMode === value}
-              onClick={() => {
-                setConsultationMode(value);
-                if (value === "VIDEO") {
-                  setSelectedLocationId("");
-                  setSelectedServiceId(VIDEO_CONSULTATION_TREATMENT_TYPE);
-                } else if (
-                  selectedServiceId === VIDEO_CONSULTATION_TREATMENT_TYPE
-                ) {
-                  setSelectedServiceId("");
-                }
-                setSelectedDoctorId("");
-                setSelectedDate(getTodayIST());
-                setSelectedSlot("");
-                setTimeout(goNext, 150);
-              }}
-              className={bookingOptionClass(
-                consultationMode === value,
-                "flex min-h-24 flex-col items-start justify-center gap-1 px-3.5 py-3",
-              )}
-            >
-              {icon}
-              <span className="text-sm font-bold text-ink">{label}</span>
-              <span className="text-xs text-ink-muted">{desc}</span>
-            </button>
-          ))}
-        </div>
+interface ConsultationModeToggleProps {
+  consultationMode: "IN_PERSON" | "VIDEO";
+  onSelect: (value: "IN_PERSON" | "VIDEO") => void;
+}
+
+function ConsultationModeToggle({ consultationMode, onSelect }: ConsultationModeToggleProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      <BookingGroupLabel>Consultation Mode</BookingGroupLabel>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        {(
+          [
+            {
+              value: "IN_PERSON",
+              label: "In-Clinic",
+              desc: "Visit the clinic",
+              icon: (
+                <Building
+                  className="size-[22px] text-[#059669] dark:text-emerald-300"
+                  strokeWidth={2.2}
+                />
+              ),
+            },
+            {
+              value: "VIDEO",
+              label: "Video",
+              desc: "Remote consultation",
+              icon: (
+                <Video className="size-[22px] fill-[#4f46e5] text-[#4f46e5] dark:fill-indigo-400 dark:text-indigo-400" />
+              ),
+            },
+          ] as const
+        ).map(({ value, label, desc, icon }) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={consultationMode === value}
+            onClick={() => onSelect(value)}
+            className={bookingOptionClass(
+              consultationMode === value,
+              "flex min-h-24 flex-col items-start justify-center gap-1 px-3.5 py-3",
+            )}
+          >
+            {icon}
+            <span className="text-sm font-bold text-ink">{label}</span>
+            <span className="text-xs text-ink-muted">{desc}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -2329,8 +2360,9 @@ export function BookAppointmentDialog({
   initialDoctorId,
   initialPatientId,
   initialFamilyMemberId,
-  videoOnly = true,
+  videoOnly: videoOnlyProp,
 }: BookAppointmentDialogProps) {
+  const videoOnly = videoOnlyProp ?? initialConsultationMode === "VIDEO";
   const { language } = useLanguage();
   const { push, replace } = useRouter();
   const pathname = usePathname();
@@ -2343,9 +2375,7 @@ export function BookAppointmentDialog({
   const profileCompletionRedirectUrl = `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/patient/appointments")}`;
 
   const postBookingRoute =
-    userRole === "RECEPTIONIST"
-      ? "/receptionist/appointments"
-      : "/patient/appointments";
+    POST_BOOKING_ROUTE_BY_ROLE[userRole] ?? "/patient/appointments";
   const postBookingLabel =
     userRole === "RECEPTIONIST"
       ? "Go to appointment manager"
@@ -2435,14 +2465,18 @@ export function BookAppointmentDialog({
       }
     | { type: "resetBookingFlow"; payload: BookingFlowState };
 
-  const createBookingFlowState = useCallback(
-    (): BookingFlowState => ({
+  const createBookingFlowState = useCallback((): BookingFlowState => {
+    const initialMode: BookingFlowState["consultationMode"] = videoOnly
+      ? "VIDEO"
+      : (initialConsultationMode ?? "IN_PERSON");
+    return {
       step: 1,
       serviceFilter: "All",
       stepDirection: "forward",
       selectedLocationId: locationId || "",
-      consultationMode: "VIDEO", // Always VIDEO - in-person appointments disabled
-      selectedServiceId: initialServiceId || (videoOnly ? VIDEO_CONSULTATION_TREATMENT_TYPE : ""),
+      consultationMode: initialMode,
+      selectedServiceId:
+        initialServiceId || (initialMode === "VIDEO" ? VIDEO_CONSULTATION_TREATMENT_TYPE : ""),
       selectedDoctorId: initialDoctorId || "",
       selectedDate: getTodayIST(),
       selectedSlot: "",
@@ -2457,16 +2491,15 @@ export function BookAppointmentDialog({
       showQuickCreatePatient: false,
       showQuickCreateAdditionalDetails: false,
       recentlyCreatedPatient: null,
-    }),
-    [
-      initialConsultationMode,
-      initialDoctorId,
-      initialPatientId,
-      initialServiceId,
-      locationId,
-      videoOnly,
-    ],
-  );
+    };
+  }, [
+    initialConsultationMode,
+    initialDoctorId,
+    initialPatientId,
+    initialServiceId,
+    locationId,
+    videoOnly,
+  ]);
   const bookingFlowReducer = useCallback(
     (state: BookingFlowState, action: BookingFlowAction): BookingFlowState => {
       const resolve = <T,>(value: SetStateAction<T>, current: T) =>
@@ -2608,6 +2641,15 @@ export function BookAppointmentDialog({
     undefined,
     createBookingFlowState,
   );
+  // Controlled dialogs stay mounted while closed, and "Book again" or a deep link changes the
+  // prefill (mode, doctor, patient) between openings. Start each opening from the current props.
+  const [wasDialogOpen, setWasDialogOpen] = useState(dialogOpen);
+  if (wasDialogOpen !== dialogOpen) {
+    setWasDialogOpen(dialogOpen);
+    if (dialogOpen) {
+      dispatchBookingFlow({ type: "resetBookingFlow", payload: createBookingFlowState() });
+    }
+  }
   const {
     step,
     serviceFilter,
@@ -3204,8 +3246,13 @@ export function BookAppointmentDialog({
     isCheckingSubscriptionCoverage ||
     isCreatingSubscriptionAppointment;
   const { mutate: sendReminder } = useSendAppointmentReminder();
+  // Only a patient's own in-clinic booking checks the plan here. For staff bookings the backend
+  // links the patient's plan itself (doctors cannot read plans).
   const shouldLoadSubscriptions =
-    dialogOpen && !!targetPatientId && consultationMode === "IN_PERSON";
+    dialogOpen &&
+    userRole === "PATIENT" &&
+    !!targetPatientId &&
+    consultationMode === "IN_PERSON";
   const { data: subscriptionsData = [] } = useSubscriptions(
     targetPatientId,
     activeClinicId,
@@ -3281,7 +3328,8 @@ export function BookAppointmentDialog({
         return {
           ...doctor,
           id: doctor.id || u.id,
-          userId: user.id || u.userId,
+          // Never fall back to `u.id`: for a normalized row that is the doctor record id.
+          userId: doctor.user?.id || u.userId || doctor.userId || (u.doctor ? u.id : ""),
           name: resolvedDoctorName === "User" ? `Doctor` : resolvedDoctorName,
           specialization: doctor.specialization || "",
           image: user.profilePicture || doctor.profilePicture || u.profilePicture || "",
@@ -3320,7 +3368,22 @@ export function BookAppointmentDialog({
 
     return doctorsList[0]?.id || "";
   }, [dialogOpen, doctorsLoading, doctorsList, selectedDoctorId]);
-  const resolvedDoctorId = selectedDoctorId || autoSelectedDoctorId;
+  const resolvedDoctorId = useMemo(() => {
+    const candidateId = selectedDoctorId || autoSelectedDoctorId;
+    if (!candidateId || doctorsLoading || doctorsList.length === 0) {
+      return candidateId;
+    }
+    // Callers may pass the doctor's user id (a doctor booking from their own page), but
+    // availability and booking need the doctor record id. A doctor who does not work at the
+    // chosen location is dropped, unless the clinic has a single doctor.
+    const match = doctorsList.find(
+      (doctor: any) => doctor.id === candidateId || doctor.userId === candidateId,
+    );
+    if (match) {
+      return match.id as string;
+    }
+    return doctorsList.length === 1 ? (doctorsList[0]?.id as string) || "" : "";
+  }, [autoSelectedDoctorId, doctorsList, doctorsLoading, selectedDoctorId]);
   const selectedDoctor = useMemo(
     () => doctorsList.find((d: any) => d.id === resolvedDoctorId),
     [doctorsList, resolvedDoctorId],
@@ -4042,6 +4105,14 @@ export function BookAppointmentDialog({
       return;
     }
 
+    // The step bar can skip the location step, and the backend rejects an in-clinic visit
+    // without one.
+    if (consultationMode !== "VIDEO" && !appointmentLocationId) {
+      showErrorToast("Please choose a clinic location for this visit.");
+      goToStep("mode");
+      return;
+    }
+
     // Staff book for someone else: a patient must be chosen first.
     if (isPrivilegedScheduler && !resolvedBookingPatientId) {
       showErrorToast("Please select a patient before confirming.");
@@ -4326,7 +4397,11 @@ export function BookAppointmentDialog({
         return;
       }
 
-      if (finalAppointmentType === "IN_PERSON" && activeSubscription?.id) {
+      if (
+        finalAppointmentType === "IN_PERSON" &&
+        userRole === "PATIENT" &&
+        activeSubscription?.id
+      ) {
         const coverageResult = await checkSubscriptionCoverage({
           subscriptionId: activeSubscription.id,
           appointmentType: "IN_PERSON",
@@ -4909,6 +4984,7 @@ export function BookAppointmentDialog({
               selectedServiceId={selectedServiceId}
               setSelectedServiceId={setSelectedServiceId}
               setSelectedDoctorId={setSelectedDoctorId}
+              defaultDoctorId={initialDoctorId || ""}
               setSelectedDate={setSelectedDate}
               setSelectedSlot={setSelectedSlot}
               goNext={goNext}

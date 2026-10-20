@@ -80,6 +80,9 @@ interface Props {
   /** "Complete" on a table row: completes that visit with its own notes. */
   completeAppointmentFromRow: (appointment: TransformedAppointment) => Promise<void>;
   startConsultation: (appointmentId: string, doctorId: string, options?: { openVideoAfterStart?: boolean }) => Promise<void>;
+  /** Checks a patient in for today's in-clinic visit. Rows offer "Check in" only when it is set. */
+  checkInPatient?: (appointmentId: string) => Promise<void>;
+  checkInPending?: boolean;
   bulkCompleteSelected: (appointmentIds: string[]) => Promise<{ completed: number; failed: number } | undefined>;
   bulkCompletePending: boolean;
   /** Design preview only: replaces the live connection tag in the banner. */
@@ -134,6 +137,8 @@ export function DoctorAppointmentsContent(props: Props) {
     completeConsultation,
     completeAppointmentFromRow,
     startConsultation,
+    checkInPatient,
+    checkInPending = false,
     bulkCompleteSelected,
     bulkCompletePending,
     connectionSlot,
@@ -321,6 +326,10 @@ export function DoctorAppointmentsContent(props: Props) {
           completeAppointmentPending={completeAppointmentPending}
           onOpenDetails={openDetails}
           onStart={(appointment) => startConsultation(appointment.id, appointment.doctorId)}
+          {...(checkInPatient
+            ? { onCheckIn: (appointment: TransformedAppointment) => checkInPatient(appointment.id) }
+            : {})}
+          checkInPending={checkInPending}
           onComplete={completeAppointmentFromRow}
           onReschedule={openReschedule}
           onCancel={openCancel}

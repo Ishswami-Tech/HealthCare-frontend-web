@@ -96,7 +96,8 @@ const normalizeDoctorRows = (payload: unknown): any[] => {
     return {
       ...doctor,
       id: doctor?.id ?? row?.id ?? "",
-      userId: user?.id ?? row?.userId ?? "",
+      // `GET /doctors` returns User rows with `doctor` included, so the user id is the row id.
+      userId: user?.id || doctor?.userId || row?.userId || (row?.doctor ? row?.id : "") || "",
       name: resolvedDoctorName === 'User' ? 'Doctor' : resolvedDoctorName,
       specialization: doctor?.specialization ?? "",
       image: user?.profilePicture ?? doctor?.profilePicture ?? row?.profilePicture ?? "",

@@ -13,6 +13,7 @@ import {
   Phone,
   Pill as PillIcon,
   Play,
+  UserCheck,
   UserX,
   Video,
 } from "lucide-react";
@@ -62,6 +63,9 @@ interface DoctorAppointmentsTableProps {
   onComplete: (appointment: TransformedAppointment) => void;
   onReschedule: (appointment: TransformedAppointment) => void;
   onCancel: (appointment: TransformedAppointment) => void;
+  /** Staff check-in for today's in-clinic visit (it moves the visit to CONFIRMED). */
+  onCheckIn?: (appointment: TransformedAppointment) => void;
+  checkInPending?: boolean;
 }
 
 /**
@@ -124,6 +128,8 @@ function RowActions({
   onComplete,
   onReschedule,
   onCancel,
+  onCheckIn,
+  checkInPending = false,
 }: Pick<
   DoctorAppointmentsTableProps,
   | "clinicId"
@@ -134,6 +140,8 @@ function RowActions({
   | "onComplete"
   | "onReschedule"
   | "onCancel"
+  | "onCheckIn"
+  | "checkInPending"
 > & { appointment: TransformedAppointment }) {
   const openVideo = () => {
     window.location.assign(buildVideoSessionRoute(app.id));
@@ -196,11 +204,29 @@ function RowActions({
         </span>
       ) : null}
 
-      {app.status === "CONFIRMED" && !app.isVideo ? (
-        <Button onClick={() => onStart(app)} disabled={startAppointmentPending}>
-          {startAppointmentPending ? <Loader2 className="animate-spin" /> : <Play />}
-          Start
+      {app.canCheckIn && onCheckIn ? (
+        <Button
+          variant="outline"
+          onClick={() => onCheckIn(app)}
+          disabled={checkInPending}
+          aria-label={`Check in ${app.patientName}`}
+        >
+          {checkInPending ? <Loader2 className="animate-spin" /> : <UserCheck />}
+          Check in
         </Button>
+      ) : null}
+
+      {/* An in-clinic visit is CONFIRMED only by check-in, so Start is never offered before it. */}
+      {app.status === "CONFIRMED" && !app.isVideo ? (
+        <>
+          {app.checkedInAt ? (
+            <span className="text-xs font-medium text-ink-muted">Checked in {app.checkedInAt}</span>
+          ) : null}
+          <Button onClick={() => onStart(app)} disabled={startAppointmentPending}>
+            {startAppointmentPending ? <Loader2 className="animate-spin" /> : <Play />}
+            Start
+          </Button>
+        </>
       ) : null}
 
       {canCompleteConfirmedVideoVisit(app) ? (
@@ -320,6 +346,8 @@ export function DoctorAppointmentsTable({
   onComplete,
   onReschedule,
   onCancel,
+  onCheckIn,
+  checkInPending = false,
 }: DoctorAppointmentsTableProps) {
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [pageIndex, setPageIndex] = useState(0);
@@ -485,6 +513,8 @@ export function DoctorAppointmentsTable({
                     onComplete={onComplete}
                     onReschedule={onReschedule}
                     onCancel={onCancel}
+                    {...(onCheckIn ? { onCheckIn } : {})}
+                    checkInPending={checkInPending}
                   />
                 </div>
               </div>
