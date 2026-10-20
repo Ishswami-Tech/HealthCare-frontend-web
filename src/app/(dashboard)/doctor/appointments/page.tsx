@@ -551,7 +551,7 @@ export default function DoctorAppointments() {
           canJoinVideo,
           joinOpensLater,
           joinWindowOpen,
-          locationId: typeof app.locationId === "string" ? app.locationId : "",
+          locationId: app.locationId || app.location?.id || "",
           ...changePolicy,
           duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
           appointmentDate: appointmentDateTime

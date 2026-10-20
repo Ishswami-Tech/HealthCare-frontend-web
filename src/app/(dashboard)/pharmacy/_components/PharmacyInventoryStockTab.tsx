@@ -39,7 +39,6 @@ import {
   expiringLine,
   expiryPill,
   filterMedicines,
-  isServerStockFilter,
   lowStockLine,
   medicineSubline,
   type InventoryFilters,
@@ -142,10 +141,9 @@ export function PharmacyInventoryStockTab({
   onAddMedicine,
 }: PharmacyInventoryStockTabProps) {
   const { summary, rows } = overview;
-  // The server applies the search, type, category, in-stock, low-stock and expiring filters; the
-  // client filter runs again on the page rows, and alone cuts "out of stock" from the low-stock page.
+  // The server applies every filter (search, type, category and the stock filter) and pages the
+  // result; the client filter runs again on the page rows only as a guard.
   const filtered = filterMedicines(rows, filters);
-  const serverFiltered = isServerStockFilter(filters.stock);
   const paging = serverPaging({ page, pageSize, total, rowCount: filtered.length, onPageChange });
   const paged = rows.length < total;
   const filtering =
@@ -504,14 +502,7 @@ export function PharmacyInventoryStockTab({
               })}
             </div>
 
-            {serverFiltered ? (
-              <Pager paging={paging} noun={paging.total === 1 ? "medicine" : "medicines"} busy={loading} />
-            ) : (
-              <p className="m-0 border-t border-hair px-5 py-3 text-[13px] text-ink-muted" role="status">
-                {filtered.length} {filtered.length === 1 ? "medicine" : "medicines"} out of stock on this page
-                {paged ? ` (${total} low or out of stock in all; use the Low or out of stock filter to page through them)` : ""}
-              </p>
-            )}
+            <Pager paging={paging} noun={paging.total === 1 ? "medicine" : "medicines"} busy={loading} />
           </>
         )}
       </Surface>

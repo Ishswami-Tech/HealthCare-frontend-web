@@ -15,6 +15,7 @@ import {
   useExportPharmacyData,
   useInventoryAlerts,
   useMedicine,
+  useMedicines,
   useMedicinesPage,
   medicinesPageQueryKey,
   usePharmacyOrder,
@@ -150,7 +151,7 @@ export default function PharmacyInventoryContent() {
   // ── Queries ──────────────────────────────────────────────────────────────
   // The stock list is paged and searched by the server: `category` is the dosage form token, `type`
   // the classification; `inStock`, `lowStock` (low or out) and `expiringSoon` follow the stock
-  // filter. "Out of stock" alone is cut from the low-stock page on the client.
+  // filter, and `outOfStock` for "Out of stock".
   const debouncedSearch = useDebouncedValue(filters.search.trim(), 300);
   const inventoryParams = useMemo(() => {
     const categoryToken = parseDosageForm(filters.category);
@@ -161,7 +162,8 @@ export default function PharmacyInventoryContent() {
       ...(categoryToken ? { category: categoryToken } : {}),
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.stock === "in_stock" ? { inStock: true } : {}),
-      ...(filters.stock === "restock" || filters.stock === "out_of_stock" ? { lowStock: true } : {}),
+      ...(filters.stock === "restock" ? { lowStock: true } : {}),
+      ...(filters.stock === "out_of_stock" ? { outOfStock: true } : {}),
       ...(filters.stock === "expiring" ? { expiringSoon: true } : {}),
     };
   }, [debouncedSearch, filters.category, filters.stock, filters.type, page]);
@@ -200,10 +202,25 @@ export default function PharmacyInventoryContent() {
 
   const supplierNames = useMemo(() => supplierNameMap(suppliersData), [suppliersData]);
   const overview = useMemo(() => buildInventoryOverview(medicinesData, supplierNames), [medicinesData, supplierNames]);
-  const suppliers = useMemo(() => buildSuppliers(suppliersData, overview.rows), [suppliersData, overview.rows]);
+  // Orders, partner pharmacies and the order dialogs work across the whole inventory, not the
+  // stock page on screen, so they read the full list; it is fetched only while one is shown and
+  // the current page stands in until it arrives.
+  const catalogNeeded =
+    tab === "orders" ||
+    tab === "pharmacies" ||
+    dialog?.kind === "order" ||
+    dialog?.kind === "orderDetails" ||
+    dialog?.kind === "receiveOrder" ||
+    dialog?.kind === "supplier";
+  const { data: catalogData } = useMedicines(scopedClinicId, undefined, { enabled: catalogNeeded });
+  const catalogRows = useMemo(
+    () => (catalogData ? buildInventoryOverview(catalogData, supplierNames).rows : overview.rows),
+    [catalogData, overview.rows, supplierNames],
+  );
+  const suppliers = useMemo(() => buildSuppliers(suppliersData, catalogRows), [suppliersData, catalogRows]);
   const orders = useMemo(
-    () => buildOrders(ordersData, overview.rows, supplierNames),
-    [ordersData, overview.rows, supplierNames],
+    () => buildOrders(ordersData, catalogRows, supplierNames),
+    [ordersData, catalogRows, supplierNames],
   );
   const analytics = useMemo(
     () => buildAnalytics(permissions.canManagePrescriptions ? prescriptionsData : null, orders, pharmacyStats),
@@ -218,9 +235,9 @@ export default function PharmacyInventoryContent() {
   const { data: orderDetail, isFetching: orderFetching } = usePharmacyOrder(scopedClinicId, dialogOrderId);
   const dialogOrder = useMemo<OrderRow | null>(() => {
     if (!dialogOrderId) return null;
-    const fresh = orderDetail ? (buildOrders([orderDetail], overview.rows, supplierNames)?.[0] ?? null) : null;
+    const fresh = orderDetail ? (buildOrders([orderDetail], catalogRows, supplierNames)?.[0] ?? null) : null;
     return fresh ?? orders?.find((order) => order.id === dialogOrderId) ?? null;
-  }, [dialogOrderId, orderDetail, orders, overview.rows, supplierNames]);
+  }, [catalogRows, dialogOrderId, orderDetail, orders, supplierNames]);
 
   // Batches of the medicine in the batches / receive-stock dialog.
   const batchesMedicineId =
@@ -373,6 +390,7 @@ export default function PharmacyInventoryContent() {
       tab={tab}
       onTabChange={setTab}
       overview={overview}
+      catalogRows={catalogRows}
       inventoryLoading={inventoryLoading}
       inventoryError={clinicId ? errorText(medicinesError) : NO_CLINIC}
       onRetryInventory={() => void refetchMedicines()}

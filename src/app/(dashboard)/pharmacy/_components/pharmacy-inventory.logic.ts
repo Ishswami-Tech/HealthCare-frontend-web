@@ -314,11 +314,6 @@ export interface InventoryFilters {
 export const TYPE_FILTER_OPTIONS: readonly { value: string; label: string }[] = MEDICINE_CLASSIFICATIONS;
 export const CATEGORY_FILTER_OPTIONS: readonly { value: string; label: string }[] = DOSAGE_FORMS;
 
-/** The stock statuses the server filters itself (`lowStock`, `expiringSoon`, `inStock`); the rest is cut from the page. */
-export function isServerStockFilter(stock: StockFilter): boolean {
-  return stock !== "out_of_stock";
-}
-
 export const EMPTY_FILTERS: InventoryFilters = { search: "", type: "", category: "", stock: "all" };
 
 /** `?filter=low` / `?filter=expiring` from the dashboard links. */

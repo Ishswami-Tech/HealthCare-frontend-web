@@ -1,4 +1,4 @@
-import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useQueryData } from "../core/useQueryData";
 import { useMutationOperation } from "../core/useMutationOperation";
 import { TOAST_IDS } from "../utils/use-toast";
@@ -75,7 +75,8 @@ export const medicinesPageQueryKey = (clinicId: string, filters: MedicineListFil
 
 /**
  * Hook to get one server page of medicines (`{ data, total, page, limit }`), with search and filters
- * applied by the server. The previous page stays on screen while the next one loads.
+ * applied by the server. A page or filter change shows the loading state rather than the previous
+ * page, so no action can be taken on rows that no longer match the pager.
  */
 export const useMedicinesPage = (
   clinicId: string,
@@ -89,7 +90,6 @@ export const useMedicinesPage = (
     },
     {
       enabled: !!clinicId && (options?.enabled ?? true),
-      placeholderData: keepPreviousData,
     },
   );
 };

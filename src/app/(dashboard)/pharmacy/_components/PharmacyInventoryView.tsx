@@ -95,6 +95,8 @@ export interface PharmacyInventoryViewProps {
   onFiltersChange: (filters: InventoryFilters) => void;
   page: number;
   onPageChange: (page: number) => void;
+  /** The whole inventory for the order dialog (the current page until it has loaded). */
+  catalogRows: MedicineRow[];
   /** Medicines matching the filters on the server (all pages); `overview.rows` is the current page. */
   inventoryTotal: number;
   inventoryPageSize: number;
@@ -162,6 +164,7 @@ export function PharmacyInventoryView({
   tab,
   onTabChange,
   overview,
+  catalogRows,
   inventoryLoading = false,
   inventoryError = null,
   onRetryInventory,
@@ -389,10 +392,10 @@ export function PharmacyInventoryView({
       <PharmacyNewOrderDialog
         open={canManage && dialog?.kind === "order"}
         suppliers={suppliers}
-        medicines={overview.rows}
+        medicines={catalogRows}
         initialSupplierId={dialog?.kind === "order" ? dialog.supplierId : undefined}
         initialMedicineId={
-          dialog?.kind === "order" ? (findMedicine(overview.rows, dialog.medicineKey)?.id ?? undefined) : undefined
+          dialog?.kind === "order" ? (findMedicine(catalogRows, dialog.medicineKey)?.id ?? undefined) : undefined
         }
         isPlacing={dialogBusy}
         errorMessage={dialogError}

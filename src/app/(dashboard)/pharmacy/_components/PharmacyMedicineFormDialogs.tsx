@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Save } from "lucide-react";
@@ -26,7 +26,7 @@ import {
   ADD_MEDICINE_DEFAULTS,
   NO_CLASSIFICATION,
   addMedicineSchema,
-  editMedicineSchema,
+  editMedicineSchemaFor,
   toEditMedicineValues,
   toUpdateMedicinePayload,
   type AddMedicineValues,
@@ -335,6 +335,7 @@ function EditMedicineForm({
 }) {
   const uid = useId();
   const id = (name: string) => `${uid}-${name}`;
+  const editMedicineSchema = useMemo(() => editMedicineSchemaFor(medicine), [medicine]);
   const {
     register,
     control,

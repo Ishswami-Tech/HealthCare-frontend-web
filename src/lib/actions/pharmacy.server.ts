@@ -221,10 +221,12 @@ export interface MedicineListFilters {
   category?: string;
   /** Classification (CLASSICAL, PROPRIETARY, HERBAL). */
   type?: string;
-  /** Only `true` is sent: the server has no "out of stock only" switch. */
+  /** Stock above zero. Only `true` is sent. */
   inStock?: boolean;
   /** At or below the reorder level, or out of stock. */
   lowStock?: boolean;
+  /** No stock left (stock <= 0). */
+  outOfStock?: boolean;
   expiringSoon?: boolean;
   expiringDays?: number;
   limit?: number;
@@ -237,6 +239,7 @@ const INVENTORY_QUERY_KEYS = new Set([
   "type",
   "inStock",
   "lowStock",
+  "outOfStock",
   "expiringSoon",
   "expiringDays",
   "page",
@@ -441,7 +444,7 @@ export interface UpdateMedicineInput {
   instructions?: string;
   notes?: string;
   isActive?: boolean;
-  /** New price per unit; sent as `price`. 0 is allowed. */
+  /** New price per unit; sent as `price`. Must be more than 0 (the server rejects 0). */
   unitPrice?: number;
 }
 

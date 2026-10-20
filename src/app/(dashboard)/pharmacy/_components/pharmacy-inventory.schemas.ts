@@ -94,21 +94,47 @@ const classificationValues = MEDICINE_CLASSIFICATIONS.map((entry) => entry.value
 /** "" = not set (an older row without a classification keeps none). */
 export const NO_CLASSIFICATION = "";
 
-export const editMedicineSchema = z.object({
+const editMedicineBaseSchema = z.object({
   name: z.string().trim().min(2, "Enter the medicine name.").max(120, "Use 120 characters or fewer."),
-  manufacturer: z.string().trim().min(2, "Enter the manufacturer.").max(120, "Use 120 characters or fewer."),
+  /** Checked against the row in `editMedicineSchemaFor`: an older row may have none. */
+  manufacturer: z.string().trim().max(120, "Use 120 characters or fewer."),
   dosageForm: z.enum(dosageFormValues, { message: "Choose a dosage form." }),
   classification: z.enum([NO_CLASSIFICATION, ...classificationValues]),
-  unit: z.string().trim().min(1, "Enter the unit (tablet, ml, gm …).").max(20, "Use 20 characters or fewer."),
+  /** Checked against the row in `editMedicineSchemaFor`: an older row may have none. */
+  unit: z.string().trim().max(20, "Use 20 characters or fewer."),
   /** "" = no supplier. */
   supplierId: z.string(),
   /** "" = no expiry recorded (kept as is; it cannot be cleared here). */
   expiryDate: z.string().refine((value) => value === "" || DATE_KEY.test(value), "Choose the expiry date."),
   minStockLevel: wholeNumber("the minimum stock level", 0),
+  /** A row priced 0 keeps saving its other fields; a new price must be more than 0, as the server requires. */
   unitPrice: rupees("the price per unit", true),
 });
 
-export type EditMedicineValues = z.infer<typeof editMedicineSchema>;
+export type EditMedicineValues = z.infer<typeof editMedicineBaseSchema>;
+
+/**
+ * The edit form's schema for one row. A manufacturer or unit the row never had, or a price of 0
+ * it already carries, may stay as it is so the other fields can still be saved; a value that is
+ * changed must be valid.
+ */
+export function editMedicineSchemaFor(medicine: MedicineRow) {
+  const before = toEditMedicineValues(medicine);
+  return editMedicineBaseSchema.superRefine((values, ctx) => {
+    const manufacturer = values.manufacturer.trim();
+    if (manufacturer !== before.manufacturer && manufacturer.length < 2) {
+      ctx.addIssue({ code: "custom", path: ["manufacturer"], message: "Enter the manufacturer." });
+    }
+    const unit = values.unit.trim();
+    if (unit !== before.unit && unit.length < 1) {
+      ctx.addIssue({ code: "custom", path: ["unit"], message: "Enter the unit (tablet, ml, gm …)." });
+    }
+    const price = Number(values.unitPrice);
+    if (price !== Number(before.unitPrice) && price <= 0) {
+      ctx.addIssue({ code: "custom", path: ["unitPrice"], message: "Must be more than 0." });
+    }
+  });
+}
 
 /** The dosage form of a row: `category` holds it; an older row kept it in `type`. */
 export function medicineDosageForm(medicine: Pick<MedicineRow, "category" | "typeCode">): DosageFormValue | null {
