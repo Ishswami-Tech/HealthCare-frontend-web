@@ -4,6 +4,10 @@ import { useMutationOperation } from "../core/useMutationOperation";
 import { TOAST_IDS } from "../utils/use-toast";
 import {
   getMedicines,
+  getMedicinesPage,
+  type MedicineListFilters,
+  type MedicinePage,
+  type UpdateMedicineInput,
   getMedicineById,
   createMedicine,
   updateMedicine,
@@ -51,18 +55,8 @@ import type {
  */
 export const useMedicines = (
   clinicId: string,
-  filters?: {
-    search?: string;
-    category?: string;
-    manufacturer?: string;
-    inStock?: boolean;
-    lowStock?: boolean;
-    expiringSoon?: boolean;
-    prescriptionRequired?: boolean;
-    expiringDays?: number;
-    limit?: number;
-    offset?: number;
-  },
+  filters?: MedicineListFilters,
+  options?: { enabled?: boolean },
 ) => {
   return useQueryData(
     ["medicines", clinicId, filters],
@@ -70,7 +64,32 @@ export const useMedicines = (
       return await getMedicines(clinicId, filters);
     },
     {
-      enabled: !!clinicId,
+      enabled: !!clinicId && (options?.enabled ?? true),
+    },
+  );
+};
+
+/** The query key of `useMedicinesPage`, for `getQueryState` and targeted invalidation. */
+export const medicinesPageQueryKey = (clinicId: string, filters: MedicineListFilters & { page: number; limit: number }) =>
+  ["medicines", clinicId, "page", filters] as const;
+
+/**
+ * Hook to get one server page of medicines (`{ data, total, page, limit }`), with search and filters
+ * applied by the server. A page or filter change shows the loading state rather than the previous
+ * page, so no action can be taken on rows that no longer match the pager.
+ */
+export const useMedicinesPage = (
+  clinicId: string,
+  filters: MedicineListFilters & { page: number; limit: number },
+  options?: { enabled?: boolean },
+) => {
+  return useQueryData<MedicinePage>(
+    medicinesPageQueryKey(clinicId, filters),
+    async () => {
+      return await getMedicinesPage(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId && (options?.enabled ?? true),
     },
   );
 };
@@ -423,7 +442,7 @@ export const useUpdateMedicine = () => {
     }: {
       clinicId: string;
       medicineId: string;
-      updates: any;
+      updates: UpdateMedicineInput;
     }) => {
       return await updateMedicine(clinicId, medicineId, updates);
     },

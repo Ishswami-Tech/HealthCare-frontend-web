@@ -63,6 +63,51 @@ export async function getComprehensiveHealthRecord(userId: string) {
   }
 }
 
+// ===== PRESCRIPTION NOTE =====
+
+/**
+ * Save a prescription that has no pharmacy stock medicine: the diagnosis and the advice.
+ * Backend: POST /ehr/prescriptions — DOCTOR, ASSISTANT_DOCTOR, CLINIC_ADMIN, SUPER_ADMIN. The server
+ * resolves `userId` to the Patient record (`resolvePatient` accepts the patient's USER id or the
+ * Patient-record id, within the clinic) and writes a `HealthRecord` of type PRESCRIPTION holding the
+ * findings. A pharmacy `Prescription` row is written only when `medications` are sent, so none is here.
+ */
+export async function createEhrPrescriptionNote(input: {
+  /** The patient's USER id or Patient-record id. */
+  patientId: string;
+  /** Doctor-record id of the prescriber. */
+  doctorId?: string | undefined;
+  diagnosis?: string | undefined;
+  /** Advice to the patient. */
+  notes?: string | undefined;
+}) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+  const diagnosis = input.diagnosis?.trim() || undefined;
+  const notes = input.notes?.trim() || undefined;
+  if (!input.patientId) {
+    throw new Error('A patient is required to save the prescription');
+  }
+  if (!diagnosis && !notes) {
+    throw new Error('Write a diagnosis or advice to save the prescription');
+  }
+
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.PRESCRIPTIONS.CREATE, {
+    method: 'POST',
+    body: JSON.stringify(
+      definedOnly({
+        userId: input.patientId,
+        doctorId: input.doctorId?.trim() || undefined,
+        diagnosis,
+        notes,
+      }),
+    ),
+  });
+  return data;
+}
+
 // ===== MEDICAL HISTORY =====
 
 /**

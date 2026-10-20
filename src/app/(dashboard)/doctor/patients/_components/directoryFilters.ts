@@ -55,7 +55,7 @@ export const initialDirectoryFilters: DirectoryFilterState = {
   hasMobile: "all",
   hasDiagnosis: "all",
   minVisits: "any",
-  sort: "registered",
+  sort: "lastVisit",
   order: "desc",
   page: 1,
   pageSize: PATIENT_DIRECTORY_DEFAULT_PAGE_SIZE,

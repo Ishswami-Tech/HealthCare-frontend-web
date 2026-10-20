@@ -16,6 +16,8 @@ import {
   useInventoryAlerts,
   useMedicine,
   useMedicines,
+  useMedicinesPage,
+  medicinesPageQueryKey,
   usePharmacyOrder,
   usePharmacyOrders,
   usePharmacySales,
@@ -29,10 +31,12 @@ import {
   useUpdateMedicine,
   useUpdateSupplier,
 } from "@/hooks/query/usePharmacy";
+import { useDebouncedValue } from "@/hooks/core/useDebouncedValue";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePharmacyPermissions } from "@/hooks/utils/useRBAC";
 import { APP_CONFIG } from "@/lib/config/config";
+import { parseDosageForm } from "@/lib/constants/medicine-types";
 import {
   INVENTORY_TABS,
   PharmacyInventoryView,
@@ -42,6 +46,7 @@ import {
 import {
   CAN_REMOVE_MEDICINE,
   EMPTY_FILTERS,
+  INVENTORY_PAGE_SIZE,
   buildAnalytics,
   buildInventoryOverview,
   buildOrders,
@@ -144,12 +149,32 @@ export default function PharmacyInventoryContent() {
   }, []);
 
   // ── Queries ──────────────────────────────────────────────────────────────
+  // The stock list is paged and searched by the server: `category` is the dosage form token, `type`
+  // the classification; `inStock`, `lowStock` (low or out) and `expiringSoon` follow the stock
+  // filter, and `outOfStock` for "Out of stock".
+  const debouncedSearch = useDebouncedValue(filters.search.trim(), 300);
+  const inventoryParams = useMemo(() => {
+    const categoryToken = parseDosageForm(filters.category);
+    return {
+      page,
+      limit: INVENTORY_PAGE_SIZE,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      ...(categoryToken ? { category: categoryToken } : {}),
+      ...(filters.type ? { type: filters.type } : {}),
+      ...(filters.stock === "in_stock" ? { inStock: true } : {}),
+      ...(filters.stock === "restock" ? { lowStock: true } : {}),
+      ...(filters.stock === "out_of_stock" ? { outOfStock: true } : {}),
+      ...(filters.stock === "expiring" ? { expiringSoon: true } : {}),
+    };
+  }, [debouncedSearch, filters.category, filters.stock, filters.type, page]);
   const {
-    data: medicinesData,
+    data: medicinesPage,
     isPending: medicinesPending,
     error: medicinesError,
     refetch: refetchMedicines,
-  } = useMedicines(scopedClinicId);
+  } = useMedicinesPage(scopedClinicId, inventoryParams);
+  const medicinesData = medicinesPage?.data;
+  const inventoryTotal = medicinesPage?.total ?? 0;
   const {
     data: suppliersData,
     isPending: suppliersPending,
@@ -177,10 +202,25 @@ export default function PharmacyInventoryContent() {
 
   const supplierNames = useMemo(() => supplierNameMap(suppliersData), [suppliersData]);
   const overview = useMemo(() => buildInventoryOverview(medicinesData, supplierNames), [medicinesData, supplierNames]);
-  const suppliers = useMemo(() => buildSuppliers(suppliersData, overview.rows), [suppliersData, overview.rows]);
+  // Orders, partner pharmacies and the order dialogs work across the whole inventory, not the
+  // stock page on screen, so they read the full list; it is fetched only while one is shown and
+  // the current page stands in until it arrives.
+  const catalogNeeded =
+    tab === "orders" ||
+    tab === "pharmacies" ||
+    dialog?.kind === "order" ||
+    dialog?.kind === "orderDetails" ||
+    dialog?.kind === "receiveOrder" ||
+    dialog?.kind === "supplier";
+  const { data: catalogData } = useMedicines(scopedClinicId, undefined, { enabled: catalogNeeded });
+  const catalogRows = useMemo(
+    () => (catalogData ? buildInventoryOverview(catalogData, supplierNames).rows : overview.rows),
+    [catalogData, overview.rows, supplierNames],
+  );
+  const suppliers = useMemo(() => buildSuppliers(suppliersData, catalogRows), [suppliersData, catalogRows]);
   const orders = useMemo(
-    () => buildOrders(ordersData, overview.rows, supplierNames),
-    [ordersData, overview.rows, supplierNames],
+    () => buildOrders(ordersData, catalogRows, supplierNames),
+    [ordersData, catalogRows, supplierNames],
   );
   const analytics = useMemo(
     () => buildAnalytics(permissions.canManagePrescriptions ? prescriptionsData : null, orders, pharmacyStats),
@@ -195,9 +235,9 @@ export default function PharmacyInventoryContent() {
   const { data: orderDetail, isFetching: orderFetching } = usePharmacyOrder(scopedClinicId, dialogOrderId);
   const dialogOrder = useMemo<OrderRow | null>(() => {
     if (!dialogOrderId) return null;
-    const fresh = orderDetail ? (buildOrders([orderDetail], overview.rows, supplierNames)?.[0] ?? null) : null;
+    const fresh = orderDetail ? (buildOrders([orderDetail], catalogRows, supplierNames)?.[0] ?? null) : null;
     return fresh ?? orders?.find((order) => order.id === dialogOrderId) ?? null;
-  }, [dialogOrderId, orderDetail, orders, overview.rows, supplierNames]);
+  }, [catalogRows, dialogOrderId, orderDetail, orders, supplierNames]);
 
   // Batches of the medicine in the batches / receive-stock dialog.
   const batchesMedicineId =
@@ -221,7 +261,7 @@ export default function PharmacyInventoryContent() {
     return buildInventoryOverview([medicineData], supplierNames).rows.find((row) => row.id === detailsId) ?? null;
   }, [detailsId, medicineData, supplierNames]);
 
-  const lastSyncedAt = queryClient.getQueryState(["medicines", scopedClinicId, undefined])?.dataUpdatedAt;
+  const lastSyncedAt = queryClient.getQueryState(medicinesPageQueryKey(scopedClinicId, inventoryParams))?.dataUpdatedAt;
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const createMedicine = useCreateMedicine();
@@ -350,6 +390,7 @@ export default function PharmacyInventoryContent() {
       tab={tab}
       onTabChange={setTab}
       overview={overview}
+      catalogRows={catalogRows}
       inventoryLoading={inventoryLoading}
       inventoryError={clinicId ? errorText(medicinesError) : NO_CLINIC}
       onRetryInventory={() => void refetchMedicines()}
@@ -357,6 +398,8 @@ export default function PharmacyInventoryContent() {
       onFiltersChange={setFilters}
       page={page}
       onPageChange={setPage}
+      inventoryTotal={inventoryTotal}
+      inventoryPageSize={INVENTORY_PAGE_SIZE}
       canManage={canManage}
       canRemove={CAN_REMOVE_MEDICINE}
       suppliers={suppliers}
@@ -390,7 +433,7 @@ export default function PharmacyInventoryContent() {
       settingsInfo={{
         appVersion: APP_CONFIG.APP.VERSION,
         partnerCount: suppliersPending || suppliersError ? null : suppliers.length,
-        medicineCount: inventoryLoading || medicinesError || !clinicId ? null : overview.rows.length,
+        medicineCount: inventoryLoading || medicinesError || !clinicId ? null : inventoryTotal,
         lastSyncedAt: lastSyncedAt ? new Date(lastSyncedAt).toISOString() : null,
       }}
       dialog={dialog}

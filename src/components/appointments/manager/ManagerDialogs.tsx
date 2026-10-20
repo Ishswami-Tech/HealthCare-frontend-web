@@ -20,7 +20,10 @@ import type { BookingSlotPeriod } from "@/components/appointments/booking/types"
 import { DateField } from "./ManagerFilters";
 import type { ManagerVisit } from "./types";
 
-function VisitLine({ visit }: { visit: ManagerVisit | null }) {
+/** What the move and cancel dialogs show about the visit; a `ManagerVisit` fits, so does a plain line. */
+export type VisitLineInfo = Pick<ManagerVisit, "title" | "whenLabel">;
+
+function VisitLine({ visit }: { visit: VisitLineInfo | null }) {
   if (!visit) return null;
   return (
     <p className="m-0 rounded-xl bg-well px-3.5 py-2.5 text-[13px] text-ink">
@@ -43,12 +46,14 @@ export function RescheduleDialog({
   slotPeriods,
   slotsLoading = false,
   slotsError = null,
+  reason,
+  onReasonChange,
   submitting,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  visit: ManagerVisit | null;
+  visit: (VisitLineInfo & Pick<ManagerVisit, "rescheduleHint">) | null;
   date: string;
   time: string;
   onDateChange: (value: string) => void;
@@ -62,10 +67,14 @@ export function RescheduleDialog({
   slotPeriods?: BookingSlotPeriod[] | undefined;
   slotsLoading?: boolean;
   slotsError?: string | null;
+  /** An optional reason for the move (staff tell the patient why); the field shows when both are given. */
+  reason?: string | undefined;
+  onReasonChange?: ((value: string) => void) | undefined;
   submitting: boolean;
   onSubmit: () => void;
 }) {
   const useSlotGrid = slotPeriods !== undefined;
+  const askReason = reason !== undefined && onReasonChange !== undefined;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
@@ -118,6 +127,20 @@ export function RescheduleDialog({
               </div>
             )}
           </div>
+          {askReason ? (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="appointment-reschedule-reason" className="text-[13px] font-semibold text-ink">
+                Reason (optional)
+              </label>
+              <Textarea
+                id="appointment-reschedule-reason"
+                value={reason}
+                maxLength={500}
+                placeholder="For example: the doctor is held up at the hospital"
+                onChange={(event) => onReasonChange(event.target.value)}
+              />
+            </div>
+          ) : null}
           {visit?.rescheduleHint ? (
             <Note tone="blue">
               <strong className="font-bold">{visit.rescheduleHint}.</strong> A visit can be moved{" "}
@@ -244,7 +267,7 @@ export function CancelVisitDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  visit: ManagerVisit | null;
+  visit: VisitLineInfo | null;
   submitting: boolean;
   onConfirm: () => void;
 }) {

@@ -948,6 +948,10 @@ export const API_ENDPOINTS = {
       UPDATE: (id: string) => `/ehr/immunizations/${id}`,
       DELETE: (id: string) => `/ehr/immunizations/${id}`,
     },
+    /** A prescription written as an EHR record (diagnosis, advice, free-text medicines). */
+    PRESCRIPTIONS: {
+      CREATE: '/ehr/prescriptions',
+    },
     ANALYTICS: {
       HEALTH_TRENDS: (userId: string, vitalType: string, startDate?: string, endDate?: string) => {
         const params = new URLSearchParams();

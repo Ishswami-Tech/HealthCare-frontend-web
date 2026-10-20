@@ -304,10 +304,13 @@ export function DoctorProfileContent({
     };
   };
 
-  /** The fields that live on the doctor record, not the user: fee, education, certifications, languages. */
+  /**
+   * The fields that live on the doctor record, not the user: education, certifications, languages.
+   * Fees (`consultationFee`, `videoConsultationFee`) are admin-only on PATCH /doctors/:userId — a
+   * doctor sending them gets 403 — so they are never part of this payload.
+   */
   const buildDoctorRecordPayload = (data: DoctorProfileFormState) => {
-    const { professionalInfo, consultationSettings } = data;
-    const fee = Number(consultationSettings.consultationFee);
+    const { professionalInfo } = data;
     const education = professionalInfo.education
       .map((entry) =>
         [entry.degree, entry.institution, entry.year]
@@ -318,7 +321,6 @@ export function DoctorProfileContent({
       .filter(Boolean)
       .join("; ");
     return {
-      ...(Number.isFinite(fee) && fee > 0 ? { consultationFee: fee } : {}),
       ...(education ? { education } : {}),
       certifications: professionalInfo.certifications.map((line) => line.trim()).filter(Boolean),
       languages: professionalInfo.languagesSpoken.map((line) => line.trim()).filter(Boolean),

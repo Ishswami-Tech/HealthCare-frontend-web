@@ -24,22 +24,23 @@ import {
   SearchBox,
   Surface,
   Pager,
-  paginateRows,
+  serverPaging,
   type IconTone,
   type TbdIcon,
   statusTone,
 } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import {
+  CATEGORY_FILTER_OPTIONS,
   EMPTY_FILTERS,
   STATUS_LABEL,
   STOCK_FILTER_OPTIONS,
+  TYPE_FILTER_OPTIONS,
   expiringLine,
   expiryPill,
   filterMedicines,
   lowStockLine,
   medicineSubline,
-  PAGE_SIZE,
   type InventoryFilters,
   type InventoryOverview,
   type MedicineRow,
@@ -59,8 +60,11 @@ export interface PharmacyInventoryStockTabProps {
   onRetry?: () => void;
   filters: InventoryFilters;
   onFiltersChange: (filters: InventoryFilters) => void;
+  /** The server page shown; `overview.rows` are its rows, `total` counts every matching medicine. */
   page: number;
   onPageChange: (page: number) => void;
+  total: number;
+  pageSize: number;
   /** False hides Receive and Add (no `MANAGE_INVENTORY` permission). */
   canManage: boolean;
   onView: (medicine: MedicineRow) => void;
@@ -105,6 +109,13 @@ function MoreButton({ count, label, onClick }: { count: number; label: string; o
   );
 }
 
+/** The fixed choices, plus the chosen value when it is not one of them, so it can always be cleared. */
+function withSelected(options: readonly { value: string; label: string }[], selected: string) {
+  return selected && !options.some((option) => option.value === selected)
+    ? [...options, { value: selected, label: selected }]
+    : options;
+}
+
 function lowStockCount(overview: InventoryOverview): string {
   const { lowCount, outCount } = overview.summary;
   return [lowCount > 0 ? `${lowCount} low` : "", outCount > 0 ? `${outCount} out of stock` : ""]
@@ -122,14 +133,19 @@ export function PharmacyInventoryStockTab({
   onFiltersChange,
   page,
   onPageChange,
+  total,
+  pageSize,
   canManage,
   onView,
   onRestock,
   onAddMedicine,
 }: PharmacyInventoryStockTabProps) {
   const { summary, rows } = overview;
+  // The server applies every filter (search, type, category and the stock filter) and pages the
+  // result; the client filter runs again on the page rows only as a guard.
   const filtered = filterMedicines(rows, filters);
-  const paged = paginateRows(filtered, page, PAGE_SIZE);
+  const paging = serverPaging({ page, pageSize, total, rowCount: filtered.length, onPageChange });
+  const paged = rows.length < total;
   const filtering =
     filters.search.trim() !== "" || filters.type !== "" || filters.category !== "" || filters.stock !== "all";
   const blank = "—";
@@ -137,15 +153,17 @@ export function PharmacyInventoryStockTab({
     onFiltersChange({ ...filters, ...patch });
     onPageChange(1);
   };
-  const hasCategories = overview.categoryOptions.length > 0;
+  const hasCategories = rows.some((row) => row.category);
+  const typeOptions = withSelected(TYPE_FILTER_OPTIONS, filters.type);
+  const categoryOptions = withSelected(CATEGORY_FILTER_OPTIONS, filters.category);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
           label="Total Medicines"
-          value={loading ? blank : summary.totalMedicines}
-          hint={loading ? "Loading" : `${summary.inStock} in stock now`}
+          value={loading ? blank : Math.max(total, summary.totalMedicines)}
+          hint={loading ? "Loading" : paged ? `${rows.length} on this page` : `${summary.inStock} in stock now`}
           icon={PillIcon}
           tone="aqua"
         />
@@ -156,8 +174,10 @@ export function PharmacyInventoryStockTab({
             loading
               ? "Loading"
               : summary.outCount > 0
-                ? `And ${summary.outCount} out of stock`
-                : "At or below minimum"
+                ? `And ${summary.outCount} out of stock${paged ? " on this page" : ""}`
+                : paged
+                  ? "On this page"
+                  : "At or below minimum"
           }
           icon={CircleAlert}
           tone="amber"
@@ -165,14 +185,14 @@ export function PharmacyInventoryStockTab({
         <Kpi
           label="Expiring Soon"
           value={loading ? blank : overview.expiring.length}
-          hint={loading ? "Loading" : "Within 90 days"}
+          hint={loading ? "Loading" : paged ? "Within 90 days, on this page" : "Within 90 days"}
           icon={CalendarDays}
           tone="rose"
         />
         <Kpi
           label="Total Value"
           value={loading ? blank : formatRupees(Math.round(overview.totalValue))}
-          hint={loading ? "Loading" : "Current stock"}
+          hint={loading ? "Loading" : paged ? "Stock on this page" : "Current stock"}
           icon={Wallet}
           tone="blue"
         />
@@ -302,39 +322,35 @@ export function PharmacyInventoryStockTab({
             }
             className="min-w-[220px] flex-1 basis-[280px]"
           />
-          {overview.typeOptions.length > 1 ? (
-            <Select value={filters.type || ALL} onValueChange={(value) => setFilters({ type: value === ALL ? "" : value })}>
-              <SelectTrigger aria-label="Filter by type" className="w-full sm:w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All types</SelectItem>
-                {overview.typeOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-          {overview.categoryOptions.length > 1 ? (
-            <Select
-              value={filters.category || ALL}
-              onValueChange={(value) => setFilters({ category: value === ALL ? "" : value })}
-            >
-              <SelectTrigger aria-label="Filter by category" className="w-full sm:w-[170px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All categories</SelectItem>
-                {overview.categoryOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
+          <Select value={filters.type || ALL} onValueChange={(value) => setFilters({ type: value === ALL ? "" : value })}>
+            <SelectTrigger aria-label="Filter by type" className="w-full sm:w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All types</SelectItem>
+              {typeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.category || ALL}
+            onValueChange={(value) => setFilters({ category: value === ALL ? "" : value })}
+          >
+            <SelectTrigger aria-label="Filter by category" className="w-full sm:w-[170px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All categories</SelectItem>
+              {categoryOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={filters.stock} onValueChange={(value) => setFilters({ stock: value as StockFilter })}>
             <SelectTrigger aria-label="Filter by stock status" className="w-full sm:w-[190px]">
               <SelectValue />
@@ -366,7 +382,7 @@ export function PharmacyInventoryStockTab({
               ) : undefined
             }
           />
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && !filtering ? (
           <EmptyBlock
             icon={PackageSearch}
             title="No medicines in the stock list yet"
@@ -413,7 +429,7 @@ export function PharmacyInventoryStockTab({
                   "Actions",
                 ]}
               />
-              {paged.pageRows.map((medicine) => {
+              {filtered.map((medicine) => {
                 const soon = medicine.expiringSoon;
                 return (
                   <GridRow key={medicine.id} columns={COLUMNS}>
@@ -486,11 +502,7 @@ export function PharmacyInventoryStockTab({
               })}
             </div>
 
-            <Pager
-              paging={{ ...paged, setPage: onPageChange }}
-              noun={paged.total === 1 ? "medicine" : "medicines"}
-              note={filtering ? `(${rows.length} in all)` : undefined}
-            />
+            <Pager paging={paging} noun={paging.total === 1 ? "medicine" : "medicines"} busy={loading} />
           </>
         )}
       </Surface>

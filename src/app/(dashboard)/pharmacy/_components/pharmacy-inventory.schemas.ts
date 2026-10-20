@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { DOSAGE_FORMS, todayKey, type DosageFormValue } from "./pharmacy-inventory.logic";
+import {
+  MEDICINE_CLASSIFICATIONS,
+  parseDosageForm,
+  parseMedicineClassification,
+  type MedicineClassification,
+} from "@/lib/constants/medicine-types";
+import type { UpdateMedicineInput } from "@/lib/actions/pharmacy.server";
+import { DOSAGE_FORMS, todayKey, type DosageFormValue, type MedicineRow } from "./pharmacy-inventory.logic";
 
 /**
  * Form schemas for the inventory dialogs. Inputs keep what the pharmacist typed (strings);
@@ -77,25 +84,102 @@ export function toCreateMedicinePayload(values: AddMedicineValues) {
   };
 }
 
-// ── Edit medicine (price) ──────────────────────────────────────────────────
+// ── Edit medicine ──────────────────────────────────────────────────────────
 
-export const editMedicineSchema = z.object({
-  unitPrice: rupees("the price per unit", false),
+const classificationValues = MEDICINE_CLASSIFICATIONS.map((entry) => entry.value) as [
+  MedicineClassification,
+  ...MedicineClassification[],
+];
+
+/** "" = not set (an older row without a classification keeps none). */
+export const NO_CLASSIFICATION = "";
+
+const editMedicineBaseSchema = z.object({
+  name: z.string().trim().min(2, "Enter the medicine name.").max(120, "Use 120 characters or fewer."),
+  /** Checked against the row in `editMedicineSchemaFor`: an older row may have none. */
+  manufacturer: z.string().trim().max(120, "Use 120 characters or fewer."),
+  dosageForm: z.enum(dosageFormValues, { message: "Choose a dosage form." }),
+  classification: z.enum([NO_CLASSIFICATION, ...classificationValues]),
+  /** Checked against the row in `editMedicineSchemaFor`: an older row may have none. */
+  unit: z.string().trim().max(20, "Use 20 characters or fewer."),
+  /** "" = no supplier. */
+  supplierId: z.string(),
+  /** "" = no expiry recorded (kept as is; it cannot be cleared here). */
+  expiryDate: z.string().refine((value) => value === "" || DATE_KEY.test(value), "Choose the expiry date."),
+  minStockLevel: wholeNumber("the minimum stock level", 0),
+  /** A row priced 0 keeps saving its other fields; a new price must be more than 0, as the server requires. */
+  unitPrice: rupees("the price per unit", true),
 });
 
-export type EditMedicineValues = z.infer<typeof editMedicineSchema>;
+export type EditMedicineValues = z.infer<typeof editMedicineBaseSchema>;
 
 /**
- * The `updates` of `useUpdateMedicine`: the price only. Stock is not editable here, because a
- * bare stock number would move `Medicine.stock` without a batch behind it. Returns null when
- * nothing changed.
+ * The edit form's schema for one row. A manufacturer or unit the row never had, or a price of 0
+ * it already carries, may stay as it is so the other fields can still be saved; a value that is
+ * changed must be valid.
  */
-export function toUpdateMedicinePayload(
-  values: EditMedicineValues,
-  current: { price: number },
-): { unitPrice: number } | null {
-  const price = Number(values.unitPrice);
-  return price !== current.price ? { unitPrice: price } : null;
+export function editMedicineSchemaFor(medicine: MedicineRow) {
+  const before = toEditMedicineValues(medicine);
+  return editMedicineBaseSchema.superRefine((values, ctx) => {
+    const manufacturer = values.manufacturer.trim();
+    if (manufacturer !== before.manufacturer && manufacturer.length < 2) {
+      ctx.addIssue({ code: "custom", path: ["manufacturer"], message: "Enter the manufacturer." });
+    }
+    const unit = values.unit.trim();
+    if (unit !== before.unit && unit.length < 1) {
+      ctx.addIssue({ code: "custom", path: ["unit"], message: "Enter the unit (tablet, ml, gm …)." });
+    }
+    const price = Number(values.unitPrice);
+    if (price !== Number(before.unitPrice) && price <= 0) {
+      ctx.addIssue({ code: "custom", path: ["unitPrice"], message: "Must be more than 0." });
+    }
+  });
+}
+
+/** The dosage form of a row: `category` holds it; an older row kept it in `type`. */
+export function medicineDosageForm(medicine: Pick<MedicineRow, "category" | "typeCode">): DosageFormValue | null {
+  return parseDosageForm(medicine.category) ?? parseDosageForm(medicine.typeCode);
+}
+
+/**
+ * What the edit form starts with, from the list row. A row whose form is not a known one shows
+ * "Other"; the payload diffs against these same values, so that default is never sent untouched.
+ */
+export function toEditMedicineValues(medicine: MedicineRow): EditMedicineValues {
+  return {
+    name: medicine.name,
+    manufacturer: medicine.manufacturer,
+    dosageForm: medicineDosageForm(medicine) ?? "OTHER",
+    classification: parseMedicineClassification(medicine.typeCode) ?? NO_CLASSIFICATION,
+    unit: medicine.unit,
+    supplierId: medicine.supplierId,
+    expiryDate: medicine.expiryDate ? medicine.expiryDate.slice(0, 10) : "",
+    minStockLevel: String(medicine.minStock),
+    unitPrice: String(medicine.price),
+  };
+}
+
+/**
+ * The `updates` of `useUpdateMedicine`: only the fields that differ from what the form started
+ * with. Stock is not editable here, because a bare stock number would move `Medicine.stock`
+ * without a batch behind it. Returns null when nothing changed.
+ */
+export function toUpdateMedicinePayload(values: EditMedicineValues, current: MedicineRow): UpdateMedicineInput | null {
+  const before = toEditMedicineValues(current);
+  const classification = parseMedicineClassification(values.classification);
+  const expiryDate = values.expiryDate.trim();
+  const updates: UpdateMedicineInput = {
+    ...(values.name.trim() !== before.name ? { name: values.name.trim() } : {}),
+    ...(values.manufacturer.trim() !== before.manufacturer ? { manufacturer: values.manufacturer.trim() } : {}),
+    ...(values.dosageForm !== before.dosageForm ? { dosageForm: values.dosageForm } : {}),
+    ...(classification && values.classification !== before.classification ? { classification } : {}),
+    ...(values.unit.trim() !== before.unit ? { unit: values.unit.trim() } : {}),
+    ...(values.supplierId !== before.supplierId ? { supplierId: values.supplierId || null } : {}),
+    ...(expiryDate && expiryDate !== before.expiryDate ? { expiryDate } : {}),
+    ...(Number(values.minStockLevel) !== Number(before.minStockLevel) ? { minStockLevel: Number(values.minStockLevel) } : {}),
+    ...(Number(values.unitPrice) !== Number(before.unitPrice) ? { unitPrice: Number(values.unitPrice) } : {}),
+  };
+  return Object.keys(updates).length > 0 ? updates : null;
 }
 
 // ── Receive stock (a batch that did not come through a purchase order) ─────

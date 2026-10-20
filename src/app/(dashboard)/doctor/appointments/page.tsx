@@ -33,6 +33,7 @@ import { formatDateKeyInIST } from "@/lib/utils/date-time";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { getDisplayAppointmentDuration } from "@/lib/utils/appointmentUtils";
 import type { AppointmentStatus } from "@/types/appointment.types";
+import { visitChangePolicy } from "./_components/appointmentPolicy";
 
 // Appointment status constants - must match backend enum values
 const APPOINTMENT_STATUS = {
@@ -172,6 +173,17 @@ export interface TransformedAppointment {
    * time never offers Complete; the backend applies the same gate and fails closed.
    */
   joinWindowOpen: boolean;
+  /** Location of an in-person visit; the open slots are looked up for it when the visit is moved. */
+  locationId: string;
+  /** The doctor may move this visit now (see `visitChangePolicy`). */
+  canReschedule: boolean;
+  /** Why the visit cannot be moved; null when it can. */
+  rescheduleBlockedReason: string | null;
+  /** How many times the visit has been moved already. */
+  rescheduleCount: number;
+  canCancel: boolean;
+  /** Why the visit cannot be cancelled; null when it can. */
+  cancelBlockedReason: string | null;
   duration: string;
   appointmentDate: string;
   /** YYYY-MM-DD in IST — used by the date filter. */
@@ -516,6 +528,7 @@ export default function DoctorAppointments() {
           joinOpensAtMs !== null &&
           Date.now() < joinOpensAtMs;
         const joinWindowOpen = isVideo && joinOpensAtMs !== null && Date.now() >= joinOpensAtMs;
+        const changePolicy = visitChangePolicy(app, isVideo);
 
         return {
           id: app.id,
@@ -538,6 +551,8 @@ export default function DoctorAppointments() {
           canJoinVideo,
           joinOpensLater,
           joinWindowOpen,
+          locationId: app.locationId || app.location?.id || "",
+          ...changePolicy,
           duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
           appointmentDate: appointmentDateTime
             ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
@@ -775,16 +790,13 @@ export default function DoctorAppointments() {
   const bulkCompleteSelected = useCallback(
     async (appointmentIds: string[]): Promise<{ completed: number; failed: number } | undefined> => {
       try {
-        return await bulkCompleteMutation.mutateAsync({
-          appointmentIds,
-          ...(user?.id ? { doctorId: user.id } : {}),
-        });
+        return await bulkCompleteMutation.mutateAsync({ appointmentIds });
       } catch (error: unknown) {
         console.error("Failed to bulk complete appointments", { appointmentIds, error });
         return undefined;
       }
     },
-    [bulkCompleteMutation, user?.id]
+    [bulkCompleteMutation]
   );
 
   // "Complete" on a table row. The diagnosis / notes / prescription fields belong to the
@@ -819,6 +831,7 @@ export default function DoctorAppointments() {
       isLoadingAppointments={isLoadingAppointments}
       appointmentsLoadFailed={appointmentsLoadFailed}
       retryLoadAppointments={retryLoadAppointments}
+      refreshAppointments={retryLoadAppointments}
       todayLabel={todayLabel}
       clinicId={clinicId}
       userId={user?.id}

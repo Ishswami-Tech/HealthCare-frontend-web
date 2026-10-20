@@ -361,7 +361,7 @@ export function canPay(prescription: Pick<PatientPrescription, "pendingAmount" |
 }
 
 export function medicinesLabel(count: number): string {
-  return plural(count, "medicine", "medicines");
+  return count === 0 ? "No medicines" : plural(count, "medicine", "medicines");
 }
 
 /** Same search as before: number, doctor, or a medicine name. */

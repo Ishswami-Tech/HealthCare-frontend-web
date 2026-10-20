@@ -1,5 +1,6 @@
 import { formatDateInIST, formatDateKeyInIST, formatTimeInIST } from "@/lib/utils/date-time";
 import type { PillTone } from "@/components/tbd";
+import { DOSAGE_FORMS, MEDICINE_CLASSIFICATIONS, parseDosageForm } from "@/lib/constants/medicine-types";
 import {
   buildInventorySummary,
   formatRupees,
@@ -21,12 +22,15 @@ export { formatRupees };
 // ── What the backend can do today ──────────────────────────────────────────
 
 /**
- * `PATCH /pharmacy/inventory/:id` accepts only `quantityChange` and `price` (the web sends the
- * price only: stock moves through batches), and there is no DELETE route the web can rely on,
- * so a medicine cannot be removed yet. Set to `true` when the backend supports it:
- * the Remove button (danger, with a confirm dialog, wired to `useDeleteMedicine`) appears.
+ * There is no DELETE route the web can rely on, so a medicine cannot be removed yet (its details
+ * are edited with `PATCH /pharmacy/inventory/:id`; stock moves through batches). Set to `true` when
+ * the backend supports it: the Remove button (danger, with a confirm dialog, wired to
+ * `useDeleteMedicine`) appears.
  */
 export const CAN_REMOVE_MEDICINE = false;
+
+/** Rows per server page of the stock list (`GET /pharmacy/inventory?page=&limit=`). */
+export const INVENTORY_PAGE_SIZE = 50;
 
 export { DOSAGE_FORMS, type DosageFormValue } from "@/lib/constants/medicine-types";
 
@@ -120,8 +124,6 @@ export interface InventoryOverview {
   /** Medicines that expire within 90 days (or already have), soonest first. */
   expiring: MedicineRow[];
   totalValue: number;
-  typeOptions: { value: string; label: string }[];
-  categoryOptions: { value: string; label: string }[];
 }
 
 export const STATUS_LABEL: Record<StockStatus, string> = {
@@ -251,19 +253,12 @@ export function buildInventoryOverview(
     .filter((row) => row.expiringSoon)
     .sort((left, right) => (left.daysToExpiry ?? 0) - (right.daysToExpiry ?? 0));
 
-  const distinct = (values: { value: string; label: string }[]) =>
-    [...new Map(values.filter((option) => option.value).map((option) => [option.value, option])).values()].sort(
-      (left, right) => left.label.localeCompare(right.label),
-    );
-
   return {
     rows,
     summary,
     lowStock,
     expiring,
     totalValue: rows.reduce((sum, row) => sum + row.stockValue, 0),
-    typeOptions: distinct(rows.map((row) => ({ value: row.typeCode, label: row.typeLabel }))),
-    categoryOptions: distinct(rows.map((row) => ({ value: row.category, label: row.category }))),
   };
 }
 
@@ -308,12 +303,16 @@ export const STOCK_FILTER_OPTIONS: { value: StockFilter; label: string }[] = [
 
 export interface InventoryFilters {
   search: string;
-  /** "" = all */
+  /** Classification code (CLASSICAL, PROPRIETARY, HERBAL); "" = all. */
   type: string;
-  /** "" = all */
+  /** Dosage form token (TABLET, CHURNA, ...); "" = all. */
   category: string;
   stock: StockFilter;
 }
+
+/** The type and category choices: the fixed lists, so a filter never hides its own option. */
+export const TYPE_FILTER_OPTIONS: readonly { value: string; label: string }[] = MEDICINE_CLASSIFICATIONS;
+export const CATEGORY_FILTER_OPTIONS: readonly { value: string; label: string }[] = DOSAGE_FORMS;
 
 export const EMPTY_FILTERS: InventoryFilters = { search: "", type: "", category: "", stock: "all" };
 
@@ -333,8 +332,9 @@ export function filterMedicines(rows: MedicineRow[], filters: InventoryFilters):
       const haystack = [row.name, row.category, row.typeLabel, row.manufacturer].join(" ").toLowerCase();
       if (!haystack.includes(needle)) return false;
     }
-    if (filters.type && row.typeCode !== filters.type) return false;
-    if (filters.category && row.category !== filters.category) return false;
+    if (filters.type && row.typeCode.toUpperCase() !== filters.type) return false;
+    // The form sits in `category`; an older row kept it in `type`.
+    if (filters.category && (parseDosageForm(row.category) ?? parseDosageForm(row.typeCode)) !== filters.category) return false;
     switch (filters.stock) {
       case "in_stock":
         return row.status === "in_stock";

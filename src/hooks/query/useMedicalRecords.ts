@@ -4,6 +4,7 @@ import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
   getComprehensiveHealthRecord,
+  createEhrPrescriptionNote,
   createMedicalHistory,
   getMedicalHistory,
   updateMedicalHistory,
@@ -597,6 +598,25 @@ export const useCreatePrescription = () => {
       loadingMessage: 'Creating prescription...',
       successMessage: 'Prescription created successfully',
       invalidateQueries: [['prescriptions'], ['medicalRecords'], ['ehr'], ['ehrClinic']],
+    }
+  );
+};
+
+/**
+ * Hook to save a prescription that has no pharmacy stock medicine (diagnosis and advice only).
+ * Backend: POST /ehr/prescriptions — stored as an EHR health record of type PRESCRIPTION for the
+ * patient; nothing goes to the pharmacy queue.
+ */
+export const useCreateEhrPrescriptionNote = () => {
+  return useMutationOperation(
+    async (input: { patientId: string; doctorId?: string; diagnosis?: string; notes?: string }) => {
+      return await createEhrPrescriptionNote(input);
+    },
+    {
+      toastId: TOAST_IDS.PRESCRIPTION.CREATE,
+      loadingMessage: 'Saving the prescription...',
+      successMessage: "Prescription saved to the patient's record",
+      invalidateQueries: [['ehr'], ['medicalRecords'], ['prescriptions']],
     }
   );
 };

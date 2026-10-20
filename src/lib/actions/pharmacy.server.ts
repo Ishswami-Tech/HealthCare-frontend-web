@@ -2,7 +2,11 @@
 
 import { authenticatedApi, getServerSession } from "./auth.server";
 import { API_ENDPOINTS } from "../config/config";
-import { parseDosageForm } from "@/lib/constants/medicine-types";
+import {
+  parseDosageForm,
+  type DosageFormValue,
+  type MedicineClassification,
+} from "@/lib/constants/medicine-types";
 import type {
   AdjustBatchStockInput,
   DispensePrescriptionData,
@@ -55,6 +59,12 @@ function normalizeMedicineRecord(medicine: Record<string, unknown>) {
   );
   const price = Number(medicine.unitPrice ?? medicine.price ?? 0);
   const daysToExpiry = getDaysUntilExpiry(medicine.expiryDate);
+  // `category` holds the dosage form (TABLET, CHURNA, ...) and `type` the classification; an older
+  // backend stored the form in `type`. `dosage` is free-text usage instructions, never the form.
+  const dosageForm =
+    parseDosageForm(medicine.category) ??
+    parseDosageForm(medicine.type) ??
+    String(medicine.category ?? medicine.dosageForm ?? "Units");
 
   return {
     ...medicine,
@@ -66,7 +76,7 @@ function normalizeMedicineRecord(medicine: Record<string, unknown>) {
     unitPrice: price,
     price,
     packSize: Number(medicine.packSize ?? 1),
-    dosageForm: String(medicine.dosageForm ?? medicine.dosage ?? "Units"),
+    dosageForm,
     category: String(medicine.category ?? medicine.type ?? "General"),
     prescriptionRequired: Boolean(medicine.prescriptionRequired ?? false),
     expiryDate: medicine.expiryDate ? String(medicine.expiryDate) : null,
@@ -200,51 +210,132 @@ function normalizeBatch(raw: Record<string, unknown>): StockBatchRecord {
 // ===== PHARMACY MANAGEMENT ACTIONS =====
 
 /**
- * Get all medicines for a clinic
+ * The query of `GET /pharmacy/inventory`: `search` (name, manufacturer), `category` (dosage form
+ * token), `type` (classification), `inStock=true`, and `page` (1-based) with `limit` (max 500).
+ * Without `page` the server answers a bare array of every matching row; with it, `{ data, total,
+ * page, limit }`. The other keys are kept for older call sites and sent as they are.
  */
-export async function getMedicines(
-  clinicId: string,
-  filters?: {
-    search?: string;
-    category?: string;
-    manufacturer?: string;
-    inStock?: boolean;
-    lowStock?: boolean;
-    expiringSoon?: boolean;
-    prescriptionRequired?: boolean;
-    expiringDays?: number;
-    limit?: number;
-    offset?: number;
-  },
-) {
+export interface MedicineListFilters {
+  search?: string;
+  /** Dosage form token (TABLET, CHURNA, ...). */
+  category?: string;
+  /** Classification (CLASSICAL, PROPRIETARY, HERBAL). */
+  type?: string;
+  /** Stock above zero. Only `true` is sent. */
+  inStock?: boolean;
+  /** At or below the reorder level, or out of stock. */
+  lowStock?: boolean;
+  /** No stock left (stock <= 0). */
+  outOfStock?: boolean;
+  expiringSoon?: boolean;
+  expiringDays?: number;
+  limit?: number;
+}
+
+/** The query keys the inventory route declares; anything else would be rejected (forbidNonWhitelisted). */
+const INVENTORY_QUERY_KEYS = new Set([
+  "search",
+  "category",
+  "type",
+  "inStock",
+  "lowStock",
+  "outOfStock",
+  "expiringSoon",
+  "expiringDays",
+  "page",
+  "limit",
+]);
+
+/** One server page of medicines (`GET /pharmacy/inventory?page=`). */
+export interface MedicinePage {
+  data: ReturnType<typeof normalizeMedicineRecord>[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+/** Largest `limit` the inventory route accepts. */
+const INVENTORY_LIMIT_MAX = 500;
+
+function inventoryQuery(filters: MedicineListFilters & { page?: number }): string {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (!INVENTORY_QUERY_KEYS.has(key)) return;
+    if (value === undefined || value === null || value === "" || value === false) return;
+    params.append(key, String(value));
+  });
+  return params.toString();
+}
+
+/** The rows of either response shape (bare array, or `{ data }` / `{ medicines }` / `{ items }`). */
+function inventoryRows(data: unknown): Record<string, unknown>[] {
+  if (Array.isArray(data)) return data.map(asRecord);
+  const record = asRecord(data);
+  const list = record.data ?? record.medicines ?? record.items ?? record.inventory;
+  return Array.isArray(list) ? list.map(asRecord) : [];
+}
+
+async function fetchInventory(clinicId: string, query: string): Promise<unknown> {
+  // Backend: GET /pharmacy/inventory (clinic-scoped via guard)
+  const endpoint = `/pharmacy/inventory${query ? `?${query}` : ""}`;
+  try {
+    const { data } = await authenticatedApi(endpoint, {
+      ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
+    });
+    return data;
+  } catch (error) {
+    const statusCode =
+      error instanceof Error && "statusCode" in error ? (error as { statusCode?: number }).statusCode : undefined;
+    // A 403 is an answer about access, not an empty stock list: the screens show it as an error.
+    if (statusCode === 403) {
+      throw new Error("You do not have access to this clinic's pharmacy stock.");
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get the medicines of a clinic as a plain list (no `page`: every matching row).
+ */
+export async function getMedicines(clinicId: string, filters?: MedicineListFilters) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const params = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined) {
-        params.append(key, value.toString());
-      }
-    });
+  const data = await fetchInventory(clinicId, inventoryQuery(filters ?? {}));
+  return inventoryRows(data).map(normalizeMedicineRecord);
+}
+
+/**
+ * Get one page of the medicines of a clinic: `{ data, total, page, limit }`. An older backend that
+ * ignores `page` answers the whole list; it is then cut to the page here so the pager stays right.
+ */
+export async function getMedicinesPage(
+  clinicId: string,
+  filters: MedicineListFilters & { page: number; limit: number },
+): Promise<MedicinePage> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
   }
 
-  // Backend: GET /pharmacy/inventory (clinic-scoped via guard)
-  const endpoint = `/pharmacy/inventory${params.toString() ? `?${params.toString()}` : ""}`;
-  try {
-    const { data } = await authenticatedApi(endpoint, {
-      ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
-    });
-    return Array.isArray(data) ? data.map(normalizeMedicineRecord) : data;
-  } catch (error) {
-    const statusCode = error instanceof Error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
-    if (statusCode === 403) {
-      return [];
-    }
-    throw error;
+  const page = Math.max(1, Math.floor(filters.page));
+  const limit = Math.min(INVENTORY_LIMIT_MAX, Math.max(1, Math.floor(filters.limit)));
+  const data = await fetchInventory(clinicId, inventoryQuery({ ...filters, page, limit }));
+  const rows = inventoryRows(data).map(normalizeMedicineRecord);
+  if (Array.isArray(data)) {
+    const start = (page - 1) * limit;
+    return { data: rows.slice(start, start + limit), total: rows.length, page, limit };
   }
+  const record = asRecord(data);
+  const total = Number(record.total);
+  return {
+    data: rows,
+    total: Number.isFinite(total) && total >= 0 ? total : rows.length,
+    page: Number(record.page) || page,
+    limit: Number(record.limit) || limit,
+  };
 }
 
 /**
@@ -329,52 +420,59 @@ export async function createMedicine(
 }
 
 /**
- * Update medicine
+ * What `updateMedicine` can change. Only the given fields are sent. Stock is not edited here: it
+ * moves through batches (purchase-order receipts, receiveStockBatch, adjustBatchStock) so
+ * Medicine.stock and the batches stay equal.
  */
-export async function updateMedicine(
-  clinicId: string,
-  medicineId: string,
-  updates: {
-    /** New price per unit. */
-    unitPrice?: number;
-    // Not editable on the backend yet (UpdateInventoryDto has only quantityChange
-    // and price) — accepted so older call sites keep compiling, never sent.
-    // Stock is not edited here: it moves through batches (purchase-order receipts,
-    // receiveStockBatch, adjustBatchStock) so Medicine.stock and the batches stay equal.
-    name?: string;
-    genericName?: string;
-    manufacturer?: string;
-    category?: string;
-    dosageForm?: string;
-    strength?: string;
-    packSize?: number;
-    stockQuantity?: number;
-    minStockLevel?: number;
-    maxStockLevel?: number;
-    expiryDate?: string;
-    batchNumber?: string;
-    prescriptionRequired?: boolean;
-    description?: string;
-    sideEffects?: string[];
-    contraindications?: string[];
-    storageConditions?: string;
-    isActive?: boolean;
-  },
-) {
+export interface UpdateMedicineInput {
+  name?: string;
+  manufacturer?: string;
+  /** Sent as `type`: the dosage form, which the server stores as the category. */
+  dosageForm?: DosageFormValue;
+  classification?: MedicineClassification;
+  /** "tablet", "ml", "gm" ... */
+  unit?: string;
+  batchNumber?: string;
+  /** YYYY-MM-DD or ISO date. */
+  expiryDate?: string;
+  /** Sent as `minStockThreshold`. */
+  minStockLevel?: number;
+  /** `null` clears the supplier. */
+  supplierId?: string | null;
+  description?: string;
+  /** Usage instructions ("1 tablet twice a day"). */
+  instructions?: string;
+  notes?: string;
+  isActive?: boolean;
+  /** New price per unit; sent as `price`. Must be more than 0 (the server rejects 0). */
+  unitPrice?: number;
+}
+
+/**
+ * Update a medicine. Backend: PATCH /pharmacy/inventory/:id — accepts name, type (dosage form),
+ * classification, manufacturer, unit, batchNumber, expiryDate, minStockThreshold, supplierId,
+ * description, instructions, notes, isActive and price. `quantityChange` is never sent (it would
+ * move Medicine.stock without a batch, which dispensing then cannot use).
+ */
+export async function updateMedicine(clinicId: string, medicineId: string, updates: UpdateMedicineInput) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const body = {
-    ...(updates.unitPrice !== undefined ? { price: updates.unitPrice } : {}),
-  };
+  const { dosageForm, minStockLevel, unitPrice, ...rest } = updates;
+  const body: Record<string, unknown> = Object.fromEntries(
+    Object.entries({
+      ...rest,
+      ...(dosageForm !== undefined ? { type: dosageForm } : {}),
+      ...(minStockLevel !== undefined ? { minStockThreshold: minStockLevel } : {}),
+      ...(unitPrice !== undefined ? { price: unitPrice } : {}),
+    }).filter(([, value]) => value !== undefined),
+  );
   if (Object.keys(body).length === 0) {
-    throw new Error('Only the price of a medicine can be changed here.');
+    throw new Error('Nothing to change on this medicine.');
   }
 
-  // Backend: PATCH /pharmacy/inventory/:id — sends the price only (quantityChange would move
-  // Medicine.stock without a batch, which dispensing then cannot use).
   const { data } = await authenticatedApi(`/pharmacy/inventory/${medicineId}`, {
     method: "PATCH",
     body: JSON.stringify(body),
@@ -505,6 +603,7 @@ export async function createPrescription(
     frequency: m.frequency,
     duration: m.duration,
     quantity: m.quantity,
+    ...(m.instructions?.trim() ? { instructions: m.instructions.trim() } : {}),
   }));
   const { data } = await authenticatedApi(
     API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.CREATE,
@@ -516,6 +615,7 @@ export async function createPrescription(
         items,
         notes: prescriptionData.notes,
         diagnosis: prescriptionData.diagnosis,
+        ...(prescriptionData.validUntil ? { validUntil: prescriptionData.validUntil } : {}),
       }),
       headers: clinicId ? { "X-Clinic-ID": clinicId } : {},
     },
