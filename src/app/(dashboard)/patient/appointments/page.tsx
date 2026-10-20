@@ -74,13 +74,18 @@ function PatientAppointmentsContent() {
   const [bookingConsultationMode, setBookingConsultationMode] = useState(
     shouldOpenBooking ? queryConsultationMode : undefined,
   );
-  const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
+  // `replaceState` below does not update `useSearchParams`, so `openBooking=1` stays true after the
+  // wizard closes. Only show "Opening booking…" until the deep link has opened it once.
+  const [bookingDeepLinkHandled, setBookingDeepLinkHandled] = useState(shouldOpenBooking);
+  const isBookingDialogOpening =
+    shouldOpenBooking && !isBookingDialogOpen && !bookingDeepLinkHandled;
 
   useEffect(() => {
     if (shouldOpenBooking) {
       setIsBookingDialogOpen(true);
       setBookingFamilyMemberId(queryFamilyMemberId);
       setBookingConsultationMode(queryConsultationMode);
+      setBookingDeepLinkHandled(true);
     }
 
     if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {

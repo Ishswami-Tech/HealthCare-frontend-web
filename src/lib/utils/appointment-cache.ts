@@ -99,7 +99,8 @@ const upsertAppointmentPayload = (
     changed = true;
   }
 
-  if (record.data && typeof record.data === "object") {
+  // `{ data: [...] }` was handled above; spreading an array here would turn it into `{0: …}`.
+  if (record.data && typeof record.data === "object" && !Array.isArray(record.data)) {
     const nestedData = record.data as Record<string, unknown>;
     const nestedRecord: Record<string, unknown> = { ...nestedData };
 

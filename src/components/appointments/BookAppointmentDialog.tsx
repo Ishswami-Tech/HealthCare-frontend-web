@@ -1290,6 +1290,8 @@ interface BookAppointmentStep2ServiceProps {
   selectedServiceId: string;
   setSelectedServiceId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedDoctorId: React.Dispatch<React.SetStateAction<string>>;
+  /** Doctor the dialog was opened for; kept when the service changes. */
+  defaultDoctorId: string;
   setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
   setSelectedSlot: React.Dispatch<React.SetStateAction<string>>;
   setRecentlyCreatedPatient: React.Dispatch<
@@ -1330,6 +1332,7 @@ function BookAppointmentStep2Service({
   selectedServiceId,
   setSelectedServiceId,
   setSelectedDoctorId,
+  defaultDoctorId,
   setSelectedDate,
   setSelectedSlot,
   setRecentlyCreatedPatient,
@@ -1406,7 +1409,7 @@ function BookAppointmentStep2Service({
             type="button"
             onClick={() => {
               setSelectedServiceId(t.treatmentType);
-              setSelectedDoctorId("");
+              setSelectedDoctorId(defaultDoctorId);
               setSelectedDate(getTodayIST());
               setSelectedSlot("");
               setTimeout(goNext, 150);
@@ -5016,6 +5019,7 @@ export function BookAppointmentDialog({
               selectedServiceId={selectedServiceId}
               setSelectedServiceId={setSelectedServiceId}
               setSelectedDoctorId={setSelectedDoctorId}
+              defaultDoctorId={initialDoctorId || ""}
               setSelectedDate={setSelectedDate}
               setSelectedSlot={setSelectedSlot}
               setRecentlyCreatedPatient={setRecentlyCreatedPatient}
