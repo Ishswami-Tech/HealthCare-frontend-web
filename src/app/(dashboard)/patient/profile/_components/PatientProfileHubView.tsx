@@ -57,6 +57,8 @@ export interface PatientProfileHubViewProps {
   notificationsLabel?: string | undefined;
   appVersion?: string | undefined;
 
+  /** The clinic's name from the backend (neutral fallback while it loads). */
+  clinicName?: string;
   logoutOpen: boolean;
   onLogoutOpenChange: (open: boolean) => void;
   onLogout: () => void;
@@ -77,6 +79,7 @@ export function PatientProfileHubView({
   languageLabel,
   notificationsLabel,
   appVersion,
+  clinicName = "",
   logoutOpen,
   onLogoutOpenChange,
   onLogout,
@@ -190,7 +193,9 @@ export function PatientProfileHubView({
           <LogOut strokeWidth={2.4} aria-hidden="true" />
           Log out
         </Button>
-        {appVersion ? <span className="text-xs text-ink-muted">TestByDoctor · Version {appVersion}</span> : null}
+        {appVersion ? (
+          <span className="text-xs text-ink-muted">{[clinicName, `Version ${appVersion}`].filter(Boolean).join(" · ")}</span>
+        ) : null}
       </div>
 
       <Dialog open={logoutOpen} onOpenChange={(open) => (loggingOut ? undefined : onLogoutOpenChange(open))}>

@@ -3,6 +3,7 @@ import { localizedDoctorName, localizedDoctorSubtitle } from "@/lib/utils/locali
 import { asRow, firstText, isCheckedInClinicVisit, text, type Row } from "@/components/patient/home/homeData";
 import {
   APPOINTMENT_MAX_RESCHEDULES,
+  selfCheckInWindowState,
   canCancelAppointment,
   canCancelVideoAppointment,
   canRescheduleInPersonAppointment,
@@ -22,6 +23,7 @@ import {
   getReceptionistAppointmentTimeLabel,
   getVideoSessionDecision,
   isAppointmentTimeSlotExpired,
+  isPaymentDeadlinePassed,
   isTerminalAppointment,
   normalizeAppointmentStatus,
   normalizePatientAppointment,
@@ -199,12 +201,22 @@ function isAwaitingSlot(appointment: Row, isVideo: boolean): boolean {
   return hasProposedSlots && !hasConfirmedSlot;
 }
 
-function closedNote(appointment: Row, status: string, isVideo: boolean, paymentFailure: boolean, slotPassed: boolean): string | null {
+function closedNote(
+  appointment: Row,
+  status: string,
+  isVideo: boolean,
+  paymentFailure: boolean,
+  slotPassed: boolean,
+  paymentWindowClosed = false,
+): string | null {
   if (status === "COMPLETED") return null;
   if (status === "EXPIRED") {
-    return wasExpiredDueToPaymentFailure(appointment)
-      ? "Payment was not completed in time."
-      : "The visit time passed.";
+    // The payment-window wording is only for an unpaid video visit; an expired in-clinic visit
+    // was simply not attended.
+    if (isVideo && (paymentWindowClosed || wasExpiredDueToPaymentFailure(appointment))) {
+      return "Payment was not completed in time.";
+    }
+    return isVideo ? "The visit time passed." : "Visit time passed – not attended.";
   }
   if (status === "NO_SHOW") return "This visit was missed.";
   if (paymentFailure) {
@@ -220,8 +232,15 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
   const normalized = normalizePatientAppointment(appointment);
   const viewState = getAppointmentViewState(appointment);
   const isVideo = normalized.isOnline || viewState.isVideo;
-  const terminal = isTerminalAppointment(appointment);
-  const status = viewState.normalizedStatus.toUpperCase();
+  // An unpaid video visit whose payment window has closed is expired, even before the backend
+  // cron flips it to EXPIRED: no Pay now / Retry payment, shown (and filed) as Expired.
+  const paymentWindowClosed =
+    isVideo &&
+    !viewState.paymentCompleted &&
+    !isTerminalAppointment(appointment) &&
+    isPaymentDeadlinePassed(viewState.paymentExpiresAt, now);
+  const terminal = paymentWindowClosed || isTerminalAppointment(appointment);
+  const status = paymentWindowClosed ? "EXPIRED" : viewState.normalizedStatus.toUpperCase();
   const id = getEffectiveAppointmentId(appointment);
 
   // ── when ──
@@ -253,7 +272,8 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
   const plainDoctorName = formatDoctorDisplayName(firstText(appointment.doctorLabel) || normalized.doctorName);
   const doctorProfile = asRow(appointment.doctor)?.localizedProfile;
   const doctorName = staffView ? plainDoctorName : localizedDoctorName(doctorProfile, locale, plainDoctorName);
-  const patientName = toTitleCase(firstText(appointment.patientLabel) || getAppointmentPatientName(appointment));
+  // Names are shown exactly as the person entered them ("E2E Patient", "McDonald"): never re-cased.
+  const patientName = (firstText(appointment.patientLabel) || getAppointmentPatientName(appointment)).trim();
   const hasPatientName = Boolean(patientName) && patientName !== "Unknown Patient";
   const treatment = text(appointment.treatmentType).replace(/_/g, " ");
   const visitLabel = treatment ? toTitleCase(treatment) : isVideo ? "Video consultation" : "Clinic visit";
@@ -279,7 +299,29 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
       : checkedIn
         ? "queue"
         : "upcoming";
-  const tab: ManagerTab = !terminal ? "upcoming" : status === "COMPLETED" ? "past" : "cancelled";
+  // Patient view: an in-clinic visit whose self check-in window has closed without a check-in is
+  // missed, even before the backend expiry job closes it (same idea as the payment-deadline rule
+  // above). It leaves Upcoming for Past, labelled "Missed"; a desk check-in later moves it back.
+  const missedClinicVisit =
+    viewerIsPatient &&
+    !isVideo &&
+    !terminal &&
+    clinicStage === "upcoming" &&
+    dateTime !== null &&
+    selfCheckInWindowState(dateTime, now) === "CLOSED";
+  // A missed visit (backend NO_SHOW, or an in-clinic visit that EXPIRED unattended) is a past
+  // visit labelled "Missed", not a cancellation. An unpaid video visit that expired stays under
+  // Cancelled (it never became a visit), as does anything the patient or clinic cancelled.
+  const missedVisit =
+    missedClinicVisit ||
+    (terminal && (status === "NO_SHOW" || (status === "EXPIRED" && !isVideo)));
+  const tab: ManagerTab = missedVisit
+    ? "past"
+    : !terminal
+      ? "upcoming"
+      : status === "COMPLETED"
+        ? "past"
+        : "cancelled";
 
   const statusCode = terminal
     ? status
@@ -290,11 +332,13 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
         : clinicStage === "queue"
           ? "CHECKED_IN"
           : status || "SCHEDULED";
+  // QR self check-in is open from 20 min before until 45 min after the slot start (the server enforces it too).
+  const checkInWindowOpen = !dateTime || selfCheckInWindowState(dateTime, now) === "OPEN";
   const checkInOpen =
-    viewerIsPatient && !isVideo && !terminal && clinicStage === "upcoming" && isToday;
-  const tone: PillTone = checkInOpen ? "amber" : statusTone(statusCode);
-  const label = checkInOpen ? "Check-in open" : statusLabel(statusCode);
-  const filterStatus = unpaid ? "SCHEDULED" : normalizeAppointmentStatus(status);
+    viewerIsPatient && !isVideo && !terminal && clinicStage === "upcoming" && isToday && checkInWindowOpen;
+  const tone: PillTone = missedVisit ? statusTone("NO_SHOW") : checkInOpen ? "amber" : statusTone(statusCode);
+  const label = missedVisit ? "Missed" : checkInOpen ? "Check-in open" : statusLabel(statusCode);
+  const filterStatus = missedVisit ? "NO_SHOW" : unpaid ? "SCHEDULED" : normalizeAppointmentStatus(status);
 
   // ── video ──
   const showJoin = isVideo && !terminal && !unpaid && !awaitingSlot;
@@ -305,9 +349,12 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
   // A visit can be moved APPOINTMENT_MAX_RESCHEDULES times; the backend counts every type.
   // Video: only while confirmed. In-person: any state but done, cancelled, no-show, expired or in progress.
   const movesUsed = getAppointmentRescheduleCount(appointment);
+  // A checked-in in-clinic visit is already in today's queue: it can no longer be moved (the
+  // backend refuses it with a 409 too).
   const canReschedule =
     !terminal &&
     !unpaid &&
+    !checkedIn &&
     (isVideo
       ? canRescheduleVideoAppointment(appointment, new Date(now))
       : canRescheduleInPersonAppointment(appointment));
@@ -328,7 +375,7 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
   const rateDoctorId = firstText(appointment.doctorId, appointment.appointmentDoctorId) || null;
   const canRate = viewerIsPatient && !isVideo && status === "COMPLETED" && Boolean(id) && Boolean(rateDoctorId);
   const summaryHref =
-    tab === "past" && viewerIsPatient && id
+    tab === "past" && !missedVisit && viewerIsPatient && id
       ? isVideo
         ? `/meet/${encodeURIComponent(id)}/summary`
         : "/patient/health"
@@ -388,7 +435,7 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
     ...(directions ? { directionsUrl: directions } : {}),
     canCheckIn: checkInOpen,
     canTrackQueue: viewerIsPatient && clinicStage === "queue",
-    closedNote: terminal ? closedNote(appointment, status, isVideo, paymentFailure, slotPassed) : null,
+    closedNote: terminal ? closedNote(appointment, status, isVideo, paymentFailure, slotPassed, paymentWindowClosed) : null,
     canBookAgain,
     canRetryPayment,
     canRate,

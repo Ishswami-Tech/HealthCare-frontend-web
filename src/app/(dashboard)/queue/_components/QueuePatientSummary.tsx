@@ -5,7 +5,7 @@ import { getQueueDisplayLabel, getQueueStatusText, type QueueDisplayItem } from 
 /** Amber avatar used for every patient in the queue (as in the designs). */
 export const QUEUE_AVATAR_CLASS = "bg-[#fde68a] text-[#92400e]";
 
-/** The selected patient at the top of the "Move to" and "Assign doctor" dialogs. */
+/** The selected patient at the top of the "Move to" and "Mark no-show" dialogs. */
 export function QueuePatientSummary({
   item,
   showCategory = false,

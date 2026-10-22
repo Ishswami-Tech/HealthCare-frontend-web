@@ -47,6 +47,7 @@ import type {
   SupplierValues,
 } from "./pharmacy-inventory.schemas";
 import type { BatchAlert, BatchRow } from "./pharmacy-stock.logic";
+import type { InventoryCounts } from "@/lib/actions/pharmacy.server";
 
 export const INVENTORY_TABS = ["inventory", "orders", "pharmacies", "analytics", "settings"] as const;
 export type InventoryTab = (typeof INVENTORY_TABS)[number];
@@ -99,6 +100,8 @@ export interface PharmacyInventoryViewProps {
   catalogRows: MedicineRow[];
   /** Medicines matching the filters on the server (all pages); `overview.rows` is the current page. */
   inventoryTotal: number;
+  /** Server counts of the whole inventory for the tiles; null until loaded. */
+  inventoryCounts?: InventoryCounts | null;
   inventoryPageSize: number;
 
   /** True with the `MANAGE_INVENTORY` permission; false hides every write action. */
@@ -173,6 +176,7 @@ export function PharmacyInventoryView({
   page,
   onPageChange,
   inventoryTotal,
+  inventoryCounts = null,
   inventoryPageSize,
   canManage,
   canRemove = false,
@@ -282,6 +286,7 @@ export function PharmacyInventoryView({
             page={page}
             onPageChange={onPageChange}
             total={inventoryTotal}
+            counts={inventoryCounts}
             pageSize={inventoryPageSize}
             canManage={canManage}
             onView={(medicine) => onDialogChange({ kind: "details", medicineKey: medicine.id })}

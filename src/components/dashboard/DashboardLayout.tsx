@@ -31,10 +31,18 @@ import { usePrefetchPatientDashboardSummary } from "@/hooks/query/usePatientDash
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { washToneForPath } from "@/components/tbd/wash";
+import { titleForRegisteredPath } from "@/lib/config/tbdRoutes";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
   "/clinic-admin/staff": "Staff Directory",
+  "/clinic-admin/payments": "Payment Reconciliation",
+  "/clinic-admin/earnings": "Earnings",
+  "/clinic-admin/locations": "Locations",
+  "/clinic-admin/schedule": "Schedule",
+  "/assistant-doctor/coverage": "Coverage",
+  "/assistant-doctor/dashboard": "Dashboard",
+  "/receptionist/check-in": "Check-In",
   "/patient/payments": "My Billing & Payments",
   "/patient/appointments": "Appointments",
   "/patient/check-in": "Location Check-In",
@@ -50,6 +58,10 @@ const ROUTE_TITLE_RULES: Array<[RegExp, string]> = [
   [/\/patients\/[^/]+\/visits\/[^/]+\/diet-chart/, "Diet Chart"],
   [/^\/doctor\/patients\/[^/]+/, "EHR"],
   [/\/settings\/sessions/, "Sessions"],
+  [/\/check-ins?(\/|$)/, "Check-In"],
+  [/\/locations(\/|$)/, "Locations"],
+  [/\/schedule(\/|$)/, "Schedule"],
+  [/\/coverage(\/|$)/, "Coverage"],
   [/\/(no-show)(\/|$)/, "Missed Appointments"],
   [/\/appointments(\/|$)/, "Appointments"],
   [/\/patients(\/|$)/, "Patients"],
@@ -161,7 +173,7 @@ export function DashboardLayout({
   const resolvedPageTitle =
     title !== "Dashboard"
       ? title
-      : DASHBOARD_ROUTE_TITLES[pathname] || titleForPath(pathname) || title;
+      : DASHBOARD_ROUTE_TITLES[pathname] || titleForRegisteredPath(pathname) || titleForPath(pathname) || title;
 
   // Check role access (Component Props)
   const hasRoleAccess = useMemo(() => {

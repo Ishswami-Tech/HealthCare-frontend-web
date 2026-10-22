@@ -31,7 +31,8 @@ export const CLINIC_BILLING_LIST_ROLES: readonly string[] = [
   "FINANCE_BILLING",
   "RECEPTIONIST",
 ];
-const OWN_BILLING_LIST_ROLES: readonly string[] = ["PATIENT", "DOCTOR", "ASSISTANT_DOCTOR", "CLINIC_LOCATION_HEAD"];
+// DOCTOR and ASSISTANT_DOCTOR are deliberately absent: they never see billing amounts.
+const OWN_BILLING_LIST_ROLES: readonly string[] = ["PATIENT", "CLINIC_LOCATION_HEAD"];
 
 /** True for a role the billing lists are not open to. */
 export function isBillingListsClosedRole(role: string | null | undefined): boolean {

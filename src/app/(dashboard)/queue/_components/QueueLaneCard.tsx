@@ -1,10 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Clock, FileText, Loader2, Play, Users } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Loader2,
+  Megaphone,
+  MoreHorizontal,
+  Pill as PillIcon,
+  Play,
+  ShieldAlert,
+  UserX,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   CellTitle,
+  Chip,
   EmptyBlock,
   FilterChips,
   InitialsAvatar,
@@ -16,6 +36,8 @@ import {
   usePagedRows,
   type TbdIcon,
 } from "@/components/tbd";
+import { ASSISTANT_ROUTES } from "@/components/assistant/assistant-routes";
+import { routeFor } from "@/lib/config/tbdRoutes";
 import { getQueuePatientDisplayName, getQueuePositionLabel } from "@/lib/queue/queue-adapter";
 import { cn } from "@/lib/utils";
 import { QUEUE_AVATAR_CLASS } from "./QueuePatientSummary";
@@ -27,6 +49,13 @@ import {
   type QueueDisplayItem,
   type QueuePrimaryAction,
 } from "./queue.logic";
+import {
+  queuePriorityLabel,
+  queuePriorityOf,
+  queuePriorityTone,
+  queueTokenLabel,
+  type QueueRoleVariant,
+} from "./queue-roles.logic";
 
 /**
  * One line per patient on a wide card (patient, doctor, category, status, wait time, actions).
@@ -34,28 +63,34 @@ import {
  * `@5xl` is a container width, so the layout follows the card, not the window.
  */
 const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:items-center @5xl:gap-x-4";
-/** A row with all three buttons (Start / Case sheet, Assign doctor, Move to) has a wider last column. */
-const COLUMNS_WITH_MAIN_ACTION =
-  "@5xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_108px_78px_366px]";
-const COLUMNS =
-  "@5xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_120px_96px_264px]";
+/** Last column width per role: two main buttons (doctor, assistant), desk buttons plus the menu, or the basic pair. */
+const COLUMNS = {
+  main: "@5xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_108px_78px_280px]",
+  desk: "@5xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_108px_78px_320px]",
+  basic: "@5xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_120px_96px_264px]",
+} as const;
 const CELL_AUTO = "@5xl:col-auto @5xl:row-auto";
 
 /** What a row can do. The same for both tabs; the container decides who sees which button. */
 export interface QueueRowActions {
-  /** Doctors: reserve room for the Start / Case sheet button. */
-  hasMainAction: boolean;
-  canAssignDoctor: boolean;
+  /** Whose queue this is: decides the main buttons (doctor: call / start / complete; assistant: draft Rx / dispense). */
+  variant: QueueRoleVariant;
   /** Only roles the backend lets move a patient to another queue get the "Move to" button. */
   canMoveTo: boolean;
-  isAssignPending: boolean;
+  /** Front desk and clinic admin: Set priority and Mark no-show in the row menu. */
+  canSetPriority: boolean;
+  canMarkNoShow: boolean;
   /** Entry being moved to another queue right now. */
   transferringId: string | null;
   /** Entry whose visit is being started right now. */
   startingId: string | null;
+  /** Entry being called in right now. */
+  callingId: string | null;
   onStart: (item: QueueDisplayItem) => void;
-  onAssignDoctor: (item: QueueDisplayItem) => void;
+  onCall: (item: QueueDisplayItem) => void;
   onMoveTo: (item: QueueDisplayItem) => void;
+  onSetPriority: (item: QueueDisplayItem) => void;
+  onMarkNoShow: (item: QueueDisplayItem) => void;
 }
 
 export interface QueueLaneCardProps {
@@ -75,6 +110,107 @@ export interface QueueLaneCardProps {
   resetKey: string;
 }
 
+/** Assistant links carry the patient and the visit so the draft / dispense screen opens on them. */
+function DoctorButtons({
+  item,
+  name,
+  primary,
+  actions,
+}: {
+  item: QueueDisplayItem;
+  name: string;
+  primary: QueuePrimaryAction | undefined;
+  actions: QueueRowActions;
+}) {
+  if (primary === "case-sheet") {
+    return (
+      <>
+        <Button asChild>
+          <Link href={`/doctor/patients/${encodeURIComponent(item.patientId)}`} aria-label={`Case sheet for ${name}`}>
+            <FileText />
+            Case sheet
+          </Link>
+        </Button>
+        {item.appointmentId ? (
+          <Button asChild variant="outline">
+            <Link
+              href={routeFor("/doctor/visit/[appointmentId]/complete", { appointmentId: item.appointmentId })}
+              aria-label={`Complete visit for ${name}`}
+            >
+              <CheckCircle2 />
+              Complete
+            </Link>
+          </Button>
+        ) : null}
+      </>
+    );
+  }
+  if (primary === "start") {
+    const busy = actions.startingId !== null || actions.callingId !== null;
+    return (
+      <>
+        <Button variant="outline" onClick={() => actions.onCall(item)} disabled={busy} aria-label={`Call ${name} in`}>
+          {actions.callingId === item.id ? <Loader2 className="animate-spin" /> : <Megaphone />}
+          Call in
+        </Button>
+        <Button onClick={() => actions.onStart(item)} disabled={busy} aria-label={`Start visit for ${name}`}>
+          {actions.startingId === item.id ? <Loader2 className="animate-spin" /> : <Play />}
+          Start
+        </Button>
+      </>
+    );
+  }
+  return null;
+}
+
+function AssistantButtons({ item, name }: { item: QueueDisplayItem; name: string }) {
+  if (!item.patientId) return null;
+  return (
+    <>
+      <Button asChild>
+        <Link href={ASSISTANT_ROUTES.prescribe({ patientId: item.patientId, appointmentId: item.appointmentId })} aria-label={`Prepare a prescription draft for ${name}`}>
+          <FileText />
+          Draft Rx
+        </Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link href={ASSISTANT_ROUTES.dispenseTo({ patientId: item.patientId })} aria-label={`Dispense medicines to ${name}`}>
+          <PillIcon />
+          Dispense
+        </Link>
+      </Button>
+    </>
+  );
+}
+
+function DeskMenu({ item, name, actions }: { item: QueueDisplayItem; name: string; actions: QueueRowActions }) {
+  if (!actions.canSetPriority && !actions.canMarkNoShow) return null;
+  const hasAppointment = Boolean(item.appointmentId);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" aria-label={`More actions for ${name}`}>
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {actions.canSetPriority ? (
+          <DropdownMenuItem disabled={!hasAppointment} onSelect={() => actions.onSetPriority(item)}>
+            <ShieldAlert />
+            Set priority
+          </DropdownMenuItem>
+        ) : null}
+        {actions.canMarkNoShow ? (
+          <DropdownMenuItem disabled={!hasAppointment} onSelect={() => actions.onMarkNoShow(item)}>
+            <UserX />
+            Mark no-show
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function RowButtons({
   item,
   name,
@@ -86,42 +222,12 @@ function RowButtons({
   primary: QueuePrimaryAction | undefined;
   actions: QueueRowActions;
 }) {
-  const isStarting = actions.startingId === item.id;
   const isMoving = actions.transferringId === item.id;
 
   return (
     <div className="flex flex-wrap items-center gap-2 @5xl:flex-nowrap @5xl:justify-end">
-      {primary === "case-sheet" ? (
-        <Button asChild>
-          <Link href={`/doctor/patients/${encodeURIComponent(item.patientId)}`} aria-label={`Case sheet for ${name}`}>
-            <FileText />
-            Case sheet
-          </Link>
-        </Button>
-      ) : null}
-
-      {primary === "start" ? (
-        <Button
-          onClick={() => actions.onStart(item)}
-          disabled={actions.startingId !== null}
-          aria-label={`Start visit for ${name}`}
-        >
-          {isStarting ? <Loader2 className="animate-spin" /> : <Play />}
-          Start
-        </Button>
-      ) : null}
-
-      {actions.canAssignDoctor ? (
-        <Button
-          variant="soft"
-          onClick={() => actions.onAssignDoctor(item)}
-          disabled={!item.appointmentId || actions.isAssignPending}
-          aria-label={`Assign doctor for ${name}`}
-        >
-          <Users />
-          Assign doctor
-        </Button>
-      ) : null}
+      {actions.variant === "doctor" ? <DoctorButtons item={item} name={name} primary={primary} actions={actions} /> : null}
+      {actions.variant === "assistant" ? <AssistantButtons item={item} name={name} /> : null}
 
       {actions.canMoveTo ? (
         <Button
@@ -134,7 +240,32 @@ function RowButtons({
           {isMoving ? <Loader2 className="animate-spin" /> : <ArrowRight />}
         </Button>
       ) : null}
+
+      <DeskMenu item={item} name={name} actions={actions} />
     </div>
+  );
+}
+
+function rowColumns(actions: QueueRowActions): string {
+  if (actions.variant === "doctor" || actions.variant === "assistant") return COLUMNS.main;
+  if (actions.canSetPriority || actions.canMarkNoShow) return COLUMNS.desk;
+  return COLUMNS.basic;
+}
+
+/** Token, position and (when raised) the priority under the patient's name. */
+function PatientLine({ item }: { item: QueueDisplayItem }) {
+  const token = queueTokenLabel(item);
+  const priority = queuePriorityOf(item);
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {token ? (
+        <Chip tone="clinic" className="px-1.5 py-0.5 text-[11px] font-bold">
+          {token}
+        </Chip>
+      ) : null}
+      <span>{getQueuePositionLabel({ position: item.position || 0 })}</span>
+      {priority !== "NORMAL" ? <Pill tone={queuePriorityTone(priority)}>{queuePriorityLabel(priority)}</Pill> : null}
+    </span>
   );
 }
 
@@ -154,8 +285,7 @@ export function QueueLaneCard({
 }: QueueLaneCardProps) {
   const paging = usePagedRows(items, QUEUE_PAGE_SIZE, { resetKey });
   const { pageRows, total } = paging;
-  // Three buttons (Start / Case sheet, Assign doctor, Move to) need the wider last column.
-  const rowGrid = cn(ROW_GRID, actions.hasMainAction && actions.canMoveTo ? COLUMNS_WITH_MAIN_ACTION : COLUMNS);
+  const rowGrid = cn(ROW_GRID, rowColumns(actions));
   const tableLabel = `${activeLaneTitle} queue`;
 
   return (
@@ -192,7 +322,7 @@ export function QueueLaneCard({
               <EmptyBlock
                 icon={Users}
                 title="No one is waiting here"
-                description={`There are no patients in the ${activeLaneTitle} queue right now.`}
+                description={`No checked-in patients in the ${activeLaneTitle} queue right now.`}
               />
             </div>
           </div>
@@ -212,8 +342,19 @@ export function QueueLaneCard({
                 <div role="cell" className="min-w-0">
                   <CellTitle
                     left={<InitialsAvatar name={name} className={QUEUE_AVATAR_CLASS} />}
-                    title={name}
-                    description={getQueuePositionLabel({ position: item.position || 0 })}
+                    title={
+                      actions.variant === "assistant" && item.appointmentId ? (
+                        <Link
+                          href={routeFor("/assistant-doctor/visit/[appointmentId]", { appointmentId: item.appointmentId })}
+                          className="hover:underline"
+                        >
+                          {name}
+                        </Link>
+                      ) : (
+                        name
+                      )
+                    }
+                    description={<PatientLine item={item} />}
                   />
                 </div>
                 <div role="cell" className={cn("col-[1] row-[2] min-w-0 truncate", CELL_AUTO)}>

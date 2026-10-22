@@ -12,9 +12,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Divider, Note, Pill, SummaryLine, statusLabel, statusTone } from "@/components/tbd";
-import { PHARMACY_STATE, canPay, type PatientPrescription } from "./patient-health.logic";
+import { HandoverCodePanel } from "./HandoverCodePanel";
+import { PHARMACY_STATE, canPay, isAdviceOnly, type PatientPrescription } from "./patient-health.logic";
 import { formatRupees } from "@/lib/utils/currency";
 import { formatDateLabel } from "@/lib/utils/date-time";
+import { showErrorToast } from "@/hooks/utils/use-toast";
+import { downloadPrescriptionPdf } from "@/lib/utils/prescription-pdf-download";
 
 export interface PrescriptionDetailsDialogProps {
   prescription: PatientPrescription | null;
@@ -52,7 +55,11 @@ export function PrescriptionDetailsDialog({
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Pill tone={state.tone}>{state.label}</Pill>
+                {isAdviceOnly(prescription) ? (
+                  <Pill tone="slate">Advice only</Pill>
+                ) : (
+                  <Pill tone={state.tone}>{state.label}</Pill>
+                )}
                 {prescription.queueLabel ? <Pill tone="slate">{prescription.queueLabel}</Pill> : null}
                 {prescription.diagnosis ? (
                   <span className="text-[13px] text-ink-muted">For {prescription.diagnosis}</span>
@@ -118,7 +125,9 @@ export function PrescriptionDetailsDialog({
                 <p className="m-0 text-[13px] text-ink-muted">
                   Medicines are handed over after the payment is received.
                 </p>
-              ) : null}
+              ) : (
+                <HandoverCodePanel prescription={prescription} />
+              )}
             </div>
 
             <DialogFooter>
@@ -126,11 +135,23 @@ export function PrescriptionDetailsDialog({
                 Close
               </Button>
               {prescription.pdfUrl ? (
-                <Button variant="outline" size="md" asChild>
-                  <a href={prescription.pdfUrl} target="_blank" rel="noopener noreferrer">
-                    <Download aria-hidden="true" />
-                    Download prescription
-                  </a>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => {
+                    const pdfUrl = prescription.pdfUrl;
+                    if (!pdfUrl) return;
+                    // Saved as "<RxNumber>_<PatientName>.pdf".
+                    void downloadPrescriptionPdf(pdfUrl, {
+                      reference: prescription.number,
+                      patientName: prescription.patientName,
+                    }).catch((error: unknown) => {
+                      showErrorToast(error instanceof Error ? error.message : "The prescription PDF could not be downloaded.");
+                    });
+                  }}
+                >
+                  <Download aria-hidden="true" />
+                  Download prescription
                 </Button>
               ) : null}
               {prescription.invoiceId && onDownloadBill ? (

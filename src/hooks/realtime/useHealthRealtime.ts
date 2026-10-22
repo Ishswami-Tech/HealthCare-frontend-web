@@ -245,6 +245,28 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
 }
 
 const HEALTH_NAMESPACE_ROOM = 'health:all';
+
+/**
+ * Only these roles receive detailed health pushes on the backend /health namespace
+ * (which requires auth). Everyone else (anonymous, patients, staff) uses HTTP polling.
+ */
+const HEALTH_SOCKET_ROLES: ReadonlySet<string> = new Set(['SUPER_ADMIN', 'CLINIC_ADMIN']);
+
+export function canUseHealthSocket(role: unknown, token: string | undefined): boolean {
+  return Boolean(token) && HEALTH_SOCKET_ROLES.has(String(role || '').toUpperCase());
+}
+
+/** Socket auth errors meaning "not allowed / no token" (as opposed to an expired JWT). */
+const HEALTH_SOCKET_AUTH_DENIED = /authentication required|no token or session|forbidden|unauthori[sz]ed/i;
+const HEALTH_SOCKET_JWT_EXPIRED = /jwt expired/i;
+
+/** Stop using the socket and let the HTTP poll in useDetailedHealthStatus take over. */
+function fallBackToHttp(socket: Socket) {
+  socket.disconnect();
+  useHealthStore.getState().setIsConnected(false);
+  useHealthStore.getState().setConnectionStatus('disconnected');
+  useHealthStore.getState().setError(null);
+}
 const healthSocketBound = new WeakSet<Socket>();
 let sharedHealthSocket: Socket | null = null;
 let sharedHealthRefCount = 0;
@@ -286,11 +308,9 @@ function scheduleSharedHealthAuthRefresh(token?: string) {
         sharedHealthSocket.auth = { token: refreshedSession.access_token };
         sharedHealthSocket.connect();
         scheduleSharedHealthAuthRefresh(refreshedSession.access_token);
-      } catch (refreshError) {
-        useHealthStore.getState().setConnectionStatus('error');
-        useHealthStore.getState().setError(
-          refreshError instanceof Error ? refreshError : new Error('Failed to refresh websocket auth')
-        );
+      } catch {
+        // Refresh failed: drop to HTTP polling instead of flagging an outage.
+        if (sharedHealthSocket) fallBackToHttp(sharedHealthSocket);
       } finally {
         sharedHealthAuthRefreshInFlight = false;
       }
@@ -335,39 +355,41 @@ function bindSharedHealthSocket(socket: Socket) {
 
   socket.on('connect_error', (err: Error & { type?: string; description?: string; context?: unknown }) => {
     const message = String(err?.message || '');
-    const isAuthError = /jwt expired|authentication required|no token or session/i.test(message);
 
-      if (isAuthError) {
-        socket.disconnect();
-
-        if (!sharedHealthAuthRefreshInFlight) {
-          sharedHealthAuthRefreshInFlight = true;
-        void (async () => {
-          try {
-            const refreshedSession = await refreshClientSessionForRealtime('health-live-ws');
-            if (!refreshedSession?.access_token) {
-              useHealthStore.getState().setConnectionStatus('error');
-              useHealthStore.getState().setError(err);
-              return;
-            }
-            socket.auth = { token: refreshedSession.access_token };
-            socket.connect();
-            scheduleSharedHealthAuthRefresh(refreshedSession.access_token);
-          } catch {
-            useHealthStore.getState().setConnectionStatus('error');
-            useHealthStore.getState().setError(err);
-          } finally {
-            sharedHealthAuthRefreshInFlight = false;
-          }
-        })();
-        return;
-      }
-
+    // Not permitted / no token: never refresh the session, never flag an outage. HTTP takes over.
+    if (HEALTH_SOCKET_AUTH_DENIED.test(message)) {
+      fallBackToHttp(socket);
       return;
     }
 
+    if (HEALTH_SOCKET_JWT_EXPIRED.test(message)) {
+      socket.disconnect();
+      useHealthStore.getState().setConnectionStatus('disconnected');
+      if (sharedHealthAuthRefreshInFlight) return;
+
+      sharedHealthAuthRefreshInFlight = true;
+      void (async () => {
+        try {
+          const refreshedSession = await refreshClientSessionForRealtime('health-live-ws');
+          if (!refreshedSession?.access_token) {
+            fallBackToHttp(socket);
+            return;
+          }
+          socket.auth = { token: refreshedSession.access_token };
+          socket.connect();
+          scheduleSharedHealthAuthRefresh(refreshedSession.access_token);
+        } catch {
+          fallBackToHttp(socket);
+        } finally {
+          sharedHealthAuthRefreshInFlight = false;
+        }
+      })();
+      return;
+    }
+
+    // Transport error: useDetailedHealthStatus polls HTTP meanwhile, and the indicator is
+    // driven by that health data, so this alone never paints an outage.
     useHealthStore.getState().setConnectionStatus('error');
-    useHealthStore.getState().setError(err);
   });
 
   socket.on('health:status', (data: RealtimeHealthStatus) => {
@@ -516,10 +538,12 @@ export function useHealthRealtime(
     enabled = true,
   } = options;
   const currentToken = useAuthStore((state) => state.session?.access_token);
+  const currentRole = useAuthStore((state) => state.user?.role || state.session?.user?.role);
+  const socketAllowed = enabled && canUseHealthSocket(currentRole, currentToken);
 
-  // Initialize Socket.IO connection
+  // Initialize Socket.IO connection (authenticated SUPER_ADMIN / CLINIC_ADMIN only)
   useEffect(() => {
-    if (!enabled) return;
+    if (!socketAllowed) return;
 
     if (sharedHealthDisconnectTimer !== null) {
       window.clearTimeout(sharedHealthDisconnectTimer);
@@ -558,7 +582,7 @@ export function useHealthRealtime(
         reconnectionAttempts: 5,
         timeout: 20000,
         forceNew: false,
-        ...(currentToken ? { auth: { token: currentToken } } : {}),
+        auth: { token: currentToken },
       });
       bindSharedHealthSocket(sharedHealthSocket);
       scheduleSharedHealthAuthRefresh(currentToken || undefined);
@@ -574,8 +598,6 @@ export function useHealthRealtime(
         sharedHealthSocket.connect();
       }
       scheduleSharedHealthAuthRefresh(currentToken);
-    } else if (!sharedHealthSocket.connected) {
-      sharedHealthSocket.connect();
     }
 
     return () => {
@@ -593,9 +615,11 @@ export function useHealthRealtime(
         sharedHealthSocket?.disconnect();
         sharedHealthSocket = null;
         sharedHealthAuthRefreshInFlight = false;
+        // Drop admin-only socket data so the HTTP poll result is shown after logout/role change.
+        useHealthStore.getState().reset();
       }, 250);
     };
-  }, [enabled, currentToken]);
+  }, [socketAllowed, currentToken]);
 
   const reconnect = useCallback(() => {
     if (sharedHealthSocket) {

@@ -25,6 +25,21 @@ function isGenericIdentityToken(value: string): boolean {
     .every((token) => genericTokens.has(token));
 }
 
+/** Placeholder pairs some flows write as first + last name; anything else typed is a real name. */
+const PLACEHOLDER_FULL_NAMES = new Set(["patient user", "new user", "unknown user", "guest user", "new patient"]);
+
+/**
+ * A profile name is only skipped when it is clearly a placeholder: one generic word ("Patient",
+ * "User") or a known placeholder pair. A two-word name the person entered ("Test Patient") is
+ * theirs and must win over the email local part.
+ */
+function isPlaceholderProfileName(value: string): boolean {
+  const stripped = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!stripped) return true;
+  if (PLACEHOLDER_FULL_NAMES.has(stripped)) return true;
+  return !stripped.includes(" ") && isGenericIdentityToken(stripped);
+}
+
 function isPhoneOrEmailLike(value: string): boolean {
   return (
     /^[+\d][\d\s().-]{6,}$/.test(value) ||
@@ -57,7 +72,7 @@ export function resolveDisplayNameAndInitials(user: {
 
   if (firstName || lastName) {
     const combined = [firstName, lastName].filter(Boolean).join(" ").trim();
-    if (combined && !isGenericIdentityToken(combined) && !isPhoneOrEmailLike(combined)) {
+    if (combined && !isPlaceholderProfileName(combined) && !isPhoneOrEmailLike(combined)) {
       return {
         displayName: combined,
         initials: `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase(),
@@ -66,7 +81,7 @@ export function resolveDisplayNameAndInitials(user: {
   }
 
   const rawName = normalizeDisplayCandidate(user.name);
-  if (rawName && !isGenericIdentityToken(rawName) && !isPhoneOrEmailLike(rawName)) {
+  if (rawName && !isPlaceholderProfileName(rawName) && !isPhoneOrEmailLike(rawName)) {
     const safeCandidate: string = rawName.includes("@")
       ? (rawName.split("@")[0] ?? "")
       : rawName;

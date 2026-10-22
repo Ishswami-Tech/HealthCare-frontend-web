@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FilterChips, Kpi, LiveTag, LoadError, Note, PageHero, Pill, SectionTitle, Surface, type TbdOption } from "@/components/tbd";
+import { QueueOfflineBanner } from "@/components/queue/QueueOfflineBanner";
+import { QueueLocationOverview } from "./QueueLocationOverview";
+import type { QueueOverview } from "./queue-roles.logic";
 import { QueueLaneCard, type QueueLaneCardProps, type QueueRowActions } from "./QueueLaneCard";
 import type { QueueStatsSummary, QueueTabKey } from "./queue.logic";
 
@@ -21,6 +24,13 @@ export interface QueueViewProps {
   canManageQueue: boolean;
   /** True while the live connection is up; otherwise the list refreshes on a timer. */
   liveSync: boolean;
+  /** False while the browser has no network (AsOffline banner; the list is the last one loaded). */
+  online: boolean;
+  onRetry: () => void;
+  /** One line on what this role does here ("Only the doctor calls the next patient in."); null hides it. */
+  roleNote: string | null;
+  /** Clinic admin: every location at a glance (CaQueueOverview); null hides it. */
+  overview: QueueOverview | null;
 
   /** Active entries left over from earlier days (front desk and clinic admin only; 0 hides the note). */
   staleCount: number;
@@ -138,6 +148,10 @@ export function QueueView({
   scopeLabel,
   canManageQueue,
   liveSync,
+  online,
+  onRetry,
+  roleNote,
+  overview,
   staleCount,
   isCleaningUp,
   onCleanUpStale,
@@ -156,9 +170,17 @@ export function QueueView({
     <DashboardPageShell>
       <QueueBanner
         scopeLabel={scopeLabel}
-        description={canManageQueue ? "Monitor and manage patient queues." : "View patient queue status."}
+        description={
+          canManageQueue
+            ? "Checked-in patients waiting for the doctor. Video visits never appear here."
+            : "Checked-in patients waiting for the doctor."
+        }
         liveSync={liveSync}
       />
+
+      {online ? null : <QueueOfflineBanner onRetry={onRetry} />}
+      {roleNote ? <Note tone="blue">{roleNote}</Note> : null}
+      {overview ? <QueueLocationOverview overview={overview} /> : null}
 
       {staleCount > 0 ? (
         <Note tone="amber" icon={TriangleAlert} className="[&>div]:flex-1">

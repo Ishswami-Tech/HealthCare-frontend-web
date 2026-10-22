@@ -7,7 +7,6 @@ import {
   CircleAlert,
   ClipboardList,
   FileText,
-  HeartPulse,
   Leaf,
   Pill as PillIcon,
   RefreshCw,
@@ -27,8 +26,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   EmptyBlock,
-  GridHead,
-  GridRow,
   IconBox,
   Kv,
   Note,
@@ -47,14 +44,11 @@ import {
   type HistoryEntry,
   type RecordPrescription,
   type ReportRow,
-  type VitalHistoryRow,
 } from "./patient-health.logic";
-import { formatDateTimeLabel } from "@/lib/utils/date-time";
 
-const RECORD_TABS = ["history", "prescriptions", "reports", "vitals", "allergies", "diet"] as const;
-const VITAL_COLUMNS = "190px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr)";
+// Product rule: no vitals tab.
+const RECORD_TABS = ["history", "prescriptions", "reports", "allergies", "diet"] as const;
 const LIST_STEP = 6;
-const VITAL_STEP = 8;
 
 export interface PatientRecordsViewProps {
   isLoading?: boolean;
@@ -65,7 +59,6 @@ export interface PatientRecordsViewProps {
   prescriptions: RecordPrescription[];
   /** Lab reports, imaging and uploaded files (prescriptions have their own tab). */
   reports: ReportRow[];
-  vitals: VitalHistoryRow[];
   allergies: AllergyEntry[];
   /** Opens the upload dialog. */
   onUpload: () => void;
@@ -125,8 +118,8 @@ function Panel({
 }
 
 /**
- * Records: everything the clinic keeps on the patient's health record, in six tabs.
- * Reachable at `/patient/health#records` (a tab at `#records/vitals`).
+ * Records: everything the clinic keeps on the patient's health record, in five tabs.
+ * Reachable at `/patient/health#records` (a tab at `#records/<tab>`).
  */
 export function PatientRecordsView({
   isLoading = false,
@@ -135,7 +128,6 @@ export function PatientRecordsView({
   history,
   prescriptions,
   reports,
-  vitals,
   allergies,
   onUpload,
 }: PatientRecordsViewProps) {
@@ -143,7 +135,6 @@ export function PatientRecordsView({
   const [selected, setSelected] = useState<HistoryEntry | null>(null);
   const [historyVisible, setHistoryVisible] = useState(LIST_STEP);
   const [prescriptionsVisible, setPrescriptionsVisible] = useState(LIST_STEP);
-  const [vitalsVisible, setVitalsVisible] = useState(VITAL_STEP);
 
   const filteredHistory = filterHistory(history, searchTerm);
 
@@ -177,7 +168,6 @@ export function PatientRecordsView({
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="vitals">Vitals</TabsTrigger>
             <TabsTrigger value="allergies">Allergies</TabsTrigger>
             <TabsTrigger value="diet">Diet</TabsTrigger>
           </TabsList>
@@ -333,45 +323,6 @@ export function PatientRecordsView({
                 />
               ) : (
                 <ReportsTable rows={reports} pageSize={6} />
-              )}
-            </Panel>
-          </TabsContent>
-
-          <TabsContent value="vitals" className="mt-0">
-            <Panel title="Vitals history" description="Every reading your clinic has recorded, newest first." isLoading={isLoading}>
-              {vitals.length === 0 ? (
-                <EmptyBlock
-                  icon={HeartPulse}
-                  title="No readings yet"
-                  description="Your clinic records your vitals at each visit."
-                />
-              ) : (
-                <>
-                  <div role="table" aria-label="Vitals history">
-                    <GridHead columns={VITAL_COLUMNS} labels={["Recorded", "Vital", "Value", "Notes"]} className="px-0" />
-                    {vitals.slice(0, vitalsVisible).map((row) => (
-                      <GridRow key={row.id} columns={VITAL_COLUMNS} className="gap-1.5 px-0 lg:min-h-[52px]">
-                        <span role="cell" className="text-[13px] text-ink-muted">
-                          {formatDateTimeLabel(row.date) || "No date"}
-                        </span>
-                        <span role="cell" className="font-bold text-ink">
-                          {row.name}
-                        </span>
-                        <span role="cell" className="font-bold text-ink">
-                          {row.value || "-"}
-                        </span>
-                        <span role="cell" className={row.notes ? "text-[13px] text-ink-muted" : "hidden text-[13px] text-ink-muted lg:block"}>
-                          {row.notes || "-"}
-                        </span>
-                      </GridRow>
-                    ))}
-                  </div>
-                  <ShowMore
-                    total={vitals.length}
-                    visible={vitalsVisible}
-                    onMore={() => setVitalsVisible(vitalsVisible + VITAL_STEP)}
-                  />
-                </>
               )}
             </Panel>
           </TabsContent>

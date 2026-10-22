@@ -10,6 +10,7 @@ import {
   hasDashboardSummaryLoadedForSession,
 } from "@/hooks/query/usePatientDashboardSummary";
 import { usePatientQueue } from "@/hooks/query/usePatientQueue";
+import { useMyInPersonToday } from "@/hooks/query/useInPerson";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useHealthLibrary } from "@/hooks/query/useHealthLibrary";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -123,7 +124,11 @@ export default function PatientDashboard() {
   const upcomingAppointments = useMemo(() => selectUpcomingAppointments(summaryAppointments), [summaryAppointments]);
 
   const visits = useMemo<HomeVisit[]>(
-    () => upcomingAppointments.map((appointment) => toHomeVisit(appointment, now, language)),
+    () =>
+      upcomingAppointments
+        .map((appointment) => toHomeVisit(appointment, now, language))
+        // An unpaid video visit whose payment window just closed is no longer upcoming.
+        .filter((visit) => visit.statusCode !== "EXPIRED"),
     [upcomingAppointments, now, language]
   );
 
@@ -131,6 +136,12 @@ export default function PatientDashboard() {
   // (`GET queue/me`); the staff queue list is never requested.
   const queueAppointment = useMemo(() => findQueueAppointment(upcomingAppointments), [upcomingAppointments]);
   const { data: queueEntry, isPending: isQueuePending } = usePatientQueue({ enabled: !!queueAppointment });
+  // The token (K-014) lives on the in-person visit, not on the appointment row.
+  const { data: inPersonToday } = useMyInPersonToday({ enabled: !!queueAppointment });
+  const queueToken = useMemo(() => {
+    const id = queueAppointment ? textOf(queueAppointment.id) : "";
+    return (inPersonToday ?? []).find((entry) => entry.appointmentId === id)?.token ?? null;
+  }, [inPersonToday, queueAppointment]);
   const queue = useMemo<HomeQueue | null>(() => {
     if (!queueAppointment) return null;
     // Only what the API returns: no place is shown until the live entry arrives.
@@ -139,9 +150,10 @@ export default function PatientDashboard() {
       patientsAhead: queueEntry ? queueEntry.patientsAhead : null,
       estimatedWaitMinutes: queueEntry ? queueEntry.estimatedWaitTime : null,
       totalInQueue: queueEntry ? queueEntry.totalInQueue : null,
+      tokenLabel: queueToken,
       isLoading: isQueuePending,
     };
-  }, [queueAppointment, queueEntry, isQueuePending]);
+  }, [queueAppointment, queueEntry, isQueuePending, queueToken]);
 
   // Key figures. A card is shown only when the summary carries that list.
   const stats = useMemo<HomeStat[]>(() => {
@@ -240,10 +252,10 @@ export default function PatientDashboard() {
   const visitActions = useMemo(
     () => ({
       onJoin: (appointmentId: string) => push(buildVideoSessionRoute(appointmentId)),
-      // The reschedule and payment steps live on the appointments page: `?id=` opens the list
-      // at this visit, and `action=reschedule` opens its reschedule dialog when a move is allowed.
+      // One reschedule screen for every portal: the full-page ReschedulePanel. Payment lives on
+      // the appointments page (`?id=` opens the list at this visit).
       onReschedule: (appointmentId: string) =>
-        push(`/patient/appointments?id=${encodeURIComponent(appointmentId)}&action=reschedule`),
+        push(`/patient/appointments/${encodeURIComponent(appointmentId)}/reschedule`),
       onPay: (appointmentId: string) => push(`/patient/appointments?id=${encodeURIComponent(appointmentId)}`),
       onCheckIn: startCheckIn,
     }),

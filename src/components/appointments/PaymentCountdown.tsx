@@ -25,14 +25,18 @@ interface PaymentCountdownProps {
   onCompletePayment?: () => void;
   /** Whether the CTA should be disabled (e.g. retrying). */
   ctaDisabled?: boolean;
+  /** What is cancelled when the window closes ("visit", "plan purchase", "payment"). */
+  noun?: string;
+  /** Text once the window has closed; defaults to the visit wording. */
+  expiredMessage?: string;
 }
 
 const URGENT_THRESHOLD_SECONDS = 60; // last minute -> red, full attention
 
 /**
- * Renders a live "Pay within MM:SS" banner for video appointments that are
- * still in PENDING (i.e. created, payment window started, payment not yet
- * completed). Visually escalates to red in the final minute so patients are
+ * Renders a live "Pay within MM:SS" banner for a payment whose window is
+ * running: a video appointment still in PENDING, or an open invoice / plan
+ * payment (`noun` names what is cancelled). Visually escalates to red in the final minute so patients are
  * nudged to act before the deadline. Renders nothing when the appointment
  * carries no deadline.
  */
@@ -44,6 +48,8 @@ export function PaymentCountdown({
   showCompletePaymentCta = false,
   onCompletePayment,
   ctaDisabled = false,
+  noun = "visit",
+  expiredMessage = "This visit was not paid in time. Please book a new slot.",
 }: PaymentCountdownProps) {
   const windowMs =
     paymentWindowMinutes && paymentWindowMinutes > 0
@@ -105,7 +111,7 @@ export function PaymentCountdown({
       aria-label={
         countdown.isExpired
           ? "Payment window closed"
-          : `Pay within ${countdown.formatted} to keep this visit`
+          : `Pay within ${countdown.formatted} to keep this ${noun}`
       }
       className={cn("rounded-[14px] px-3.5 py-3", palette.box, className)}
     >
@@ -122,8 +128,8 @@ export function PaymentCountdown({
           </div>
           <p className="m-0 mt-1 text-[13px] font-medium leading-snug">
             {countdown.isExpired
-              ? "This visit was not paid in time. Please book a new slot."
-              : `Pay within ${countdown.formatted} or this visit is cancelled automatically.`}
+              ? expiredMessage
+              : `Pay within ${countdown.formatted} or this ${noun} is cancelled automatically.`}
           </p>
 
           {/* Progress bar: shows the shrinking window. */}

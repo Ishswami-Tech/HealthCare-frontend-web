@@ -421,7 +421,6 @@ export async function updateDoctorProfile(doctorUserId: string, profileData: {
   /** Fixed doctor fees: set by admins only (a doctor gets 403). */
   videoDoctorFee?: number | null;
   inPersonDoctorFee?: number | null;
-  slotDurationMinutes?: number;
   videoConsultationEnabled?: boolean;
   inPersonConsultationEnabled?: boolean;
   qualification?: string;

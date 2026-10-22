@@ -1,164 +1,116 @@
 "use client";
 
-import { useMemo, useReducer } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHydrated } from "@/hooks/utils/useHydrated";
-import { showInfoToast } from "@/hooks/utils/use-toast";
-import { usePrescriptions, useUpdatePrescription } from "@/hooks/query/usePrescriptions";
+import { showErrorToast, showInfoToast } from "@/hooks/utils/use-toast";
+import { downloadPrescriptionPdf } from "@/lib/utils/prescription-pdf-download";
+import { usePrescriptionPage, usePrescriptionSummary } from "@/hooks/query/usePrescriptions";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateKeyInIST } from "@/lib/utils/date-time";
 import { DoctorPrescriptionsView } from "./DoctorPrescriptionsView";
+import { normalizeDoctorPrescriptions, type DoctorPrescriptionRow } from "./doctor-prescriptions.logic";
 import {
-  EMPTY_PRESCRIPTION_FORM,
-  buildDoctorPrescriptionStats,
-  filterDoctorPrescriptions,
-  normalizeDoctorPrescriptions,
-  type DoctorPrescriptionEditForm,
-  type DoctorPrescriptionFilter,
-  type DoctorPrescriptionRow,
-} from "./doctor-prescriptions.logic";
+  applyClientQuery,
+  hasNonDefaultFilters,
+  resolveDateRange,
+  summarizeRows,
+  toListParams,
+} from "./doctor-prescriptions.filters";
+import { useDoctorPrescriptionFilters } from "./useDoctorPrescriptionFilters";
 
-type DoctorPrescriptionsState = {
-  searchQuery: string;
-  filterStatus: DoctorPrescriptionFilter;
-  editingPrescription: DoctorPrescriptionRow | null;
-  showPrescriptionDialog: boolean;
-  editForm: DoctorPrescriptionEditForm;
-};
-
-type DoctorPrescriptionsAction =
-  | { type: "setSearchQuery"; value: string }
-  | { type: "setFilterStatus"; value: DoctorPrescriptionFilter }
-  | { type: "openDialog"; prescription: DoctorPrescriptionRow | null; form: DoctorPrescriptionEditForm }
-  | { type: "setShowPrescriptionDialog"; value: boolean }
-  | { type: "updateEditForm"; value: Partial<DoctorPrescriptionEditForm> };
-
-const initialDoctorPrescriptionsState: DoctorPrescriptionsState = {
-  searchQuery: "",
-  filterStatus: "all",
-  editingPrescription: null,
-  showPrescriptionDialog: false,
-  editForm: EMPTY_PRESCRIPTION_FORM,
-};
-
-function doctorPrescriptionsReducer(
-  state: DoctorPrescriptionsState,
-  action: DoctorPrescriptionsAction,
-): DoctorPrescriptionsState {
-  switch (action.type) {
-    case "setSearchQuery":
-      return { ...state, searchQuery: action.value };
-    case "setFilterStatus":
-      return { ...state, filterStatus: action.value };
-    case "openDialog":
-      return {
-        ...state,
-        editingPrescription: action.prescription,
-        editForm: action.form,
-        showPrescriptionDialog: true,
-      };
-    case "setShowPrescriptionDialog":
-      return { ...state, showPrescriptionDialog: action.value };
-    case "updateEditForm":
-      return { ...state, editForm: { ...state.editForm, ...action.value } };
-    default:
-      return state;
-  }
-}
-
-/** Data container for the doctor's prescriptions screen: hooks and mutations here, layout in the view. */
+/** Data container for the doctor's prescriptions screen: hooks and handlers here, layout in the view. */
 export function DoctorPrescriptionsContent() {
   const { session } = useAuth();
-  const user = session?.user;
-  const doctorId = user?.id || "";
-
-  const [
-    { searchQuery, filterStatus, editingPrescription, showPrescriptionDialog, editForm },
-    dispatch,
-  ] = useReducer(doctorPrescriptionsReducer, initialDoctorPrescriptionsState);
-
-  const isHydrated = useHydrated();
-  const todayDate = isHydrated ? formatDateKeyInIST(new Date()) : "";
-
-  const { data: prescriptionsData, isPending, error, refetch } = usePrescriptions(doctorId);
-  const updateMutation = useUpdatePrescription();
+  const doctorId = session?.user?.id || "";
   const router = useRouter();
 
-  // Sync with WebSocket for real-time updates
+  // "Today" is an IST day key; it only exists once the page runs in the browser.
+  const isHydrated = useHydrated();
+  const todayKey = isHydrated ? formatDateKeyInIST(new Date()) : "";
+
+  const filterState = useDoctorPrescriptionFilters();
+  const { filters, update } = filterState;
+
+  const listParams = useMemo(() => toListParams(filters, todayKey), [filters, todayKey]);
+  const range = useMemo(() => resolveDateRange(filters, todayKey), [filters, todayKey]);
+
+  const pageQuery = usePrescriptionPage(doctorId, listParams, { enabled: isHydrated });
+  const summaryQuery = usePrescriptionSummary(doctorId, range, { enabled: isHydrated });
+
+  // New-prescription and dispense events invalidate every `['prescriptions', …]` key (see
+  // useWebSocketIntegration), which refetches the page and the summary on screen.
   useWebSocketQuerySync();
 
-  const prescriptions = useMemo(
-    () => normalizeDoctorPrescriptions(prescriptionsData?.prescriptions),
-    [prescriptionsData?.prescriptions],
-  );
-  const filteredPrescriptions = useMemo(
-    () => filterDoctorPrescriptions(prescriptions, searchQuery, filterStatus),
-    [prescriptions, searchQuery, filterStatus],
-  );
-  const stats = useMemo(() => buildDoctorPrescriptionStats(prescriptions, todayDate), [prescriptions, todayDate]);
+  const page = pageQuery.data;
+  const isLegacy = page?.mode === "legacy";
 
-  // A prescription is written for a patient, from the patient's record or the visit; the
-  // patients list is where the doctor picks who it is for.
+  // A backend without paging answers every prescription: page, filter and count them here.
+  const allLegacyRows = useMemo(
+    () => (isLegacy ? normalizeDoctorPrescriptions(page?.rows) : []),
+    [isLegacy, page?.rows],
+  );
+  const view = useMemo(() => {
+    if (!page) return { rows: [] as DoctorPrescriptionRow[], total: 0 };
+    if (isLegacy) return applyClientQuery(allLegacyRows, listParams);
+    return { rows: normalizeDoctorPrescriptions(page.rows), total: page.total };
+  }, [page, isLegacy, allLegacyRows, listParams]);
+
+  const summary = useMemo(() => {
+    if (summaryQuery.data) return summaryQuery.data;
+    if (isLegacy) return summarizeRows(allLegacyRows, range, todayKey);
+    return null;
+  }, [summaryQuery.data, isLegacy, allLegacyRows, range, todayKey]);
+
+  // A page past the end (rows deleted, or a stale link) moves to the last page that has rows.
+  const pageCount = Math.max(1, Math.ceil(view.total / filters.size));
+  const pastTheEnd = Boolean(page) && !pageQuery.isFetching && view.total > 0 && filters.page > pageCount;
+  useEffect(() => {
+    if (pastTheEnd) update({ page: pageCount });
+  }, [pastTheEnd, pageCount, update]);
+
   const openCreate = () => {
-    router.push("/doctor/patients");
+    router.push("/doctor/prescriptions/new");
   };
 
-  const openEdit = (prescription: DoctorPrescriptionRow) => {
-    dispatch({
-      type: "openDialog",
-      prescription,
-      form: {
-        diagnosis: prescription.diagnosis,
-        notes: prescription.notes,
-        status: prescription.status || "active",
-        medicines: prescription.medicines.join(", "),
-      },
-    });
+  const openDetail = (prescription: DoctorPrescriptionRow) => {
+    if (prescription.id) router.push(`/doctor/prescriptions/${encodeURIComponent(prescription.id)}`);
   };
 
   const handleDownload = (prescription: DoctorPrescriptionRow) => {
     if (prescription.pdfUrl) {
-      window.open(prescription.pdfUrl, "_blank", "noopener,noreferrer");
+      // Saved as "<RxNumber>_<PatientName>.pdf" rather than a generic "prescription.pdf".
+      void downloadPrescriptionPdf(prescription.pdfUrl, {
+        reference: prescription.reference,
+        patientName: prescription.patientName,
+      }).catch((error: unknown) => {
+        showErrorToast(error instanceof Error ? error.message : "The prescription PDF could not be downloaded.");
+      });
     } else {
       showInfoToast("PDF not available for this prescription");
     }
   };
 
-  const handleSavePrescription = () => {
-    if (!editingPrescription?.id) return;
-    updateMutation.mutate({
-      prescriptionId: editingPrescription.id,
-      updates: { notes: editForm.notes },
-    });
-    dispatch({ type: "setShowPrescriptionDialog", value: false });
-  };
-
-  const showSkeleton = isPending && prescriptions.length === 0;
-  const loadFailed = Boolean(error) && prescriptions.length === 0;
+  const waitingForSession = !isHydrated || (!doctorId && !page);
 
   return (
     <DoctorPrescriptionsView
-      isLoading={showSkeleton}
-      loadFailed={loadFailed}
-      onRetry={() => void refetch()}
-      prescriptions={filteredPrescriptions}
-      hasAnyPrescription={prescriptions.length > 0}
-      stats={stats}
-      searchQuery={searchQuery}
-      filterStatus={filterStatus}
-      onSearchChange={(value) => dispatch({ type: "setSearchQuery", value })}
-      onFilterChange={(value) => dispatch({ type: "setFilterStatus", value })}
-      editDisabled={updateMutation.isPending}
+      filterState={filterState}
+      filtersActive={hasNonDefaultFilters(filters)}
+      todayKey={todayKey}
+      rows={view.rows}
+      total={view.total}
+      isLoading={waitingForSession || (pageQuery.isPending && !page)}
+      isRefreshing={pageQuery.isFetching && Boolean(page)}
+      loadFailed={Boolean(pageQuery.error) && !page}
+      refreshFailed={Boolean(pageQuery.error) && Boolean(page)}
+      onRetry={() => void pageQuery.refetch()}
+      summary={summary}
+      summaryLoading={summaryQuery.isPending && !summary}
       onCreate={openCreate}
-      onEdit={openEdit}
+      onOpen={openDetail}
       onDownload={handleDownload}
-      dialogOpen={showPrescriptionDialog}
-      form={editForm}
-      isSaving={updateMutation.isPending}
-      onFormChange={(value) => dispatch({ type: "updateEditForm", value })}
-      onSave={handleSavePrescription}
-      onDialogOpenChange={(value) => dispatch({ type: "setShowPrescriptionDialog", value })}
     />
   );
 }

@@ -217,6 +217,8 @@ export interface FamilyMember {
   dateOfBirth: string | null;
   phone: string | null;
   notes: string | null;
+  /** Known allergies, free text (max 500). */
+  allergies?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -231,6 +233,8 @@ export interface CreateFamilyMemberInput {
   dateOfBirth?: string;
   phone?: string;
   notes?: string;
+  /** Known allergies, free text (max 500). */
+  allergies?: string;
 }
 
 export type UpdateFamilyMemberInput = Partial<Omit<CreateFamilyMemberInput, "primaryPatientId">>;

@@ -21,7 +21,7 @@ interface TherapyProgressPanelProps {
   patientId: string;
 }
 
-type MetricKey = "painScore" | "weightKg" | "bmi" | "bpSystolic" | "bpDiastolic";
+type MetricKey = "painScore" | "weightKg" | "bmi";
 
 interface MetricDef {
   key: MetricKey;
@@ -37,8 +37,6 @@ const METRICS: readonly MetricDef[] = [
   DEFAULT_METRIC,
   { key: "weightKg", label: "Weight", unit: "kg", note: "in kg" },
   { key: "bmi", label: "BMI", unit: "", note: "" },
-  { key: "bpSystolic", label: "BP systolic", unit: "mmHg", note: "in mmHg" },
-  { key: "bpDiastolic", label: "BP diastolic", unit: "mmHg", note: "in mmHg" },
 ];
 
 interface TrendPoint {
@@ -313,7 +311,7 @@ export function TherapyProgressView({ progress, isLoading, error = null }: Thera
 
 /**
  * Progress across visits: sessions done vs planned, every plan the patient
- * has had, and a per-visit trend of pain / weight / BMI / BP.
+ * has had, and a per-visit trend of pain / weight / BMI (no vitals).
  */
 export function TherapyProgressPanel({ clinicId, patientId }: TherapyProgressPanelProps) {
   const query = useTherapyProgress(clinicId, patientId);

@@ -59,6 +59,13 @@ interface RoleBasedBillingDashboardProps {
   analytics?: BillingAnalytics;
   ledger?: ClinicLedgerResponse;
   onRefetch?: () => void;
+  /**
+   * The caller loaded lists this role may read although the shared screen closes them to it
+   * (pharmacist: the API scopes the clinic lists to pharmacy invoices). Skips the closed notice.
+   */
+  listsOpen?: boolean;
+  /** Replaces the title block, for a role screen with its own wording. */
+  headerOverride?: { eyebrow: string; title: string; description: string };
 }
 
 const PATIENT_TABS = ["plans", "subscriptions", "payments", "invoices"] as const;
@@ -87,6 +94,8 @@ export function RoleBasedBillingDashboard({
   analytics,
   ledger,
   onRefetch,
+  listsOpen = false,
+  headerOverride,
 }: RoleBasedBillingDashboardProps) {
   const { session } = useAuth();
   const clinicId = useCurrentClinicId();
@@ -111,7 +120,7 @@ export function RoleBasedBillingDashboard({
   // Other roles are not offered a control the server would refuse.
   const canCreateInvoices = isAdmin;
   // Staff roles the billing lists are not open to (pharmacist, nurse …) get a note, not tables.
-  const closed = billingClosedNotice(userRole);
+  const closed = listsOpen ? null : billingClosedNotice(userRole);
   const canSendWhatsApp = [Role.SUPER_ADMIN, Role.CLINIC_ADMIN].includes(userRole);
 
   const [filters, setFilters] = useState<BillingFilterState>(EMPTY_BILLING_FILTERS);
@@ -213,7 +222,7 @@ export function RoleBasedBillingDashboard({
     aliases: tabAliases,
   });
 
-  const header = {
+  const header = headerOverride ?? {
     eyebrow: isPatient ? "BILLING" : isReceptionist ? "COLLECTIONS" : "BILLING DASHBOARD",
     title: isPatient ? "My Billing" : isReceptionist ? "Collections & Payments" : "Billing Dashboard",
     description: closed

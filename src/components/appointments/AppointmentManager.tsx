@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CreditCard, Plus, RefreshCw } from "lucide-react";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
@@ -8,33 +9,27 @@ import { PaymentButton } from "@/components/payments/PaymentButton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAddDoctorReview } from "@/hooks/query/useDoctors";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import {
   useAppointments,
   useCancelAppointment,
-  useDoctorAvailability,
   useMyAppointments,
   useRejectVideoProposal,
-  useRescheduleAppointment,
 } from "@/hooks/query/useAppointments";
 import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import { useLanguage } from "@/lib/i18n/context";
 import {
-  formatISODateInIST,
-  formatTimeInIST,
-  getAppointmentDateTimeValue,
   getAppointmentPaymentAmount,
   getVideoAppointmentJoinBlockedReason,
   isVideoAppointmentJoinable,
   normalizePatientAppointment,
 } from "@/lib/utils/appointmentUtils";
-import { extractAvailabilitySlots, groupSlotsByPeriod } from "@/lib/utils/availabilitySlots";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { Role } from "@/types/auth.types";
-import { buildSlotPeriods } from "./booking/slotDisplay";
 import { AppointmentManagerView } from "./manager/AppointmentManagerView";
-import { CancelVisitDialog, DeclineSlotsDialog, RateVisitDialog, RescheduleDialog } from "./manager/ManagerDialogs";
+import { CancelVisitDialog, DeclineSlotsDialog, RateVisitDialog } from "./manager/ManagerDialogs";
 import {
   dedupeAppointments,
   extractAppointmentList,
@@ -76,14 +71,12 @@ interface AppointmentManagerProps {
   initialTab?: ManagerTab | undefined;
 }
 
-/** HH:mm for the reschedule time field, from the visit's own time. */
-function rescheduleTimeValue(appointment: Row): string {
-  const raw = typeof appointment.time === "string" ? appointment.time.trim() : "";
-  if (/^\d{2}:\d{2}/.test(raw)) return raw.slice(0, 5);
-  const dateTime = getAppointmentDateTimeValue(appointment);
-  if (!dateTime) return raw;
-  // Some engines write midnight as "24:xx" in 24-hour time; a time field needs "00:xx".
-  return formatTimeInIST(dateTime, { hour: "2-digit", minute: "2-digit", hour12: false }).replace(/^24:/, "00:");
+/** The one full-page reschedule screen (ReschedulePanel) of the viewer's portal. */
+function rescheduleHref(role: string | undefined, visitId: string): string {
+  const id = encodeURIComponent(visitId);
+  return String(role || "").toUpperCase() === Role.RECEPTIONIST
+    ? `/receptionist/appointments/${id}/reschedule`
+    : `/patient/appointments/${id}/reschedule`;
 }
 
 /**
@@ -106,15 +99,11 @@ export default function AppointmentManager({
   initialTab,
 }: AppointmentManagerProps = {}) {
   const { session } = useAuth();
+  const currentClinicId = useCurrentClinicId();
+  const router = useRouter();
   const user = session?.user;
   const hasShownRealtimeToastRef = useRef(false);
   const currentTimestamp = useCurrentTimestamp();
-  const rescheduleMinDate = useMemo(() => {
-    if (!currentTimestamp) return null;
-    const today = new Date(currentTimestamp);
-    today.setHours(0, 0, 0, 0);
-    return today;
-  }, [currentTimestamp]);
   const checkInRoute = useMemo(() => {
     const userRole = String(user?.role || "").toUpperCase().replace(/\s+/g, "_");
     if (userRole === Role.RECEPTIONIST) {
@@ -149,7 +138,7 @@ export default function AppointmentManager({
   } | null>(null);
   const [dateFilter, setDateFilter] = useState<ManagerDateRange>({ start: "", end: "" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [openDialog, setOpenDialog] = useState<"reschedule" | "cancel" | "decline" | "rate" | null>(null);
+  const [openDialog, setOpenDialog] = useState<"cancel" | "decline" | "rate" | null>(null);
   const [rateData, setRateData] = useState<{ rating: number; comment: string; error: string | null }>({
     rating: 0,
     comment: "",
@@ -157,7 +146,6 @@ export default function AppointmentManager({
   });
   // Visits rated in this session (the list does not say which visits already have a review).
   const [ratedIds, setRatedIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: "", time: "" });
   const [rejectReason, setRejectReason] = useState("");
 
   // ─── Data fetching ───────────────────────────────────────────────────────
@@ -215,7 +203,6 @@ export default function AppointmentManager({
   const activeQuery = isAdminView || !isPatient ? adminAppointments : myPersonalAppointments;
 
   const { mutate: cancelAppointment, isPending: cancellingAppointment } = useCancelAppointment();
-  const { mutate: rescheduleAppointment, isPending: reschedulingAppointment } = useRescheduleAppointment();
   const { mutate: rejectVideoProposal, isPending: rejectingProposal } = useRejectVideoProposal();
 
   const usesExternalData = externalAppointmentsData !== undefined;
@@ -261,33 +248,6 @@ export default function AppointmentManager({
     [selectedId, visits]
   );
 
-  // The open times of the chosen day, for the visit's own doctor, location and type (video or in-person).
-  const rescheduleAppointmentRow = selectedId ? appointmentsById.get(selectedId) : undefined;
-  const rescheduleDoctorId = String(rescheduleAppointmentRow?.doctorId ?? "");
-  const rescheduleClinicId = String(rescheduleAppointmentRow?.clinicId ?? propClinicId ?? (user as { clinicId?: string } | undefined)?.clinicId ?? "");
-  const rescheduleLocationId = String(rescheduleAppointmentRow?.locationId ?? "");
-  const rescheduleIsVideo = selectedVisit?.kind === "video";
-  const canLoadRescheduleSlots = Boolean(rescheduleDoctorId && rescheduleClinicId);
-  const {
-    data: rescheduleAvailability,
-    isPending: rescheduleSlotsPending,
-    error: rescheduleSlotsError,
-  } = useDoctorAvailability(
-    rescheduleClinicId,
-    rescheduleDoctorId,
-    rescheduleData.date,
-    rescheduleIsVideo ? undefined : rescheduleLocationId || undefined,
-    rescheduleIsVideo ? "VIDEO_CALL" : "IN_PERSON",
-    { enabled: openDialog === "reschedule" && canLoadRescheduleSlots && Boolean(rescheduleData.date) },
-  );
-  const reschedulePeriods = useMemo(
-    () =>
-      canLoadRescheduleSlots
-        ? buildSlotPeriods(groupSlotsByPeriod(extractAvailabilitySlots(rescheduleAvailability)), [], 0)
-        : undefined,
-    [canLoadRescheduleSlots, rescheduleAvailability]
-  );
-
   const { isRefreshing: isRefreshingAppointments, refresh: handleRefreshAppointments } = useAppointmentsRefresh({
     isConnected,
     onRefreshAppointments,
@@ -305,10 +265,12 @@ export default function AppointmentManager({
       onSuccess: () => {
         showSuccessToast("Appointment cancelled", { id: TOAST_IDS.APPOINTMENT.DELETE, description: "Your appointment has been cancelled." });
         setOpenDialog(null);
+        // The page may own the list query: refresh it so the visit leaves Upcoming right away.
+        void (onRefreshAppointments ? onRefreshAppointments() : refetch());
       },
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to cancel", { id: TOAST_IDS.APPOINTMENT.DELETE }),
     });
-  }, [cancelAppointment, selectedId]);
+  }, [cancelAppointment, selectedId, onRefreshAppointments, refetch]);
 
   // Opens the main booking dialog (not the reschedule dialog) with the closed visit's
   // doctor and mode already chosen.
@@ -323,30 +285,11 @@ export default function AppointmentManager({
     setIsBookDialogOpen(true);
   }, [appointmentsById]);
 
-  const handleOpenReschedule = useCallback((visitId: string) => {
-    const appointment = appointmentsById.get(visitId);
-    if (!appointment) return;
-    const dateTime = getAppointmentDateTimeValue(appointment);
-    const rawDate = typeof appointment.date === "string" ? appointment.date : "";
-    setSelectedId(visitId);
-    setRescheduleData({
-      date: dateTime ? formatISODateInIST(dateTime) : rawDate ? formatISODateInIST(rawDate) : "",
-      // With a doctor to look up, the new time is picked from the open slots; otherwise it is typed.
-      time: appointment.doctorId ? "" : rescheduleTimeValue(appointment),
-    });
-    setOpenDialog("reschedule");
-  }, [appointmentsById]);
-
-  const handleRescheduleSubmit = () => {
-    if (!selectedId) return;
-    rescheduleAppointment({ id: selectedId, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
-      onSuccess: () => {
-        showSuccessToast("Appointment rescheduled", { id: TOAST_IDS.APPOINTMENT.UPDATE, description: "Your appointment has been rescheduled." });
-        setOpenDialog(null);
-      },
-      onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to reschedule", { id: TOAST_IDS.APPOINTMENT.UPDATE }),
-    });
-  };
+  // Rescheduling is one full page (ReschedulePanel) for every portal, not a dialog.
+  const handleOpenReschedule = useCallback(
+    (visitId: string) => router.push(rescheduleHref(user?.role, visitId)),
+    [router, user?.role]
+  );
 
   const { mutate: addReview, isPending: ratingVisit } = useAddDoctorReview();
 
@@ -456,8 +399,12 @@ export default function AppointmentManager({
         setRejectReason("");
         setOpenDialog("decline");
       },
-      // Refresh once the deadline hits, so the list shows the now-cancelled visit.
-      onPaymentWindowExpired: () => void handleRefreshAppointments(),
+      // Once the deadline hits: tick the clock so the card turns Expired (and loses Pay now) right
+      // away instead of on the next 30 s tick, then refresh to pick up the backend's EXPIRED row.
+      onPaymentWindowExpired: () => {
+        setNow(Date.now());
+        void handleRefreshAppointments();
+      },
     }),
     [handleJoinVideo, handleOpenReschedule, handleBookAgain, handleRefreshAppointments]
   );
@@ -466,9 +413,13 @@ export default function AppointmentManager({
   const renderPay: ManagerPayRenderer = (visit, intent) => {
     const appointment = appointmentsById.get(visit.id);
     if (!appointment) return null;
+    // The payment is verified against the visit's own clinic; fall back to the page / signed-in clinic.
+    const paymentClinicId =
+      (appointment as { clinicId?: string | null }).clinicId || propClinicId || currentClinicId || undefined;
     return (
       <PaymentButton
         appointmentId={visit.id}
+        {...(paymentClinicId ? { clinicId: paymentClinicId } : {})}
         amount={getAppointmentPaymentAmount(appointment)}
         appointmentType="VIDEO_CALL"
         description={`Video consultation with ${visit.doctorName || "doctor"}`}
@@ -516,7 +467,7 @@ export default function AppointmentManager({
         renderPay={renderPay}
         checkInHref={checkInRoute}
         cancelling={cancellingAppointment}
-        rescheduling={reschedulingAppointment}
+        rescheduling={false}
         heading={
           hideBookButton
             ? undefined
@@ -539,22 +490,6 @@ export default function AppointmentManager({
         }
         bookAction={bookAction}
         initialTab={initialTab}
-      />
-
-      <RescheduleDialog
-        open={openDialog === "reschedule"}
-        onOpenChange={(open) => (open ? setOpenDialog("reschedule") : closeDialog())}
-        visit={selectedVisit}
-        date={rescheduleData.date}
-        time={rescheduleData.time}
-        onDateChange={(date) => setRescheduleData({ date, time: "" })}
-        onTimeChange={(time) => setRescheduleData((previous) => ({ ...previous, time }))}
-        minDate={rescheduleMinDate}
-        slotPeriods={reschedulePeriods}
-        slotsLoading={rescheduleSlotsPending && Boolean(rescheduleData.date)}
-        slotsError={rescheduleSlotsError instanceof Error ? sanitizeErrorMessage(rescheduleSlotsError) : null}
-        submitting={reschedulingAppointment}
-        onSubmit={handleRescheduleSubmit}
       />
 
       <RateVisitDialog

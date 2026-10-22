@@ -19,6 +19,7 @@ import {
   unwrapRecords,
 } from "@/lib/utils/coerce";
 import { formatBytes, plural, prescriptionReference, sentenceCase } from "@/lib/utils/labels";
+import { resolvePrescriptionDeskStage, type PrescriptionDeskStage } from "@/lib/utils/prescription-desk-stage";
 
 export type Raw = Record<string, unknown>;
 
@@ -252,6 +253,8 @@ export interface PatientPrescription {
   date: string | null;
   dateLabel: string;
   doctorName: string;
+  /** Who the prescription is for (used to name the downloaded PDF); "" when the payload has no name. */
+  patientName: string;
   diagnosis: string;
   notes: string;
   locationName: string;
@@ -267,6 +270,11 @@ export interface PatientPrescription {
   atDesk: boolean;
   invoiceId: string | null;
   pdfUrl: string | null;
+  /** Paid and dispensed: the patient can show a code to collect the medicines. */
+  readyForHandover: boolean;
+  /** Latest counter hand-over, when the API sends it: PENDING_VERIFICATION | HANDED_OVER | UNDONE. */
+  handoverStatus: string | null;
+  handedOverAt: string | null;
 }
 
 function toLine(item: Raw, index: number): PrescriptionLine {
@@ -297,16 +305,58 @@ function toLine(item: Raw, index: number): PrescriptionLine {
   };
 }
 
-function pharmacyState(raw: Raw, lines: PrescriptionLine[], pendingAmount: number): PharmacyState {
-  const status = normalizeStatus(firstMeaningfulText(raw.status));
-  if (status === "CANCELLED") return "cancelled";
-  if (["DISPENSED", "FILLED", "COMPLETED"].includes(status)) return "dispensed";
-  if (status === "PARTIAL" || status === "PARTIALLY_DISPENSED") return "partially_dispensed";
-  if (lines.length > 1 && lines.some((line) => line.dispensed) && lines.some((line) => !line.dispensed)) {
-    return "partially_dispensed";
-  }
-  if (pendingAmount > 0 || raw.waitingForPayment === true) return "awaiting_payment";
-  return "ready_to_dispense";
+const DESK_STAGE_TO_STATE: Record<PrescriptionDeskStage, PharmacyState> = {
+  CANCELLED: "cancelled",
+  DISPENSED: "dispensed",
+  PARTIAL: "partially_dispensed",
+  READY_TO_DISPENSE: "ready_to_dispense",
+  PAYMENT_PENDING: "awaiting_payment",
+};
+
+/** The shared desk-stage mapper (same as the doctor's list), folded into the patient's states. */
+function pharmacyState(raw: Raw, lines: PrescriptionLine[]): PharmacyState {
+  const partiallyDispensed =
+    lines.length > 1 && lines.some((line) => line.dispensed) && lines.some((line) => !line.dispensed);
+  const stage = resolvePrescriptionDeskStage(raw, { partiallyDispensed });
+  return stage ? DESK_STAGE_TO_STATE[stage] : "ready_to_dispense";
+}
+
+/**
+ * Hand-over fields. `readyForHandover` (medicine desk) or paid + dispensed, which is the same
+ * check the API makes before it issues a code. `handover` is optional on older payloads.
+ */
+function handoverOf(
+  raw: Raw,
+  state: PharmacyState,
+  pendingAmount: number,
+  lineCount: number,
+): Pick<PatientPrescription, "readyForHandover" | "handoverStatus" | "handedOverAt"> {
+  const handover = asRecordOrEmpty(raw.handover);
+  const handoverStatus = normalizeStatus(firstMeaningfulText(handover.status, raw.handoverStatus)) || null;
+  const paid = pendingAmount <= 0 && (normalizeStatus(firstMeaningfulText(raw.paymentStatus)) === "PAID" || numberOrZero(raw.totalAmount) <= 0);
+  const dispensed = state === "dispensed" || state === "partially_dispensed";
+  const queueReady = raw.readyForHandover === true || asRecordOrEmpty(raw.activeQueueEntry).readyForHandover === true;
+  return {
+    // An advice-only prescription (no medicine lines) has nothing to collect at the desk.
+    readyForHandover: lineCount > 0 && state !== "cancelled" && (queueReady || (paid && dispensed)),
+    handoverStatus,
+    handedOverAt: firstIsoDate(handover.handedOverAt, raw.handedOverAt),
+  };
+}
+
+/** A note-only prescription (diagnosis / advice, no medicine): nothing to buy or collect. */
+export function isAdviceOnly(prescription: Pick<PatientPrescription, "lines" | "state">): boolean {
+  return prescription.lines.length === 0 && prescription.state === "dispensed";
+}
+
+/** The medicines were handed over at the counter. */
+export function isCollected(prescription: Pick<PatientPrescription, "handoverStatus">): boolean {
+  return prescription.handoverStatus === "HANDED_OVER";
+}
+
+/** The patient can ask for a collection code now. */
+export function canCollect(prescription: Pick<PatientPrescription, "readyForHandover" | "handoverStatus">): boolean {
+  return prescription.readyForHandover && !isCollected(prescription);
 }
 
 /** The patient's prescriptions from `GET pharmacy/prescriptions/patient/:userId`, newest first. */
@@ -325,7 +375,7 @@ export function buildPrescriptions(data: unknown): PatientPrescription[] {
     );
     const pendingAmount = numberOrZero(raw.pendingAmount);
     const queue = normalizeQueueEntry(raw);
-    const state = pharmacyState(raw, lines, pendingAmount);
+    const state = pharmacyState(raw, lines);
     const open = state !== "dispensed" && state !== "cancelled";
     const date = firstIsoDate(raw.prescribedAt, raw.date, raw.createdAt, raw.updatedAt);
     list.push({
@@ -334,6 +384,11 @@ export function buildPrescriptions(data: unknown): PatientPrescription[] {
       date,
       dateLabel: formatDateLabel(date),
       doctorName: doctorName && !/^unknown/i.test(doctorName) ? formatDoctorDisplayName(doctorName) : "",
+      patientName: firstMeaningfulText(
+        raw.patientName,
+        asRecordOrEmpty(asRecordOrEmpty(raw.patient).user).name,
+        asRecordOrEmpty(raw.patient).name,
+      ),
       diagnosis: firstMeaningfulText(raw.diagnosis),
       notes: firstMeaningfulText(raw.notes),
       locationName: firstMeaningfulText(raw.locationName, asRecordOrEmpty(raw.location).name),
@@ -349,6 +404,7 @@ export function buildPrescriptions(data: unknown): PatientPrescription[] {
       invoiceId: firstMeaningfulText(raw.invoiceId) || null,
       // Linked through the web route that forwards the request with the sign-in cookie.
       pdfUrl: firstMeaningfulText(raw.pdfUrl) ? `/api/pharmacy/prescriptions/${encodeURIComponent(id)}/pdf` : null,
+      ...handoverOf(raw, state, pendingAmount, lines.length),
     });
     return list;
   }, []);
@@ -356,8 +412,9 @@ export function buildPrescriptions(data: unknown): PatientPrescription[] {
 }
 
 /** A patient pays only what is still due on a prescription that was not cancelled. */
+/** Something is left to pay AND the desk is waiting for that payment (a ready / dispensed one is not). */
 export function canPay(prescription: Pick<PatientPrescription, "pendingAmount" | "state">): boolean {
-  return prescription.pendingAmount > 0 && prescription.state !== "cancelled";
+  return prescription.pendingAmount > 0 && prescription.state === "awaiting_payment";
 }
 
 export function medicinesLabel(count: number): string {
@@ -507,6 +564,14 @@ export interface ReportRow {
   iconTone: IconTone;
   /** The stored file, when the report has one. */
   fileUrl: string | null;
+  /** Friendly name to save the file under (never the storage key), when known. */
+  downloadFileName?: string | null;
+  /** Authenticated API path that streams the file (preferred over `fileUrl` for downloads). */
+  contentUrl?: string | null;
+  /** Backend id of a file on the patient's own record (`/patients/:id/documents`). */
+  uploadId?: string | null;
+  /** The patient uploaded this file themselves and may delete it. */
+  canDelete?: boolean;
   /** Prescriptions open in Medicines instead of a details dialog. */
   href: string | null;
   details: ReportDetail[];
@@ -628,6 +693,9 @@ function imagingRow(raw: Raw, index: number, now: number): ReportRow {
 }
 
 const UPLOAD_KIND: Record<string, ReportKind> = {
+  // Canonical backend categories (it maps LAB_TEST -> LAB_REPORT, XRAY -> IMAGING, ...).
+  LAB_REPORT: "lab",
+  DIAGNOSIS_REPORT: "lab",
   LAB_TEST: "lab",
   LAB: "lab",
   XRAY: "imaging",
@@ -638,6 +706,10 @@ const UPLOAD_KIND: Record<string, ReportKind> = {
 };
 
 export const UPLOAD_CATEGORY_LABEL: Record<string, string> = {
+  LAB_REPORT: "Lab report",
+  IMAGING: "X-ray or scan",
+  INSURANCE: "Insurance",
+  ID_PROOF: "ID proof",
   LAB_TEST: "Lab report",
   XRAY: "X-ray or scan",
   MRI: "MRI",
@@ -649,7 +721,8 @@ export const UPLOAD_CATEGORY_LABEL: Record<string, string> = {
 
 /** A file from `GET patients/:id/documents` (or the `documents` list of the health record). */
 function uploadRow(raw: Raw, index: number, userId: string, now: number): ReportRow {
-  const date = firstIsoDate(raw.uploadedAt, raw.date, raw.createdAt);
+  // The report's own date (typed by the patient) wins over the upload time.
+  const date = firstIsoDate(raw.reportDate, raw.uploadedAt, raw.date, raw.createdAt);
   const category = normalizeStatus(firstMeaningfulText(raw.category)) || "OTHER";
   const kind = UPLOAD_KIND[category] ?? "other";
   const size = numberOrZero(raw.fileSize);
@@ -659,17 +732,23 @@ function uploadRow(raw: Raw, index: number, userId: string, now: number): Report
     { label: "Notes", value: firstMeaningfulText(raw.description, raw.notes) },
   ].filter((entry) => entry.value);
   const uploader = firstMeaningfulText(raw.uploadedBy);
+  const uploadedByMe = Boolean(uploader) && uploader === userId;
+  const backendId = firstMeaningfulText(raw.id);
   return {
-    id: `upload-${firstMeaningfulText(raw.id) || index}`,
+    id: `upload-${backendId || index}`,
     kind,
-    title: firstMeaningfulText(raw.fileName, raw.title) || "Document",
-    source: uploader && uploader === userId ? "Uploaded by you" : "Added by your clinic",
+    title: firstMeaningfulText(raw.title, raw.fileName) || "Document",
+    source: uploadedByMe ? "Uploaded by you" : "Added by your clinic",
     date,
     dateLabel: formatDateLabel(date),
     status: fallbackStatus(date, now) ?? { label: "Uploaded", tone: "slate" },
     needsAttention: false,
     iconTone: kind === "imaging" ? "blue" : kind === "rx" ? "video" : kind === "lab" ? "rose" : "mint",
-    fileUrl: firstMeaningfulText(raw.url, raw.fileUrl) || null,
+    fileUrl: firstMeaningfulText(raw.contentUrl, raw.url, raw.fileUrl) || null,
+    contentUrl: firstMeaningfulText(raw.contentUrl) || null,
+    downloadFileName: firstMeaningfulText(raw.downloadFileName) || null,
+    uploadId: backendId || null,
+    canDelete: uploadedByMe && Boolean(backendId),
     href: null,
     details,
   };

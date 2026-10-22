@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { runSave } from "@/components/patient/case-sheet/run-save";
 import { useRecordInvoicePayment } from "@/hooks/query/usePatientBilling";
 import type { CollectionMethod } from "@/types/billing.types";
 
@@ -57,6 +56,8 @@ export function RecordInvoicePaymentDialog({
   const [amount, setAmount] = useState(String(balance || ""));
   const [transactionId, setTransactionId] = useState("");
   const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const submitting = useRef(false);
   const recordPayment = useRecordInvoicePayment();
 
   useEffect(() => {
@@ -65,15 +66,21 @@ export function RecordInvoicePaymentDialog({
       setAmount(balance > 0 ? String(balance) : "");
       setTransactionId("");
       setNote("");
+      setError(null);
     }
   }, [open, balance]);
 
   const parsedAmount = Number(amount);
-  const canSubmit = Number.isFinite(parsedAmount) && parsedAmount > 0 && !recordPayment.isPending;
+  const overBalance = balance > 0 && Number.isFinite(parsedAmount) && parsedAmount > balance;
+  const canSubmit = Number.isFinite(parsedAmount) && parsedAmount > 0 && !overBalance && !recordPayment.isPending;
 
   const submit = async () => {
-    const ok = await runSave(() =>
-      recordPayment.mutateAsync({
+    // Single flight: a double click must not post the payment twice.
+    if (submitting.current || !canSubmit) return;
+    submitting.current = true;
+    setError(null);
+    try {
+      await recordPayment.mutateAsync({
         clinicId,
         invoiceId,
         input: {
@@ -82,11 +89,14 @@ export function RecordInvoicePaymentDialog({
           ...(transactionId.trim() ? { transactionId: transactionId.trim() } : {}),
           ...(note.trim() ? { note: note.trim() } : {}),
         },
-      }),
-    );
-    if (ok) {
+      });
       onOpenChange(false);
       onRecorded?.();
+    } catch (caught) {
+      // The toast also reports it; the dialog keeps the backend wording in view while it is open.
+      setError(caught instanceof Error && caught.message ? caught.message : "The payment could not be recorded.");
+    } finally {
+      submitting.current = false;
     }
   };
 
@@ -126,8 +136,18 @@ export function RecordInvoicePaymentDialog({
               min={0}
               step="0.01"
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              aria-invalid={overBalance || undefined}
+              aria-describedby={overBalance ? "collect-amount-error" : undefined}
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setError(null);
+              }}
             />
+            {overBalance ? (
+              <p id="collect-amount-error" className="text-sm text-destructive">
+                Amount exceeds the remaining balance of ₹{balance.toLocaleString("en-IN")}.
+              </p>
+            ) : null}
           </div>
 
           {method !== "CASH" ? (
@@ -152,6 +172,12 @@ export function RecordInvoicePaymentDialog({
             />
           </div>
         </div>
+
+        {error ? (
+          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={recordPayment.isPending}>

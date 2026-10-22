@@ -135,12 +135,15 @@ export function SearchBox({
   placeholder,
   ariaLabel,
   className,
+  endAdornment,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   ariaLabel?: string;
   className?: string;
+  /** Controls drawn inside the box on the right (e.g. a voice mic + language toggle). */
+  endAdornment?: ReactNode;
 }) {
   return (
     <label
@@ -158,6 +161,7 @@ export function SearchBox({
         aria-label={ariaLabel ?? placeholder}
         className="min-w-0 flex-1 bg-transparent outline-hidden ring-0 ring-offset-0 placeholder:text-ink-muted focus-visible:ring-0 focus-visible:ring-offset-0"
       />
+      {endAdornment ? <span className="flex shrink-0 items-center gap-1.5">{endAdornment}</span> : null}
     </label>
   );
 }

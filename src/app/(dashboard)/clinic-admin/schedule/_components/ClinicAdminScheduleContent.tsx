@@ -11,9 +11,11 @@ import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { ClinicAdminShortcuts, SETTINGS_SHORTCUTS } from "@/components/clinic-admin/ClinicAdminShortcuts";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { formatDateInIST, formatDateKeyInIST } from "@/lib/utils/date-time";
+import { plural } from "@/lib/utils/labels";
 
 type DoctorScheduleDay = {
   day: string;
@@ -442,7 +444,7 @@ export function ClinicAdminScheduleContent({
     () => (
       <>
         <Badge variant="secondary" className="rounded-full">{selectedDoctorStatus}</Badge>
-        <Badge variant="outline" className="rounded-full">{localSchedules.length} doctors</Badge>
+        <Badge variant="outline" className="rounded-full">{plural(localSchedules.length, "doctor")}</Badge>
         <Badge variant="outline" className="rounded-full">{holidayList.length} holidays</Badge>
       </>
     ),
@@ -475,6 +477,9 @@ export function ClinicAdminScheduleContent({
           </div>
         }
       />
+
+      {/* B2: holidays, closures and leave approval live in their own editor */}
+      <ClinicAdminShortcuts items={SETTINGS_SHORTCUTS.filter((item) => item.href !== "/clinic-admin/print-settings")} />
 
       {!scheduleWritesSupported ? (
         <Card className="gap-4 py-4 border-amber-200 bg-amber-50/70 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/20">

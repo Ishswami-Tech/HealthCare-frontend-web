@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Download, Eye, FileText } from "lucide-react";
+import { ChevronRight, Download, Eye, FileText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,20 +13,89 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { IconBox, Pill, Pager, usePagedRows } from "@/components/tbd";
+import { fetchPatientFileBlob } from "@/hooks/query/usePatientUploads";
+import { showErrorToast } from "@/hooks/utils/use-toast";
 import { REPORT_KIND_LABEL, type ReportRow } from "./patient-health.logic";
 
 const COLUMNS = "minmax(0, 2.2fr) minmax(0, 1.3fr) 112px 150px 124px";
 const HEAD = ["Report", "Source", "Date", "Status"];
 
-function RowAction({ row, onView }: { row: ReportRow; onView: (row: ReportRow) => void }) {
+/** Saves bytes under a friendly name through a temporary blob: URL. */
+function saveBlob(blob: Blob, fileName: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+}
+
+/**
+ * Saves a stored file under its friendly name. Files on the patient's record stream through the
+ * authenticated `/content` API path (local disk and S3 alike: a stored `/storage/...` URL is
+ * served by nothing). Other files (e.g. prescription PDFs) are fetched as a blob; when that is not possible
+ * (CORS, network) they open in a new tab instead.
+ */
+async function saveReportFile(row: ReportRow & { fileUrl: string }): Promise<void> {
+  const fileName = row.downloadFileName || row.title || "document";
+  if (row.contentUrl) {
+    try {
+      saveBlob(await fetchPatientFileBlob(row.contentUrl), fileName);
+    } catch (error) {
+      showErrorToast(error, { id: "report-download" });
+    }
+    return;
+  }
+  if (row.downloadFileName) {
+    try {
+      const response = await fetch(row.fileUrl);
+      if (response.ok) {
+        saveBlob(await response.blob(), row.downloadFileName);
+        return;
+      }
+    } catch {
+      // Fall through to opening the file.
+    }
+  }
+  window.open(row.fileUrl, "_blank", "noopener,noreferrer");
+}
+
+function DownloadButton({ row, size }: { row: ReportRow & { fileUrl: string }; size?: "md" }) {
+  return (
+    <Button
+      variant={size ? "default" : "outline"}
+      {...(size ? { size } : {})}
+      onClick={() => void saveReportFile(row)}
+      aria-label={`Download ${row.title}`}
+    >
+      <Download aria-hidden="true" />
+      Download
+    </Button>
+  );
+}
+
+function RowAction({
+  row,
+  onView,
+  onDelete,
+}: {
+  row: ReportRow;
+  onView: (row: ReportRow) => void;
+  onDelete?: ((row: ReportRow) => void) | undefined;
+}) {
   if (row.fileUrl) {
+    const fileRow = row as ReportRow & { fileUrl: string };
     return (
-      <Button variant="outline" asChild>
-        <a href={row.fileUrl} target="_blank" rel="noopener noreferrer" download aria-label={`Download ${row.title}`}>
-          <Download aria-hidden="true" />
-          Download
-        </a>
-      </Button>
+      <span className="flex items-center gap-2">
+        <DownloadButton row={fileRow} />
+        {onDelete && row.canDelete ? (
+          <Button variant="outline" onClick={() => onDelete(row)} aria-label={`Delete ${row.title}`}>
+            <Trash2 aria-hidden="true" />
+          </Button>
+        ) : null}
+      </span>
     );
   }
   if (row.href) {
@@ -52,7 +121,16 @@ function RowAction({ row, onView }: { row: ReportRow; onView: (row: ReportRow) =
  * report with its source, date, status and one action. A report with a stored file downloads
  * it; one without opens its details; a prescription opens in Medicines.
  */
-export function ReportsTable({ rows, pageSize = 10 }: { rows: ReportRow[]; pageSize?: number }) {
+export function ReportsTable({
+  rows,
+  pageSize = 10,
+  onDelete,
+}: {
+  rows: ReportRow[];
+  pageSize?: number;
+  /** Shows "Delete" on files the patient uploaded; the caller confirms and deletes. */
+  onDelete?: (row: ReportRow) => void;
+}) {
   const [selected, setSelected] = useState<ReportRow | null>(null);
 
   const paging = usePagedRows(rows, pageSize);
@@ -106,7 +184,7 @@ export function ReportsTable({ rows, pageSize = 10 }: { rows: ReportRow[]; pageS
               {row.status ? <Pill tone={row.status.tone}>{row.status.label}</Pill> : <span className="sr-only">No status</span>}
             </span>
             <span role="cell" className="ml-auto flex justify-end lg:ml-0">
-              <RowAction row={row} onView={setSelected} />
+              <RowAction row={row} onView={setSelected} onDelete={onDelete} />
             </span>
           </div>
         ))}
@@ -151,12 +229,7 @@ export function ReportsTable({ rows, pageSize = 10 }: { rows: ReportRow[]; pageS
                   Close
                 </Button>
                 {selected.fileUrl ? (
-                  <Button size="md" asChild>
-                    <a href={selected.fileUrl} target="_blank" rel="noopener noreferrer" download>
-                      <Download aria-hidden="true" />
-                      Download
-                    </a>
-                  </Button>
+                  <DownloadButton row={selected as ReportRow & { fileUrl: string }} size="md" />
                 ) : null}
               </DialogFooter>
             </>

@@ -3,6 +3,9 @@
 import { useRef, useState } from "react";
 import { FileText, FlaskConical, Loader2, Pill as PillIcon, ScanLine, Upload, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Field } from "@/components/tbd";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +24,21 @@ const TYPE_ICON: Record<UploadType, LucideIcon> = {
   PRESCRIPTION: PillIcon,
   DIAGNOSIS_REPORT: FileText,
 };
+
+/** Optional details the full upload page asks for (board WebUploadReport). */
+export interface ReportUploadDetails {
+  name: string;
+  /** yyyy-mm-dd */
+  date: string;
+  note: string;
+}
+
+/** One line for the upload's description: "Lipid Profile · 2026-10-14 · fasting 12 h". */
+export function describeUpload(details: ReportUploadDetails | undefined): string | undefined {
+  if (!details) return undefined;
+  const line = [details.name.trim(), details.date, details.note.trim()].filter(Boolean).join(" · ");
+  return line || undefined;
+}
 
 export interface ReportUploadDialogProps {
   open: boolean;
@@ -48,24 +66,34 @@ export function ReportUploadDialog({ open, onOpenChange, onUpload, isUploading =
           </DialogDescription>
         </DialogHeader>
         {/* The form lives inside the content, so every opening starts clean. */}
-        <UploadForm onUpload={onUpload} isUploading={isUploading} onCancel={() => onOpenChange(false)} />
+        <ReportUploadForm onUpload={onUpload} isUploading={isUploading} onCancel={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   );
 }
 
-function UploadForm({
+/**
+ * The upload form: what the file is, the file, and (on the full page, `withDetails`) its name, date
+ * and a note. The dialog and the WebUploadReport page both use it, so the checks live in one place.
+ */
+export function ReportUploadForm({
   onUpload,
   isUploading,
   onCancel,
+  withDetails = false,
+  cancelLabel = "Cancel",
 }: {
-  onUpload: (type: UploadType, file: File) => void;
+  onUpload: (type: UploadType, file: File, details?: ReportUploadDetails) => void;
   isUploading: boolean;
   onCancel: () => void;
+  withDetails?: boolean;
+  cancelLabel?: string;
 }) {
   const [type, setType] = useState<UploadType>("LAB_TEST");
   const [file, setFile] = useState<File | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [details, setDetails] = useState<ReportUploadDetails>({ name: "", date: "", note: "" });
+  const Footer = withDetails ? PageFooter : DialogFooter;
   const inputRef = useRef<HTMLInputElement>(null);
   const option = UPLOAD_OPTIONS.find((entry) => entry.type === type);
 
@@ -141,23 +169,63 @@ function UploadForm({
             {problem}
           </p>
         ) : null}
+
+        {withDetails ? (
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <Field label="Report name (optional)" htmlFor="report-name">
+              <Input
+                id="report-name"
+                value={details.name}
+                maxLength={80}
+                disabled={isUploading}
+                placeholder="For example: Lipid profile"
+                onChange={(event) => setDetails((current) => ({ ...current, name: event.target.value }))}
+              />
+            </Field>
+            <Field label="Report date (optional)" htmlFor="report-date">
+              <Input
+                id="report-date"
+                type="date"
+                value={details.date}
+                max={new Date().toISOString().slice(0, 10)}
+                disabled={isUploading}
+                onChange={(event) => setDetails((current) => ({ ...current, date: event.target.value }))}
+              />
+            </Field>
+            <Field label="Note for the doctor (optional)" htmlFor="report-note" className="sm:col-span-2">
+              <Textarea
+                id="report-note"
+                value={details.note}
+                maxLength={300}
+                disabled={isUploading}
+                placeholder="For example: test done after 12 hours of fasting"
+                onChange={(event) => setDetails((current) => ({ ...current, note: event.target.value }))}
+              />
+            </Field>
+          </div>
+        ) : null}
       </div>
 
-      <DialogFooter>
+      <Footer>
         <Button variant="outline" size="md" disabled={isUploading} onClick={onCancel}>
-          Cancel
+          {cancelLabel}
         </Button>
         <Button
           size="md"
           disabled={!file || !!problem || isUploading}
           onClick={() => {
-            if (file && !problem) onUpload(type, file);
+            if (file && !problem) onUpload(type, file, withDetails ? details : undefined);
           }}
         >
           {isUploading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}
           {isUploading ? "Uploading…" : "Upload"}
         </Button>
-      </DialogFooter>
+      </Footer>
     </>
   );
+}
+
+/** Button row of the form on a page (the dialog uses `DialogFooter`). */
+function PageFooter({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-wrap justify-end gap-2.5 border-t border-hair pt-4">{children}</div>;
 }

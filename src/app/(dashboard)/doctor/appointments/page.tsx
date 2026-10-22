@@ -20,6 +20,7 @@ const DoctorAppointmentsContent = dynamic(
 import {
   getAppointmentViewState,
   getAppointmentPatientName,
+  getAppointmentPatientRemarks,
   getAppointmentDateTimeValue,
   formatDateInIST,
   formatTimeInIST,
@@ -192,16 +193,13 @@ export interface TransformedAppointment {
   createdAt?: string;
   patientPhone: string;
   patientEmail: string;
+  /** The patient's booking remark (reason / complaint); "" when none. */
   chiefComplaint: string;
+  /** Urgency the patient picked when booking; null for a normal visit. */
+  urgency: string | null;
   medicalHistory: string[] | string;
   allergies: string[] | string;
   currentMedications: string[] | string;
-  vitalSigns: {
-    bp?: string;
-    pulse?: string;
-    temperature?: string;
-    weight?: string;
-  } | null;
   checkedInAt: string | null;
   queuePosition: number | null;
   diagnosis?: string;
@@ -464,11 +462,29 @@ export default function DoctorAppointments() {
     return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
   }, []);
 
+  // The chosen day range goes to the server (no whole-history download filtered in the browser);
+  // "All" keeps the bounded window of the last 90 days to a year ahead.
+  const serverRange = useMemo(() => {
+    const todayKey = formatDateInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+    if (dateFilter === "TODAY") return { startDate: todayKey, endDate: todayKey };
+    if (dateFilter === "TOMORROW") {
+      const tomorrow = shiftIstDateKey(todayKey, 1);
+      return { startDate: tomorrow, endDate: tomorrow };
+    }
+    if (dateFilter === "THIS_WEEK") {
+      const { start, end } = getIstWeekRange(todayKey);
+      return { startDate: start, endDate: end };
+    }
+    if (dateFilter === "CUSTOM" && (dateFrom || dateTo)) {
+      return { startDate: dateFrom || historyStartDate, endDate: dateTo || futureEndDate };
+    }
+    return { startDate: historyStartDate, endDate: futureEndDate };
+  }, [dateFilter, dateFrom, dateTo, futureEndDate, historyStartDate]);
+
   // Fetch real appointment data
   const realTimeAppointments = useRealTimeAppointments({
     doctorId: user?.id || undefined,
-    startDate: historyStartDate,
-    endDate: futureEndDate,
+    ...serverRange,
     limit: 500,
   } as any);
 
@@ -529,6 +545,7 @@ export default function DoctorAppointments() {
           Date.now() < joinOpensAtMs;
         const joinWindowOpen = isVideo && joinOpensAtMs !== null && Date.now() >= joinOpensAtMs;
         const changePolicy = visitChangePolicy(app, isVideo);
+        const patientRemarks = getAppointmentPatientRemarks(app);
 
         return {
           id: app.id,
@@ -553,7 +570,7 @@ export default function DoctorAppointments() {
           joinWindowOpen,
           locationId: app.locationId || app.location?.id || "",
           ...changePolicy,
-          duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
+          duration: typeof displayDuration === "number" ? `${displayDuration} min` : "",
           appointmentDate: appointmentDateTime
             ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
             : getReceptionistAppointmentDateLabel(app as Record<string, unknown>),
@@ -566,11 +583,11 @@ export default function DoctorAppointments() {
           createdAt: app.createdAt || app.updatedAt || "",
           patientPhone: personText(app.patient, "phone"),
           patientEmail: personText(app.patient, "email"),
-          chiefComplaint: app.chiefComplaint || app.reason || "",
+          chiefComplaint: patientRemarks.remark,
+          urgency: patientRemarks.urgency,
           medicalHistory: app.patient?.medicalHistory || [],
           allergies: app.patient?.allergies || [],
           currentMedications: app.patient?.currentMedications || [],
-          vitalSigns: app.vitalSigns || null,
           checkedInAt: app.checkedInAt ? formatTimeInIST(app.checkedInAt) : null,
           queuePosition: app.queuePosition || null,
           diagnosis: typeof app.diagnosis === "string" ? app.diagnosis : "",
@@ -831,7 +848,6 @@ export default function DoctorAppointments() {
       isLoadingAppointments={isLoadingAppointments}
       appointmentsLoadFailed={appointmentsLoadFailed}
       retryLoadAppointments={retryLoadAppointments}
-      refreshAppointments={retryLoadAppointments}
       todayLabel={todayLabel}
       clinicId={clinicId}
       userId={user?.id}

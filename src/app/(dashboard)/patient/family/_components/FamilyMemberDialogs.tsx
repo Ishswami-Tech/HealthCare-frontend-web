@@ -229,6 +229,20 @@ function FamilyMemberForm({
           />
         </Field>
 
+        <Field
+          label="Allergies (optional)"
+          htmlFor={id("allergies")}
+          hint="Medicines or foods they react to, for example Penicillin, peanuts"
+          error={errors.allergies?.message}
+        >
+          <Textarea
+            {...register("allergies")}
+            {...fieldAria(id("allergies"), errors.allergies?.message)}
+            className="min-h-[60px]"
+            maxLength={500}
+          />
+        </Field>
+
         {errorMessage ? (
           <Note tone="rose" icon={CircleAlert}>
             <span role="alert">

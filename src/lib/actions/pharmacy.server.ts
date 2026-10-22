@@ -2,6 +2,7 @@
 
 import { authenticatedApi, getServerSession } from "./auth.server";
 import { API_ENDPOINTS } from "../config/config";
+import { actionSuccess, caughtFailure, type ActionResult } from "./_shared";
 import {
   parseDosageForm,
   type DosageFormValue,
@@ -279,10 +280,15 @@ async function fetchInventory(clinicId: string, query: string): Promise<unknown>
   // Backend: GET /pharmacy/inventory (clinic-scoped via guard)
   const endpoint = `/pharmacy/inventory${query ? `?${query}` : ""}`;
   try {
-    const { data } = await authenticatedApi(endpoint, {
+    const response = await authenticatedApi(endpoint, {
       ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
     });
-    return data;
+    // A paged answer (`{ data, total, page, limit }`) reaches us with the rows in `data` and the
+    // page metadata beside it: keep them together so the pager and tiles read the server total.
+    if (Array.isArray(response.data) && typeof response.total === "number") {
+      return { data: response.data, total: response.total, page: response.page, limit: response.limit };
+    }
+    return response.data;
   } catch (error) {
     const statusCode =
       error instanceof Error && "statusCode" in error ? (error as { statusCode?: number }).statusCode : undefined;
@@ -336,6 +342,83 @@ export async function getMedicinesPage(
     page: Number(record.page) || page,
     limit: Number(record.limit) || limit,
   };
+}
+
+/** Whole-inventory counts for the stock tiles, as the server counts them (not the page on screen). */
+export interface InventoryCounts {
+  total: number;
+  inStock: number;
+  /** 0 < stock <= reorder level (out of stock excluded), as the server defines it. */
+  lowStock: number;
+  /** stock <= 0. */
+  outOfStock: number;
+  expiringSoon: number;
+  /** Stock on hand x listed price over the whole inventory (rupees); null when the server did not send it. */
+  totalValue: number | null;
+}
+
+function countField(record: Record<string, unknown>, key: string): number | null {
+  const value = Number(record[key]);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+/** Reads `GET /pharmacy/inventory/summary`; null when the answer is not a summary. */
+function toInventoryCounts(data: unknown): InventoryCounts | null {
+  const record = asRecord(data);
+  const total = countField(record, "total");
+  const inStock = countField(record, "inStock");
+  const lowStock = countField(record, "lowStock");
+  const outOfStock = countField(record, "outOfStock");
+  if (total === null || inStock === null || lowStock === null || outOfStock === null) return null;
+  return {
+    total,
+    inStock,
+    lowStock,
+    outOfStock,
+    expiringSoon: countField(record, "expiringSoon") ?? 0,
+    totalValue: countField(record, "totalValue"),
+  };
+}
+
+/**
+ * Counts the clinic's medicines per stock state from `GET /pharmacy/inventory/summary` (one read,
+ * one definition: low = 0 < stock <= reorder level, out = stock <= 0, plus the stock value). An
+ * older API without that route falls back to one `limit=1` page per filter.
+ */
+export async function getInventoryCounts(clinicId: string): Promise<InventoryCounts> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
+  try {
+    const { data } = await authenticatedApi("/pharmacy/inventory/summary", {
+      ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
+    });
+    const summary = toInventoryCounts(data);
+    if (summary) return summary;
+  } catch (error) {
+    const statusCode =
+      error instanceof Error && "statusCode" in error ? (error as { statusCode?: number }).statusCode : undefined;
+    if (statusCode === 403) {
+      throw new Error("You do not have access to this clinic's pharmacy stock.");
+    }
+    if (statusCode !== 404) throw error;
+  }
+
+  const countOf = async (filters: MedicineListFilters): Promise<number> => {
+    const data = await fetchInventory(clinicId, inventoryQuery({ ...filters, page: 1, limit: 1 }));
+    const total = Number(asRecord(data).total);
+    return Number.isFinite(total) && total >= 0 ? total : inventoryRows(data).length;
+  };
+  const [total, inStock, lowOrOut, outOfStock, expiringSoon] = await Promise.all([
+    countOf({}),
+    countOf({ inStock: true }),
+    countOf({ lowStock: true }),
+    countOf({ outOfStock: true }),
+    countOf({ expiringSoon: true }),
+  ]);
+  return { total, inStock, lowStock: Math.max(0, lowOrOut - outOfStock), outOfStock, expiringSoon, totalValue: null };
 }
 
 /**
@@ -498,6 +581,17 @@ export async function deleteMedicine(_clinicId: string, medicineId: string) {
   return data;
 }
 
+/** Query keys `GET /pharmacy/prescriptions` declares. */
+const PRESCRIPTION_QUERY_KEYS = new Set(["patientId", "doctorId", "status", "startDate", "endDate", "limit"]);
+/** Query keys `PharmacyBatchAuditQueryDto` declares (no `prescriptionId`: it would be a 400). */
+const BATCH_AUDIT_QUERY_KEYS = new Set([
+  "medicineId",
+  "batchNumber",
+  "patientId",
+  "startDate",
+  "endDate",
+]);
+
 /**
  * Get prescriptions - uses correct backend endpoints:
  * - Pharmacist: GET /pharmacy/prescriptions (clinicId from x-clinic-id header)
@@ -519,9 +613,11 @@ export async function getPrescriptions(
     throw new Error('Unauthorized: Authentication required');
   }
 
+  // Only the declared query keys: anything else (a stray React Query option) is a 400 whitelist error.
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
+      if (!PRESCRIPTION_QUERY_KEYS.has(key)) return;
       if (value) params.append(key, String(value));
     });
   }
@@ -746,9 +842,11 @@ export async function getPharmacyBatchAudit(
     throw new Error('Unauthorized: Authentication required');
   }
 
+  // Only the declared query keys: anything else (a stray React Query option) is a 400 whitelist error.
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
+      if (!BATCH_AUDIT_QUERY_KEYS.has(key)) return;
       if (value) {
         params.append(key, String(value));
       }
@@ -820,12 +918,17 @@ export async function getPharmacyOrders(
     params.set("offset", String(Math.max(Math.trunc(filters.offset), 0)));
   }
 
-  const { data } = await authenticatedApi(
+  const response = await authenticatedApi(
     `/pharmacy/inventory/purchase-orders${params.toString() ? `?${params.toString()}` : ""}`,
     scoped(clinicId),
   );
+  const { data } = response;
   const orders = listOf(data, "orders").map(normalizePurchaseOrder);
-  const total = toNumber(asRecord(data).total ?? asRecord(asRecord(data).data).total, orders.length);
+  // A `{ data, total }` page reaches us with the rows in `data` and `total` beside it.
+  const total = toNumber(
+    response.total ?? asRecord(data).total ?? asRecord(asRecord(data).data).total,
+    orders.length,
+  );
   return { orders, total };
 }
 
@@ -1324,4 +1427,41 @@ export async function exportPharmacyData(
     content: toCsv(header, rows),
     rowCount: rows.length,
   };
+}
+
+// ── ActionResult variants of the stock / supplier writes ─────────────────────
+// A thrown server-action error loses its message in a production build; these return the
+// backend reason instead ("A medicine named ... already exists", "phone must be a valid ..."),
+// so the add / edit dialogs can show it.
+
+async function toActionResult<T>(run: () => Promise<T>): Promise<ActionResult<T>> {
+  try {
+    return actionSuccess(await run());
+  } catch (error) {
+    return caughtFailure(error);
+  }
+}
+
+export async function createMedicineAction(
+  ...args: Parameters<typeof createMedicine>
+): Promise<ActionResult<Awaited<ReturnType<typeof createMedicine>>>> {
+  return toActionResult(() => createMedicine(...args));
+}
+
+export async function updateMedicineAction(
+  ...args: Parameters<typeof updateMedicine>
+): Promise<ActionResult<Awaited<ReturnType<typeof updateMedicine>>>> {
+  return toActionResult(() => updateMedicine(...args));
+}
+
+export async function createSupplierAction(
+  ...args: Parameters<typeof createSupplier>
+): Promise<ActionResult<Awaited<ReturnType<typeof createSupplier>>>> {
+  return toActionResult(() => createSupplier(...args));
+}
+
+export async function updateSupplierAction(
+  ...args: Parameters<typeof updateSupplier>
+): Promise<ActionResult<Awaited<ReturnType<typeof updateSupplier>>>> {
+  return toActionResult(() => updateSupplier(...args));
 }

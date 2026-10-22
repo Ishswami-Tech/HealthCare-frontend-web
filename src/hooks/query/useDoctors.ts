@@ -24,6 +24,11 @@ import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCurrentClinicId } from './useClinics';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
+import {
+  weeklyScheduleToWorkingHours,
+  workingHoursOf,
+  workingHoursToWeeklySchedule,
+} from '@/lib/utils/doctor-working-hours';
 
 const useDoctorQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
@@ -237,9 +242,12 @@ export const useDoctor = (doctorId: string) => {
 export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: string) => {
   const { isConnected } = useWebSocketStatus();
 
+  // No /doctors/:id/schedule route: the weekly schedule is the doctor's `workingHours`
+  // (GET /doctors/:id). `date` only keys the cache.
   return useQueryData(['doctorSchedule', clinicId, doctorId, date], async () => {
     try {
-      return await clinicApiClient.get(API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId), date ? { date } : undefined);
+      const response = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId));
+      return { schedules: workingHoursToWeeklySchedule(workingHoursOf(response?.data ?? response)) };
     } catch (error) {
       if (isSessionInvalidError(error)) {
         return null;
@@ -503,8 +511,9 @@ export const useUpdateDoctor = () => {
  */
 export const useUpdateDoctorSchedule = () => {
   return useMutationOperation(
-    async ({ doctorId, clinicId, schedule }: {
+    async ({ doctorId, schedule }: {
       doctorId: string;
+      /** Accepted for callers; the API reads the clinic from the request context. */
       clinicId?: string;
       schedule: {
         dayOfWeek: number;
@@ -513,7 +522,10 @@ export const useUpdateDoctorSchedule = () => {
         isAvailable: boolean;
       }[];
     }) => {
-      return await clinicApiClient.put(API_ENDPOINTS.DOCTORS.SCHEDULE.UPDATE(doctorId), { schedule, clinicId });
+      // PATCH /doctors/:id { workingHours } (CLINIC_ADMIN for doctors of their clinic).
+      return await clinicApiClient.patch(API_ENDPOINTS.DOCTORS.UPDATE(doctorId), {
+        workingHours: weeklyScheduleToWorkingHours(schedule),
+      });
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,
@@ -560,11 +572,9 @@ export const useAddDoctorReview = () => {
   );
 };
 
-export const useCurrentDoctorEntityId = (clinicId?: string) => {
-  const { session } = useAuth() as { session?: { user?: { id?: string; email?: string } } };
-  const authenticatedUserId = session?.user?.id || '';
-  const authenticatedEmail = session?.user?.email?.toLowerCase() || '';
-  const clinicDoctors = useQueryData(
+/** The clinic's doctor rows (`GET /doctors/clinic/:clinicId`), one cache entry per clinic. */
+export const useClinicDoctorRows = (clinicId?: string) =>
+  useQueryData(
     ["clinicDoctors", clinicId],
     async () => {
       if (!clinicId) return [];
@@ -573,6 +583,12 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
     },
     { enabled: !!clinicId }
   );
+
+export const useCurrentDoctorEntityId = (clinicId?: string) => {
+  const { session } = useAuth() as { session?: { user?: { id?: string; email?: string } } };
+  const authenticatedUserId = session?.user?.id || '';
+  const authenticatedEmail = session?.user?.email?.toLowerCase() || '';
+  const clinicDoctors = useClinicDoctorRows(clinicId);
 
   const doctorId = useMemo(() => {
     const doctors: any[] = Array.isArray(clinicDoctors.data) ? (clinicDoctors.data as any[]) : [];

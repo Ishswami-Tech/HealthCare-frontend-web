@@ -4,43 +4,13 @@ import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
 import { cn } from "@/lib/utils/index";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 import Link from "next/link";
+import { deriveGlobalHealthState } from "@/lib/utils/health-status";
 
 export function MinimalStatusIndicator({ className }: { className?: string }) {
   const { data: healthStatus, isPending } = useDetailedHealthStatus();
 
-  // Helper logic to determine global status
-  const getGlobalStatus = () => {
-    if (!healthStatus) return 'loading';
-    
-    const services = [
-        healthStatus.database,
-        healthStatus.cache,
-        healthStatus.queue,
-        healthStatus.communication,
-        healthStatus.video
-    ];
-
-    const isUnhealthy = (s: any) => {
-        if (!s) return false;
-        if (s.status === 'down') return true;
-        if ('healthy' in s && s.healthy === false) return true;
-        if ('isHealthy' in s && s.isHealthy === false) return true;
-        return false;
-    };
-  
-    const isDegraded = (s: any) => {
-        if (!s) return false;
-        if (s.status === 'degraded') return true;
-        if ('degraded' in s && s.degraded === true) return true;
-        return false;
-    };
-
-    if (services.some(isUnhealthy)) return 'down';
-    if (services.some(isDegraded)) return 'degraded';
-    return 'operational';
-  };
-
-  const status = getGlobalStatus();
+  // One failed / timed-out probe is "checking" (amber); red needs consecutive failures.
+  const status = deriveGlobalHealthState(healthStatus);
 
   // Map globalStatus to UI colors/labels
   let statusColor = "bg-emerald-500";
@@ -55,6 +25,10 @@ export function MinimalStatusIndicator({ className }: { className?: string }) {
      statusColor = "bg-red-500";
      textColor = "text-red-500";
      label = "System Outage";
+  } else if (status === 'checking') {
+     statusColor = "bg-amber-500";
+     textColor = "text-amber-500";
+     label = "Checking status…";
   } else if (status === 'degraded') {
      statusColor = "bg-amber-500";
      textColor = "text-amber-500";
@@ -76,7 +50,7 @@ export function MinimalStatusIndicator({ className }: { className?: string }) {
               ? "bg-card border-[#a7f3d0] hover:bg-mint-soft dark:bg-emerald-950/30 dark:border-emerald-800 dark:hover:bg-emerald-950/50" 
               : "bg-background/50 backdrop-blur-sm hover:bg-accent/50",
             status === 'down' && "border-red-500/20 bg-red-50 text-red-700",
-            status === 'degraded' && "border-amber-500/20 bg-amber-50 text-amber-700"
+            (status === 'degraded' || status === 'checking') && "border-amber-500/20 bg-amber-50 text-amber-700"
           )}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

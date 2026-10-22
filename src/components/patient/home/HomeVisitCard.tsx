@@ -24,6 +24,7 @@ import { InitialsAvatar, Note, Pill, statusTone } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { HomeQueue, HomeVisit } from "./types";
 import { plural } from "@/lib/utils/labels";
+import { selfCheckInWindowState, type SelfCheckInWindowState } from "@/lib/utils/appointmentUtils";
 
 export interface HomeVisitActions {
   /** Open the video waiting room for this visit. */
@@ -312,6 +313,8 @@ function QueuePanel({ visit, queue }: { visit: HomeVisit; queue?: HomeQueue | nu
   const position = queue?.position ?? null;
   const ahead = queue?.patientsAhead ?? (position !== null ? Math.max(0, position - 1) : null);
   const wait = queue?.estimatedWaitMinutes ?? null;
+  // The appointment row rarely carries the token; the in-person visit read does (K-014).
+  const tokenLabel = visit.tokenLabel ?? queue?.tokenLabel ?? null;
 
   if (queue?.isLoading && position === null) {
     return (
@@ -322,7 +325,7 @@ function QueuePanel({ visit, queue }: { visit: HomeVisit; queue?: HomeQueue | nu
     );
   }
 
-  if (!visit.tokenLabel && position === null) {
+  if (!tokenLabel && position === null) {
     return (
       <Note tone="green" icon={Activity} className="@4xl:col-span-2">
         You are checked in. Open the live queue to see your place.
@@ -333,7 +336,7 @@ function QueuePanel({ visit, queue }: { visit: HomeVisit; queue?: HomeQueue | nu
   return (
     <>
       <div className="grid grid-cols-3 rounded-[14px] bg-[#f4faf6] py-3.5 dark:bg-emerald-500/10">
-        <QueueTile label="Your token" value={visit.tokenLabel ?? "—"} accent />
+        <QueueTile label="Your token" value={tokenLabel ?? "—"} accent />
         <QueueTile label="Your position" value={position !== null ? String(position) : "—"} />
         <QueueTile label="Patients ahead" value={ahead !== null ? String(ahead) : "—"} last />
       </div>
@@ -368,6 +371,14 @@ function ClinicVisitCard({
 }) {
   const inQueue = visit.clinicStage === "queue";
   const withDoctor = visit.clinicStage === "in_progress";
+  const now = useMinuteClock();
+  // Same window as the server: 20 min before .. 45 min after the slot start. Shown for today's
+  // visits, and for a late / early slot whose open window crosses midnight (23:45 at 00:10).
+  const slotWindowState: SelfCheckInWindowState | null =
+    visit.startsAt && now !== null ? selfCheckInWindowState(new Date(visit.startsAt), now) : null;
+  const windowState: SelfCheckInWindowState | null =
+    visit.isToday || slotWindowState === "OPEN" ? slotWindowState : null;
+  const checkInClosed = windowState === "CLOSED";
 
   return (
     <article
@@ -389,10 +400,12 @@ function ClinicVisitCard({
           </span>
         ) : withDoctor ? (
           <Pill tone="blue">In progress</Pill>
-        ) : visit.isToday ? (
+        ) : windowState === "OPEN" ? (
           <Pill tone="amber" dot>
             Check-in open
           </Pill>
+        ) : checkInClosed ? (
+          <Pill tone="rose">Check-in closed</Pill>
         ) : (
           <Pill tone={statusTone(visit.statusCode)}>{visit.statusLabel}</Pill>
         )}
@@ -445,7 +458,9 @@ function ClinicVisitCard({
               <ArrowRight aria-hidden="true" />
             </Link>
           </Button>
-        ) : withDoctor ? null : (
+        ) : withDoctor ? null : checkInClosed ? (
+          <p className="text-sm font-semibold text-ink-soft">Self check-in has closed. Please go to the reception desk.</p>
+        ) : (
           <Button size="md" className="h-12 w-full sm:w-auto" onClick={actions.onCheckIn}>
             <ScanLine aria-hidden="true" />
             Check in with QR

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, CalendarX, ChevronDown, FileText, FlaskConical, Heart, Loader2, Plus, RefreshCw } from "lucide-react";
+import { AlertCircle, CalendarX, ChevronDown, FileText, FlaskConical, Loader2, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
@@ -14,7 +14,7 @@ import { useCreatePatientVisit } from "@/hooks/query/usePatientVisits";
 import { cn } from "@/lib/utils";
 import { formatDateTimeInIST, parseIstDateTime } from "@/lib/utils/date-time";
 
-export type AppointmentHistoryTab = "history" | "vitals" | "reports" | "prescriptions";
+export type AppointmentHistoryTab = "history" | "reports" | "prescriptions";
 
 interface PatientAppointmentHistoryProps {
   clinicId: string;
@@ -22,7 +22,7 @@ interface PatientAppointmentHistoryProps {
   patientId: string;
   /** Only these roles may see case sheet content (see `canViewCaseSheet`). */
   caseSheetAllowed: boolean;
-  /** Switch the record to another tab (vitals, reports, prescriptions, case sheet). */
+  /** Switch the record to another tab (reports, prescriptions, case sheet). */
   onOpenTab: (tab: AppointmentHistoryTab) => void;
   /** The case sheet tab should show this visit. */
   onOpenVisit: (visitId: string) => void;
@@ -138,10 +138,6 @@ function HistoryRow({
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-ink-muted">Related records</span>
-            <Button variant="outline" size="sm" onClick={() => onOpenTab("vitals")}>
-              <Heart />
-              Vitals
-            </Button>
             <Button variant="outline" size="sm" onClick={() => onOpenTab("prescriptions")}>
               <FileText />
               Prescriptions

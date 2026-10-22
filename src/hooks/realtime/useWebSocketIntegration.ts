@@ -315,17 +315,28 @@ function mergeRealtimeAppointmentPayload(payload: unknown, appointment: Appointm
   return changed ? nextRecord : payload;
 }
 
+/** Overlay the fields a realtime snapshot carries; missing (undefined / null) fields keep the cached value. */
+function mergeRealtimeSnapshot(oldData: Appointment, snapshot: Appointment): Appointment {
+  const defined = Object.fromEntries(
+    Object.entries(snapshot as unknown as Record<string, unknown>).filter(([, value]) => value !== undefined && value !== null)
+  );
+  return { ...oldData, ...defined } as Appointment;
+}
+
 function upsertRealtimeAppointmentCaches(queryClient: QueryClient, appointment: Appointment): void {
   const targetId = getRealtimeAppointmentId(appointment);
   if (!targetId) {
     return;
   }
 
+  // A realtime snapshot is partial (no patient, doctor or check-in details), so it only merges into
+  // a detail cache that already holds the full record. Seeding an empty cache with it would make a
+  // detail page that mounts next (for example the walk-in success page) render placeholders.
   queryClient.setQueryData(['appointment', targetId], (oldData: Appointment | undefined) =>
-    oldData ? { ...oldData, ...appointment } : appointment
+    oldData ? mergeRealtimeSnapshot(oldData, appointment) : undefined
   );
   queryClient.setQueryData(['video-appointment', targetId], (oldData: Appointment | undefined) =>
-    oldData ? { ...oldData, ...appointment } : appointment
+    oldData ? mergeRealtimeSnapshot(oldData, appointment) : undefined
   );
   queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
     mergeRealtimeAppointmentPayload(current, appointment)

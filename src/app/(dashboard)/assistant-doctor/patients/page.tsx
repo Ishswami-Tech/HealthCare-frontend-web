@@ -1,40 +1,9 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
+import { DoctorPatientsWorkspace } from "@/app/(dashboard)/doctor/patients/_components/DoctorPatientsWorkspace";
+import { ASSISTANT_ROUTES } from "@/components/assistant/assistant-routes";
 
-const AssistantDoctorWorkspaceShell = dynamic(
-  () => import("../_components/AssistantDoctorWorkspaceShell").then((module) => module.AssistantDoctorWorkspaceShell),
-  {
-    ssr: false,
-    loading: () => <DashboardPageSkeleton />,
-  }
-);
-
+// AsPatients (B5): the doctor's patient directory; prescriptions are saved as drafts for the doctor.
 export default function AssistantDoctorPatientsPage() {
-  return (
-    <AssistantDoctorWorkspaceShell
-      eyebrow="Assistant Doctor"
-      title="Patient directory"
-      description="Patient charts are maintained in the shared doctor workspace so handoffs, EHR lookups, and follow-ups stay aligned."
-      note="Shared patient record"
-      actions={[
-        {
-          label: "Open doctor patient directory",
-          href: "/doctor/patients",
-          description: "Use the shared patient list for chart review and scheduling follow-up care.",
-        },
-        {
-          label: "Open appointments",
-          href: "/doctor/appointments",
-          description: "Jump back into the appointment timeline for patient-specific context.",
-        },
-        {
-          label: "Open queue",
-          href: "/queue",
-          description: "Check the live queue for patients waiting on clinical review.",
-        },
-      ]}
-    />
-  );
+  return <DoctorPatientsWorkspace ehrBasePath={ASSISTANT_ROUTES.patients} eyebrow="Assistant doctor" title="Patients" />;
 }

@@ -17,6 +17,7 @@ import {
   useMedicine,
   useMedicines,
   useMedicinesPage,
+  useInventoryCounts,
   medicinesPageQueryKey,
   usePharmacyOrder,
   usePharmacyOrders,
@@ -175,6 +176,8 @@ export default function PharmacyInventoryContent() {
   } = useMedicinesPage(scopedClinicId, inventoryParams);
   const medicinesData = medicinesPage?.data;
   const inventoryTotal = medicinesPage?.total ?? 0;
+  // Tiles count the whole inventory on the server, not the page on screen.
+  const { data: inventoryCounts } = useInventoryCounts(scopedClinicId);
   const {
     data: suppliersData,
     isPending: suppliersPending,
@@ -399,6 +402,7 @@ export default function PharmacyInventoryContent() {
       page={page}
       onPageChange={setPage}
       inventoryTotal={inventoryTotal}
+      inventoryCounts={inventoryCounts ?? null}
       inventoryPageSize={INVENTORY_PAGE_SIZE}
       canManage={canManage}
       canRemove={CAN_REMOVE_MEDICINE}

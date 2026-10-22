@@ -4,4 +4,3 @@
 export { default as AppointmentManager } from './AppointmentManager';
 export { default as AyurvedaConsultationTypes } from './AyurvedaConsultationTypes';
 export { VideoSlotProposalDialog } from './VideoSlotProposalDialog';
-export { ReassignAppointmentDialog } from './ReassignAppointmentDialog';

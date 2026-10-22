@@ -44,7 +44,7 @@ export interface DoctorEhrViewProps {
   onPrescribe?: (() => void) | undefined;
   record: Pick<
     PatientClinicalRecordViewProps,
-    "patient" | "ehr" | "appointments" | "history" | "vitals" | "labs" | "carePlan" | "prescriptions"
+    "patient" | "ehr" | "appointments" | "history" | "labs" | "carePlan" | "prescriptions"
   >;
   /** The health record is still loading: numbers and tables show placeholders. */
   recordLoading: boolean;
@@ -54,6 +54,8 @@ export interface DoctorEhrViewProps {
   renderAppointmentHistory?: PatientClinicalRecordViewProps["renderAppointmentHistory"];
   /** Bills tab. Left out, it follows the signed-in role (never shown to a doctor). */
   showBills?: boolean;
+  /** The "Back to patients" link. Default `/doctor/patients`. */
+  backHref?: string;
 }
 
 const HEADER_BAND =
@@ -168,11 +170,12 @@ export function DoctorEhrView({
   caseSheet,
   renderAppointmentHistory,
   showBills,
+  backHref = "/doctor/patients",
 }: DoctorEhrViewProps) {
   return (
     <DashboardPageShell className="gap-y-2.5">
       <Link
-        href="/doctor/patients"
+        href={backHref}
         className="inline-flex items-center gap-1 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
       >
         <ChevronLeft className="size-3.5" strokeWidth={2.4} aria-hidden="true" />

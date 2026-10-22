@@ -30,10 +30,12 @@ import {
   invoiceIssuedAt,
   invoicePaidAt,
   invoiceRoute,
+  invoiceDisplayState,
+  invoiceDisplayStatus,
   invoiceSubject,
   invoiceTotal,
   isPaidInvoice,
-  isPayableInvoice,
+  pendingPlanInvoice,
   type SubscriptionGroups,
 } from "./patientBilling.logic";
 import { formatRupees } from "@/lib/utils/currency";
@@ -74,6 +76,7 @@ const AUTO = "@3xl:col-auto @3xl:row-auto";
 
 function invoiceDateLine(invoice: Invoice): string {
   if (isPaidInvoice(invoice)) return `Paid ${formatDateLabel(invoicePaidAt(invoice) ?? invoice.updatedAt, EMPTY_DATE_LABEL)}`;
+  if (invoiceDisplayState(invoice) === "closed") return "No payment needed";
   return `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}`;
 }
 
@@ -144,12 +147,17 @@ function InvoicesList({
         <span className="text-right">Actions</span>
       </div>
       <ul className="m-0 list-none p-0">
-        {paging.pageRows.map((invoice) => (
+        {paging.pageRows.map((invoice) => {
+          // PENDING -> Pay; PAID -> receipt PDF; VOID / EXPIRED / CANCELLED -> muted, no action.
+          const state = invoiceDisplayState(invoice);
+          const displayStatus = invoiceDisplayStatus(invoice);
+          return (
           <li
             key={invoice.id}
             className={cn(
               INVOICE_GRID,
               "grid items-start gap-y-2.5 border-b border-hair px-5 py-3.5 text-sm last:border-b-0 @3xl:min-h-[62px] @3xl:py-2",
+              state === "closed" && "opacity-60",
             )}
           >
             <Link
@@ -164,25 +172,28 @@ function InvoicesList({
               <span className="text-xs text-ink-muted">{invoiceDateLine(invoice)}</span>
             </span>
             <span className={cn("col-[2] row-[2] flex justify-self-end @3xl:justify-self-start", AUTO)}>
-              <Pill tone={statusTone(invoice.status)}>{statusLabel(invoice.status)}</Pill>
+              <Pill tone={state === "closed" ? "slate" : statusTone(displayStatus)}>{statusLabel(displayStatus)}</Pill>
             </span>
             <span className={cn("col-[2] row-[1] text-right font-bold text-ink @3xl:text-left", AUTO)}>
               {formatRupees(invoiceTotal(invoice), { currency: invoice.currency })}
             </span>
             <span className={cn("col-span-2 row-[3] flex flex-wrap items-center gap-2 @3xl:justify-end", AUTO)}>
-              <Button
-                variant="outline"
-                disabled={downloadingPdfId === invoice.id}
-                onClick={() => onDownloadPdf(invoice.id)}
-                aria-label={`Download PDF of invoice ${invoiceNumberLabel(invoice)}`}
-              >
-                {downloadingPdfId === invoice.id ? <Loader2 className="animate-spin" /> : <Download />}
-                PDF
-              </Button>
-              {isPayableInvoice(invoice) ? renderPay(invoice, "row") : null}
+              {state === "paid" ? (
+                <Button
+                  variant="outline"
+                  disabled={downloadingPdfId === invoice.id}
+                  onClick={() => onDownloadPdf(invoice.id)}
+                  aria-label={`Download receipt for invoice ${invoiceNumberLabel(invoice)}`}
+                >
+                  {downloadingPdfId === invoice.id ? <Loader2 className="animate-spin" /> : <Download />}
+                  Receipt
+                </Button>
+              ) : null}
+              {state === "pending" ? renderPay(invoice, "row") : null}
             </span>
           </li>
-        ))}
+          );
+        })}
       </ul>
       {paging.total > 10 ? <Pager paging={paging} noun="row(s)" pageSizeOptions={PAGE_SIZE_OPTIONS} id="patient-invoices" /> : null}
     </Surface>
@@ -198,10 +209,16 @@ function PlansGrid({
   currentPlanId,
   onChoosePlan,
   onReloadPlans,
+  pendingInvoice,
+  onOpenInvoices,
 }: Pick<BillingMoreTabsProps, "plans" | "onChoosePlan" | "onReloadPlans"> & {
   loading: boolean;
   current: Subscription | undefined;
   currentPlanId: string | undefined;
+  /** A plan purchase still waiting for its payment: the patient finishes that one first. */
+  pendingInvoice: Invoice | null;
+  /** Opens the Invoices tab, where the pending invoice is paid. */
+  onOpenInvoices: () => void;
 }) {
   if (loading) {
     return (
@@ -238,7 +255,17 @@ function PlansGrid({
           <strong className="font-bold">
             {current.plan?.name ? `${current.plan.name} is active.` : "You have an active subscription."}
           </strong>{" "}
-          You can still review or switch plans below.
+          Only one plan can be active at a time. You can choose a plan again when this one ends.
+        </Note>
+      ) : pendingInvoice ? (
+        <Note tone="amber" icon={AlertCircle} className="flex-wrap items-center">
+          <span className="min-w-0 flex-1">
+            <strong className="font-bold">A plan payment is pending.</strong> Complete it in Invoices, or let it
+            expire, before choosing another plan.
+          </span>
+          <Button variant="outline" onClick={onOpenInvoices}>
+            View invoice to pay
+          </Button>
         </Note>
       ) : null}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -282,7 +309,12 @@ function PlansGrid({
                     <Pill tone="green">Current plan</Pill>
                   </div>
                 ) : (
-                  <Button size="md" className="w-full" onClick={() => onChoosePlan(plan)}>
+                  <Button
+                    size="md"
+                    className="w-full"
+                    disabled={Boolean(current) || Boolean(pendingInvoice)}
+                    onClick={() => onChoosePlan(plan)}
+                  >
                     Subscribe
                   </Button>
                 )}
@@ -455,6 +487,8 @@ export function BillingMoreTabs({
           currentPlanId={subscriptions.currentPlanId}
           onChoosePlan={onChoosePlan}
           onReloadPlans={onReloadPlans}
+          pendingInvoice={pendingPlanInvoice(invoices)}
+          onOpenInvoices={() => onTabChange("invoices")}
         />
       </TabsContent>
 

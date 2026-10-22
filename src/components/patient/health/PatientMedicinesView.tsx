@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, InitialsAvatar, PageHead, Pill, SearchBox, SoftCard, Surface } from "@/components/tbd";
 import { cn } from "@/lib/utils";
+import { HandoverCodePanel } from "./HandoverCodePanel";
 import { PrescriptionDetailsDialog } from "./PrescriptionDetailsDialog";
 import {
   PHARMACY_STATE,
+  canCollect,
   canPay,
   filterPrescriptions,
+  isAdviceOnly,
   medicinesLabel,
   type CurrentMedicine,
   type PatientPrescription,
@@ -88,7 +91,7 @@ function DeskCard({
           ? "Medicines are handed over after the payment is received."
           : "Collect your medicines at the medicine desk."}
       </p>
-      {due ? renderPay(prescription, "card") : null}
+      {due ? renderPay(prescription, "card") : <HandoverCodePanel prescription={prescription} />}
     </Surface>
   );
 }
@@ -112,10 +115,13 @@ export function PatientMedicinesView({
   const selected = selectedId ? (prescriptions.find((prescription) => prescription.id === selectedId) ?? null) : null;
   const filtered = filterPrescriptions(prescriptions, searchTerm);
   const shown = filtered.slice(0, visible);
-  // Open prescriptions that need the patient: something to pay, or waiting at the medicine desk.
+  // Open prescriptions that need the patient: something to pay, waiting at the medicine desk,
+  // or paid and dispensed so the medicines can be collected with a code.
   const deskCards = prescriptions.filter(
     (prescription) =>
-      canPay(prescription) || (prescription.atDesk && prescription.state !== "dispensed" && prescription.state !== "cancelled"),
+      canPay(prescription) ||
+      canCollect(prescription) ||
+      (prescription.atDesk && prescription.state !== "dispensed" && prescription.state !== "cancelled"),
   );
   const sourceCount = new Set(medicines.map((medicine) => medicine.prescriptionId).filter(Boolean)).size;
 
@@ -300,9 +306,15 @@ export function PatientMedicinesView({
                             <span className="text-xs text-ink-muted">
                               {[prescription.dateLabel, medicinesLabel(prescription.lines.length)].filter(Boolean).join(" · ")}
                             </span>
-                            <Pill tone={state.tone} className="mt-1">
-                              {state.label}
-                            </Pill>
+                            {isAdviceOnly(prescription) ? (
+                              <Pill tone="slate" className="mt-1">
+                                Advice only
+                              </Pill>
+                            ) : (
+                              <Pill tone={state.tone} className="mt-1">
+                                {state.label}
+                              </Pill>
+                            )}
                           </span>
                           <ChevronRight className="size-4 shrink-0 text-ink-soft" strokeWidth={2.2} aria-hidden="true" />
                         </button>

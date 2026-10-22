@@ -11,6 +11,7 @@ import { auditLog } from '@/lib/utils/audit';
 import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
 import { API_ENDPOINTS } from '@/lib/config/config';
+import { actionFailure, actionSuccess, caughtFailure, type ActionResult } from './_shared';
 import type {
   Clinic,
   ClinicLocation,
@@ -21,6 +22,7 @@ import type {
   CreateClinicData,
   RegisterPatientData,
   UpdateClinicData,
+  UpdateClinicLocationData,
 } from '@/types/clinic.types';
 
 // ✅ Input Validation Schemas
@@ -245,7 +247,7 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
     }
 
     const response = await authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.UPDATE(id), {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify(validatedData)
     });
 
@@ -405,10 +407,18 @@ export async function getClinicLocation(clinicId: string, locationId: string) {
 /**
  * Update clinic location
  */
-export async function updateClinicLocation(clinicId: string, locationId: string, data: Partial<ClinicLocation>) {
+/**
+ * PATCH a location with only the changed fields. Returns an ActionResult (not a thrown error / null)
+ * so the backend reason ("workingHours closes the location on every day …") reaches the form.
+ */
+export async function updateClinicLocation(
+  clinicId: string,
+  locationId: string,
+  data: UpdateClinicLocationData
+): Promise<ActionResult<ClinicLocation>> {
   try {
     const session = await getServerSession();
-    if (!session?.user) return null;
+    if (!session?.user) return actionFailure('Not authenticated', 'UNAUTHENTICATED');
     const { user, session_id: sessionId } = session;
     const userId = user.id;
     const [response, clientInfo] = await Promise.all([
@@ -435,10 +445,10 @@ export async function updateClinicLocation(clinicId: string, locationId: string,
     revalidateCache('clinic-locations');
     void revalidateCache('clinic-doctors');
     void revalidateCache('doctors');
-    return response.data;
+    return actionSuccess(response.data);
   } catch (error) {
     logger.error('Failed to update clinic location', error instanceof Error ? error : new Error(String(error)));
-    return null;
+    return caughtFailure(error);
   }
 }
 
@@ -759,15 +769,24 @@ export async function getClinicOperatingHours(clinicId: string) {
   }
 }
 
+/** The `settings` object of a clinic answer that may come bare or wrapped in `data`. */
+function settingsOfClinic(body: unknown): ClinicSettings | null {
+  const record = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+  const clinic = record && record.data && typeof record.data === 'object' ? (record.data as Record<string, unknown>) : record;
+  const settings = clinic?.settings;
+  return settings && typeof settings === 'object' ? (settings as ClinicSettings) : null;
+}
+
 /**
- * Get clinic settings
+ * Get clinic settings. The backend has no `/clinics/:id/settings` route: the settings are the
+ * `settings` JSON of the clinic (`GET /clinics/:id`).
  */
 export async function getClinicSettings(clinicId: string) {
   try {
     const session = await getServerSession();
     if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
-    const { data } = await authenticatedApi<ClinicSettings>(API_ENDPOINTS.CLINICS.SETTINGS(clinicId), {});
-    return data || null;
+    const { data } = await authenticatedApi<unknown>(API_ENDPOINTS.CLINICS.GET_BY_ID(clinicId), {});
+    return settingsOfClinic(data);
   } catch (error) {
     logger.error('Failed to get clinic settings', error instanceof Error ? error : new Error(String(error)));
     return null;
@@ -775,18 +794,20 @@ export async function getClinicSettings(clinicId: string) {
 }
 
 /**
- * Update clinic settings
+ * Update clinic settings: `PUT /clinics/:id { settings }` (UpdateClinicDto.settings), merged
+ * over the current settings so a partial update does not drop the other keys.
  */
 export async function updateClinicSettings(clinicId: string, settings: Partial<ClinicSettings>) {
   try {
     const session = await getServerSession();
     if (!session?.user?.id) throw new Error('Unauthorized: Authentication required');
-    const { data } = await authenticatedApi<ClinicSettings>(API_ENDPOINTS.CLINICS.SETTINGS(clinicId), {
+    const current = await getClinicSettings(clinicId);
+    const { data } = await authenticatedApi<unknown>(API_ENDPOINTS.CLINICS.UPDATE(clinicId), {
       method: 'PUT',
-      body: JSON.stringify(settings),
+      body: JSON.stringify({ settings: { ...(current ?? {}), ...settings } }),
     });
     revalidateCache('clinics');
-    return data || null;
+    return settingsOfClinic(data) ?? ({ ...(current ?? {}), ...settings } as ClinicSettings);
   } catch (error) {
     logger.error('Failed to update clinic settings', error instanceof Error ? error : new Error(String(error)));
     return null;

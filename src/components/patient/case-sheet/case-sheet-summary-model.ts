@@ -1,6 +1,16 @@
-import { CLASSICAL_EXAM_SECTIONS } from "@/lib/constants/ayurveda-classical-exam-categories";
+import {
+  CLASSICAL_EXAM_SECTION_BY_TYPE,
+  CLASSICAL_EXAM_SECTIONS,
+  type ClassicalExamType,
+} from "@/lib/constants/ayurveda-classical-exam-categories";
 import { HABIT_DEFINITIONS } from "@/lib/constants/case-sheet-fixed-lists";
-import type { ClassicalExamFinding, PatientVisit } from "@/types/patient-visit.types";
+import type {
+  ClassicalExamFinding,
+  PatientVisit,
+  UpsertClassicalExamFindingInput,
+  VisitCaseSheet,
+  VisitVitalsExamination,
+} from "@/types/patient-visit.types";
 
 export interface SummaryRow {
   readonly label: string;
@@ -98,4 +108,168 @@ export function buildFindingSections(
     ...examSections(findings, t),
   ];
   return sections.filter((section) => section.rows.length > 0);
+}
+
+// ── Completeness (DocCaseSummary: review before the prescription) ──────────
+
+/** Section keys of the case sheet (same keys as the case-sheet tabs, so links open the right tab). */
+export type CaseSheetSectionKey =
+  | "basic"
+  | "complaints"
+  | "past-history"
+  | "habits"
+  | "family"
+  | "medicines"
+  | "general-exam"
+  | "measurements"
+  | "ashtavidha"
+  | "dashavidha"
+  | "srotas"
+  | "samprapti"
+  | "pain"
+  | "personal"
+  | "documents";
+
+interface SectionRule {
+  key: CaseSheetSectionKey;
+  label: string;
+  /** Needed for the diagnosis note; the doctor can still continue without it. */
+  required: boolean;
+  /** Classical exam the section is stored in; such a section can be marked Normal / N/A in one tap. */
+  examType?: ClassicalExamType;
+  /** What "nothing to record" is saved as. */
+  emptyRemark?: "Normal" | "Not applicable";
+  filled: (sheet: VisitCaseSheet, examTypes: ReadonlySet<ClassicalExamType>) => boolean;
+}
+
+const hasNumber = (vitals: VisitVitalsExamination | null, keys: readonly (keyof VisitVitalsExamination)[]) =>
+  Boolean(vitals) && keys.some((key) => typeof vitals?.[key] === "number");
+const hasText = (...values: Array<string | null | undefined>) => values.some((value) => isFilled(value));
+const hasHabits = (habits: Record<string, string> | null) =>
+  Boolean(habits) && Object.values(habits ?? {}).some((value) => isFilled(value));
+
+const exam = (
+  key: CaseSheetSectionKey,
+  label: string,
+  examType: ClassicalExamType,
+  emptyRemark: "Normal" | "Not applicable",
+  required = false,
+  alsoFilled?: (sheet: VisitCaseSheet) => boolean,
+): SectionRule => ({
+  key,
+  label,
+  required,
+  examType,
+  emptyRemark,
+  filled: (sheet, examTypes) => examTypes.has(examType) || Boolean(alsoFilled?.(sheet)),
+});
+
+/**
+ * The case-sheet sections this summary can check from GET /patient-visits/:id/case-sheet. Prakruti,
+ * therapy, diet, investigation and progress live on their own routes and are not checked here.
+ */
+export const CASE_SHEET_SECTION_RULES: readonly SectionRule[] = [
+  { key: "basic", label: "Basic Details", required: false, filled: (sheet) => Boolean(sheet.patient) },
+  {
+    key: "complaints",
+    label: "Complaints",
+    required: true,
+    filled: (sheet) => hasText(sheet.visit.presentComplaints, sheet.visit.presentIllness),
+  },
+  {
+    key: "past-history",
+    label: "Past History",
+    required: false,
+    filled: (sheet) => hasText(sheet.visit.pastHistoryNotes, sheet.visit.knownCaseOf) || sheet.medicalHistory.length > 0,
+  },
+  {
+    key: "habits",
+    label: "Habits and Nidra",
+    required: false,
+    filled: (sheet) => hasHabits(sheet.visit.habits) || hasText(sheet.visit.nidra, sheet.visit.nidraNotes),
+  },
+  { key: "family", label: "Family History", required: false, filled: (sheet) => sheet.familyHistory.length > 0 },
+  { key: "medicines", label: "Medicine History", required: false, filled: (sheet) => sheet.medications.length > 0 },
+  {
+    key: "general-exam",
+    label: "General Exam",
+    required: false,
+    filled: (sheet) =>
+      hasNumber(sheet.vitalsExamination, ["bpSystolic", "pulse", "temperatureC", "spo2", "rr", "fbs", "ppbs"]),
+  },
+  {
+    key: "measurements",
+    label: "Measurements",
+    required: false,
+    filled: (sheet) => hasNumber(sheet.vitalsExamination, ["heightCm", "weightKg", "waist", "hips", "chest"]),
+  },
+  exam("ashtavidha", "Ashtavidha", "ASHTAVIDHA_PARIKSHA", "Normal"),
+  exam("dashavidha", "Dashavidha", "DASHAVIDHA_PARIKSHA", "Normal"),
+  exam("srotas", "Srotas", "SROTAS_PARIKSHA", "Normal"),
+  exam("samprapti", "Samprapti", "SAMPRAPTI_GHATAKA", "Not applicable"),
+  exam("pain", "Pain", "PAIN_ASSESSMENT", "Not applicable", true, (sheet) =>
+    typeof sheet.vitalsExamination?.painScore === "number",
+  ),
+  exam("personal", "Personal", "PERSONAL_HISTORY", "Not applicable", true, (sheet) =>
+    hasText(sheet.vitalsExamination?.sleep, sheet.vitalsExamination?.bowel, sheet.vitalsExamination?.appetite),
+  ),
+  { key: "documents", label: "Documents", required: false, filled: (sheet) => sheet.labReports.length > 0 },
+];
+
+export interface CaseSheetSectionState {
+  key: CaseSheetSectionKey;
+  label: string;
+  required: boolean;
+  filled: boolean;
+  /** True when one tap can save it as Normal / Not applicable. */
+  canMarkEmpty: boolean;
+}
+
+export interface CaseSheetCompleteness {
+  sections: CaseSheetSectionState[];
+  done: CaseSheetSectionState[];
+  requiredEmpty: CaseSheetSectionState[];
+  optionalEmpty: CaseSheetSectionState[];
+  /** Optional empty sections one tap can close. */
+  markableOptional: CaseSheetSectionState[];
+  total: number;
+}
+
+/** Which sections of a case sheet are filled, which required ones are still empty. */
+export function buildCaseSheetCompleteness(sheet: VisitCaseSheet): CaseSheetCompleteness {
+  const examTypes = new Set(
+    (sheet.classicalExams ?? [])
+      .filter((finding) => finding.selectedOptions.length > 0 || isFilled(finding.remark))
+      .map((finding) => finding.examType),
+  );
+  const sections = CASE_SHEET_SECTION_RULES.map((rule) => ({
+    key: rule.key,
+    label: rule.label,
+    required: rule.required,
+    filled: rule.filled(sheet, examTypes),
+    canMarkEmpty: Boolean(rule.examType),
+  }));
+  const optionalEmpty = sections.filter((section) => !section.filled && !section.required);
+  return {
+    sections,
+    done: sections.filter((section) => section.filled),
+    requiredEmpty: sections.filter((section) => !section.filled && section.required),
+    optionalEmpty,
+    markableOptional: optionalEmpty.filter((section) => section.canMarkEmpty),
+    total: sections.length,
+  };
+}
+
+/**
+ * The findings that save the given (empty) exam sections as "Normal" / "Not applicable": one
+ * remark on the section's first category, so the section counts as recorded and can be reopened.
+ */
+export function buildMarkEmptyFindings(keys: readonly CaseSheetSectionKey[]): UpsertClassicalExamFindingInput[] {
+  return CASE_SHEET_SECTION_RULES.flatMap((rule) => {
+    if (!rule.examType || !rule.emptyRemark || !keys.includes(rule.key)) return [];
+    const firstCategory = CLASSICAL_EXAM_SECTION_BY_TYPE[rule.examType].categories[0];
+    return firstCategory
+      ? [{ examType: rule.examType, categoryKey: firstCategory.key, selectedOptions: [], remark: rule.emptyRemark }]
+      : [];
+  });
 }

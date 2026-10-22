@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AudioLines, CalendarPlus, Check, MapPin, QrCode, ScanLine, Video } from "lucide-react";
+import { AudioLines, Bell, CalendarCheck, CalendarPlus, Check, MapPin, QrCode, ScanLine, Video } from "lucide-react";
 import { Divider, Kv, SoftCard, Surface } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ export interface BookingSuccessStepViewProps {
   onAddToCalendar?: (() => void) | undefined;
   /** Link to a map for the clinic address. */
   directionsHref?: string | undefined;
-  /** In-clinic, patient only: opens the check-in page. */
+  /** In-clinic, patient only: opens the check-in page. Never shown for video visits. */
   checkInAction?: BookingSuccessAction | undefined;
   /** The closing button ("Go to Home", "Go to appointments", "Done"). */
   primaryAction?: BookingSuccessAction | undefined;
@@ -42,6 +42,13 @@ const VISIT_DAY_STEPS = [
   { icon: MapPin, label: "Reach the clinic", strong: false },
   { icon: ScanLine, label: "Scan desk QR", strong: true },
   { icon: AudioLines, label: "Join the queue", strong: false },
+] as const;
+
+/** Video visits have no QR / check-in: the patient joins the call from the appointment. */
+const VIDEO_DAY_STEPS = [
+  { icon: Bell, label: "We'll remind you", strong: false },
+  { icon: CalendarCheck, label: "Open My appointments", strong: false },
+  { icon: Video, label: "Join the video call", strong: true },
 ] as const;
 
 /** Last step: the visit is booked (boards WebBooked and WebBookedClinic). */
@@ -89,7 +96,9 @@ export function BookingSuccessStepView({
     );
   }
   const buttons: ReactNode[] = [...secondary];
-  if (checkInAction) {
+  // Check-in (QR) is an in-clinic step only.
+  const showCheckIn = !!checkInAction && !isVideo;
+  if (checkInAction && showCheckIn) {
     // One main button: with a check-in button present it is the emerald one.
     buttons.push(
       <Button key="check-in" size="xl" className="w-full" onClick={checkInAction.onClick}>
@@ -102,7 +111,7 @@ export function BookingSuccessStepView({
     buttons.push(
       <Button
         key="primary"
-        variant={checkInAction ? "outline" : "default"}
+        variant={showCheckIn ? "outline" : "default"}
         size="xl"
         className="w-full"
         onClick={primaryAction.onClick}
@@ -166,12 +175,14 @@ export function BookingSuccessStepView({
         </BookingNotice>
       ) : null}
 
-      {!isVideo ? (
+      {!isVideo || !paymentPending ? (
         <SoftCard tone="sun" className="p-[22px]">
           <div className="flex flex-col gap-4">
-            <span className="text-base font-extrabold text-ink">On the day of your visit</span>
+            <span className="text-base font-extrabold text-ink">
+              {isVideo ? "Before your video call" : "On the day of your visit"}
+            </span>
             <ol className="m-0 grid list-none grid-cols-3 gap-3 p-0">
-              {VISIT_DAY_STEPS.map((step) => (
+              {(isVideo ? VIDEO_DAY_STEPS : VISIT_DAY_STEPS).map((step) => (
                 <li key={step.label} className="flex flex-col items-center gap-2 text-center">
                   <span
                     className={cn(

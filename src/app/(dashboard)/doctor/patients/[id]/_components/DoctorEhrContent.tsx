@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
+import { QuickPrescriptionModal, type PrescriptionSavedResult } from "@/components/doctor/QuickPrescriptionModal";
 import { PatientAppointmentHistory } from "@/components/patient/PatientAppointmentHistory";
 import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
 import {
@@ -10,14 +10,14 @@ import {
   type VisitSelectorVisit,
 } from "@/components/patient/case-sheet/VisitSelector";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
+import { usePrescriberDoctor } from "@/hooks/query/usePrescriberDoctor";
+import { useStaffRole } from "@/hooks/utils/useStaffRole";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import {
   usePatientAppointments,
   usePatientCarePlan,
   usePatientLabResults,
   usePatientMedicalRecords,
-  usePatientVitalSigns,
 } from "@/hooks/query/usePatients";
 import { usePatientAppointmentHistory } from "@/hooks/query/usePatientAppointmentHistory";
 import { usePatientDirectoryEntry } from "@/hooks/query/usePatientDirectory";
@@ -106,15 +106,27 @@ function mergeVisits(
 }
 
 /**
- * Data for the EHR workspace at `/doctor/patients/[id]`: the patient, the OPD visits, the
- * health record and the prescription dialog. The layout is `DoctorEhrView`.
+ * Data for the EHR workspace at `/doctor/patients/[id]` (and the assistant doctor's
+ * `/assistant-doctor/patients/[id]`): the patient, the OPD visits, the health record and the
+ * prescription dialog. The layout is `DoctorEhrView`. For the assistant the dialog saves a draft
+ * for the doctor (`mode="draft"`); the Bills tab follows the role (hidden for both).
  */
-export function DoctorEhrContent({ patientId }: { patientId: string }) {
+export function DoctorEhrContent({
+  patientId,
+  backHref,
+  onPrescriptionSaved,
+}: {
+  patientId: string;
+  backHref?: string;
+  onPrescriptionSaved?: (result: PrescriptionSavedResult) => void;
+}) {
   const { clinicId } = useClinicContext();
   const clinic = clinicId || "";
   const { hasPermission } = useRBAC();
-  // Prescription.doctorId is the Doctor entity id, not the signed-in user's id.
-  const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(clinic);
+  const { canDraftPrescription } = useStaffRole();
+  // Prescription.doctorId is the Doctor entity id, not the signed-in user's id (for the
+  // assistant: the clinic's doctor, who approves the draft).
+  const { doctorId: doctorEntityId } = usePrescriberDoctor(clinic);
   const [pickedVisitId, setPickedVisitId] = useState<string | null>(null);
   const [prescribing, setPrescribing] = useState(false);
 
@@ -147,7 +159,6 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
   const { data: historyData } = usePatientMedicalRecords(clinic, patientUserId, {
     enabled: !!clinic && !!patientUserId,
   });
-  const { data: vitalsData } = usePatientVitalSigns(patientUserId);
   const { data: labsData } = usePatientLabResults(patientUserId);
   const { data: carePlanData } = usePatientCarePlan(patientId);
 
@@ -158,12 +169,11 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
       ehr,
       appointments: toArray(appointmentsData),
       history: preferList(historyData, ehr.medicalHistory),
-      vitals: preferList(vitalsData, ehr.vitals),
       labs: preferList(labsData, ehr.labReports),
       carePlan: preferList(carePlanRows(carePlanData), ehr.carePlan ?? ehr.carePlans),
       prescriptions: toArray(ehr.prescriptions),
     }),
-    [appointmentsData, carePlanData, ehr, historyData, labsData, patientRecord, vitalsData],
+    [appointmentsData, carePlanData, ehr, historyData, labsData, patientRecord],
   );
 
   // UHID and the contact details kept outside the login (imported patients have no login phone).
@@ -192,7 +202,9 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
   };
 
   const canOpenCaseSheet = Boolean(clinic && patient && patientUserId && caseSheetAllowed);
-  const canPrescribe = Boolean(patient) && hasPermission(Permission.MANAGE_PRESCRIPTIONS);
+  const canPrescribe =
+    Boolean(patient) &&
+    (canDraftPrescription ? hasPermission(Permission.DRAFT_PRESCRIPTIONS) : hasPermission(Permission.MANAGE_PRESCRIPTIONS));
 
   return (
     <>
@@ -201,6 +213,7 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
         failed={failed}
         onRetry={retry}
         header={header}
+        {...(backHref ? { backHref } : {})}
         visitSelector={
           <VisitSelectorView
             visits={visits}
@@ -253,7 +266,9 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
           patientId={patientEntityId}
           patientName={row.name}
           doctorId={doctorEntityId}
+          mode={canDraftPrescription ? "draft" : "doctor"}
           {...(summary ? { patientSummary: summary } : {})}
+          {...(onPrescriptionSaved ? { onSaved: onPrescriptionSaved } : {})}
         />
       ) : null}
     </>

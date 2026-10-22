@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Divider, InitialsAvatar, Note, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { formatDateInIST, formatISODateInIST, formatTimeInIST } from "@/lib/utils/date-time";
+import { PatientRemarksCard, type PatientRemarksSummary } from "../PatientRemarksPanel";
 import { VideoStageShell } from "./VideoStageShell";
 
 export type LobbyDevice = { deviceId: string; label: string };
@@ -49,6 +50,8 @@ export type VideoLobbyViewProps = {
   scheduledLabel: string;
   sessionLabel: string;
   joinWindowText: string;
+  /** Staff lobby only: what the patient wrote when booking (reason, urgency, allergies). */
+  patientRemarks?: PatientRemarksSummary;
 
   // ── joining ──
   /** "Ready to join", "Waiting for your visit", "Payment required", … */
@@ -535,6 +538,7 @@ function StaffLobby(props: VideoLobbyViewProps) {
           <Note tone="green" icon={Shield}>
             {props.joinWindowText}
           </Note>
+          {props.patientRemarks ? <PatientRemarksCard summary={props.patientRemarks} /> : null}
           {props.blocked ? <BlockedNote label={props.stateLabel} message={props.stateMessage} /> : null}
           <JoinActions props={props} joinLabel="Join now">
             <Button variant="outline" size="xl" className="w-full" onClick={props.onBack}>

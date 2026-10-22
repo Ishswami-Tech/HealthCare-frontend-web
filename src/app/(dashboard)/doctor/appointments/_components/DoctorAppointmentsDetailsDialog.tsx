@@ -1,13 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CalendarClock, CalendarX, CheckCircle, FileText, Loader2, MessageSquare, Phone } from "lucide-react";
+import { CalendarClock, CheckCircle, FileText, Loader2, MessageSquare, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Divider, Kv, Note, Pill, statusLabel, statusTone } from "@/components/tbd";
+import { Divider, Note, Pill, statusLabel, statusTone } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { TransformedAppointment } from "../page";
 import { getPatientContact, getVisitTypeLabel, joinRecordList } from "./appointmentLabels";
@@ -35,7 +35,6 @@ interface DoctorAppointmentsDetailsDialogProps {
     data?: { diagnosis?: string; prescription?: string; notes?: string },
   ) => Promise<void>;
   onReschedule: (appointment: TransformedAppointment) => void;
-  onCancel: (appointment: TransformedAppointment) => void;
 }
 
 /** Bordered fact tile at the top of the dialog (status, visit type, contact, queue). */
@@ -79,9 +78,7 @@ export function DoctorAppointmentsDetailsDialog({
   saveConsultationDraft,
   completeConsultation,
   onReschedule,
-  onCancel,
 }: DoctorAppointmentsDetailsDialogProps) {
-  const vitals = selectedAppointment?.vitalSigns ?? null;
   // Same gate as the table row: in progress, or a confirmed video visit whose join window opened.
   const completeReason = selectedAppointment ? completeBlockedReason(selectedAppointment) : null;
 
@@ -151,26 +148,15 @@ export function DoctorAppointmentsDetailsDialog({
                         </span>
                       </div>
                       <Divider />
-                      <InfoBlock title="Chief Complaint">{selectedAppointment.chiefComplaint || "None recorded"}</InfoBlock>
+                      <InfoBlock title="Patient remarks">
+                        {selectedAppointment.chiefComplaint || "None given at booking"}
+                        {selectedAppointment.urgency ? ` (Urgency: ${selectedAppointment.urgency})` : ""}
+                      </InfoBlock>
                       <Divider />
                       <InfoBlock title="Medical History">{joinRecordList(selectedAppointment.medicalHistory)}</InfoBlock>
                     </div>
 
                     <div className={INFO_CARD}>
-                      <div className="flex flex-col gap-2">
-                        <h3 className="m-0 text-sm font-bold text-ink">Vital Signs</h3>
-                        {vitals ? (
-                          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                            <Kv label="BP" value={vitals.bp ?? "–"} />
-                            <Kv label="Pulse" value={vitals.pulse ?? "–"} />
-                            <Kv label="Temp" value={vitals.temperature ?? "–"} />
-                            <Kv label="Weight" value={vitals.weight ?? "–"} />
-                          </div>
-                        ) : (
-                          <p className="m-0 text-sm text-ink-muted">Not recorded for this visit.</p>
-                        )}
-                      </div>
-                      <Divider />
                       <InfoBlock title="Allergies">{joinRecordList(selectedAppointment.allergies)}</InfoBlock>
                       <Divider />
                       <InfoBlock title="Current Medications">
@@ -184,7 +170,7 @@ export function DoctorAppointmentsDetailsDialog({
                       <div className="flex flex-col gap-1.5">
                         <h3 className="m-0 text-sm font-bold text-ink">Manage visit</h3>
                         <p className="m-0 text-[13px] leading-normal text-ink-muted">
-                          Move the visit to another time, or cancel it. The patient is told either way.
+                          Move the visit to another time. The patient is told.
                         </p>
                       </div>
                       <div className="grid gap-2.5 sm:grid-cols-2">
@@ -203,24 +189,6 @@ export function DoctorAppointmentsDetailsDialog({
                           {selectedAppointment.rescheduleBlockedReason ? (
                             <p id="doctor-visit-reschedule-reason" className="m-0 text-xs text-ink-muted">
                               {selectedAppointment.rescheduleBlockedReason}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="md"
-                            className="w-full"
-                            onClick={() => onCancel(selectedAppointment)}
-                            disabled={!selectedAppointment.canCancel}
-                            aria-describedby={selectedAppointment.cancelBlockedReason ? "doctor-visit-cancel-reason" : undefined}
-                          >
-                            <CalendarX />
-                            Cancel visit
-                          </Button>
-                          {selectedAppointment.cancelBlockedReason ? (
-                            <p id="doctor-visit-cancel-reason" className="m-0 text-xs text-ink-muted">
-                              {selectedAppointment.cancelBlockedReason}
                             </p>
                           ) : null}
                         </div>

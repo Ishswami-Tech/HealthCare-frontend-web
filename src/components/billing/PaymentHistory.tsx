@@ -110,6 +110,19 @@ export function paymentInvoiceId(payment: Payment): string | undefined {
   return record.invoiceId || record.invoice?.id || undefined;
 }
 
+/**
+ * Statuses that are transactions: money moved (completed), came back (refunded), or the
+ * provider reported the payment failed. Open attempts (PENDING) are not transactions: the
+ * invoice they belong to is already shown with its Pay button and countdown. Attempts that were
+ * replaced or ran out of time (CANCELLED / EXPIRED) never moved money.
+ */
+const TRANSACTION_STATUSES: ReadonlySet<string> = new Set(["COMPLETED", "REFUNDED", "FAILED"]);
+
+/** The payments worth listing as transactions, newest first, from the backend statuses. */
+export function meaningfulPayments(payments: Payment[]): Payment[] {
+  return sortPaymentsNewestFirst(payments).filter((payment) => TRANSACTION_STATUSES.has(upper(payment.status)));
+}
+
 /** Icon, title and second line for one payment. */
 export function describePayment(payment: Payment): {
   kind: PaymentKind;

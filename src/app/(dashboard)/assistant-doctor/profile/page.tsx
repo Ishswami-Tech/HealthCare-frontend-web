@@ -1,40 +1,21 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
+import { PharmacistProfileContent } from "@/app/(dashboard)/pharmacist/profile/_components/PharmacistProfileContent";
+import { useUserProfile } from "@/hooks/query/useUsers";
 
-const AssistantDoctorWorkspaceShell = dynamic(
-  () => import("../_components/AssistantDoctorWorkspaceShell").then((module) => module.AssistantDoctorWorkspaceShell),
-  {
-    ssr: false,
-    loading: () => <DashboardPageSkeleton />,
-  }
-);
-
+// AsProfile (B5): the staff profile (personal details, password) shared with the pharmacist.
 export default function AssistantDoctorProfilePage() {
+  const { data: userProfile, isPending, isFetching, error, refetch } = useUserProfile();
+
   return (
-    <AssistantDoctorWorkspaceShell
-      eyebrow="Assistant Doctor"
-      title="Profile and availability"
-      description="Profile maintenance lives in the shared doctor profile workspace so role-specific settings stay centralized."
-      note="Shared profile route"
-      actions={[
-        {
-          label: "Open doctor profile",
-          href: "/doctor/profile",
-          description: "Review contact details, consultation settings, and availability in one place.",
-        },
-        {
-          label: "Open dashboard",
-          href: "/assistant-doctor/dashboard",
-          description: "Return to the assistant-doctor operational summary.",
-        },
-        {
-          label: "Open video consultations",
-          href: "/assistant-doctor/appointments",
-          description: "Check the appointments workspace when availability affects consultations.",
-        },
-      ]}
+    <PharmacistProfileContent
+      key={userProfile ? "loaded" : "pending"}
+      userProfile={userProfile}
+      isLoading={isPending && isFetching}
+      loadError={error ? error.message || "Please try again." : null}
+      onRetry={() => void refetch()}
+      title="Assistant doctor profile"
+      roleLabel="Assistant doctor"
     />
   );
 }

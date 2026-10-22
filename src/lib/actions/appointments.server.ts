@@ -35,7 +35,6 @@ import type {
 // ===== SCHEMAS =====
 
 import { 
-  scanQRSchema, 
   createAppointmentSchema, 
   updateAppointmentSchema, 
   completeAppointmentSchema,
@@ -493,7 +492,9 @@ export async function getAppointmentServiceCatalog(): Promise<{
       services?: AppointmentServiceDefinition[];
       data?: { services?: AppointmentServiceDefinition[] };
     }>(API_ENDPOINTS.APPOINTMENTS.SERVICES, {
-      cache: 'force-cache',
+      // Not force-cache: `bookable` is a per-clinic setting that changes without a release.
+      // The client caches the list per clinic in React Query (useAppointmentServices).
+      cache: 'no-store',
     });
 
     const services = Array.isArray(data?.services)
@@ -1254,83 +1255,8 @@ export async function rejectVideoProposal(id: string, reason: string) {
 
 // ===== UTILITIES =====
 
-/**
- * Scan location QR and check in
- */
-export async function scanLocationQRAndCheckIn(data: {
-  code: string;
-  locationId?: string;
-  appointmentId?: string;
-  coordinates?: { lat: number; lng: number };
-}) {
-  try {
-    const session = await getServerSession();
-    if (!session?.user) return { success: false, error: 'Unauthorized' };
-
-    const validatedData = scanQRSchema.parse(data);
-    const payload = {
-      qrCode: validatedData.code,
-      ...(validatedData.locationId ? { locationId: validatedData.locationId } : {}),
-      ...(validatedData.appointmentId ? { appointmentId: validatedData.appointmentId } : {}),
-      ...(validatedData.coordinates ? { coordinates: validatedData.coordinates } : {}),
-    };
-    const { data: response } = await authenticatedApi<any>(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-
-    const responseData = response?.data ?? response;
-
-    if (response?.success === false && responseData?.requiresSelection) {
-      return {
-        success: false,
-        requiresSelection: true,
-        appointments: responseData.eligibleAppointments ?? [],
-        message: responseData.message ?? 'Multiple appointments found',
-      };
-    }
-
-    if (response?.success === false) {
-      return {
-        success: false,
-        error: response?.message || responseData?.message || 'QR check-in failed',
-      };
-    }
-
-    revalidateCache('appointments');
-    revalidateCache('queue');
-    return {
-      success: true,
-      appointment: {
-        appointmentId: responseData?.appointmentId,
-        locationId: responseData?.locationId,
-        locationName: responseData?.locationName,
-        checkedInAt: responseData?.checkedInAt,
-        queuePosition: responseData?.queuePosition,
-        totalInQueue: responseData?.totalInQueue,
-        estimatedWaitTime: responseData?.estimatedWaitTime,
-        doctorId: responseData?.doctorId,
-        doctorName: responseData?.doctorName,
-      },
-    };
-  } catch (error) {
-    logger.error('Failed QR check-in', error instanceof Error ? error : new Error(String(error)));
-    const normalizedError = error as Error & {
-      code?: string;
-      details?: { message?: string; error?: string };
-    };
-    const detailedMessage =
-      normalizedError.details?.message ||
-      normalizedError.details?.error ||
-      normalizedError.message;
-
-    return {
-      success: false,
-      error: detailedMessage || 'QR check-in failed',
-      code: normalizedError.code,
-    };
-  }
-}
+// Patient QR check-in is `useInPersonCheckIn` (hooks/query/useInPerson.ts -> POST /in-person/check-in).
+// The deprecated POST /appointments/check-in/scan-qr has no web caller.
 
 export async function reassignAppointmentDoctor(
   id: string,

@@ -12,6 +12,7 @@ import {
 } from "@/hooks/query/usePatientRecordClaim";
 import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { logout as logoutAction } from "@/lib/actions/auth.server";
+import { markVoluntaryLogout } from "@/lib/utils/auth-recovery";
 
 /**
  * Shown to a patient whose mobile number matches a record the clinic brought over from its old
@@ -38,6 +39,7 @@ export function ClaimRecordCard({ userId, enabled }: { userId: string; enabled: 
     try {
       await claim.mutateAsync(toClaimInput(fullName, receiptNumber));
       showSuccessToast("Your earlier record is linked. Please sign in again.");
+      markVoluntaryLogout();
       await logoutAction().catch(() => undefined);
       window.location.replace("/auth/login");
     } catch (failure) {

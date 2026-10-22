@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, CheckCircle2, CircleAlert, Eye, EyeOff } from 'lucide-react';
 import { Note, FIELD_LABEL } from '@/components/tbd';
 import { useAuth } from '@/hooks/auth/useAuth';
+import { useHasPassword } from '@/hooks/auth/useHasPassword';
 import { getDashboardByRole } from '@/lib/config/routes';
 import { Role } from '@/types/auth.types';
 
@@ -77,6 +78,9 @@ export function ChangePasswordForm() {
   const { push } = useRouter();
   const { session, changePasswordAsync, isChangingPassword } = useAuth();
   const user = session?.user;
+  // An account without a password (one-time code / Google sign-in) has no current password to
+  // change; the backend requires it, so the form is replaced by a short note.
+  const hasPassword = useHasPassword();
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -131,6 +135,14 @@ export function ChangePasswordForm() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');
     }
+  }
+
+  if (hasPassword === false) {
+    return (
+      <p className="m-0 rounded-2xl bg-well px-4 py-3.5 text-[13px] text-ink-muted">
+        Your account signs in without a password (one-time code or Google), so there is no password to change.
+      </p>
+    );
   }
 
   return (

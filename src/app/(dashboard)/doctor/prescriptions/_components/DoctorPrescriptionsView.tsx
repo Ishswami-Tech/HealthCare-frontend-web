@@ -1,284 +1,241 @@
 "use client";
 
-import { Calendar, CircleAlert, FileText, Pill as PillIcon, Plus, RefreshCw, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { FileText, Plus } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
-import { EmptyBlock, Kpi, PageHero, SearchBox, SectionTitle, SegTabs, Surface } from "@/components/tbd";
-import { DoctorPrescriptionCard } from "./DoctorPrescriptionCard";
-import { DoctorPrescriptionDialog } from "./DoctorPrescriptionDialog";
-import {
-  prescriptionsCountLabel,
-  type DoctorPrescriptionEditForm,
-  type DoctorPrescriptionFilter,
-  type DoctorPrescriptionRow,
-  type DoctorPrescriptionStats,
-} from "./doctor-prescriptions.logic";
+import { EmptyBlock, LoadError, LoadErrorNote, PageHero, StatTile, TBD_SURFACE } from "@/components/tbd";
+import type { PrescriptionSummary } from "@/hooks/query/usePrescriptions";
+import { cn } from "@/lib/utils";
+import type { DoctorPrescriptionRow } from "./doctor-prescriptions.logic";
+import { DATE_PRESET_OPTIONS, DEFAULT_FILTERS, type DoctorRxFilters } from "./doctor-prescriptions.filters";
+import type { DoctorRxFilterState } from "./useDoctorPrescriptionFilters";
+import { DoctorPrescriptionsFilterBar } from "./DoctorPrescriptionsFilterBar";
+import { DoctorPrescriptionsPager } from "./DoctorPrescriptionsPager";
+import { DoctorPrescriptionsTable } from "./DoctorPrescriptionsTable";
 
 export interface DoctorPrescriptionsViewProps {
+  filterState: DoctorRxFilterState;
+  filtersActive: boolean;
+  /** IST day key of today ("" before hydration). */
+  todayKey: string;
+  /** Rows of the current page. */
+  rows: DoctorPrescriptionRow[];
+  /** Matching prescriptions over all pages. */
+  total: number;
   /** First load, nothing to show yet. */
   isLoading: boolean;
+  /** Another page or filter is loading; the previous rows stay on screen. */
+  isRefreshing: boolean;
   /** The first load failed and there is nothing to show. */
-  loadFailed?: boolean;
-  onRetry?: () => void;
-  /** Rows after search and filter. */
-  prescriptions: DoctorPrescriptionRow[];
-  /** True when the doctor has prescriptions but the search / filter hides them all. */
-  hasAnyPrescription: boolean;
-  stats: DoctorPrescriptionStats;
-  searchQuery: string;
-  filterStatus: DoctorPrescriptionFilter;
-  onSearchChange: (value: string) => void;
-  onFilterChange: (value: DoctorPrescriptionFilter) => void;
-  editDisabled?: boolean;
+  loadFailed: boolean;
+  /** A later load failed; the last rows stay on screen. */
+  refreshFailed: boolean;
+  onRetry: () => void;
+  /** Counts for the tiles; null when they are not known. */
+  summary: PrescriptionSummary | null;
+  summaryLoading: boolean;
   onCreate: () => void;
-  onEdit: (prescription: DoctorPrescriptionRow) => void;
+  onOpen: (prescription: DoctorPrescriptionRow) => void;
   onDownload: (prescription: DoctorPrescriptionRow) => void;
-  dialogOpen: boolean;
-  form: DoctorPrescriptionEditForm;
-  isSaving?: boolean;
-  onFormChange: (value: Partial<DoctorPrescriptionEditForm>) => void;
-  onSave: () => void;
-  onDialogOpenChange: (open: boolean) => void;
-
 }
 
-const FILTER_OPTIONS: Array<{ value: DoctorPrescriptionFilter; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
-];
+const NUMBER = new Intl.NumberFormat("en-IN");
+const MAX_SKELETON_ROWS = 12;
 
-const PAGE_DESCRIPTION =
-  "Review prescribed medicines and clinical notes. Medicine payment, packing, and dispatch stay with the medicine desk.";
-
-/** Tighter stat cards on a phone so "Prescriptions" fits beside the icon. */
-const KPI_PHONE = "max-sm:gap-2.5 max-sm:px-3.5";
-
-/** Lets a long stat label wrap on a phone instead of being cut off. */
-function StatLabel({ children }: { children: string }) {
-  return <span className="block whitespace-normal leading-tight [overflow-wrap:anywhere]">{children}</span>;
+/** Height of the filter bar, so the table header can stick right under it. */
+function useElementHeight<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setHeight(Math.round(entry.target.getBoundingClientRect().height));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, height] as const;
 }
 
-function LoadingBlocks() {
+function presetLabel(filters: DoctorRxFilters): string {
+  return DATE_PRESET_OPTIONS.find((option) => option.value === filters.date)?.label ?? "";
+}
+
+function SummaryTiles({
+  summary,
+  loading,
+  filters,
+  hrefFor,
+}: {
+  summary: PrescriptionSummary | null;
+  loading: boolean;
+  filters: DoctorRxFilters;
+  hrefFor: DoctorRxFilterState["hrefFor"];
+}) {
+  const value = (count: number | undefined) =>
+    loading ? <span className="inline-block h-6 w-10 animate-pulse rounded bg-well align-middle" /> : count === undefined ? "—" : NUMBER.format(count);
+  const period = filters.date === "all" ? "All dates" : presetLabel(filters);
+  const selected = "ring-2 ring-brand/50";
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" aria-hidden="true">
-        {[0, 1, 2, 3].map((index) => (
-          <div key={index} className="flex items-center gap-3.5 rounded-[18px] bg-card px-[18px] py-4 shadow-card dark:border dark:border-border/70">
-            <span className="flex min-w-0 flex-1 flex-col gap-2">
-              <span className="h-3 w-24 max-w-full animate-pulse rounded bg-well" />
-              <span className="h-7 w-10 animate-pulse rounded bg-well" />
-            </span>
-            <span className="size-11 shrink-0 animate-pulse rounded-[14px] bg-well" />
-          </div>
-        ))}
-      </div>
-      <Surface aria-hidden="true">
-        <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center">
-          <div className="h-11 flex-1 animate-pulse rounded-xl bg-well" />
-          <div className="h-[46px] w-[250px] max-w-full animate-pulse rounded-[13px] bg-well" />
-        </div>
-      </Surface>
-      <Surface>
-        <span className="sr-only" role="status">
-          Loading prescriptions…
-        </span>
-        <div className="h-5 w-40 animate-pulse rounded bg-well" aria-hidden="true" />
-        <div className="flex flex-col gap-3" aria-hidden="true">
-          {[0, 1, 2, 3].map((index) => (
-            <div key={index} className="flex flex-col gap-3.5 rounded-2xl border border-line p-4">
-              <div className="flex items-center gap-3">
-                <span className="size-[42px] shrink-0 animate-pulse rounded-full bg-well" />
-                <span className="flex min-w-0 flex-1 flex-col gap-2">
-                  <span className="h-4 w-44 max-w-full animate-pulse rounded bg-well" />
-                  <span className="h-3 w-64 max-w-full animate-pulse rounded bg-well" />
-                </span>
-              </div>
-              <div className="flex flex-col gap-2 sm:pl-[54px]">
-                <span className="h-3.5 w-56 max-w-full animate-pulse rounded bg-well" />
-                <span className="h-7 w-72 max-w-full animate-pulse rounded-[10px] bg-well" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </Surface>
-    </>
+    <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4" aria-label="Prescription counts">
+      <StatTile
+        value={value(summary?.total)}
+        label="Total"
+        hint={period}
+        href={hrefFor({ status: "all" })}
+        className={cn("py-2.5", filters.status === "all" && selected)}
+      />
+      <StatTile
+        value={value(summary?.active)}
+        label="Active"
+        hint={period}
+        tone="brand"
+        href={hrefFor({ status: "active" })}
+        className={cn("py-2.5", filters.status === "active" && selected)}
+      />
+      <StatTile
+        value={value(summary?.today)}
+        label="Today"
+        hint="Written today"
+        tone="blue"
+        href={hrefFor({ date: "today" })}
+        className={cn("py-2.5", filters.date === "today" && selected)}
+      />
+      <StatTile value={value(summary?.uniquePatients)} label="Unique patients" hint={period} className="py-2.5" />
+    </div>
+  );
+}
+
+/** What the empty list says depends on the filter that emptied it. */
+function EmptyList({ filterState, filtersActive }: { filterState: DoctorRxFilterState; filtersActive: boolean }) {
+  const { filters, update, clear } = filterState;
+  const onlyDate =
+    filters.q.trim() === "" && filters.status === "all" && filters.stage === "all" && filters.date !== "all";
+  if (onlyDate) {
+    const title = filters.date === "today" ? "No prescriptions today" : `No prescriptions for ${presetLabel(filters).toLowerCase()}`;
+    return (
+      <EmptyBlock
+        icon={FileText}
+        title={title}
+        description="Prescriptions you write show up here as soon as they are saved."
+        action={
+          <Button variant="outline" onClick={() => update({ date: "all" })}>
+            Show all dates
+          </Button>
+        }
+      />
+    );
+  }
+  if (filtersActive) {
+    return (
+      <EmptyBlock
+        icon={FileText}
+        title="No prescriptions match these filters"
+        description="Try another search, status or date range."
+        action={
+          <Button variant="outline" onClick={clear}>
+            Clear filters
+          </Button>
+        }
+      />
+    );
+  }
+  return (
+    <EmptyBlock
+      icon={FileText}
+      title="No prescriptions yet"
+      description="Prescriptions you write for your patients show up here."
+    />
   );
 }
 
 /** The doctor's prescriptions screen. Everything it shows and does comes in through props. */
 export function DoctorPrescriptionsView({
+  filterState,
+  filtersActive,
+  todayKey,
+  rows,
+  total,
   isLoading,
-  loadFailed = false,
+  isRefreshing,
+  loadFailed,
+  refreshFailed,
   onRetry,
-  prescriptions,
-  hasAnyPrescription,
-  stats,
-  searchQuery,
-  filterStatus,
-  onSearchChange,
-  onFilterChange,
-  editDisabled = false,
+  summary,
+  summaryLoading,
   onCreate,
-  onEdit,
+  onOpen,
   onDownload,
-  dialogOpen,
-  form,
-  isSaving = false,
-  onFormChange,
-  onSave,
-  onDialogOpenChange,
 }: DoctorPrescriptionsViewProps) {
-  const filtersActive = searchQuery.trim() !== "" || filterStatus !== "all";
+  const { filters, update, hrefFor } = filterState;
+  const [barRef, barHeight] = useElementHeight<HTMLDivElement>();
+  const showEmpty = !isLoading && !loadFailed && rows.length === 0;
 
   return (
-    <DashboardPageShell>
+    <DashboardPageShell className="gap-3 md:gap-3.5">
       <PageHero
         eyebrow="Doctor Prescriptions"
         title="Prescriptions"
-        description={PAGE_DESCRIPTION}
+        description="Payment, packing and handover stay with the medicine desk."
+        className="px-5 py-4 [&_h1]:text-[22px]"
         actions={
-          <Button size="md" onClick={onCreate} disabled={isLoading}>
+          <Button size="md" onClick={onCreate}>
             <Plus aria-hidden="true" />
             New Prescription
           </Button>
         }
       />
 
-      {isLoading ? (
-        <LoadingBlocks />
-      ) : loadFailed ? (
-        <Surface>
-          <EmptyBlock
-            icon={CircleAlert}
-            tone="rose"
-            title="Could not load prescriptions"
-            description="Check your connection and try again."
-            action={
-              onRetry ? (
-                <Button size="md" variant="outline" onClick={onRetry}>
-                  <RefreshCw aria-hidden="true" />
-                  Try again
-                </Button>
-              ) : undefined
-            }
-          />
-        </Surface>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-            <Kpi
-              label={<StatLabel>Total Prescriptions</StatLabel>}
-              value={stats.total}
-              icon={FileText}
-              tone="blue"
-              className={KPI_PHONE}
-            />
-            <Kpi
-              label={<StatLabel>Active Prescriptions</StatLabel>}
-              value={stats.active}
-              icon={PillIcon}
-              tone="mint"
-              className={KPI_PHONE}
-            />
-            <Kpi
-              label={<StatLabel>Unique Patients</StatLabel>}
-              value={stats.patients}
-              icon={User}
-              tone="aqua"
-              className={KPI_PHONE}
-            />
-            <Kpi
-              label={<StatLabel>Today&apos;s Prescriptions</StatLabel>}
-              value={<span suppressHydrationWarning>{stats.today}</span>}
-              icon={Calendar}
-              tone="amber"
-              className={KPI_PHONE}
-            />
-          </div>
+      <SummaryTiles summary={summary} loading={summaryLoading} filters={filters} hrefFor={hrefFor} />
 
-          <Surface>
-            <div className="flex flex-col gap-3.5 md:flex-row md:items-center">
-              <SearchBox
-                value={searchQuery}
-                onChange={onSearchChange}
-                placeholder="Search by patient, medicine, or diagnosis…"
-                ariaLabel="Search prescriptions"
-                className="md:flex-1"
-              />
-              <SegTabs
-                options={FILTER_OPTIONS}
-                value={filterStatus}
-                onChange={onFilterChange}
-                ariaLabel="Filter prescriptions by status"
-                className="md:self-center"
-              />
-            </div>
-          </Surface>
-
-          <Surface as="section" aria-label="Prescriptions list">
-            <SectionTitle
-              icon={FileText}
-              title="Prescriptions List"
-              action={
-                <span className="text-[13px] text-ink-muted" aria-live="polite">
-                  {prescriptionsCountLabel(prescriptions.length)}
-                </span>
-              }
-            />
-            {prescriptions.length === 0 ? (
-              hasAnyPrescription ? (
-                <EmptyBlock
-                  icon={FileText}
-                  title="No prescriptions found"
-                  description="Try adjusting your search or filters."
-                  action={
-                    filtersActive ? (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          onSearchChange("");
-                          onFilterChange("all");
-                        }}
-                      >
-                        Clear search and filters
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              ) : (
-                <EmptyBlock
-                  icon={FileText}
-                  title="No prescriptions yet"
-                  description="Prescriptions you write for your patients show up here."
-                />
-              )
-            ) : (
-              <div className="flex min-w-0 flex-col gap-3">
-                {prescriptions.map((prescription) => (
-                  <DoctorPrescriptionCard
-                    key={prescription.id}
-                    prescription={prescription}
-                    editDisabled={editDisabled}
-                    onDownload={onDownload}
-                    onEdit={onEdit}
-                  />
-                ))}
-              </div>
-            )}
-          </Surface>
-        </>
-      )}
-
-      <DoctorPrescriptionDialog
-        open={dialogOpen}
-        form={form}
-        isSaving={isSaving}
-        onFormChange={onFormChange}
-        onSave={onSave}
-        onOpenChange={onDialogOpenChange}
+      <DoctorPrescriptionsFilterBar
+        ref={barRef}
+        filterState={filterState}
+        filtersActive={filtersActive}
+        showDrafts={(summary?.drafts ?? 0) > 0}
+        todayKey={todayKey}
       />
 
+      {refreshFailed ? (
+        <LoadErrorNote title="Could not refresh prescriptions." message="Showing the last list loaded." onRetry={onRetry} />
+      ) : null}
+
+      <section aria-label="Prescriptions list" className={cn(TBD_SURFACE, "min-w-0 overflow-clip")}>
+        {loadFailed ? (
+          <LoadError
+            title="Could not load prescriptions"
+            message="Check your connection and try again."
+            onRetry={onRetry}
+          />
+        ) : showEmpty ? (
+          <EmptyList filterState={filterState} filtersActive={filtersActive} />
+        ) : (
+          <>
+            <DoctorPrescriptionsTable
+              rows={rows}
+              todayKey={todayKey}
+              isLoading={isLoading}
+              isRefreshing={isRefreshing}
+              skeletonRows={Math.min(filters.size, MAX_SKELETON_ROWS)}
+              stickyTop={barHeight}
+              onOpen={onOpen}
+              onDownload={onDownload}
+            />
+            {!isLoading ? (
+              <DoctorPrescriptionsPager
+                page={filters.page}
+                pageSize={filters.size}
+                total={total}
+                rowCount={rows.length}
+                onPageChange={(page) => update({ page })}
+                onPageSizeChange={(size) => update({ size: size || DEFAULT_FILTERS.size })}
+              />
+            ) : null}
+          </>
+        )}
+      </section>
     </DashboardPageShell>
   );
 }

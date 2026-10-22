@@ -1,16 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
+import { AssistantDashboardScreen } from "@/components/assistant/AssistantDashboardScreen";
 
-const AssistantDoctorDashboardContent = dynamic(
-  () => import("./_components/AssistantDoctorDashboardContent"),
-  {
-    ssr: false,
-    loading: () => <DashboardPageSkeleton />,
-  }
-);
-
+// AsDashboard (B5).
 export default function AssistantDoctorDashboardPage() {
-  return <AssistantDoctorDashboardContent />;
+  return <AssistantDashboardScreen />;
 }

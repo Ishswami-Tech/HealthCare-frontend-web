@@ -78,3 +78,19 @@ export function buildConnectSrcSources(input: string | undefined): string[] {
 export function buildConnectSrcValue(input: string | undefined): string {
   return buildConnectSrcSources(input).join(" ");
 }
+
+/**
+ * Single source of truth for the Permissions-Policy header (used by both
+ * next.config.ts headers() and src/proxy.ts). Geolocation is needed for
+ * desk-code check-in distance checks and camera for QR scanning / video
+ * consults; everything else stays restricted.
+ */
+export const PERMISSIONS_POLICY_VALUE = [
+  "camera=(self)",
+  "microphone=(self)",
+  "geolocation=(self)",
+  "usb=()",
+  "magnetometer=()",
+  "gyroscope=()",
+  "accelerometer=()",
+].join(", ");

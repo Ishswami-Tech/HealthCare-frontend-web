@@ -7,13 +7,14 @@ export type WashTone = "mint" | "sky" | "lavender" | "sun" | "aqua" | "peach";
  *   aqua: patients, health records, medicines, inventory · peach: reports, help
  */
 const WASH_RULES: Array<[RegExp, WashTone]> = [
-  [/\/(reports|help|support)(\/|$)/, "peach"],
+  [/\/(reports|help|support|lab-booking)(\/|$)/, "peach"],
   [/\/(billing|payments|invoices|subscriptions)(\/|$)/, "sun"],
   [/\/(appointments|no-show|schedule|family|booking)(\/|$)/, "sky"],
-  [/\/(prescriptions|profile|settings|library|sessions)(\/|$)/, "lavender"],
+  [/\/(prescriptions|prescribe|drafts|dispense|handover|diagnosis|investigations|print-settings|profile|settings|library|sessions)(\/|$)/, "lavender"],
+  [/\/(leave|holidays|follow-up|walk-in)(\/|$)/, "sky"],
   [/^\/(pharmacy|ehr)(\/|$)/, "aqua"],
-  [/\/(patients|health|medicines|inventory|records|vitals)(\/|$)/, "aqua"],
-  [/\/(dashboard|queue|check-in)(\/|$)/, "mint"],
+  [/\/(patients|health|medicines|inventory|stock|records|vitals|expiry|alert-settings)(\/|$)/, "aqua"],
+  [/\/(dashboard|queue|check-ins?|collect)(\/|$)/, "mint"],
 ];
 
 export function washToneForPath(pathname?: string | null): WashTone {

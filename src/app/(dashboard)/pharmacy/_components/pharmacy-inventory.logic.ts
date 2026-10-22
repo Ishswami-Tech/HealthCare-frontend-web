@@ -337,7 +337,9 @@ export function filterMedicines(rows: MedicineRow[], filters: InventoryFilters):
     if (filters.category && (parseDosageForm(row.category) ?? parseDosageForm(row.typeCode)) !== filters.category) return false;
     switch (filters.stock) {
       case "in_stock":
-        return row.status === "in_stock";
+        // Same rule as the server's `inStock=true` (stock above zero, low stock included), so the
+        // page guard never drops rows the server counted and the pager reads "1–25 of 25".
+        return row.status !== "out_of_stock";
       case "restock":
         return row.status !== "in_stock";
       case "out_of_stock":

@@ -47,6 +47,7 @@ import {
   type StockFilter,
 } from "./pharmacy-inventory.logic";
 import { formatRupees } from "@/lib/utils/currency";
+import type { InventoryCounts } from "@/lib/actions/pharmacy.server";
 import { formatMonthYearLabel } from "@/lib/utils/date-time";
 
 const ALL = "all";
@@ -64,6 +65,8 @@ export interface PharmacyInventoryStockTabProps {
   page: number;
   onPageChange: (page: number) => void;
   total: number;
+  /** Server counts of the whole inventory (all pages, no filter); the tiles fall back to the page until loaded. */
+  counts?: InventoryCounts | null;
   pageSize: number;
   /** False hides Receive and Add (no `MANAGE_INVENTORY` permission). */
   canManage: boolean;
@@ -116,8 +119,9 @@ function withSelected(options: readonly { value: string; label: string }[], sele
     : options;
 }
 
-function lowStockCount(overview: InventoryOverview): string {
-  const { lowCount, outCount } = overview.summary;
+function lowStockCount(overview: InventoryOverview, counts: InventoryCounts | null): string {
+  const lowCount = counts ? counts.lowStock : overview.summary.lowCount;
+  const outCount = counts ? counts.outOfStock : overview.summary.outCount;
   return [lowCount > 0 ? `${lowCount} low` : "", outCount > 0 ? `${outCount} out of stock` : ""]
     .filter(Boolean)
     .join(" · ");
@@ -134,6 +138,7 @@ export function PharmacyInventoryStockTab({
   page,
   onPageChange,
   total,
+  counts = null,
   pageSize,
   canManage,
   onView,
@@ -162,16 +167,28 @@ export function PharmacyInventoryStockTab({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
           label="Total Medicines"
-          value={loading ? blank : Math.max(total, summary.totalMedicines)}
-          hint={loading ? "Loading" : paged ? `${rows.length} on this page` : `${summary.inStock} in stock now`}
+          value={counts ? counts.total : loading ? blank : Math.max(total, summary.totalMedicines)}
+          hint={
+            counts
+              ? `${counts.inStock} in stock now`
+              : loading
+                ? "Loading"
+                : paged
+                  ? `${rows.length} on this page`
+                  : `${summary.inStock} in stock now`
+          }
           icon={PillIcon}
           tone="aqua"
         />
         <Kpi
           label="Low Stock"
-          value={loading ? blank : summary.lowCount}
+          value={counts ? counts.lowStock : loading ? blank : summary.lowCount}
           hint={
-            loading
+            counts
+              ? counts.outOfStock > 0
+                ? `And ${counts.outOfStock} out of stock`
+                : "Above zero, at or below minimum"
+              : loading
               ? "Loading"
               : summary.outCount > 0
                 ? `And ${summary.outCount} out of stock${paged ? " on this page" : ""}`
@@ -184,15 +201,22 @@ export function PharmacyInventoryStockTab({
         />
         <Kpi
           label="Expiring Soon"
-          value={loading ? blank : overview.expiring.length}
-          hint={loading ? "Loading" : paged ? "Within 90 days, on this page" : "Within 90 days"}
+          value={counts ? counts.expiringSoon : loading ? blank : overview.expiring.length}
+          hint={counts ? "Within 90 days" : loading ? "Loading" : paged ? "Within 90 days, on this page" : "Within 90 days"}
           icon={CalendarDays}
           tone="rose"
         />
+        {/* Whole-inventory value from the server, so it does not move with the list filters. */}
         <Kpi
-          label="Total Value"
-          value={loading ? blank : formatRupees(Math.round(overview.totalValue))}
-          hint={loading ? "Loading" : paged ? "Stock on this page" : "Current stock"}
+          label={counts?.totalValue != null ? "Total Value" : "Value of listed items"}
+          value={
+            counts?.totalValue != null
+              ? formatRupees(Math.round(counts.totalValue))
+              : loading
+                ? blank
+                : formatRupees(Math.round(overview.totalValue))
+          }
+          hint={counts?.totalValue != null ? "All current stock" : loading ? "Loading" : paged ? "Stock on this page" : "Stock in this list"}
           icon={Wallet}
           tone="blue"
         />
@@ -207,7 +231,7 @@ export function PharmacyInventoryStockTab({
                 tone="amber"
                 title="Low stock"
                 description="At or below the minimum level"
-                count={lowStockCount(overview)}
+                count={lowStockCount(overview, counts)}
               />
               {overview.lowStock.length === 0 ? (
                 <EmptyBlock

@@ -47,6 +47,10 @@ import {
   getTranscription,
 } from "@/lib/actions/video.server";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
+import {
+  PatientRemarksCallOverlay,
+  getPatientRemarksSummary,
+} from "@/components/video/PatientRemarksPanel";
 import { formatRupees } from "@/lib/utils/currency";
 
 // Dynamic import with ssr:false is REQUIRED for Daily.js.
@@ -459,6 +463,12 @@ export function VideoAppointmentRoomWorkspace({
     [handleCallExit]
   );
 
+  // Doctor only: the patient's booking remark stays on screen during the call.
+  const doctorPatientRemarks = React.useMemo(
+    () => (isDoctorViewer ? getPatientRemarksSummary(appointment) : null),
+    [appointment, isDoctorViewer]
+  );
+
   const panelTitle = React.useMemo(() => {
     switch (activePanel) {
       case "people":
@@ -504,6 +514,12 @@ export function VideoAppointmentRoomWorkspace({
               userData={dailyRoomUserData}
               onOpenPanel={setActivePanel}
             />
+            {doctorPatientRemarks ? (
+              <PatientRemarksCallOverlay
+                summary={doctorPatientRemarks}
+                className="absolute left-2.5 top-[118px] z-20 sm:left-[14px] sm:top-[126px]"
+              />
+            ) : null}
             {process.env.NODE_ENV === "development" && (
               <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 flex-col-reverse items-center gap-2">
                 {isInviteMenuOpen && (

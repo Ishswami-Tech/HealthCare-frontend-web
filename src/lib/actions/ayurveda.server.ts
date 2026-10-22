@@ -94,20 +94,6 @@ export async function createNadiPariksha(payload: {
 
 // ===== AYURVEDIC DIAGNOSIS =====
 
-export async function getAyurvedicDiagnoses(patientId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) throw new Error('Unauthorized');
-
-  try {
-    const { data } = await authenticatedApi(
-      `${API_ENDPOINTS.AYURVEDA.DIAGNOSIS.BASE}?patientId=${encodeURIComponent(patientId)}`
-    );
-    return data;
-  } catch {
-    return [];
-  }
-}
-
 export async function createAyurvedicDiagnosis(payload: {
   patientId: string;
   diagnosisLabel: string;
@@ -201,42 +187,9 @@ export async function getAyurvedaTimeline(patientId: string) {
   if (!session?.user?.id) throw new Error('Unauthorized');
 
   try {
-    const { data } = await authenticatedApi(
-      `${API_ENDPOINTS.AYURVEDA.TIMELINE}?patientId=${encodeURIComponent(patientId)}`
-    );
+    const { data } = await authenticatedApi(API_ENDPOINTS.AYURVEDA.TIMELINE(encodeURIComponent(patientId)));
     return data;
   } catch {
     return [];
-  }
-}
-
-// ===== AYURVEDIC PRESCRIPTION =====
-
-export async function createAyurvedicPrescription(payload: {
-  patientId: string;
-  diagnosisId: string;
-  medicines: Array<{
-    name: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
-    instructions?: string;
-  }>;
-  lifestyleRecommendations: string[];
-  dietaryRecommendations: string[];
-  followUpDate?: string;
-}) {
-  const session = await getServerSession();
-  if (!session?.user?.id) throw new Error('Unauthorized');
-
-  try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.AYURVEDA.PRESCRIPTION.CREATE, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    revalidatePath('/dashboard/ayurveda');
-    return { success: true, data };
-  } catch (error: unknown) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed' };
   }
 }

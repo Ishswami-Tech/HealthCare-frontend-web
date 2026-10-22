@@ -54,33 +54,11 @@ export default function QueryProvider({
           },
           mutations: {
             ...queryClientConfig.defaultOptions?.mutations,
-            retry: (failureCount, error) => {
-              const apiError = error as ApiError;
-
-              // Don't retry on client errors
-              if (
-                apiError?.response?.status &&
-                apiError.response.status >= 400 &&
-                apiError.response.status < 500
-              ) {
-                return false;
-              }
-
-              // A client-side timeout (fetchWithAbort) throws a plain
-              // TimeoutError with no `.response.status`, so it fell through
-              // the 4xx check above and retried like any other network
-              // error - even though the original request may already have
-              // been processed server-side (e.g. an appointment-create POST
-              // that succeeded but responded slowly). Retrying blindly here
-              // is what produced "Duplicate appointment creation detected"
-              // in production. Timeouts on mutations must not auto-retry.
-              if (error instanceof Error && error.name === "TimeoutError") {
-                return false;
-              }
-
-              // Retry once for server errors
-              return failureCount < 1;
-            },
+            // Mutations are never retried automatically. Bookings, payments, invoices, dispenses and
+            // messages are not idempotent: a failed-looking request (timeout, success:false payload,
+            // business refusal thrown as a plain Error) may already have been processed server-side,
+            // and a silent retry created duplicates (appointments, WhatsApp sends). The user can retry.
+            retry: false,
             onError: (error) => {
               const apiError = error as ApiError;
 

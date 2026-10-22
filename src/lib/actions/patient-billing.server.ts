@@ -2,6 +2,12 @@
 
 import { authenticatedApi, getServerSession } from "./auth.server";
 import { API_ENDPOINTS } from "../config/config";
+import {
+  actionSuccess,
+  caughtFailure,
+  requireSession as requireActionSession,
+  type ActionResult,
+} from "./_shared";
 import type {
   CreateConsultationInvoiceInput,
   PatientBillHistory,
@@ -83,20 +89,29 @@ export async function createConsultationInvoice(
 /**
  * Records a manual (cash/UPI/card/net-banking) payment against an invoice.
  * Backend: POST /billing/invoices/:id/record-payment
+ *
+ * Returns an `ActionResult` instead of throwing: a thrown error loses its message on the way to
+ * the browser (the dialog only saw a 500), so a refusal such as "Amount … exceeds the remaining
+ * balance" (400) reaches the dialog with the backend wording.
  */
 export async function recordInvoicePayment(
   clinicId: string,
   invoiceId: string,
   input: RecordInvoicePaymentInput,
-): Promise<{ invoice: Record<string, unknown>; payment: Record<string, unknown> }> {
-  await requireSession();
-  const { data } = await authenticatedApi<{
-    invoice: Record<string, unknown>;
-    payment: Record<string, unknown>;
-  }>(API_ENDPOINTS.BILLING.INVOICES.RECORD_PAYMENT(invoiceId), {
-    method: "POST",
-    body: JSON.stringify(input),
-    headers: clinicHeaders(clinicId),
-  });
-  return data;
+): Promise<ActionResult<{ invoice: Record<string, unknown>; payment: Record<string, unknown> }>> {
+  const session = await requireActionSession();
+  if (!session.success) return session;
+  try {
+    const { data } = await authenticatedApi<{
+      invoice: Record<string, unknown>;
+      payment: Record<string, unknown>;
+    }>(API_ENDPOINTS.BILLING.INVOICES.RECORD_PAYMENT(invoiceId), {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: clinicHeaders(clinicId),
+    });
+    return actionSuccess(data);
+  } catch (error) {
+    return caughtFailure(error);
+  }
 }

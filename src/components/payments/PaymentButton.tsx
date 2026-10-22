@@ -20,6 +20,7 @@ import {
   useClinicPaymentConfig,
   enabledProvidersFromConfig,
 } from "@/hooks/query/useClinicPaymentConfig";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { formatAmountFromMinorUnits } from "@/lib/utils";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
@@ -234,7 +235,7 @@ export function PaymentButton({
   amount,
   currency = "INR",
   description,
-  clinicId,
+  clinicId: clinicIdProp,
   provider,
   appointmentType,
   autoStart = false,
@@ -248,6 +249,10 @@ export function PaymentButton({
 }: PaymentButtonProps) {
   const queryClient = useQueryClient();
   const { session } = useAuth();
+  // Callers often omit the clinic; the signed-in clinic is the fallback so payment verification
+  // never fails with "Clinic context is required" for a normal patient payment.
+  const sessionClinicId = useCurrentClinicId();
+  const clinicId = clinicIdProp || sessionClinicId || undefined;
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
   const cashfreeSdkPromiseRef = useRef<Promise<CashfreeCheckoutClient | null> | null>(null);

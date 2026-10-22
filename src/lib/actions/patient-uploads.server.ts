@@ -24,9 +24,17 @@ export interface PatientUpload {
   category: string;
   description?: string;
   fileName: string;
+  /** Display name (report name typed by the patient, else the file name). */
+  title?: string;
+  /** Name to save the file under, e.g. "Lipid profile.pdf". */
+  downloadFileName?: string;
+  /** Date of the report itself (yyyy-mm-dd), when the patient gave one. */
+  reportDate?: string;
   fileSize?: number;
   fileType?: string;
   url?: string;
+  /** Authenticated stream path (`/patients/:id/documents/:docId/content`), local disk or S3. */
+  contentUrl?: string;
   recordType?: string;
   uploadedBy?: string;
   uploadedAt: string;

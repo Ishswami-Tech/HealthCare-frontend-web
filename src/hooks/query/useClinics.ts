@@ -1,4 +1,5 @@
 import { keepPreviousData } from '@tanstack/react-query';
+import { resolveClinicVisitDurations, type ClinicVisitDurations } from '@/lib/utils/visit-duration';
 import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { useAuth } from '@/hooks/auth/useAuth';
@@ -11,6 +12,7 @@ import { Permission } from '@/types/rbac.types';
 import { APP_CONFIG } from '@/lib/config/config';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
+import { dataOrThrow } from '@/lib/utils/action-result';
 import {
   CreateClinicData,
   UpdateClinicData,
@@ -387,11 +389,7 @@ export const useClinicLocation = (clinicId: string, locationId: string) => {
 export const useUpdateClinicLocation = () => {
   return useMutationOperation<ClinicLocation, { clinicId: string; locationId: string; data: UpdateClinicLocationData }>(
     async ({ clinicId, locationId, data }) => {
-      const result = await updateClinicLocation(clinicId, locationId, data);
-      if (!result) {
-        throw new Error('Failed to update clinic location');
-      }
-      return result;
+      return dataOrThrow(await updateClinicLocation(clinicId, locationId, data));
     },
     {
       toastId: TOAST_IDS.LOCATION.UPDATE,
@@ -971,6 +969,16 @@ export const useCurrentClinic = () => {
       retry: clinicQueryRetry,
     }
   );
+};
+
+/**
+ * The clinic's in-person / video visit lengths (read-only for doctors: the clinic admin sets them,
+ * slots and bookings use them). Reads the current clinic once (same query as useCurrentClinic).
+ */
+export const useClinicVisitDurations = (): ClinicVisitDurations & { isLoading: boolean } => {
+  const { data: clinic, isPending } = useCurrentClinic();
+  const settings = (clinic as { settings?: unknown } | null | undefined)?.settings;
+  return { ...resolveClinicVisitDurations(settings), isLoading: isPending };
 };
 
 // ✅ Health Check Hooks

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyBlock, Field, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
 import type { DoctorNextPatient, TransformedAppointment } from "./doctor-dashboard.logic";
+import { visitHref } from "@/components/doctor/visit/visit-routes";
 
 const CARD = "border border-[#a7f3d0] dark:border-emerald-800";
 const LINK =
@@ -34,7 +35,7 @@ function PatientIdentity({
   statusPill: ReactNode;
   children?: ReactNode;
 }) {
-  const summary = [appointment.patientMeta, appointment.timeLabel, appointment.reason].filter(Boolean).join(" · ");
+  const summary = [appointment.patientMeta, appointment.timeLabel].filter(Boolean).join(" · ");
 
   return (
     <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center">
@@ -50,6 +51,12 @@ function PatientIdentity({
             {appointment.patientName}
           </span>
           {summary ? <span className="text-[13px] text-ink-soft">{summary}</span> : null}
+          {appointment.reason ? (
+            <span className="line-clamp-2 text-[13px] text-ink" title={appointment.reason}>
+              <span className="font-bold">Patient remarks: </span>
+              {appointment.reason}
+            </span>
+          ) : null}
         </div>
       </div>
       {children}
@@ -243,6 +250,10 @@ export function DoctorDashboardConsultationCard({
             </Button>
           )}
           <span className="hidden flex-1 sm:block" />
+          <Link href={visitHref(appointment.id)} className={LINK}>
+            Visit flow
+            <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+          </Link>
           <Link href={`/doctor/patients/${appointment.patientId}`} className={LINK}>
             Open case sheet
             <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />

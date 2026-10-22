@@ -5,7 +5,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, IconBox, PageHead, Surface, LoadError } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { QueueClinicCard, QueueTokenCard } from "./QueueParts";
-import { formatWait, ticketHeadline, type QueueTicket, type QueueVisitInfo } from "@/components/patient/queue/queueData";
+import {
+  formatWait,
+  isNextInLine,
+  ticketHeadline,
+  type QueueTicket,
+  type QueueVisitInfo,
+} from "@/components/patient/queue/queueData";
+import { YoureNextNote } from "../../check-in/_components/CheckInViews";
 import { plural } from "@/lib/utils/labels";
 
 /**
@@ -164,6 +171,7 @@ export function PatientQueueView({ ticket, info, onRefresh, isRefreshing }: Pati
 
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-5">
+          {isNextInLine(ticket) ? <YoureNextNote /> : null}
           <QueueTokenCard ticket={ticket} layout="progress" />
           <QueueLine ticket={ticket} doctorName={info.doctorName} />
         </div>
@@ -174,7 +182,7 @@ export function PatientQueueView({ ticket, info, onRefresh, isRefreshing }: Pati
               <IconBox icon={RefreshCw} tone="mint" size={40} />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="text-sm font-bold text-ink">Updates by itself</span>
-                <span className="text-xs text-ink-muted">Every 30 seconds</span>
+                <span className="text-xs text-ink-muted">Every 20 seconds</span>
               </span>
               <Button variant="outline" onClick={onRefresh} disabled={isRefreshing} aria-busy={isRefreshing}>
                 <RefreshCw className={cn(isRefreshing && "animate-spin")} aria-hidden="true" />

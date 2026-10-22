@@ -1039,6 +1039,7 @@ export async function verifyPaymentCallback(params: {
   provider?: string;
   message?: string;
   error?: string;
+  code?: string;
   payment?: unknown;
   invoice?: unknown;
   appointment?: unknown;
@@ -1073,6 +1074,8 @@ export async function verifyPaymentCallback(params: {
       paymentId?: string;
       provider?: string;
       message?: string;
+      error?: string;
+      code?: string;
       payment?: unknown;
       invoice?: unknown;
       appointment?: unknown;
@@ -1085,13 +1088,20 @@ export async function verifyPaymentCallback(params: {
       body: JSON.stringify({ orderId: params.orderId }),
     });
 
+    const verified = Boolean(data?.success);
     return {
-      success: Boolean(data?.success),
+      success: verified,
       ...(data?.clinicId ? { clinicId: data.clinicId } : {}),
       ...(data?.orderId ? { orderId: data.orderId } : {}),
       ...(data?.paymentId ? { paymentId: data.paymentId } : {}),
       ...(data?.provider ? { provider: data.provider } : {}),
-      message: data?.message ?? 'Payment verified successfully',
+      // A failed verification carries the backend's reason, never a "verified" message.
+      ...(verified
+        ? { message: data?.message ?? 'Payment verified successfully' }
+        : {
+            error: data?.error || data?.message || 'The payment could not be verified.',
+            ...(data?.code ? { code: data.code } : {}),
+          }),
       ...(data?.payment ? { payment: data.payment } : {}),
       ...(data?.invoice ? { invoice: data.invoice } : {}),
       ...(data?.appointment ? { appointment: data.appointment } : {}),
@@ -1242,7 +1252,8 @@ export async function createInPersonAppointmentWithSubscription(data: {
   clinicId: string;
   locationId: string;
   appointmentDate: string;
-  duration: number;
+  /** Server-owned (clinic in-person visit length); booking screens leave it out. */
+  duration?: number;
   treatmentType?: string;
   priority?: string;
   notes?: string;

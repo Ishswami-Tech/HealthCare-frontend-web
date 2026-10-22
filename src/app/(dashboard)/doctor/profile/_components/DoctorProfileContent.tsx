@@ -153,7 +153,6 @@ function createInitialProfileData(
       videoConsultation: pick("videoConsultation") === true,
       homeVisits: pick("homeVisits") === true,
       emergencyConsultation: pick("emergencyConsultation") === true,
-      consultationDuration: fieldText(pick("consultationDuration")) || "30",
       maxPatientsPerDay: "",
       bookingAdvanceDays: "30",
     },

@@ -5,10 +5,12 @@ import { useInvoices, usePayments } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import type { RenderInvoicePay } from "./BillingOverviewCards";
 import { PatientInvoiceView, type PatientInvoiceState } from "./PatientInvoiceView";
+import { InvoicePayAction, refetchAroundWindowClose } from "./InvoicePayAction";
 import { invoicePaymentInfo, invoiceTotal } from "./patientBilling.logic";
 import { usePatientBillingIdentity } from "./usePatientBilling";
 import { formatRupees } from "@/lib/utils/currency";
 import { useInvoicePdfDownload } from "@/hooks/query/useInvoicePdfDownload";
+import { useClinicBrandName } from "@/hooks/query/useClinicBrandName";
 
 const PaymentButton = dynamic(
   () => import("@/components/payments/PaymentButton").then((module) => module.PaymentButton),
@@ -22,6 +24,7 @@ const PaymentButton = dynamic(
 export function PatientInvoiceContent({ invoiceId }: { invoiceId: string }) {
   const { userId, clinicId, userName } = usePatientBillingIdentity();
   const { downloadingPdfId, downloadPdf } = useInvoicePdfDownload();
+  const clinic = useClinicBrandName();
 
   useWebSocketQuerySync();
 
@@ -44,18 +47,16 @@ export function PatientInvoiceContent({ invoiceId }: { invoiceId: string }) {
 
   // The one way to pay from this screen: the shared PaymentButton (amber).
   // `amount` is in rupees, the invoice total the backend charges; the label shows the same rupees.
+  const refetchBilling = () => {
+    void refetchInvoices();
+    void refetchPayments();
+  };
   const renderPay: RenderInvoicePay = (pending) => (
-    <PaymentButton
-      invoiceId={pending.id}
-      amount={invoiceTotal(pending)}
-      size="md"
-      onSuccess={() => {
-        void refetchInvoices();
-        void refetchPayments();
-      }}
-    >
-      Pay {formatRupees(invoiceTotal(pending), { currency: pending.currency })}
-    </PaymentButton>
+    <InvoicePayAction invoice={pending} onExpired={() => refetchAroundWindowClose(refetchBilling)}>
+      <PaymentButton invoiceId={pending.id} amount={invoiceTotal(pending)} size="md" onSuccess={refetchBilling}>
+        Pay {formatRupees(invoiceTotal(pending), { currency: pending.currency })}
+      </PaymentButton>
+    </InvoicePayAction>
   );
 
   return (
@@ -63,6 +64,7 @@ export function PatientInvoiceContent({ invoiceId }: { invoiceId: string }) {
       state={state}
       invoice={invoice}
       billedTo={userName}
+      clinicName={clinic.name}
       payment={invoice ? invoicePaymentInfo(invoice, payments) : null}
       renderPay={renderPay}
       onDownloadPdf={(id) => void downloadPdf(id)}

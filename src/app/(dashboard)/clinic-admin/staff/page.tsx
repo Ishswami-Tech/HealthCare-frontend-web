@@ -1,542 +1,185 @@
 "use client";
 
-import { useMemo, useReducer } from "react";
-import { type ColumnDef } from "@tanstack/react-table";
-import { Loader2, Filter, Mail, Phone, Plus, Search, ShieldCheck, Stethoscope, UserCheck, UserCog, Users } from "lucide-react";
-
-import { Role } from "@/types/auth.types";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { MailPlus, RefreshCw, ShieldCheck, UserPlus, Users, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  CellTitle,
+  EmptyBlock,
+  FilterChips,
+  GridHead,
+  GridRow,
+  InitialsAvatar,
+  LoadError,
+  Pager,
+  Pill,
+  SearchBox,
+  SectionTitle,
+  SkeletonRows,
+  StatTile,
+  Surface,
+  TbdPage,
+  usePagedRows,
+} from "@/components/tbd";
 import { AssignRoleModal } from "@/components/clinic/AssignRoleModal";
 import { AddStaffModal } from "@/components/clinic/AddStaffModal";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { DataTable } from "@/components/ui/data-table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/hooks/auth/useAuth";
-import { useCurrentClinic } from "@/hooks/query/useClinics";
-import { useUsersByClinic } from "@/hooks/query/useUsers";
-import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
-import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { cn } from "@/lib/utils";
-import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { roleLabel } from "@/components/billing/staff/billing.logic";
+import { useStaffInviteAction, useStaffInvites, useStaffMembers } from "@/hooks/query/useClinicStaffAdmin";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { formatDateLabel, formatDateTimeLabel } from "@/lib/utils/date-time";
+import { Role } from "@/types/auth.types";
+import type { StaffMember } from "@/types/clinic-admin-ops.types";
 
-type StaffMember = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  status: "Active" | "Inactive";
-  specialization: string;
-  department: string;
-  joinDate?: string;
-  experience: string;
-  location: string;
-  permissions?: string[] | null;
-};
+const COLUMNS = "minmax(0,1.8fr) minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,0.9fr)";
+type RoleFilter = "ALL" | "DOCTOR" | "ASSISTANT_DOCTOR" | "RECEPTIONIST" | "PHARMACIST" | "NURSE" | "CLINIC_ADMIN";
 
-type ClinicAdminStaffState = {
-  searchTerm: string;
-  roleFilter: string;
-  statusFilter: string;
-  assignModalStaff: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    status?: string;
-    permissions?: string[];
-  } | null;
-  isAddStaffModalOpen: boolean;
-};
+const statusPill = (member: StaffMember) =>
+  !member.isActive ? <Pill tone="slate">Inactive</Pill> : member.onLeaveToday ? <Pill tone="amber">On leave</Pill> : <Pill tone="green">Active</Pill>;
 
-type ClinicAdminStaffAction =
-  | { type: "setSearchTerm"; value: string }
-  | { type: "setRoleFilter"; value: string }
-  | { type: "setStatusFilter"; value: string }
-  | { type: "setAssignModalStaff"; value: ClinicAdminStaffState["assignModalStaff"] }
-  | { type: "setIsAddStaffModalOpen"; value: boolean };
+// CaStaff (B2): the clinic team, pending invites, links to profile / invite / roles matrix.
+export default function CaStaffPage() {
+  const clinicId = useCurrentClinicId();
+  const [role, setRole] = useState<RoleFilter>("ALL");
+  const [search, setSearch] = useState("");
+  const [assign, setAssign] = useState<StaffMember | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const members = useStaffMembers();
+  const invites = useStaffInvites("PENDING");
+  const inviteAction = useStaffInviteAction();
 
-const initialClinicAdminStaffState: ClinicAdminStaffState = {
-  searchTerm: "",
-  roleFilter: "all",
-  statusFilter: "all",
-  assignModalStaff: null,
-  isAddStaffModalOpen: false,
-};
-
-function clinicAdminStaffReducer(
-  state: ClinicAdminStaffState,
-  action: ClinicAdminStaffAction
-): ClinicAdminStaffState {
-  switch (action.type) {
-    case "setSearchTerm":
-      return { ...state, searchTerm: action.value };
-    case "setRoleFilter":
-      return { ...state, roleFilter: action.value };
-    case "setStatusFilter":
-      return { ...state, statusFilter: action.value };
-    case "setAssignModalStaff":
-      return { ...state, assignModalStaff: action.value };
-    case "setIsAddStaffModalOpen":
-      return { ...state, isAddStaffModalOpen: action.value };
-    default:
-      return state;
-  }
-}
-
-const CLINIC_STAFF_ROLES = [
-  Role.DOCTOR,
-  Role.ASSISTANT_DOCTOR,
-  Role.RECEPTIONIST,
-  Role.PHARMACIST,
-  Role.NURSE,
-  Role.THERAPIST,
-  Role.LAB_TECHNICIAN,
-  Role.COUNSELOR,
-  Role.SUPPORT_STAFF,
-  Role.FINANCE_BILLING,
-  Role.CLINIC_LOCATION_HEAD,
-] as const;
-
-const CLINIC_SUPPORT_ROLES: readonly Role[] = CLINIC_STAFF_ROLES.filter(
-  (role) => role !== Role.DOCTOR && role !== Role.ASSISTANT_DOCTOR
-);
-
-export default function ClinicAdminStaff() {
-  useAuth();
-  const { data: currentClinic } = useCurrentClinic();
-  const clinicId = currentClinic?.id;
-  const clinicName = currentClinic?.name;
-  const [
-    {
-      searchTerm,
-      roleFilter,
-      statusFilter,
-      assignModalStaff,
-      isAddStaffModalOpen,
-    },
-    dispatch,
-  ] = useReducer(clinicAdminStaffReducer, initialClinicAdminStaffState);
-
-  const setSearchTerm = (value: string) => {
-    dispatch({ type: "setSearchTerm", value });
-  };
-
-  const setRoleFilter = (value: string) => {
-    dispatch({ type: "setRoleFilter", value });
-  };
-
-  const setStatusFilter = (value: string) => {
-    dispatch({ type: "setStatusFilter", value });
-  };
-
-  const setAssignModalStaff = (
-    value: ClinicAdminStaffState["assignModalStaff"]
-  ) => {
-    dispatch({ type: "setAssignModalStaff", value });
-  };
-
-  const setIsAddStaffModalOpen = (value: boolean) => {
-    dispatch({ type: "setIsAddStaffModalOpen", value });
-  };
-
-  const { data: staffData, isPending: isLoadingStaff, refetch } = useUsersByClinic(
-    clinicId || ""
-  );
-
-  useWebSocketQuerySync();
-
-  const staff = useMemo<StaffMember[]>(() => {
-    if (!staffData) return [];
-    const data = staffData as any;
-    const users = Array.isArray(data) ? data : data?.users || data?.data || [];
-
-    return users.map((user: any) => ({
-      id: user.id,
-      name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Unnamed",
-      email: user.email,
-      phone: user.phone || "No contact",
-      role: user.role || user.roles?.[0]?.name || "STAFF",
-      status: user.isActive !== false ? "Active" : "Inactive",
-      specialization: user.specialization || "General",
-      department: user.department || "Medical",
-      joinDate: user.createdAt || user.joinedAt,
-      experience: user.experience || "N/A",
-      location: user.location?.name || "Main Clinic",
-      permissions: user.permissions || user.roles?.[0]?.permissions || null,
-    }));
-  }, [staffData]);
-
-  const filteredStaff = useMemo(() => {
-    return staff.filter((member) => {
-      const search = searchTerm.toLowerCase();
-      const matchesSearch =
-        !searchTerm ||
-        member.name.toLowerCase().includes(search) ||
-        member.email.toLowerCase().includes(search) ||
-        member.specialization.toLowerCase().includes(search);
-      const matchesRole = roleFilter === "all" || member.role === roleFilter;
-      const matchesStatus =
-        statusFilter === "all" || member.status.toLowerCase() === statusFilter;
-
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [staff, searchTerm, roleFilter, statusFilter]);
-
-  const getRoleBadge = (role: Role | string) => {
-    const normalized = role as Role;
-    switch (normalized) {
-      case Role.DOCTOR:
-        return (
-          <Badge className="border-blue-200/50 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-400">
-            Doctor
-          </Badge>
-        );
-      case Role.ASSISTANT_DOCTOR:
-        return (
-          <Badge className="border-sky-200/50 bg-sky-500/10 text-sky-700 hover:bg-sky-500/20 dark:text-sky-400">
-            Assistant Doctor
-          </Badge>
-        );
-      case Role.CLINIC_ADMIN:
-        return (
-          <Badge className="border-purple-200/50 bg-purple-500/10 text-purple-700 hover:bg-purple-500/20 dark:text-purple-400">
-            Admin
-          </Badge>
-        );
-      case Role.RECEPTIONIST:
-        return (
-          <Badge className="border-emerald-200/50 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-400">
-            Reception
-          </Badge>
-        );
-      case Role.PHARMACIST:
-        return (
-          <Badge className="border-orange-200/50 bg-orange-500/10 text-orange-700 hover:bg-orange-500/20 dark:text-orange-400">
-            Pharmacy
-          </Badge>
-        );
-      case Role.NURSE:
-        return (
-          <Badge className="border-teal-200/50 bg-teal-500/10 text-teal-700 hover:bg-teal-500/20 dark:text-teal-400">
-            Nurse
-          </Badge>
-        );
-      case Role.THERAPIST:
-        return (
-          <Badge className="border-indigo-200/50 bg-indigo-500/10 text-indigo-700 hover:bg-indigo-500/20 dark:text-indigo-400">
-            Therapist
-          </Badge>
-        );
-      case Role.LAB_TECHNICIAN:
-        return (
-          <Badge className="border-rose-200/50 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20 dark:text-rose-400">
-            Lab Tech
-          </Badge>
-        );
-      case Role.COUNSELOR:
-        return (
-          <Badge className="border-pink-200/50 bg-pink-500/10 text-pink-700 hover:bg-pink-500/20 dark:text-pink-400">
-            Counselor
-          </Badge>
-        );
-      case Role.SUPPORT_STAFF:
-        return (
-          <Badge className="border-cyan-200/50 bg-cyan-500/10 text-cyan-700 hover:bg-cyan-500/20 dark:text-cyan-400">
-            Support Staff
-          </Badge>
-        );
-      case Role.FINANCE_BILLING:
-        return (
-          <Badge className="border-amber-200/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400">
-            Finance
-          </Badge>
-        );
-      case Role.CLINIC_LOCATION_HEAD:
-        return (
-          <Badge className="border-violet-200/50 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20 dark:text-violet-400">
-            Location Head
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary" className="capitalize">
-            {role.toLowerCase().replace("_", " ")}
-          </Badge>
-        );
-    }
-  };
-
-  const columns = useMemo<ColumnDef<StaffMember>[]>(
-    () => [
-      {
-        accessorKey: "name",
-        header: "Staff Member",
-        cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/5 font-bold text-primary">
-              {row.original.name.charAt(0)}
-            </div>
-            <div>
-              <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
-                {row.original.name}
-              </p>
-              <p className="text-xs text-muted-foreground">ID: #{row.original.id.substring(0, 8)}</p>
-            </div>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "role",
-        header: "Role & Dept",
-        cell: ({ row }) => (
-          <div className="gap-y-1">
-            {getRoleBadge(row.original.role)}
-            <p className="text-[10px] font-medium text-muted-foreground">
-              {row.original.department}
-            </p>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "specialization",
-        header: "Specialization",
-        cell: ({ row }) => <span className="text-sm font-medium">{row.original.specialization}</span>,
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => (
-          <Badge
-            variant={row.original.status === "Active" ? "outline" : "secondary"}
-            className={cn(
-              "rounded-full border-none",
-              row.original.status === "Active"
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "bg-neutral-500/10 text-neutral-600 dark:text-neutral-400"
-            )}
-          >
-            {row.original.status}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "email",
-        header: "Contact",
-        cell: ({ row }) => (
-          <div className="gap-y-1 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Mail className="size-3.5" />
-              <span>{row.original.email}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Phone className="size-3.5" />
-              <span>{row.original.phone}</span>
-            </div>
-          </div>
-        ),
-      },
-      {
-        id: "actions",
-        header: () => <div className="text-right">Actions</div>,
-          cell: ({ row }) => (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                setAssignModalStaff({
-                  id: row.original.id,
-                  name: row.original.name,
-                  email: row.original.email,
-                  role: row.original.role,
-                  status: row.original.status,
-                  ...(row.original.permissions ? { permissions: row.original.permissions } : {}),
-                })
-              }
-              className="bg-neutral-50 font-medium dark:bg-neutral-800 dark:hover:bg-neutral-700"
-            >
-              <ShieldCheck className="mr-2 size-4 text-primary" />
-              Manage Role
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    []
-  );
-
-  const staffHeaderMeta = `${clinicName || "Your clinic"} • ${staff.length} staff members`;
+  const all = useMemo(() => members.data ?? [], [members.data]);
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return all.filter(
+      (member) =>
+        (role === "ALL" || member.role === role) &&
+        (!term || `${member.name} ${member.phone ?? ""} ${member.email ?? ""}`.toLowerCase().includes(term)),
+    );
+  }, [all, role, search]);
+  const paging = usePagedRows(filtered, 25, { resetKey: `${role}|${search}` });
+  const count = (value: RoleFilter) => (value === "ALL" ? all.length : all.filter((member) => member.role === value).length);
+  const pendingInvites = invites.data ?? [];
 
   return (
-    <DashboardPageShell className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
-      <DashboardPageHeader
-        eyebrow="Clinic Admin"
-        title="Staff Roster"
-        description="Manage healthcare professionals, support staff, and role assignments for this clinic."
-        meta={staffHeaderMeta}
-        actionsSlot={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="hidden sm:block">
-              <WebSocketStatusIndicator />
-            </div>
-            <Button
-              onClick={() => setIsAddStaffModalOpen(true)}
-              className="h-9 gap-2 px-4 font-semibold"
-            >
-              <Plus className="size-4" />
-              Add Staff
-            </Button>
-          </div>
-        }
-      />
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            label: "Total Staff",
-            value: staff.length,
-            icon: Users,
-            color: "text-blue-600 dark:text-blue-400",
-            bg: "bg-blue-50 dark:bg-blue-500/10",
-          },
-          {
-            label: "Doctors",
-            value: staff.filter((s) => s.role === Role.DOCTOR).length,
-            icon: Stethoscope,
-            color: "text-purple-600 dark:text-purple-400",
-            bg: "bg-purple-50 dark:bg-purple-500/10",
-          },
-          {
-            label: "Assistant Doctors",
-            value: staff.filter((s) => s.role === Role.ASSISTANT_DOCTOR).length,
-            icon: UserCheck,
-            color: "text-sky-600 dark:text-sky-400",
-            bg: "bg-sky-50 dark:bg-sky-500/10",
-          },
-          {
-            label: "Active Now",
-            value: staff.filter((s) => s.status === "Active").length,
-            icon: UserCheck,
-            color: "text-emerald-600 dark:text-emerald-400",
-            bg: "bg-emerald-50 dark:bg-emerald-500/10",
-          },
-          {
-            label: "Clinic Support",
-            value: staff.filter((s) => CLINIC_SUPPORT_ROLES.includes(s.role as Role)).length,
-            icon: UserCog,
-            color: "text-orange-600 dark:text-orange-400",
-            bg: "bg-orange-50 dark:bg-orange-500/10",
-          },
-        ].map((stat) => (
-          <Card
-            key={stat.label}
-            className="border-none bg-white shadow-sm ring-1 ring-neutral-200 transition-shadow hover:shadow-md dark:bg-neutral-900 dark:ring-neutral-800"
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {stat.label}
-                  </p>
-                  <p className="mt-1 text-3xl font-black">{stat.value}</p>
-                </div>
-                <div className={cn("rounded-2xl p-3", stat.bg)}>
-                  <stat.icon className={cn("size-6", stat.color)} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+    <TbdPage
+      title="Your clinic team"
+      description={`${all.length} members${pendingInvites.length ? ` · ${pendingInvites.length} invited` : ""}`}
+      actions={
+        <>
+          <Button asChild variant="outline" size="md">
+            <Link href="/clinic-admin/roles">
+              <ShieldCheck aria-hidden="true" /> Roles & permissions
+            </Link>
+          </Button>
+          <Button variant="outline" size="md" onClick={() => setAddOpen(true)}>
+            <UserPlus aria-hidden="true" /> Create account
+          </Button>
+          <Button asChild size="md">
+            <Link href="/clinic-admin/staff/new">
+              <MailPlus aria-hidden="true" /> Invite staff
+            </Link>
+          </Button>
+        </>
+      }
+    >
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile label="Team members" value={members.isPending ? "…" : all.length} />
+        <StatTile tone="brand" label="Active" value={all.filter((member) => member.isActive).length} />
+        <StatTile tone="amber" label="On leave today" value={all.filter((member) => member.onLeaveToday).length} />
+        <StatTile tone="blue" label="Pending invites" value={invites.isPending ? "…" : pendingInvites.length} />
       </div>
 
-      <div className="rounded-xl border-none bg-white shadow-sm ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800">
-        <div className="flex flex-col justify-between gap-4 p-4 lg:flex-row lg:items-center">
-          <div className="flex flex-1 items-center gap-4">
-            <div className="relative w-full max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search staff name or specialization..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="border-none bg-white pl-10 transition-all ring-1 ring-neutral-200 focus-visible:ring-primary/30 dark:bg-neutral-900 dark:ring-neutral-800"
-              />
-            </div>
-          </div>
-
-          <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
-            <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-800 dark:bg-neutral-900 sm:w-auto sm:flex-nowrap">
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="h-8 w-full border-none bg-transparent shadow-none focus:ring-0 sm:w-[140px]">
-                  <Filter className="mr-2 size-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="All Roles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value={Role.DOCTOR}>Doctors</SelectItem>
-                  <SelectItem value={Role.ASSISTANT_DOCTOR}>Assistant Doctors</SelectItem>
-                  <SelectItem value={Role.CLINIC_ADMIN}>Clinic Admins</SelectItem>
-                  <SelectItem value={Role.RECEPTIONIST}>Reception</SelectItem>
-                  <SelectItem value={Role.PHARMACIST}>Pharmacy</SelectItem>
-                  <SelectItem value={Role.NURSE}>Nurse</SelectItem>
-                  <SelectItem value={Role.THERAPIST}>Therapist</SelectItem>
-                  <SelectItem value={Role.LAB_TECHNICIAN}>Lab Tech</SelectItem>
-                  <SelectItem value={Role.COUNSELOR}>Counselor</SelectItem>
-                  <SelectItem value={Role.SUPPORT_STAFF}>Support Staff</SelectItem>
-                  <SelectItem value={Role.FINANCE_BILLING}>Finance</SelectItem>
-                  <SelectItem value={Role.CLINIC_LOCATION_HEAD}>Location Head</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <div className="hidden h-4 w-px bg-neutral-300 sm:block dark:bg-neutral-700" />
-
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-8 w-full border-none bg-transparent shadow-none focus:ring-0 sm:w-[120px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      <Surface flush as="section" aria-label="Staff">
+        <div className="flex flex-col gap-3 border-b border-hair p-4 lg:flex-row lg:items-center">
+          <SearchBox value={search} onChange={setSearch} placeholder="Search name, phone or email" ariaLabel="Search staff" className="lg:max-w-xs" />
+          <FilterChips
+            ariaLabel="Role"
+            value={role}
+            onChange={setRole}
+            options={(["ALL", "DOCTOR", "ASSISTANT_DOCTOR", "RECEPTIONIST", "PHARMACIST", "NURSE", "CLINIC_ADMIN"] as RoleFilter[]).map((value) => ({
+              value,
+              label: value === "ALL" ? "All" : roleLabel(value),
+              count: count(value),
+            }))}
+          />
         </div>
-      </div>
-
-      <DataTable
-        columns={columns}
-        data={filteredStaff}
-        emptyMessage="No staff matching your search"
-        pageSize={8}
-        toolbar={
-          <div className="px-1 text-sm text-muted-foreground">
-            Showing {filteredStaff.length} of {staff.length} staff
+        {members.isPending ? (
+          <div className="p-5">
+            <SkeletonRows rows={6} />
           </div>
-        }
-      />
+        ) : members.error ? (
+          <div className="p-5">
+            <LoadError title="Staff could not be loaded" message={members.error.message} onRetry={() => void members.refetch()} />
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyBlock icon={Users} title="No staff match" description="Change the filters or invite a team member." />
+        ) : (
+          <div role="table" aria-label="Staff members">
+            <GridHead columns={COLUMNS} labels={["Member", "Role", "Contact", "Last sign-in", "Status"]} />
+            {paging.pageRows.map((member) => (
+              <GridRow key={member.userId} columns={COLUMNS}>
+                <Link href={`/clinic-admin/staff/${member.userId}`} className="min-w-0 hover:underline">
+                  <CellTitle left={<InitialsAvatar name={member.name} size={36} />} title={member.name} />
+                </Link>
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <Pill tone="teal">{roleLabel(member.role)}</Pill>
+                  {member.role !== Role.DOCTOR ? (
+                    <button type="button" className="shrink-0 text-xs font-bold text-brand hover:underline" onClick={() => setAssign(member)}>
+                      Change
+                    </button>
+                  ) : null}
+                </span>
+                <span className="min-w-0 truncate text-ink-soft">{member.phone ?? member.email ?? "—"}</span>
+                <span className="text-ink-soft">{member.lastLogin ? formatDateTimeLabel(member.lastLogin) : "Never"}</span>
+                {statusPill(member)}
+              </GridRow>
+            ))}
+            <div className="p-4">
+              <Pager paging={paging} noun="members" hideWhenSinglePage id="ca-staff-pager" />
+            </div>
+          </div>
+        )}
+      </Surface>
 
-      {assignModalStaff && (
+      <Surface as="section" aria-label="Pending invites">
+        <SectionTitle title="Pending invites" icon={MailPlus} count={pendingInvites.length} />
+        {invites.isPending ? (
+          <SkeletonRows rows={2} />
+        ) : pendingInvites.length === 0 ? (
+          <p className="text-sm text-ink-muted">No invites waiting.</p>
+        ) : (
+          pendingInvites.map((invite) => (
+            <div key={invite.id} className="flex flex-wrap items-center gap-3 border-b border-hair py-2.5 last:border-b-0">
+              <InitialsAvatar name={invite.name ?? invite.phone ?? "Invite"} size={32} />
+              <span className="min-w-0 flex-1">
+                <span className="block font-bold text-ink">{invite.name ?? invite.phone ?? invite.email}</span>
+                <span className="text-xs text-ink-muted">
+                  {roleLabel(invite.role)} · expires {formatDateLabel(invite.expiresAt)} · sent {invite.resendCount + 1}×
+                </span>
+              </span>
+              <Button size="sm" variant="outline" disabled={inviteAction.isPending} onClick={() => inviteAction.mutate({ inviteId: invite.id, action: "resend" })}>
+                <RefreshCw aria-hidden="true" /> Resend
+              </Button>
+              <Button size="sm" variant="ghost" disabled={inviteAction.isPending} onClick={() => inviteAction.mutate({ inviteId: invite.id, action: "revoke" })}>
+                <XCircle aria-hidden="true" /> Revoke
+              </Button>
+            </div>
+          ))
+        )}
+      </Surface>
+
+      {assign ? (
         <AssignRoleModal
-          open={!!assignModalStaff}
-          onOpenChange={(open) => !open && setAssignModalStaff(null)}
-          staffMember={assignModalStaff}
+          open
+          onOpenChange={(open) => !open && setAssign(null)}
+          staffMember={{ id: assign.userId, name: assign.name, email: assign.email ?? "", role: assign.role, status: assign.isActive ? "Active" : "Inactive" }}
           currentUserRole={Role.CLINIC_ADMIN}
           clinicId={clinicId || undefined}
-          onSuccess={() => refetch?.()}
+          onSuccess={() => void members.refetch()}
         />
-      )}
-
-      <AddStaffModal
-        open={isAddStaffModalOpen}
-        onOpenChange={setIsAddStaffModalOpen}
-        onSuccess={() => refetch?.()}
-      />
-    </DashboardPageShell>
+      ) : null}
+      <AddStaffModal open={addOpen} onOpenChange={setAddOpen} onSuccess={() => void members.refetch()} />
+    </TbdPage>
   );
 }
-
-

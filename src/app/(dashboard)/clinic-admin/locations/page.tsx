@@ -2,6 +2,8 @@
 
 import { useCallback, useMemo, useReducer, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
+import { QrCode, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -157,11 +159,27 @@ const DEFAULT_WORKING_HOURS: WorkingHours = {
   sunday: null,
 };
 
+/** The stored hours: the API returns them as a JSON string; `{ start, end }` applies to every day. */
+function workingHoursSource(value: unknown): Partial<WorkingHours> {
+  let parsed = value;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed) as unknown;
+    } catch {
+      return {};
+    }
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.start === "string" && typeof record.end === "string") {
+    const window = { start: record.start, end: record.end };
+    return DAYS.reduce((acc, day) => ({ ...acc, [day]: window }), {} as Partial<WorkingHours>);
+  }
+  return record as Partial<WorkingHours>;
+}
+
 function normalizeWorkingHours(value: unknown): WorkingHours {
-  const source =
-    value && typeof value === "object" && !Array.isArray(value)
-      ? (value as Partial<WorkingHours>)
-      : {};
+  const source = workingHoursSource(value);
 
   return DAYS.reduce((acc, day) => {
     const current = source[day];
@@ -831,7 +849,18 @@ export default function ClinicLocationsPage() {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <div className="flex w-[84px] items-center justify-end gap-1">
+          <div className="flex w-[160px] items-center justify-end gap-1">
+            {/* B3: full location page (hours, QR, holidays) and its check-in QR */}
+            <Button asChild variant="ghost" size="icon-sm" aria-label={`Open ${row.original.name}`}>
+              <Link href={`/clinic-admin/locations/${row.original.id}`}>
+                <SlidersHorizontal className="size-4" />
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="icon-sm" aria-label={`Check-in QR of ${row.original.name}`}>
+              <Link href={`/clinic-admin/locations/${row.original.id}/qr`}>
+                <QrCode className="size-4" />
+              </Link>
+            </Button>
             <Button variant="ghost" size="icon-sm" onClick={() => handleEditLocation(row.original.raw)} aria-label={`Edit ${row.original.name}`}>
               <Edit className="size-4" />
             </Button>

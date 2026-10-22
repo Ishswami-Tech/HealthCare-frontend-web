@@ -6,6 +6,7 @@ import {
   getAppointmentDateTimeValue,
   getAppointmentPaymentDisplayState,
   getAppointmentPatientName,
+  getAppointmentPatientRemarks,
   getDisplayAppointmentDuration,
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
@@ -96,6 +97,8 @@ export interface CompletedVisitSummary {
 /** One line of the right-rail Live Queue. */
 export interface DoctorQueueLine {
   key: string;
+  /** The visit of this line ("" when the queue did not say), for call-next and the visit screen. */
+  appointmentId: string;
   position: number;
   patientName: string;
   label: string;
@@ -331,7 +334,7 @@ export function mapDoctorAppointmentToTimelineItem(
     status: displayStatus.replace(/_/g, " "),
     statusEnum: apt.status,
     type: apt.type || "Consultation",
-    duration: `${displayDuration || 30} min`,
+    duration: displayDuration ? `${displayDuration} min` : "",
     notes: apt.notes || "",
     isVideo: apt.type === "VIDEO_CALL",
     priority: apt.priority || "NORMAL",
@@ -378,14 +381,14 @@ export function getPatientMetaLabel(apt: AppointmentWithRelations): string {
   return parts.join(" · ");
 }
 
-/** The reason for the visit: the booking reason, else the listed symptoms, else the booking note. */
+/** The reason for the visit: the patient's booking remark, else the listed symptoms. */
 export function getVisitReason(apt: AppointmentWithRelations): string {
-  const reason = readText(apt, "reason") || readText(apt, "chiefComplaint");
-  if (reason) return reason;
+  const { remark } = getAppointmentPatientRemarks(apt);
+  if (remark) return remark;
   if (Array.isArray(apt.symptoms) && apt.symptoms.length > 0) {
     return apt.symptoms.filter((symptom) => typeof symptom === "string" && symptom.trim()).join(", ");
   }
-  return (apt.notes || "").trim();
+  return "";
 }
 
 const clockFormatter = new Intl.DateTimeFormat("en-IN", {
@@ -570,6 +573,7 @@ export function buildDoctorQueueLines(
 
     lines.push({
       key: entry.entryId || entry.appointmentId || `${entry.patientId}-${entry.position}`,
+      appointmentId: entry.appointmentId || "",
       position: entry.position > 0 ? entry.position : lines.length + 1,
       patientName: hasQueueName ? queueName : appointment?.patientName || "Patient",
       label: getDoctorQueueLaneLabel(entry) === "Uncategorized" ? "General Consultation" : getDoctorQueueLaneLabel(entry),

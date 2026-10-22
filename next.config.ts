@@ -1,6 +1,10 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
-import { buildConnectSrcSources, buildOriginConnectSrc,  } from "./src/lib/config/csp";
+import {
+  buildConnectSrcSources,
+  buildOriginConnectSrc,
+  PERMISSIONS_POLICY_VALUE,
+} from "./src/lib/config/csp";
 
 const isProduction = process.env.NODE_ENV === "production";
 const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -114,7 +118,7 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "camera=(self), microphone=(self), geolocation=()",
+            value: PERMISSIONS_POLICY_VALUE,
           },
           {
             key: "Strict-Transport-Security",

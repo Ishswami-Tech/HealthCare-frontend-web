@@ -183,8 +183,31 @@ export function refreshClientSessionOnce(
   return inFlightRefreshPromise;
 }
 
+// ─── Voluntary logout guard ─────────────────────────────────────────────────
+// A request that was in flight when the user pressed "Log out" comes back 401 once the session is
+// gone; its recovery must not race the logout and land on `?reason=session-expired`.
+const VOLUNTARY_LOGOUT_GUARD_MS = 15_000;
+type LogoutAwareWindow = Window & { __voluntaryLogoutAt?: number; __authRecoveryInProgress?: boolean };
+
+/** Call at the very start of a user-initiated logout. */
+export function markVoluntaryLogout(): void {
+  if (typeof window === "undefined") return;
+  (window as LogoutAwareWindow).__voluntaryLogoutAt = Date.now();
+}
+
+export function isVoluntaryLogoutInProgress(now: number = Date.now()): boolean {
+  if (typeof window === "undefined") return false;
+  const startedAt = (window as LogoutAwareWindow).__voluntaryLogoutAt;
+  return typeof startedAt === "number" && now - startedAt < VOLUNTARY_LOGOUT_GUARD_MS;
+}
+
 export function triggerClientAuthRecovery(): void {
   if (typeof window === "undefined") {
+    return;
+  }
+
+  // The logout flow clears the session and redirects to the plain login page itself.
+  if (isVoluntaryLogoutInProgress()) {
     return;
   }
 

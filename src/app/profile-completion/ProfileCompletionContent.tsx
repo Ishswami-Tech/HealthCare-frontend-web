@@ -15,8 +15,12 @@ import { LoadingSpinner } from "@/components/ui/loading";
 import { ROUTES } from "@/lib/config/routes";
 import { useUserProfile } from "@/hooks/query/useUsers";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
+import { useHydrated } from "@/hooks/utils/useHydrated";
 
 export default function ProfileCompletionContent() {
+  // The server never has the session (or the browser clock the form's date limits use), so the
+  // first client render must match the server's spinner; the real screen renders after hydration.
+  const hydrated = useHydrated();
   const { session, isPending } = useAuth();
   const { push } = useRouter();
   const searchParams = useSearchParams();
@@ -54,7 +58,7 @@ export default function ProfileCompletionContent() {
     }
   }, [authoritativeProfileComplete, isPending, push, redirectUrl, session]);
 
-  if (isPending || (session?.user && isProfilePending && authoritativeProfileComplete === undefined)) {
+  if (!hydrated || isPending || (session?.user && isProfilePending && authoritativeProfileComplete === undefined)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner size="lg" text="Loading profile..." center />

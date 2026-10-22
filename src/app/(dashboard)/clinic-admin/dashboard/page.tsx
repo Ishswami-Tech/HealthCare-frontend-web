@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrentClinic, useClinicLocations, useClinicStats } from "@/hooks/query/useClinics";
-import { useUsersByClinic } from "@/hooks/query/useUsers";
+import { useStaffMembers } from "@/hooks/query/useClinicStaffAdmin";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useAssistantDoctorCoverage } from "@/hooks/query/useAppointments";
 import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
@@ -41,9 +41,11 @@ import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/
 import { DashboardMetricCard } from "@/components/dashboard/DashboardMetricCard";
 import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import { ClinicAdminSnapshotPanel } from "./_components/ClinicAdminSnapshotPanel";
+import { ClinicAdminAlertStrip } from "@/components/notifications/clinic-admin/ClinicAdminDecisions";
 import { ClinicQueueBacklogPanel } from "./_components/ClinicQueueBacklogPanel";
 import { triggerDoctorDailySummary } from "@/lib/actions/appointments.server";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/hooks/utils/use-toast";
+import { plural } from "@/lib/utils/labels";
 import {
   Settings,
   Clock,
@@ -71,7 +73,8 @@ export default function ClinicAdminDashboard() {
   // Real data fetching
   const { data: clinicStats, isPending: isLoadingStats, refetch: refetchStats } = useClinicStats(clinicId || "");
   const { data: clinicLocationsData, isPending: isLoadingLocations } = useClinicLocations(clinicId || "");
-  const { data: clinicStaffData } = useUsersByClinic(clinicId || "");
+  // Same source as the Staff page (staff-admin members) so every tile agrees.
+  const { data: clinicStaffData } = useStaffMembers();
   const { data: doctorsData } = useDoctors(clinicId || "", undefined, { enabled: !!clinicId });
   const { data: assistantCoverageData = [] } = useAssistantDoctorCoverage();
   const { data: appointmentsData } = useRealTimeAppointments({
@@ -188,7 +191,7 @@ export default function ClinicAdminDashboard() {
         } else {
           showSuccessToast(
             'Summary queued',
-            { description: `${result.enqueuedCount} doctors · ${result.skipCount} skipped · ${result.totalDoctors} total` }
+            { description: `${plural(result.enqueuedCount, "doctor")} · ${result.skipCount} skipped · ${result.totalDoctors} total` }
           );
         }
       } else {
@@ -527,7 +530,6 @@ export default function ClinicAdminDashboard() {
     return {
       totalAppointments: clinicStats.totalAppointments || 0,
       todayAppointments: clinicStats.todayAppointments || 0,
-      totalStaff: clinicStats.totalUsers || 0,
       activePatients: clinicStats.totalPatients || 0,
       revenue: clinicStats.revenue || 0,
       waitTime: clinicStats.avgWaitTime || 0,
@@ -559,7 +561,8 @@ export default function ClinicAdminDashboard() {
 
         const entry = normalizeQueueEntry(item);
         acc.push({
-          id: entry.entryId,
+          // The desk row's own id: several prescriptions of one visit share a queue entry/appointment.
+          id: String(item.id),
           patientName: entry.patientName || "Unknown Patient",
           paymentStatus: String(entry.paymentStatus || "PENDING").toUpperCase(),
           queuePosition: entry.position > 0 ? entry.position : null,
@@ -613,7 +616,7 @@ export default function ClinicAdminDashboard() {
         eyebrow="Clinic Admin"
         title="Operations Dashboard"
         description="Track clinic workload, staff access, live queue movement, and medicine-desk readiness from one practical console."
-        meta={`${currentClinic?.name || "Clinic"}€¢ Live operational status`}
+        meta={`${currentClinic?.name || "Clinic"} • Live operational status`}
         actionsSlot={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -656,6 +659,9 @@ export default function ClinicAdminDashboard() {
           </div>
         }
       />
+
+      {/* B2: what needs the clinic admin today (leave, failed scans, low stock, unpaid) */}
+      <ClinicAdminAlertStrip />
 
       <Card className="overflow-hidden border border-border bg-card shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -706,7 +712,7 @@ export default function ClinicAdminDashboard() {
           />
           <DashboardMetricCard
             label="Staff"
-            value={stats?.totalStaff || 0}
+            value={staffSummary.total}
             subtext="Active users linked to this clinic"
             accentClassName="border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
             valueClassName="mt-1 text-2xl font-semibold text-emerald-900 dark:text-emerald-100"
@@ -1118,10 +1124,10 @@ export default function ClinicAdminDashboard() {
                     </TableHeader>
                     <TableBody>
                       {selectedQueueItems.slice(0, 5).map((item: any, idx: number) => (
-                        <TableRow key={item.entryId || item.appointmentId || idx} className="border-border/60 transition-colors hover:bg-muted/20">
+                        <TableRow key={`${item.entryId || item.appointmentId || "row"}-${idx}`} className="border-border/60 transition-colors hover:bg-muted/20">
                           <TableCell className="py-2 font-semibold text-primary">
                             <span className="inline-flex min-w-9 items-center justify-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
-                              {item.tokenNumber || item.position || idx + 1}
+                              {item.token || item.tokenNumber || item.position || idx + 1}
                             </span>
                           </TableCell>
                           <TableCell className="py-2">
@@ -1433,7 +1439,7 @@ export default function ClinicAdminDashboard() {
               <div className="gap-y-2">
                 {recentEvents.length > 0 ? (
                   recentEvents.map((event: any) => (
-                    <div key={`${event.date}-${event.time}-${event.message}`} className="rounded-lg border border-border bg-muted/10 px-3 py-2">
+                    <div key={event.id || `${event.date}-${event.time}-${event.message}`} className="rounded-lg border border-border bg-muted/10 px-3 py-2">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{event.message}</p>

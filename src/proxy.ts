@@ -27,6 +27,7 @@ import {
   buildConnectSrcSources,
   buildOriginConnectSrc,
   normalizeOrigin,
+  PERMISSIONS_POLICY_VALUE,
 } from "./lib/config/csp";
 
 // ============================================================================
@@ -369,6 +370,13 @@ export default async function proxy(request: NextRequest) {
     ]),
   ).join(" ");
 
+  // HSTS and upgrade-insecure-requests only for production HTTPS: sent over http://localhost they
+  // make the browser pin the dev host to https://localhost (which nothing serves).
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const enforceHttps =
+    process.env.NODE_ENV === "production" &&
+    (request.nextUrl.protocol === "https:" || forwardedProto === "https");
+
   // Strict Content Security Policy
   const csp = `
     default-src 'self';
@@ -384,7 +392,7 @@ export default async function proxy(request: NextRequest) {
     base-uri 'self';
     form-action 'self' https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://checkout.razorpay.com https://*.razorpay.com https://payments.zoho.com https://static.zohocdn.com;
     frame-ancestors 'none';
-    upgrade-insecure-requests;
+    ${enforceHttps ? "upgrade-insecure-requests;" : ""}
   `
     .replace(/\s{2,}/g, " ")
     .trim();
@@ -393,14 +401,13 @@ export default async function proxy(request: NextRequest) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(self), microphone=(self), geolocation=()",
-  );
-  response.headers.set(
-    "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains",
-  );
+  response.headers.set("Permissions-Policy", PERMISSIONS_POLICY_VALUE);
+  if (enforceHttps) {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains",
+    );
+  }
 
   return response;
 }

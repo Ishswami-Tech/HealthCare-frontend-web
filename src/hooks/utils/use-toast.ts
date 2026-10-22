@@ -280,7 +280,8 @@ export function showSuccessToast(
   }
 ) {
   const toastId = options?.id || TOAST_IDS.GLOBAL.SUCCESS;
-  sonnerToast.dismiss(toastId);
+  // Same id updates the existing toast in place (no duplicate). A dismiss right before would be
+  // applied a frame later and delete this new toast as well.
   sonnerToast.success(message, {
     id: toastId,
     description: options?.description,

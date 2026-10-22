@@ -42,6 +42,8 @@ interface DoctorPatientsTableProps {
   hasFilters: boolean;
   onClearFilters: () => void;
   onPrescribe: (row: DoctorPatientRow) => void;
+  /** Where "View EHR" goes (`<base>/<patientId>`). Default `/doctor/patients`. */
+  ehrBasePath?: string;
 }
 
 function SkeletonRows({ rows = 6 }: { rows?: number }) {
@@ -81,10 +83,13 @@ function SkeletonRows({ rows = 6 }: { rows?: number }) {
 const PatientRow = memo(function PatientRow({
   row,
   onPrescribe,
+  ehrBasePath,
 }: {
   row: DoctorPatientRow;
   onPrescribe: (row: DoctorPatientRow) => void;
+  ehrBasePath: string;
 }) {
+  const ehrHref = `${ehrBasePath}/${encodeURIComponent(row.id)}`;
   return (
     <div
       role="row"
@@ -99,7 +104,7 @@ const PatientRow = memo(function PatientRow({
           title={
             row.id ? (
               <Link
-                href={`/doctor/patients/${encodeURIComponent(row.id)}`}
+                href={ehrHref}
                 className="text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
                 aria-label={`Open EHR for ${row.name}`}
                 title="Open patient EHR"
@@ -121,7 +126,7 @@ const PatientRow = memo(function PatientRow({
       </div>
       <div role="cell" className={cn(FULL_ROW, "flex min-w-0 flex-wrap items-center gap-2 @3xl:flex-nowrap")}>
         <Button asChild variant="outline">
-          <Link href={`/doctor/patients/${encodeURIComponent(row.id)}`} aria-label={`View EHR of ${row.name}`}>
+          <Link href={ehrHref} aria-label={`View EHR of ${row.name}`}>
             <FileText />
             View EHR
           </Link>
@@ -148,6 +153,7 @@ export function DoctorPatientsTable({
   hasFilters,
   onClearFilters,
   onPrescribe,
+  ehrBasePath = "/doctor/patients",
 }: DoctorPatientsTableProps) {
   const pageCount = Math.max(1, totalPages);
   const currentPage = Math.min(Math.max(1, page), pageCount);
@@ -202,7 +208,7 @@ export function DoctorPatientsTable({
             </div>
           </div>
         ) : (
-          rows.map((row) => <PatientRow key={row.id} row={row} onPrescribe={onPrescribe} />)
+          rows.map((row) => <PatientRow key={row.id} row={row} onPrescribe={onPrescribe} ehrBasePath={ehrBasePath} />)
         )}
       </div>
 

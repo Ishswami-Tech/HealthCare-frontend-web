@@ -128,6 +128,8 @@ export interface User {
   phoneVerifiedAt?: string | undefined;
   emailVerified?: boolean | undefined;
   loginMethod?: 'password' | 'otp' | 'phone_otp' | 'email_otp' | 'google_oauth' | 'facebook_oauth' | 'apple_oauth' | undefined;
+  /** The account has a password set (from the API; the hash never leaves it). Absent on older payloads. */
+  hasPassword?: boolean | undefined;
   clinicId?: string | undefined;
   clinicName?: string | undefined;
   createdAt?: string | undefined;

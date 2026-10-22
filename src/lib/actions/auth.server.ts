@@ -1583,44 +1583,6 @@ export async function verifyPhoneNumber(data: { phone: string; otp: string }): P
   };
 }
 
-export async function checkOTPStatus(email: string): Promise<{ hasActiveOTP: boolean }> {
-    const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.CHECK_OTP_STATUS, { email });
-    return response.data as { hasActiveOTP: boolean };
-}
-
-export async function invalidateOTP(email: string): Promise<{ message: string }> {
-    const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.INVALIDATE_OTP, { email });
-    return response.data as { message: string };
-}
-
-export async function requestMagicLink(email: string): Promise<MessageResponse> {
-    const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.MAGIC_LINK, { email });
-    return response.data as MessageResponse;
-}
-
-export async function verifyMagicLink(token: string): Promise<AuthResponse> {
-    const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.VERIFY_MAGIC_LINK, { token });
-    const responseData = response.data as Record<string, any>;
-    const resultData = responseData.data || responseData;
-    const normalizedResult = {
-      ...resultData,
-      access_token: resultData.access_token || resultData.accessToken,
-      refresh_token: resultData.refresh_token || resultData.refreshToken,
-      session_id: resultData.session_id || resultData.sessionId,
-      user: normalizeAuthUserPayload(
-        resultData.user,
-        resultData.access_token || resultData.accessToken
-      ),
-    };
-    await setAuthCookies(normalizedResult);
-    return {
-      ...normalizedResult,
-      redirectUrl: getAuthRedirectUrl(
-        normalizedResult.redirectUrl
-      ),
-    } as AuthResponse;
-}
-
 export async function socialLogin(data: { provider: string; token: string; clinicId?: string | undefined }): Promise<AuthResponse> {
     const response = await clinicApiClient.socialLogin({
       provider: data.provider,
@@ -1918,14 +1880,29 @@ export async function authenticatedApi<T = unknown>(
     clinicId?: string;
     requireClinicId?: boolean;
   } = {}
-): Promise<{ status: number; data: T; success?: boolean; message?: string }> {
+): Promise<{
+  status: number;
+  data: T;
+  success?: boolean;
+  message?: string;
+  /** Paged list envelopes (`{ data, total, page, limit }`): the client spreads the body, so `data` is the rows and these carry the page metadata. */
+  total?: number;
+  page?: number;
+  limit?: number;
+}> {
   try {
     // Note: This is an internal helper used by authenticated server actions.
     // Auth checks should be done at the action level, not here.
     const response = await clinicApiClient.request<T>(endpoint, options);
+    const envelope = response as unknown as Record<string, unknown>;
+    const pageMeta = (key: 'total' | 'page' | 'limit') =>
+      typeof envelope[key] === 'number' && Number.isFinite(envelope[key]) ? { [key]: envelope[key] as number } : {};
     return { 
       status: response.statusCode || 200, 
       data: response.data as T,
+      ...pageMeta('total'),
+      ...pageMeta('page'),
+      ...pageMeta('limit'),
       // A 200 can still carry success:false (the backend refusing in the body); callers that
       // care read these instead of assuming the request worked.
       success: response.success,
@@ -2171,52 +2148,6 @@ export async function googleLogin(
     throw error instanceof Error ? error : new Error('Google login failed');
   }
 }
-
-export async function facebookLogin(token: string, clinicId?: string | undefined): Promise<AuthResponse> {
-  const resolvedClinicId = requireClinicContextId(clinicId, 'Facebook login');
-  const response = await clinicApiClient.socialLogin({ 
-    provider: 'facebook', 
-    token,
-    clinicId: resolvedClinicId
-  });
-  const responseData = response.data as Record<string, any>;
-  const result = responseData.data || responseData;
-    const normalizedResult = {
-      ...result,
-      access_token: result.access_token || result.accessToken,
-      refresh_token: result.refresh_token || result.refreshToken,
-      session_id: result.session_id || result.sessionId,
-      user: normalizeAuthUserPayload(result.user, result.access_token || result.accessToken),
-    };
-    await setAuthCookies(normalizedResult);
-    return {
-      ...normalizedResult,
-      redirectUrl: getAuthRedirectUrl(
-        normalizedResult.redirectUrl
-      ),
-    } as AuthResponse;
-}
-
-export async function appleLogin(token: string, clinicId?: string | undefined): Promise<{ success: boolean; user?: User; error?: string }> {
-  const resolvedClinicId = requireClinicContextId(clinicId, 'Apple login');
-  const response = await clinicApiClient.socialLogin({ 
-    provider: 'apple', 
-    token,
-    clinicId: resolvedClinicId
-  });
-  const responseData = response.data as Record<string, any>;
-  const result = responseData.data || responseData;
-    const normalizedResult = {
-      ...result,
-      access_token: result.access_token || result.accessToken,
-      refresh_token: result.refresh_token || result.refreshToken,
-      session_id: result.session_id || result.sessionId,
-      user: normalizeAuthUserPayload(result.user, result.access_token || result.accessToken),
-    };
-  await setAuthCookies(normalizedResult);
-  return normalizedResult as { success: boolean; user?: User; error?: string };
-}
-
 
 export async function setProfileComplete(complete: boolean) {
   const session = await auth();

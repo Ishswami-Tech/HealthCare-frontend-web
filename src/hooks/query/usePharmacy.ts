@@ -2,15 +2,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useQueryData } from "../core/useQueryData";
 import { useMutationOperation } from "../core/useMutationOperation";
 import { TOAST_IDS } from "../utils/use-toast";
+import { dataOrThrow } from "@/lib/utils/action-result";
 import {
   getMedicines,
   getMedicinesPage,
+  getInventoryCounts,
+  type InventoryCounts,
   type MedicineListFilters,
   type MedicinePage,
   type UpdateMedicineInput,
   getMedicineById,
-  createMedicine,
-  updateMedicine,
+  createMedicineAction,
+  updateMedicineAction,
   deleteMedicine,
   getPrescriptions,
   getMedicineDeskQueue,
@@ -28,8 +31,8 @@ import {
   getPharmacyStats,
   searchMedicines,
   getSuppliers,
-  createSupplier,
-  updateSupplier,
+  createSupplierAction,
+  updateSupplierAction,
   getStockBatches,
   receiveStockBatch,
   adjustBatchStock,
@@ -87,6 +90,22 @@ export const useMedicinesPage = (
     medicinesPageQueryKey(clinicId, filters),
     async () => {
       return await getMedicinesPage(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId && (options?.enabled ?? true),
+    },
+  );
+};
+
+/**
+ * Whole-inventory stock counts (total, in stock, low, out, expiring) for the inventory tiles: the
+ * server counts every medicine, so the tiles do not depend on the page shown.
+ */
+export const useInventoryCounts = (clinicId: string, options?: { enabled?: boolean }) => {
+  return useQueryData<InventoryCounts>(
+    ["medicines", clinicId, "counts"],
+    async () => {
+      return await getInventoryCounts(clinicId);
     },
     {
       enabled: !!clinicId && (options?.enabled ?? true),
@@ -156,13 +175,15 @@ export const usePrescriptions = (
     enabled?: boolean;
   },
 ) => {
+  // `enabled` is a React Query option, never a request parameter (the route rejects unknown keys).
+  const { enabled, ...requestFilters } = filters ?? {};
   return useQueryData(
-    ["prescriptions", clinicId, filters],
+    ["prescriptions", clinicId, requestFilters],
     async () => {
-      return await getPrescriptions(clinicId, filters);
+      return await getPrescriptions(clinicId, requestFilters);
     },
     {
-      enabled: !!clinicId && filters?.enabled !== false,
+      enabled: !!clinicId && enabled !== false,
     },
   );
 };
@@ -325,13 +346,15 @@ export const usePharmacyBatchAudit = (
     enabled?: boolean;
   },
 ) => {
+  // `enabled` is a React Query option, never a request parameter (the route rejects unknown keys).
+  const { enabled, ...requestFilters } = filters ?? {};
   return useQueryData(
-    ["pharmacyBatchAudit", clinicId, filters],
+    ["pharmacyBatchAudit", clinicId, requestFilters],
     async () => {
-      return await getPharmacyBatchAudit(clinicId, filters);
+      return await getPharmacyBatchAudit(clinicId, requestFilters);
     },
     {
-      enabled: !!clinicId && filters?.enabled !== false,
+      enabled: !!clinicId && enabled !== false,
     },
   );
 };
@@ -419,7 +442,7 @@ export const useCreateMedicine = () => {
       contraindications?: string[];
       storageConditions?: string;
     }) => {
-      return await createMedicine(clinicId, medicineData);
+      return dataOrThrow(await createMedicineAction(clinicId, medicineData));
     },
     {
       toastId: TOAST_IDS.MEDICINE.CREATE,
@@ -444,7 +467,7 @@ export const useUpdateMedicine = () => {
       medicineId: string;
       updates: UpdateMedicineInput;
     }) => {
-      return await updateMedicine(clinicId, medicineId, updates);
+      return dataOrThrow(await updateMedicineAction(clinicId, medicineId, updates));
     },
     {
       toastId: TOAST_IDS.MEDICINE.UPDATE,
@@ -602,8 +625,8 @@ export const useReversePrescriptionDispense = () => {
   );
 };
 
-/** Every list that shows stock: it moves when a batch is received or corrected. */
-const STOCK_QUERIES = [
+/** Every list that shows stock: it moves when a batch is received or corrected (also used by `usePharmacyOps`). */
+export const STOCK_QUERIES = [
   ["inventory"],
   ["medicines"],
   ["medicine"],
@@ -712,7 +735,7 @@ export const useCreateSupplier = () => {
   const queryClient = useQueryClient();
   return useMutationOperation(
     async ({ clinicId, ...supplier }: { clinicId: string } & SupplierInput) => {
-      return await createSupplier(clinicId, supplier);
+      return dataOrThrow(await createSupplierAction(clinicId, supplier));
     },
     {
       toastId: TOAST_IDS.PHARMACY.SUPPLIER_SAVE,
@@ -740,7 +763,7 @@ export const useUpdateSupplier = () => {
       supplierId: string;
       updates: Partial<SupplierInput> & { isActive?: boolean };
     }) => {
-      return await updateSupplier(clinicId, supplierId, updates);
+      return dataOrThrow(await updateSupplierAction(clinicId, supplierId, updates));
     },
     {
       toastId: TOAST_IDS.PHARMACY.SUPPLIER_SAVE,

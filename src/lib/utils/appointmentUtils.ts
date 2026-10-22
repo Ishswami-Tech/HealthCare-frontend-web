@@ -50,12 +50,27 @@ export interface NormalizedPatientAppointment {
   isOnline: boolean;
 }
 
-const IN_PERSON_DEFAULT_DURATION_MINUTES = 3;
-const VIDEO_DEFAULT_DURATION_MINUTES = 15;
 // One source of truth for the video join window on the web (the backend and the mobile app use
 // the same two numbers). Every sentence that mentions the window uses VIDEO_JOIN_WINDOW_TEXT.
 export const VIDEO_JOIN_EARLY_WINDOW_MINUTES = 15;
 export const VIDEO_JOIN_LATE_WINDOW_MINUTES = 300;
+// Patient QR self check-in window (backend QR_WINDOW_OPENS_BEFORE_MINUTES / QR_WINDOW_CLOSES_AFTER_MINUTES):
+// opens 20 min before and closes 45 min after the slot start, whatever the visit length
+// (2:00 pm slot -> 1:40 pm .. 2:45 pm). Reception can check in by hand any time that day.
+// Every sentence that mentions it uses these constants / CHECK_IN_WINDOW_TEXT; gating uses selfCheckInWindowState.
+export const CHECK_IN_OPENS_MINUTES_BEFORE = 20;
+export const CHECK_IN_CLOSES_MINUTES_AFTER = 45;
+export const CHECK_IN_WINDOW_TEXT = `Check-in opens ${CHECK_IN_OPENS_MINUTES_BEFORE} minutes before your appointment and closes ${CHECK_IN_CLOSES_MINUTES_AFTER} minutes after it.`;
+
+export type SelfCheckInWindowState = 'TOO_EARLY' | 'OPEN' | 'CLOSED';
+
+/** Where `nowMs` stands in the QR self check-in window of a slot starting at `slotStart` (edges inclusive). */
+export function selfCheckInWindowState(slotStart: Date, nowMs: number = Date.now()): SelfCheckInWindowState {
+  const start = slotStart.getTime();
+  if (nowMs < start - CHECK_IN_OPENS_MINUTES_BEFORE * 60_000) return 'TOO_EARLY';
+  if (nowMs > start + CHECK_IN_CLOSES_MINUTES_AFTER * 60_000) return 'CLOSED';
+  return 'OPEN';
+}
 export const VIDEO_JOIN_WINDOW_TEXT = `Join opens ${VIDEO_JOIN_EARLY_WINDOW_MINUTES} minutes before your visit and stays open for ${VIDEO_JOIN_LATE_WINDOW_MINUTES / 60} hours after start.`;
 
 const COMPLETED_PAYMENT_STATUSES = new Set(['COMPLETED', 'SUCCESS', 'PAID', 'CAPTURED']);
@@ -706,6 +721,46 @@ export function getAppointmentPatientName(appointment: any): string {
   return resolvedPatientName || "Unknown Patient";
 }
 
+/** What the patient wrote when booking, plus the urgency they picked (null when "Normal"). */
+export interface AppointmentPatientRemarks {
+  /** Reason / chief complaint in the patient's words; "" when none was given. */
+  remark: string;
+  /** "Urgent", "High", ... ; null for a normal-priority visit. */
+  urgency: string | null;
+}
+
+function trimmedText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * The patient's booking remark for an appointment row from any endpoint.
+ *
+ * The booking flow sends the remark as `notes`; the backend keeps a copy in
+ * `metadata.patientRemarks` because a clinician's own notes are written onto `notes` later.
+ * Older rows only have `notes`, which is trusted while the visit is open and the text is not
+ * the doctor's saved draft (a closed visit's `notes` is the doctor's or a system note).
+ */
+export function getAppointmentPatientRemarks(appointment: unknown): AppointmentPatientRemarks {
+  const record = asRecord(appointment) ?? {};
+  const metadata = asRecord(record.metadata) ?? {};
+  const draftNotes = trimmedText(asRecord(metadata.consultationDraft)?.notes);
+  const notes = trimmedText(record.notes);
+  const notesIsPatientText =
+    Boolean(notes) && notes !== draftNotes && !isTerminalAppointmentStatus(record.status);
+
+  const remark =
+    trimmedText(metadata.patientRemarks) ||
+    trimmedText(record.chiefComplaint) ||
+    trimmedText(record.reason) ||
+    trimmedText(metadata.chiefComplaint) ||
+    (notesIsPatientText ? notes : "");
+
+  const priority = trimmedText(record.priority).toUpperCase();
+  const urgency = priority && priority !== "NORMAL" ? toTitleCase(priority.replace(/_/g, " ")) : null;
+  return { remark, urgency };
+}
+
 export function getAppointmentCounterpartyName(
   appointment: any,
   viewerRole?: string | null
@@ -776,27 +831,10 @@ export function normalizePatientAppointment(appointment: any): NormalizedPatient
   };
 }
 
+/** The visit length the server stored on the appointment (clinic-specific); undefined when absent. */
 export function getDisplayAppointmentDuration(appointment: any): number | undefined {
-  const rawDuration = Number(appointment?.duration);
-  const hasNumericDuration = Number.isFinite(rawDuration) && rawDuration > 0;
-  const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
-
-  if (type === 'VIDEO_CALL') {
-    if (!hasNumericDuration || rawDuration <= IN_PERSON_DEFAULT_DURATION_MINUTES) {
-      return VIDEO_DEFAULT_DURATION_MINUTES;
-    }
-    return rawDuration;
-  }
-
-  if (hasNumericDuration) {
-    return rawDuration;
-  }
-
-  if (type === 'IN_PERSON') {
-    return IN_PERSON_DEFAULT_DURATION_MINUTES;
-  }
-
-  return undefined;
+  const rawDuration = Number(appointment?.duration ?? appointment?.durationMinutes);
+  return Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : undefined;
 }
 
 export function getAppointmentStatusDisplayName(status: string): string {
@@ -902,6 +940,17 @@ function isCancelledLike(status: string): boolean {
 export function isTerminalAppointmentStatus(status: unknown): boolean {
   const normalized = normalizeAppointmentStatus(status);
   return ['COMPLETED', 'CANCELLED', 'NO_SHOW', 'VOID', 'REJECTED', 'EXPIRED'].includes(normalized);
+}
+
+/**
+ * True once an unpaid video visit's payment deadline (`paymentExpiresAt`) has passed. The backend
+ * cron flips such a visit to EXPIRED within about a minute; until then the client must already
+ * treat it as expired and never offer payment for it. False when there is no valid deadline.
+ */
+export function isPaymentDeadlinePassed(paymentExpiresAt: string | null | undefined, now: number): boolean {
+  if (!paymentExpiresAt) return false;
+  const expiresMs = Date.parse(paymentExpiresAt);
+  return Number.isFinite(expiresMs) && expiresMs <= now;
 }
 
 /** Statuses where the backend allows cancellation. CONFIRMED is excluded. */
@@ -1260,17 +1309,25 @@ export function wasExpiredDueToPaymentFailure(appointment: any): boolean {
   if (rawStatus !== 'EXPIRED') {
     return false;
   }
+  // Only a video visit has a payment window; an in-clinic visit expires because it was not
+  // attended, whatever its free-text reason says.
+  const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
+  const isVideo = type === 'VIDEO_CALL' || type === 'VIDEO' || appointment?.isOnline === true;
+  if (!isVideo || isVideoAppointmentPaymentCompleted(appointment)) {
+    return false;
+  }
   const reason = String(
     appointment?.cancellationReason || appointment?.reason || ''
   ).toLowerCase();
-  const cancelledBy = String(appointment?.cancelledBy || '').toLowerCase();
+  const metadata =
+    appointment?.metadata && typeof appointment.metadata === 'object' ? appointment.metadata : {};
+  const reasonCode = String(metadata?.expiryReason || metadata?.expiredReason || '').toUpperCase();
 
-  // Only true if the reason explicitly mentions payment
-  if (/payment|not completed/i.test(reason)) {
+  // Structured reason code first; free text must explicitly name the payment.
+  if (reasonCode.includes('PAYMENT')) {
     return true;
   }
-
-  return false;
+  return /\bpayment\b/i.test(reason) || Boolean(appointment?.paymentExpiresAt);
 }
 
 export function getVideoSessionDecision(appointment: any): VideoSessionDecision {

@@ -104,6 +104,10 @@ export interface ClinicSettings {
     maxAdvanceBooking: number; // days
     minAdvanceBooking: number; // hours
     appointmentDuration: number; // minutes
+    /** Clinic in-person visit length used by the server for slots and bookings (default 3). */
+    inPersonDurationMinutes?: number;
+    /** Clinic video visit length used by the server for slots and bookings (default 15). */
+    videoDurationMinutes?: number;
     allowRescheduling: boolean;
     allowCancellation: boolean;
     cancellationWindow: number; // hours
@@ -224,7 +228,10 @@ export interface UpdateClinicLocationData {
   isActive?: boolean;
   latitude?: number;
   longitude?: number;
-  workingHours?: Record<string, { start: string; end: string } | null>;
+  /** `{ start, end }` for every day, or per day: one session, split sessions, or null (closed). */
+  workingHours?:
+    | { start: string; end: string }
+    | Record<string, { start: string; end: string } | Array<{ start: string; end: string }> | null>;
   settings?: Record<string, unknown>;
 }
 

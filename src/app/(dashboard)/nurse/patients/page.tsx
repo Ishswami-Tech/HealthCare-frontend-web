@@ -107,7 +107,7 @@ export default function NursePatients() {
         <DashboardPageHeader
           eyebrow="Nurse Patients"
           title="Patient Care"
-          description="Manage assigned patients, review care status, and jump into vitals or bedside workflows."
+          description="Manage assigned patients, review care status, and jump into bedside workflows."
           meta={`Loaded: ${patientsPage.total} patients`}
         />
 
@@ -147,7 +147,7 @@ export default function NursePatients() {
       <DashboardPageHeader
         eyebrow="Nurse Patients"
         title="Patient Care"
-        description="Manage assigned patients, review care status, and jump into vitals or bedside workflows."
+        description="Manage assigned patients, review care status, and jump into bedside workflows."
         meta={`Loaded: ${patientsPage.total} patients`}
       />
 
@@ -219,14 +219,6 @@ export default function NursePatients() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => push(`/nurse/vitals?patientId=${patient.id}&patientName=${encodeURIComponent(patient.patientName || patient.name || "")}`)}
-                      >
-                        <Heart className="size-3 mr-1" />
-                        Vitals
-                      </Button>
                       <Button
                         variant="outline"
                         size="sm"

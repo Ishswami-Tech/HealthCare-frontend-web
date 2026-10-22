@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Lock, QrCode } from "lucide-react";
-import { Divider, InitialsAvatar, Kv, Pill, SectionTitle, SummaryLine, Surface } from "@/components/tbd";
+import { Building2, Clock, Lock, MapPin, QrCode, UserRound, Video } from "lucide-react";
+import { Divider, IconBox, InitialsAvatar, Pill, SectionTitle, SummaryLine, Surface } from "@/components/tbd";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import { BookingDoctorRow } from "./BookingDoctor";
+import { slotPeriodKeyOf } from "./BookingSlotGroups";
 import { BookingNotice } from "./BookingStates";
 import { BookingVisitFor, type BookingVisitForProps } from "./BookingVisitFor";
-import type { BookingDoctorInfo, BookingLayout, BookingMode } from "./types";
+import type { BookingDoctorInfo, BookingLayout, BookingMode, BookingPeriodKey } from "./types";
 
 export interface BookingReviewStepViewProps {
   layout: BookingLayout;
@@ -54,12 +56,56 @@ export interface BookingReviewStepViewProps {
       }
     | undefined;
   /** In-clinic plan check for patients. */
-  plan?: { loading: boolean; required: boolean } | undefined;
+  plan?: { loading: boolean; required: boolean; activeTill?: string | null } | undefined;
   /** Page layout: the amber book / pay button, shown inside the summary card on wide screens. */
   confirmAction?: ReactNode;
 }
 
 const FIELD_LABEL = "mb-1.5 block text-[13px] font-bold text-ink";
+
+type ReviewIcon = React.ComponentProps<typeof IconBox>["icon"];
+type ReviewTone = NonNullable<React.ComponentProps<typeof IconBox>["tone"]>;
+
+/** Date / time row tint: the slot period's colour (morning amber, afternoon blue, evening violet). */
+const PERIOD_TONE: Record<BookingPeriodKey, ReviewTone> = {
+  morning: "amber",
+  afternoon: "blue",
+  evening: "violet",
+};
+
+/** "05:18 PM" / "17:18" -> "17:18" (for the period colour); null when it is not a time. */
+function toTwentyFourHour(label: string): string | null {
+  const match = /(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(label);
+  if (!match) return null;
+  let hour = Number(match[1]) % 24;
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${match[2]}`;
+}
+
+/** One compact icon-left detail row of the Confirm step. */
+function ReviewDetailRow({
+  icon,
+  tone,
+  title,
+  subtitle,
+}: {
+  icon: ReviewIcon;
+  tone: ReviewTone;
+  title: string;
+  subtitle?: string | undefined;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <IconBox icon={icon} tone={tone} size={36} />
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-sm font-semibold text-ink">{title}</span>
+        {subtitle ? <span className="truncate text-xs text-ink-muted">{subtitle}</span> : null}
+      </span>
+    </div>
+  );
+}
 
 function ReasonFields({
   chiefComplaint,
@@ -146,7 +192,7 @@ function VideoPaymentPolicy({
   );
 }
 
-function PlanNotice({ plan }: { plan: { loading: boolean; required: boolean } }) {
+function PlanNotice({ plan }: { plan: { loading: boolean; required: boolean; activeTill?: string | null } }) {
   if (plan.loading) {
     return (
       <BookingNotice tone="green" title="Checking your plan">
@@ -157,7 +203,21 @@ function PlanNotice({ plan }: { plan: { loading: boolean; required: boolean } })
   if (plan.required) {
     return (
       <BookingNotice tone="amber" title="Plan required">
-        <p className="m-0 text-xs">You need an active plan for this clinic to continue.</p>
+        <p className="m-0 text-xs">
+          In-clinic visits are covered by a monthly plan. You need an active plan for this clinic to continue.{" "}
+          <Link href="/patient/payments?tab=plans" className="font-bold underline">
+            See plans
+          </Link>{" "}
+          or ask the reception desk to book this visit for you.
+        </p>
+      </BookingNotice>
+    );
+  }
+  const till = plan.activeTill ? formatDateInIST(plan.activeTill) : "";
+  if (till) {
+    return (
+      <BookingNotice tone="green" title={`Plan active till ${till}`}>
+        <p className="m-0 text-xs">This in-clinic visit is covered by your monthly plan. No payment now.</p>
       </BookingNotice>
     );
   }
@@ -165,6 +225,19 @@ function PlanNotice({ plan }: { plan: { loading: boolean; required: boolean } })
     <BookingNotice tone="green" title="Plan check">
       <p className="m-0 text-xs">We&apos;ll verify your plan before confirming this appointment.</p>
     </BookingNotice>
+  );
+}
+
+/** Consultation fee + total, shown once: in the visit card (patient page) or the payment card (staff). */
+function FeeLines({ amountLabel }: { amountLabel: string }) {
+  return (
+    <>
+      <SummaryLine label="Consultation fee" value={amountLabel} className="text-ink-soft" />
+      <div className="flex items-baseline justify-between border-t border-dashed border-line pt-2.5">
+        <span className="text-[15px] font-extrabold text-ink">Total</span>
+        <span className="text-xl font-extrabold tracking-[-0.4px] text-ink">{amountLabel}</span>
+      </div>
+    </>
   );
 }
 
@@ -176,14 +249,17 @@ function PaymentSummary({
   confirmAction,
   visitForName,
   className,
+  showBreakdown = true,
 }: Pick<BookingReviewStepViewProps, "mode" | "payment" | "plan" | "confirmAction" | "visitForName"> & {
   className?: string;
+  /** False when the fee lines and "Visit for" are already shown in the visit card (patient page). */
+  showBreakdown?: boolean;
 }) {
   const isVideo = mode === "VIDEO";
   return (
-    <Surface className={cn("gap-4", className)}>
-      <SectionTitle title="Payment summary" />
-      {visitForName ? (
+    <Surface className={cn("gap-3 p-4", className)}>
+      {showBreakdown ? <SectionTitle title="Payment summary" /> : null}
+      {showBreakdown && visitForName ? (
         <div className="flex items-baseline justify-between gap-3 text-sm font-medium text-ink-soft">
           <span className="shrink-0">Visit for</span>
           <span className="min-w-0 break-words text-right font-bold text-ink">{visitForName}</span>
@@ -191,11 +267,7 @@ function PaymentSummary({
       ) : null}
       {payment ? (
         <>
-          <SummaryLine label="Consultation fee" value={payment.amountLabel} className="text-ink-soft" />
-          <div className="flex items-baseline justify-between border-t border-dashed border-line pt-3">
-            <span className="text-[15px] font-extrabold text-ink">Total</span>
-            <span className="text-2xl font-extrabold tracking-[-0.4px] text-ink">{payment.amountLabel}</span>
-          </div>
+          {showBreakdown ? <FeeLines amountLabel={payment.amountLabel} /> : null}
           <VideoPaymentPolicy accepted={payment.accepted} onAcceptedChange={payment.onAcceptedChange} />
         </>
       ) : plan ? (
@@ -205,7 +277,7 @@ function PaymentSummary({
           {isVideo ? "No online payment is needed to book this video visit." : "No online payment is taken for this visit."}
         </p>
       )}
-      {confirmAction ? <div className="hidden lg:block">{confirmAction}</div> : null}
+      {confirmAction ? <div className="w-full">{confirmAction}</div> : null}
       {payment?.payButton}
       {payment ? (
         <p className="m-0 text-center text-xs leading-normal text-ink-muted [text-wrap:balance]">
@@ -244,39 +316,50 @@ function ReviewPage({
   confirmAction,
 }: BookingReviewStepViewProps) {
   const isVideo = mode === "VIDEO";
-  const details: Array<{ label: string; value: string }> = isVideo
-    ? [
-        { label: "Type", value: "Video Consultation" },
-        { label: "Duration", value: `${durationMinutes} minutes` },
-        { label: "Date", value: dateLabel },
-        { label: "Time", value: timeLabel },
-      ]
-    : [
-        { label: "Date", value: dateLabel },
-        { label: "Time", value: timeLabel },
-        ...(locationName ? [{ label: "Location", value: locationName }] : []),
-        { label: "Duration", value: `${durationMinutes} minutes` },
-      ];
+  const time24 = toTwentyFourHour(timeLabel);
+  const periodTone = time24 ? PERIOD_TONE[slotPeriodKeyOf([], time24)] : "mint";
+  const duration = durationMinutes > 0 ? `${durationMinutes} min` : undefined;
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-      <div className="flex min-w-0 flex-col gap-5">
-        <Surface className="gap-4">
+    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-3">
+        <Surface className="gap-3 p-4">
           <BookingDoctorRow doctor={doctor} right={isVideo ? undefined : <Pill tone="clinic">In-clinic</Pill>} />
           <Divider />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {details.map((item) => (
-              <Kv key={item.label} label={item.label} value={item.value} />
-            ))}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ReviewDetailRow
+              icon={Clock}
+              tone={periodTone}
+              title={`${dateLabel} · ${timeLabel}`}
+              subtitle={duration}
+            />
+            <ReviewDetailRow
+              icon={isVideo ? Video : Building2}
+              tone={isVideo ? "video" : "mint"}
+              title={isVideo ? "Video consultation" : "In-clinic visit"}
+              subtitle={isVideo ? "Join from My appointments" : "Check in with the desk QR"}
+            />
+            {!isVideo && locationName ? (
+              <ReviewDetailRow icon={MapPin} tone="mint" title={locationName} subtitle="Location" />
+            ) : null}
+            {visitForName ? (
+              <ReviewDetailRow icon={UserRound} tone="slate" title={visitForName} subtitle="Visit for" />
+            ) : null}
           </div>
+          {payment ? (
+            <>
+              <Divider />
+              <FeeLines amountLabel={payment.amountLabel} />
+            </>
+          ) : null}
         </Surface>
 
-        <div className="grid gap-5 sm:grid-cols-2 sm:items-stretch">
+        <div className="grid gap-3 sm:grid-cols-2 sm:items-stretch">
           {visitFor ? (
-            <Surface className="h-full">
+            <Surface className="h-full gap-3 p-4">
               <BookingVisitFor {...visitFor} />
             </Surface>
           ) : forPerson ? (
-            <Surface className="h-full">
+            <Surface className="h-full gap-3 p-4">
               <SectionTitle title="Who is this for?" />
               <div className="flex gap-2.5">
                 <div className="flex min-h-[108px] w-[120px] flex-col items-center justify-center gap-1 rounded-2xl border-2 border-brand bg-mint-soft px-2 text-center">
@@ -287,25 +370,25 @@ function ReviewPage({
               </div>
             </Surface>
           ) : null}
-          <Surface className={cn("h-full", !forPerson && !visitFor && "sm:col-span-2")}>
+          <Surface className={cn("h-full gap-3 p-4", !forPerson && !visitFor && "sm:col-span-2")}>
             <ReasonFields
               chiefComplaint={chiefComplaint}
               onChiefComplaintChange={onChiefComplaintChange}
               urgency={urgency}
               onUrgencyChange={onUrgencyChange}
               complaintLabel="Reason for visit"
-              complaintLabelClassName="mb-3.5 block text-base font-bold text-ink"
+              complaintLabelClassName="mb-2 block text-sm font-bold text-ink"
             />
           </Surface>
         </div>
 
         {!isVideo ? (
-          <div className="flex items-center gap-3.5 rounded-[20px] border border-[#a7f3d0] bg-[#ecfdf5] p-5 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <div className="flex items-center gap-3 rounded-2xl border border-[#a7f3d0] bg-[#ecfdf5] px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
             <span
-              className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-primary text-white"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white"
               aria-hidden="true"
             >
-              <QrCode className="size-5" strokeWidth={2.2} />
+              <QrCode className="size-4" strokeWidth={2.2} />
             </span>
             <span className="flex flex-col gap-1">
               <span className="text-sm font-extrabold text-[#064e3b] dark:text-emerald-200">
@@ -325,6 +408,7 @@ function ReviewPage({
         plan={plan}
         confirmAction={confirmAction}
         visitForName={visitForName}
+        showBreakdown={false}
       />
     </div>
   );
@@ -354,7 +438,7 @@ function ReviewCompact({
     { label: "Doctor", value: doctor?.name, sub: doctor?.subtitle },
     { label: "Date", value: dateLabel },
     { label: "Time", value: timeLabel },
-    { label: "Duration", value: `${durationMinutes} min` },
+    ...(durationMinutes > 0 ? [{ label: "Duration", value: `${durationMinutes} min` }] : []),
   ];
   return (
     <div className="flex flex-col gap-4">

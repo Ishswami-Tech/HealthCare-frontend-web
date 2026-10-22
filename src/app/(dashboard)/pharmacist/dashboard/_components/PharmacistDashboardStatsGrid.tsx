@@ -11,7 +11,8 @@ const TILES: { key: keyof PharmacyDashboardStats; label: string; tone: string }[
   { key: "toFill", label: "To fill", tone: "text-[#1d4ed8] dark:text-blue-300" },
   { key: "paymentDue", label: "Payment due", tone: "text-[#b45309] dark:text-amber-300" },
   { key: "dispensedToday", label: "Dispensed today", tone: "text-brand" },
-  { key: "lowStock", label: "Low stock", tone: "text-[#be123c] dark:text-rose-300" },
+  { key: "lowStock", label: "Low stock", tone: "text-[#b45309] dark:text-amber-300" },
+  { key: "outOfStock", label: "Out of stock", tone: "text-[#be123c] dark:text-rose-300" },
   { key: "thisMonth", label: "This month", tone: "text-ink-soft" },
 ];
 

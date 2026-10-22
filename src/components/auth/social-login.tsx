@@ -10,6 +10,24 @@ const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 const GOOGLE_GSI_SCRIPT_ID = "google-gsi-client-script";
 
+/**
+ * Origins registered for the Google client ID (comma separated, e.g. "https://app.example.com").
+ * When set, the button only initialises on those origins. When unset, it initialises everywhere
+ * except local hosts (localhost / 127.0.0.1), which a production client ID normally does not allow
+ * (GSI then logs an origin error); set NEXT_PUBLIC_GOOGLE_ALLOW_LOCALHOST=true to test it locally.
+ */
+const GOOGLE_ALLOWED_ORIGINS = (process.env.NEXT_PUBLIC_GOOGLE_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+const GOOGLE_ALLOW_LOCALHOST = process.env.NEXT_PUBLIC_GOOGLE_ALLOW_LOCALHOST === "true";
+
+function isGoogleOriginAllowed(origin: string, hostname: string): boolean {
+  if (GOOGLE_ALLOWED_ORIGINS.length > 0) return GOOGLE_ALLOWED_ORIGINS.includes(origin);
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]" || hostname.endsWith(".localhost");
+  return !isLocalHost || GOOGLE_ALLOW_LOCALHOST;
+}
+
 let googleScriptPromise: Promise<void> | null = null;
 
 interface GoogleIdentityState {
@@ -155,6 +173,8 @@ export function SocialLogin({
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
   const [identityError, setIdentityError] = useState<string | null>(null);
+  // Decided after mount (window is needed); until then the button renders as before.
+  const [originBlocked, setOriginBlocked] = useState(false);
   const clientConfigError = GOOGLE_CLIENT_ID ? null : "Google sign-in is not configured.";
 
   // Use either the passed isLoading prop or the internal isGoogleLoggingIn state
@@ -187,6 +207,12 @@ export function SocialLogin({
       if (process.env.NODE_ENV === "development") {
         console.error("Google Client ID is not configured");
       }
+      return;
+    }
+
+    if (!isGoogleOriginAllowed(window.location.origin, window.location.hostname)) {
+      // Initialising GSI on an origin the client ID does not allow only produces a console error.
+      setOriginBlocked(true);
       return;
     }
 
@@ -242,7 +268,7 @@ export function SocialLogin({
   const displayError = identityError;
 
   const handleManualGoogleClick = () => {
-    if (!GOOGLE_CLIENT_ID) {
+    if (!GOOGLE_CLIENT_ID || originBlocked) {
       onError?.(new Error("Google sign-in is not configured for this environment."));
       return;
     }
@@ -252,7 +278,7 @@ export function SocialLogin({
     <div className={cn("flex w-full flex-col gap-3.5 sm:gap-4", className)}>
       {showDivider && <SocialDivider />}
 
-      {GOOGLE_CLIENT_ID ? (
+      {GOOGLE_CLIENT_ID && !originBlocked ? (
         <div
           className={cn(
             "relative flex min-h-12 items-center justify-center overflow-hidden rounded-[14px] border border-line bg-white px-1.5 transition-colors",

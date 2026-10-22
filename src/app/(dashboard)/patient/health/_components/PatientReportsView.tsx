@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CircleAlert, FileText, FlaskConical, RefreshCw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, FilterChips, Note, PageHead, Pill, Surface, type TbdOption } from "@/components/tbd";
+import { EmptyBlock, FilterChips, Note, PageHead, Surface, type TbdOption } from "@/components/tbd";
 import { ReportsTable } from "@/components/patient/health/ReportsTable";
 import { filterReports, type ReportFilter, type ReportRow } from "@/components/patient/health/patient-health.logic";
 
@@ -29,6 +30,8 @@ export interface PatientReportsViewProps {
   onUpload: () => void;
   /** First filter to show. Used by the preview; the app starts on "All". */
   initialFilter?: ReportFilter;
+  /** Asks to delete a file the patient uploaded (the caller confirms). */
+  onDelete?: (row: ReportRow) => void;
 }
 
 export function PatientReportsView({
@@ -39,6 +42,7 @@ export function PatientReportsView({
   onRetry,
   onUpload,
   initialFilter = "all",
+  onDelete,
 }: PatientReportsViewProps) {
   const [filter, setFilter] = useState<ReportFilter>(initialFilter);
   const shown = filterReports(rows, filter);
@@ -65,7 +69,7 @@ export function PatientReportsView({
         }
       />
 
-      {/* The backend has no home lab booking yet: the card says so instead of offering it. */}
+      {/* Home sample pickup: WebLabBooking (`/patient/lab-booking`, backend `lab-bookings`). */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[20px] bg-[#fdf0e1] px-5 py-4 dark:bg-orange-500/10">
         <span
           className="flex size-12 shrink-0 items-center justify-center rounded-[14px] bg-white text-[#ea8a1b] dark:bg-white/10 dark:text-orange-300"
@@ -76,10 +80,12 @@ export function PatientReportsView({
         <div className="flex min-w-[12rem] flex-1 flex-col gap-0.5">
           <span className="text-[15px] font-bold text-ink">Lab tests at home</span>
           <span className="text-[13px] text-[#7c4a03] dark:text-orange-200">
-            Home sample pickup cannot be booked here yet. Reports from your clinic show below.
+            Book a sample pickup at home. Reports from your clinic show below.
           </span>
         </div>
-        <Pill tone="amber">Not available yet</Pill>
+        <Button asChild variant="outline" size="md">
+          <Link href="/patient/lab-booking">Book a lab test</Link>
+        </Button>
       </div>
 
       <Surface as="section" aria-label="Your reports" className="gap-[18px] pb-2">
@@ -143,7 +149,7 @@ export function PatientReportsView({
             }
           />
         ) : (
-          <ReportsTable key={filter} rows={shown} />
+          <ReportsTable key={filter} rows={shown} {...(onDelete ? { onDelete } : {})} />
         )}
       </Surface>
     </>

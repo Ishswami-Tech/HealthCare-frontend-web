@@ -1,9 +1,7 @@
-import { redirect } from "next/navigation";
+import { MissedFollowUpContent } from "./_components/MissedFollowUpContent";
 
-/**
- * No-show follow-up lives on the Appointments page ("No Show" view), where the
- * same rows carry the call and book-again actions. Old links land there.
- */
-export default function NoShowRedirectPage() {
-  redirect("/doctor/appointments?view=NO_SHOW");
+// DocMissedBulk (B8): missed / no-show visits with a bulk bar (message, archive) and one-tap re-book.
+// The single-row view stays on Appointments ("No Show" filter, DocMissedAppointments).
+export default function DocMissedFollowUpPage() {
+  return <MissedFollowUpContent />;
 }

@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 import { Award, Building2, Clock, GraduationCap, Languages, MapPin } from "lucide-react";
 import { EmptyBlock, Pill, Surface } from "@/components/tbd";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { BookingDoctorInfo, BookingHoursRow } from "./types";
 
@@ -205,10 +206,13 @@ export function BookingDoctorPage({
   doctor,
   hours = [],
   hoursTag,
+  doctorLoading = false,
   children,
   className,
 }: {
   doctor: BookingDoctorInfo | null;
+  /** The doctor is still being resolved (e.g. auto-picked for a video visit): show a skeleton. */
+  doctorLoading?: boolean | undefined;
   hours?: BookingHoursRow[] | undefined;
   /** Small tag on the timings card ("Video"). */
   hoursTag?: string | undefined;
@@ -221,6 +225,17 @@ export function BookingDoctorPage({
       <div className="flex min-w-0 flex-col gap-3.5 max-lg:contents lg:sticky lg:top-0">
         {doctor ? (
           <BookingDoctorProfile doctor={doctor} className="gap-3 p-3.5 max-lg:order-1" compact />
+        ) : doctorLoading ? (
+          <Surface className="gap-3 p-3.5 max-lg:order-1" aria-busy="true" aria-label="Loading doctor">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-14 shrink-0 rounded-full" />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <Skeleton className="h-4 w-3/4 rounded" />
+                <Skeleton className="h-3 w-1/2 rounded" />
+              </div>
+            </div>
+            <span className="text-xs text-ink-muted">Loading doctor…</span>
+          </Surface>
         ) : (
           <Surface className="gap-3 p-3.5 max-lg:order-1">
             <EmptyBlock title="No doctor selected" description="Go back and choose a doctor to see their slots." />

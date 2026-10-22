@@ -21,6 +21,10 @@
   --tbd-action: #fe9a00;
   --tbd-video: #4f46e5;
   --tbd-card-shadow: 0 1px 3px rgba(15, 27, 45, 0.06);
+  /* Emerald Glow page background and shell sizes of the Ca* / As* / Rec* boards */
+  --tbd-bg: #f4f9f6;
+  --tbd-sidebar-w: 248px;
+  --tbd-header-h: 68px;
 }
 
 .dark {
@@ -37,6 +41,7 @@
   --tbd-action: #fe9a00;
   --tbd-video: #818cf8;
   --tbd-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --tbd-bg: #0f1511;
 }
 
 @theme inline {
@@ -52,6 +57,7 @@
   --color-mint-soft: var(--tbd-mint-soft);
   --color-action: var(--tbd-action);
   --color-video: var(--tbd-video);
+  --color-page: var(--tbd-bg);
   --shadow-card: var(--tbd-card-shadow);
   --shadow-brand: 0 8px 18px rgba(4, 120, 87, 0.25);
   --shadow-action: 0 8px 18px rgba(254, 154, 0, 0.3);

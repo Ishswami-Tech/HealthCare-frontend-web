@@ -18,6 +18,7 @@ import {
 import { asRecordOrEmpty, unwrapRecords } from "@/lib/utils/coerce";
 import { usePatientUploads } from "@/hooks/query/usePatientUploads";
 import { PatientProfileHubView, type ProfileHubStat } from "./PatientProfileHubView";
+import { useClinicBrandName } from "@/hooks/query/useClinicBrandName";
 import {
   countCompletedVisits,
   legacyProfileTabRoute,
@@ -31,6 +32,7 @@ import {
 export function PatientProfileHubContent() {
   const router = useRouter();
   const { session, logoutAsync, isLoggingOut } = useAuth();
+  const clinic = useClinicBrandName();
   const user = session?.user;
   const userId = user?.id || "";
   const clinicId = useCurrentClinicId();
@@ -115,6 +117,7 @@ export function PatientProfileHubContent() {
       languageLabel={supportedLanguages[language]?.nativeName ?? "English"}
       notificationsLabel={notificationChannelSummary(preferences.data)}
       appVersion={APP_CONFIG.APP.VERSION}
+      clinicName={clinic.isKnown ? clinic.name : ""}
       logoutOpen={logoutOpen}
       onLogoutOpenChange={setLogoutOpen}
       onLogout={() => void handleLogout()}

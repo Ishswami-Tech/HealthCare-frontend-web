@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Bell, CheckCheck, CircleAlert, Inbox, Loader2, RefreshCw, Settings } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
@@ -35,9 +35,12 @@ function matchesFilter(notification: Notification, filter: Filter): boolean {
 export function NotificationsPage({
   eyebrow,
   preferencesHref,
+  children,
 }: {
   eyebrow: string;
   preferencesHref?: string;
+  /** Role-specific blocks shown between the title and the list (decisions, quick links). */
+  children?: ReactNode;
 }) {
   const { notifications, unreadCount, isPending, error, markAsRead, markAllAsRead, removeNotification, refetch } =
     useNotifications(true);
@@ -98,6 +101,8 @@ export function NotificationsPage({
           </>
         }
       />
+
+      {children}
 
       <Surface as="section" aria-label="Notifications list">
         <FilterChips options={options} value={filter} onChange={setFilter} ariaLabel="Filter notifications" />

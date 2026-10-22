@@ -39,7 +39,6 @@ export interface DoctorProfileConsultationSettings {
   videoConsultation: boolean;
   homeVisits: boolean;
   emergencyConsultation: boolean;
-  consultationDuration: string;
   maxPatientsPerDay: string;
   bookingAdvanceDays: string;
 }

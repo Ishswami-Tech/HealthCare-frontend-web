@@ -57,7 +57,10 @@ export interface PharmacyDashboardStats {
   toFill: number;
   paymentDue: number;
   dispensedToday: number;
+  /** 0 < stock <= reorder level (out of stock excluded); the server's count when it sent one. */
   lowStock: number;
+  /** stock <= 0; the server's count when it sent one. */
+  outOfStock: number;
   /** Prescriptions dispensed this calendar month (`monthlyDispensed` of `GET /pharmacy/stats`); null until the stats arrive. */
   thisMonth: number | null;
 }
@@ -435,11 +438,15 @@ export function buildPharmacyStats(
     }
   }
 
+  const serverStats = asRecord(pharmacyStats);
   return {
     toFill,
     paymentDue,
     dispensedToday,
-    lowStock: inventory.alerts.length,
+    // One definition everywhere (low = 0 < stock <= reorder level, out = stock <= 0): the server
+    // counts the whole inventory; the loaded list is only the fallback.
+    lowStock: amount(serverStats.lowStock) ?? inventory.lowCount,
+    outOfStock: amount(serverStats.outOfStock) ?? inventory.outCount,
     // The server counts the month; the 100 prescriptions this screen loads would undercount it.
     thisMonth: amount(asRecord(pharmacyStats).monthlyDispensed),
   };

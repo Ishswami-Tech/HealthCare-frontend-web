@@ -2,6 +2,7 @@ import { toHomeVisit, type Row } from "@/components/patient/home/homeData";
 import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
 import type { HomeVisit } from "@/components/patient/home/types";
 import type { MyQueuePosition } from "@/hooks/query/usePatientQueue";
+import type { InPersonVisit } from "@/types/in-person.types";
 import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
 import { formatTimeLabel } from "@/lib/utils/date-time";
 
@@ -137,6 +138,36 @@ export function toQueueTicket(entry: MyQueuePosition, tokenLabel?: string | null
     doctorBusy: isWithDoctor ? true : entry.nowServing,
     checkedInLabel: clockLabel(entry.checkedInAt),
   };
+}
+
+/**
+ * An in-person visit (`GET in-person/*`, V2) as a ticket: token K-014, people ahead, ETA.
+ * Null while the visit is not in the queue (booked, or already over).
+ */
+export function toVisitTicket(visit: InPersonVisit | null | undefined): QueueTicket | null {
+  if (!visit || (visit.stage !== "CHECKED_IN" && visit.stage !== "WITH_DOCTOR")) return null;
+  const isWithDoctor = visit.stage === "WITH_DOCTOR";
+  return {
+    tokenLabel: visit.token?.trim() || null,
+    position: isWithDoctor ? null : countOrNull(visit.position, 1),
+    patientsAhead: isWithDoctor ? 0 : countOrNull(visit.peopleAhead),
+    totalInQueue: null,
+    estimatedWaitMinutes: isWithDoctor ? 0 : countOrNull(visit.etaMinutes),
+    statusCode: isWithDoctor ? "IN_PROGRESS" : "WAITING",
+    isWithDoctor,
+    doctorBusy: isWithDoctor ? true : visit.nowServingToken !== null,
+    checkedInLabel: clockLabel(visit.checkedInAt),
+  };
+}
+
+/** The visit the patient is queued for today (checked in or with the doctor), if any. */
+export function pickQueuedVisit(visits: readonly InPersonVisit[] | null | undefined): InPersonVisit | null {
+  return (visits ?? []).find((visit) => visit.stage === "CHECKED_IN" || visit.stage === "WITH_DOCTOR") ?? null;
+}
+
+/** "You're next": checked in, nobody waiting ahead. */
+export function isNextInLine(ticket: QueueTicket | null): boolean {
+  return Boolean(ticket && !ticket.isWithDoctor && ticket.patientsAhead === 0);
 }
 
 /**

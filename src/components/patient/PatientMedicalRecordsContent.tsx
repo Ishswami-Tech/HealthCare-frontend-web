@@ -9,7 +9,6 @@ import {
   buildHistory,
   buildRecordPrescriptions,
   buildReportRows,
-  buildVitalHistory,
   type UploadType,
 } from "@/components/patient/health/patient-health.logic";
 import { asRecordOrEmpty, unwrapRecords } from "@/lib/utils/coerce";
@@ -27,7 +26,7 @@ type PatientMedicalRecordsProps = {
 };
 
 /**
- * Records: the patient's health record (history, prescriptions, reports and files, vitals,
+ * Records: the patient's health record (history, prescriptions, reports and files,
  * allergies, diet) from `GET ehr/comprehensive/:userId`, plus the files on their record.
  *
  * Uploading goes through `POST /patients/:id/documents`, the route the backend opens to
@@ -58,7 +57,6 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
         uploads: [...unwrapRecords(record.documents), ...unwrapRecords(uploadsData)],
         userId,
       }),
-      vitals: buildVitalHistory(record.vitals),
       allergies: buildAllergies(Array.isArray(allergiesData) ? allergiesData : record.allergies),
     };
   }, [healthData, allergiesData, uploadsData, userId]);
@@ -87,7 +85,6 @@ export default function PatientMedicalRecords({ embedded = false }: PatientMedic
         history={model.history}
         prescriptions={model.prescriptions}
         reports={model.reports}
-        vitals={model.vitals}
         allergies={model.allergies}
         onUpload={() => setUploadOpen(true)}
       />

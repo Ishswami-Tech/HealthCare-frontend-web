@@ -21,11 +21,14 @@ export function PharmacistProfileSummaryCard({
   photoUrl,
   isVerified,
   loading = false,
+  roleLabel = "Pharmacist",
 }: {
   form: PharmacistProfileForm;
   photoUrl?: string | undefined;
   isVerified: boolean;
   loading?: boolean;
+  /** The role tag (the same profile serves other staff roles). */
+  roleLabel?: string;
 }) {
   if (loading) {
     return (
@@ -60,9 +63,9 @@ export function PharmacistProfileSummaryCard({
             {pharmacistInitials(form)}
           </AvatarFallback>
         </Avatar>
-        <h2 className="m-0 text-lg font-extrabold tracking-[-0.2px] text-ink">{fullName || "Pharmacist"}</h2>
+        <h2 className="m-0 text-lg font-extrabold tracking-[-0.2px] text-ink">{fullName || roleLabel}</h2>
         <div className="flex flex-wrap justify-center gap-1.5">
-          <Pill tone="clinic">Pharmacist</Pill>
+          <Pill tone="clinic">{roleLabel}</Pill>
           <Pill tone={isVerified ? "green" : "slate"}>{isVerified ? "Verified" : "Unverified"}</Pill>
         </div>
       </div>

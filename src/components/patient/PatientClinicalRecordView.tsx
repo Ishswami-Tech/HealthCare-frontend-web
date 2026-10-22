@@ -9,7 +9,6 @@ import {
   ClipboardPlus,
   FileText,
   FlaskConical,
-  Heart,
   History,
   Pill as PillIcon,
   Receipt,
@@ -41,6 +40,7 @@ import { canViewCaseSheet } from "@/lib/utils/case-sheet-access";
 import type { AppointmentHistoryTab } from "./PatientAppointmentHistory";
 import { cn } from "@/lib/utils";
 import { EMPTY_DATE_LABEL, ageInYears, formatDateLabel, formatDateTimeLabel } from "@/lib/utils/date-time";
+import { getAppointmentDateTimeValue } from "@/lib/utils/clock";
 import { useAuthStore } from "@/stores/auth.store";
 import { Role } from "@/types/auth.types";
 import { asRecordOrEmpty, firstIsoDate, firstText, unwrapList } from "@/lib/utils/coerce";
@@ -54,7 +54,6 @@ export interface PatientClinicalRecordViewProps {
   ehr: RecordLike;
   appointments: RecordLike[];
   history: RecordLike[];
-  vitals: RecordLike[];
   labs: RecordLike[];
   carePlan: RecordLike[];
   prescriptions?: RecordLike[];
@@ -85,7 +84,7 @@ export interface PatientClinicalRecordViewProps {
   className?: string;
 }
 
-const TAB_IDS = ["overview", "timeline", "appointments", "history", "vitals", "reports", "prescriptions", "medications", "bills"] as const;
+const TAB_IDS = ["overview", "timeline", "appointments", "history", "reports", "prescriptions", "medications", "bills"] as const;
 type TabId = (typeof TAB_IDS)[number];
 
 const PAGE_SIZE = 10;
@@ -125,10 +124,12 @@ function summaryValue(value: unknown): string {
   return String(value);
 }
 
-const appointmentDate = (row: RecordLike) => dateValue(row.startTime, row.appointmentDate, row.date);
+/** Visit start: `date` is the IST day key and the slot is in `time`, so the two are combined. */
+const appointmentDate = (row: RecordLike) =>
+  getAppointmentDateTimeValue(row as Parameters<typeof getAppointmentDateTimeValue>[0])?.toISOString() ??
+  dateValue(row.startTime, row.appointmentDate, row.date);
 const historyDate = (row: RecordLike) => dateValue(row.date, row.createdAt, row.startDate);
 const labDate = (row: RecordLike) => dateValue(row.date, row.testDate, row.reportedDate);
-const vitalDate = (row: RecordLike) => dateValue(row.recordedAt, row.date, row.createdAt);
 const prescriptionDate = (row: RecordLike) => dateValue(row.date, row.createdAt);
 
 /** A medicine the patient is taking now: not switched off and not marked stopped. */
@@ -258,18 +259,6 @@ const HISTORY_COLUMNS: RecordColumn[] = [
   { label: "Status", cell: (row) => <StatusPill status={firstText(row.status)} /> },
 ];
 
-const VITAL_COLUMNS: RecordColumn[] = [
-  { label: "Recorded", cell: (row) => muted(formatDateTimeLabel(vitalDate(row), EMPTY_DATE_LABEL)) },
-  { label: "Vital", cell: (row) => strong(sentenceCase(firstText(row.type, row.vitalType, row.name)) || "Vital") },
-  {
-    label: "Value",
-    cell: (row) => {
-      const value = firstText(row.value);
-      return strong(value ? [value, firstText(row.unit)].filter(Boolean).join(" ") : "");
-    },
-  },
-  { label: "Notes", cell: (row) => muted(firstText(row.notes)) },
-];
 
 const LAB_COLUMNS: RecordColumn[] = [
   { label: "Date", cell: (row) => muted(formatDateLabel(labDate(row), EMPTY_DATE_LABEL)) },
@@ -360,7 +349,6 @@ const TABS: Array<{ id: TabId; label: string; icon: TbdIcon }> = [
   { id: "timeline", label: "History", icon: History },
   { id: "appointments", label: "Appointments", icon: Calendar },
   { id: "history", label: "History", icon: FileText },
-  { id: "vitals", label: "Vitals", icon: Heart },
   { id: "reports", label: "Reports", icon: FlaskConical },
   { id: "prescriptions", label: "Prescriptions", icon: ClipboardPlus },
   { id: "medications", label: "Medications", icon: PillIcon },
@@ -372,7 +360,6 @@ export function PatientClinicalRecordView({
   ehr,
   appointments,
   history,
-  vitals,
   labs,
   carePlan,
   prescriptions = [],
@@ -414,7 +401,6 @@ export function PatientClinicalRecordView({
   const allergies = useMemo(() => toArray(ehrRecord.allergies), [ehrRecord.allergies]);
   const sortedAppointments = useMemo(() => newestFirst(appointments, appointmentDate), [appointments]);
   const sortedHistory = useMemo(() => newestFirst(history, historyDate), [history]);
-  const sortedVitals = useMemo(() => newestFirst(vitals, vitalDate), [vitals]);
   const sortedLabs = useMemo(() => newestFirst(labs, labDate), [labs]);
   const sortedPrescriptions = useMemo(() => newestFirst(prescriptions, prescriptionDate), [prescriptions]);
   const upcomingAppointments = useMemo(
@@ -457,7 +443,6 @@ export function PatientClinicalRecordView({
     ["Upcoming appointments", upcomingAppointments.length],
     ["History entries", historyCount],
     ["Lab reports", labs.length],
-    ["Vitals", vitals.length],
     ["Care plan items", carePlan.length],
   ];
 
@@ -465,7 +450,6 @@ export function PatientClinicalRecordView({
     { label: "Medical history", value: historyCount, tab: "history", ...(caseSheet ? { section: "past-history" } : {}) },
     { label: "Lab reports", value: summaryValue(ehrRecord.labReports || labs), tab: "reports" },
     { label: "Prescriptions", value: summaryValue(prescriptions), tab: "prescriptions" },
-    { label: "Vitals", value: summaryValue(ehrRecord.vitals || vitals), tab: "vitals" },
   ];
 
   return (
@@ -630,22 +614,6 @@ export function PatientClinicalRecordView({
             emptyTitle="No treatment history yet"
           />
         )}
-      </TabsContent>
-
-      <TabsContent value="vitals" className="flex flex-col gap-5">
-        <RecordTable
-          title="Vitals"
-          description="Readings recorded for this patient, newest first."
-          grid="1.3fr 1.2fr 1fr 1.6fr"
-          columns={VITAL_COLUMNS}
-          rows={sortedVitals}
-          loading={loading}
-          emptyIcon={Heart}
-          emptyTitle="No vitals recorded yet"
-        />
-        {caseSheet ? (
-          <Note tone="green">Vitals are entered for each OPD visit in Case Sheet, under General Exam.</Note>
-        ) : null}
       </TabsContent>
 
       <TabsContent value="reports" className="flex flex-col gap-5">

@@ -51,6 +51,17 @@ export type QueueDisplayItem = CanonicalQueueEntry & {
   tokenNumber?: string | number;
   serviceType?: string;
   waitTime?: string | number;
+  /** V2 in-person stage from the queue API: CHECKED_IN or WITH_DOCTOR (the list holds checked-in patients only). */
+  stage?: string;
+  /** Display token ("K-014") from the queue API. */
+  token?: string;
+  /**
+   * The queue weight or value the API sends (`100` / `50` / `0`, or a text value such as HIGH).
+   * Read the patient's priority with `queuePriorityOf`, which prefers `priorityLabel`.
+   */
+  priority?: string;
+  /** NORMAL | SENIOR | PREGNANT | EMERGENCY (set from the desk, `POST /queue-ops/appointments/:id/priority`). */
+  priorityLabel?: string;
 };
 
 export type QueueSection = {
@@ -64,12 +75,6 @@ export type QueueStatsSummary = {
   averageWaitTime: number;
   inProgress: number;
   completedToday: number;
-};
-
-export type AssignableDoctor = {
-  id: string;
-  name: string;
-  role: string;
 };
 
 /** The one emerald button a doctor gets on their own row. */
@@ -139,6 +144,10 @@ export function normalizeQueueDisplayItem(rawItem: unknown): QueueDisplayItem {
     tokenNumber: rawText(raw.tokenNumber),
     serviceType: rawText(raw.serviceType),
     waitTime: rawTextOrNumber(raw.waitTime),
+    stage: rawText(raw.stage),
+    token: rawText(raw.token),
+    priority: rawText(raw.priority) || rawText(asRecordOrEmpty(raw.metadata).priority),
+    priorityLabel: rawText(raw.priorityLabel) || rawText(asRecordOrEmpty(raw.metadata).priorityLabel),
   };
 }
 
@@ -274,6 +283,66 @@ export function matchesQueueSection(item: QueueDisplayItem, section: string): bo
   );
 }
 
+/**
+ * Filter options with one entry per lane key. Several catalog treatments normalise to the same
+ * lane (VIRECHANA, ABHYANGA, BASTI ... are all AYURVEDIC_PROCEDURES), which rendered duplicate
+ * React keys and the same lane several times. The first label of a key wins.
+ */
+export function dedupeQueueFilterOptions<T extends { value: string; label?: string }>(options: readonly T[]): T[] {
+  const counts = new Map<string, number>();
+  for (const option of options) {
+    const key = normalizeQueueToken(option.value);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const seen = new Set<string>();
+  return options.flatMap((option) => {
+    const key = normalizeQueueToken(option.value);
+    if (!key || seen.has(key)) return [];
+    seen.add(key);
+    // A lane that several treatments share is named after the lane, not after one of them.
+    return (counts.get(key) ?? 0) > 1 && option.label !== undefined
+      ? [{ ...option, label: humanizeQueueKey(key) }]
+      : [option];
+  });
+}
+
+/** "AYURVEDIC_PROCEDURES" -> "Ayurvedic Procedures". */
+export function humanizeQueueKey(key: string): string {
+  return key
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/** The lane a row with an unknown or missing treatment type is shown in. */
+export const DEFAULT_QUEUE_LANE = "GENERAL_CONSULTATION";
+
+/**
+ * Lanes built from the filter options, where every row lands somewhere: a row that matches no
+ * lane of either tab (no treatmentType, or one the catalog does not know) goes to the default
+ * lane instead of disappearing from the screen.
+ */
+export function buildQueueLanes(
+  items: readonly QueueDisplayItem[],
+  options: ReadonlyArray<{ value: string; label: string }>,
+  otherTabOptions: ReadonlyArray<{ value: string }>,
+  defaultLane: string = DEFAULT_QUEUE_LANE,
+): QueueSection[] {
+  const lanes = dedupeQueueFilterOptions(options).map((option) => ({
+    key: normalizeQueueToken(option.value),
+    title: option.label,
+    items: items.filter((item) => matchesQueueSection(item, option.value)),
+  }));
+  const defaultKey = normalizeQueueToken(defaultLane);
+  const target = lanes.find((lane) => lane.key === defaultKey);
+  if (!target) return lanes;
+  const everyLane = [...lanes.map((lane) => lane.key), ...otherTabOptions.map((option) => option.value)];
+  const unplaced = items.filter((item) => !everyLane.some((lane) => matchesQueueSection(item, lane)));
+  if (unplaced.length === 0) return lanes;
+  return lanes.map((lane) => (lane === target ? { ...lane, items: [...lane.items, ...unplaced] } : lane));
+}
+
 /** Refetches the queue until `isSynced` is true, or the attempts run out. */
 export async function pollQueueSync(
   refetchQueue: () => Promise<unknown>,
@@ -357,9 +426,6 @@ export type QueuePageState = {
   isCleaningUp: boolean;
   transferringQueueItem: QueueDisplayItem | null;
   transferringId: string | null;
-  assigningQueueItem: QueueDisplayItem | null;
-  selectedDoctorId: string;
-  assignDoctorError: string;
   startingId: string | null;
 };
 
@@ -370,9 +436,6 @@ export type QueuePageAction =
   | { type: "setIsCleaningUp"; value: boolean }
   | { type: "setTransferringQueueItem"; value: QueueDisplayItem | null }
   | { type: "setTransferringId"; value: string | null }
-  | { type: "setAssigningQueueItem"; value: QueueDisplayItem | null }
-  | { type: "setSelectedDoctorId"; value: string }
-  | { type: "setAssignDoctorError"; value: string }
   | { type: "setStartingId"; value: string | null };
 
 export const initialQueuePageState: QueuePageState = {
@@ -382,9 +445,6 @@ export const initialQueuePageState: QueuePageState = {
   isCleaningUp: false,
   transferringQueueItem: null,
   transferringId: null,
-  assigningQueueItem: null,
-  selectedDoctorId: "",
-  assignDoctorError: "",
   startingId: null,
 };
 
@@ -402,12 +462,6 @@ export function queuePageReducer(state: QueuePageState, action: QueuePageAction)
       return { ...state, transferringQueueItem: action.value };
     case "setTransferringId":
       return { ...state, transferringId: action.value };
-    case "setAssigningQueueItem":
-      return { ...state, assigningQueueItem: action.value };
-    case "setSelectedDoctorId":
-      return { ...state, selectedDoctorId: action.value };
-    case "setAssignDoctorError":
-      return { ...state, assignDoctorError: action.value };
     case "setStartingId":
       return { ...state, startingId: action.value };
     default:

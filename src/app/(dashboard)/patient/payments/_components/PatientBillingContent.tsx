@@ -20,6 +20,7 @@ import type { BillingPlan, Subscription } from "@/types/billing.types";
 import { BILLING_TABS_ID, PATIENT_BILLING_TABS, type PatientBillingTab } from "./BillingMoreTabs";
 import type { RenderInvoicePay } from "./BillingOverviewCards";
 import { PatientBillingView } from "./PatientBillingView";
+import { InvoicePayAction, refetchAroundWindowClose } from "./InvoicePayAction";
 import { groupSubscriptions, invoiceTotal } from "./patientBilling.logic";
 import { usePatientBillingIdentity } from "./usePatientBilling";
 import { formatRupees } from "@/lib/utils/currency";
@@ -169,18 +170,29 @@ export function PatientBillingContent() {
 
   // The one way to pay an invoice from this screen: the shared PaymentButton (amber).
   // `amount` is in rupees, the invoice total the backend charges; the label shows the same rupees.
+  // The open attempt's 15-minute window is shown with the Pay button (InvoicePayAction).
+  const refetchInvoicesAndPayments = () => {
+    void refetchInvoices();
+    void refetchPayments();
+    void refetchSubscriptions();
+  };
   const renderPay: RenderInvoicePay = (invoice, placement) => (
-    <PaymentButton
-      invoiceId={invoice.id}
-      amount={invoiceTotal(invoice)}
-      size={placement === "row" ? "default" : "md"}
-      onSuccess={() => {
-        void refetchInvoices();
-        void refetchPayments();
-      }}
+    <InvoicePayAction
+      invoice={invoice}
+      onExpired={() => refetchAroundWindowClose(refetchInvoicesAndPayments)}
     >
-      Pay {formatRupees(invoiceTotal(invoice), { currency: invoice.currency })}
-    </PaymentButton>
+      <PaymentButton
+        invoiceId={invoice.id}
+        amount={invoiceTotal(invoice)}
+        size={placement === "row" ? "default" : "md"}
+        onSuccess={() => {
+          void refetchInvoices();
+          void refetchPayments();
+        }}
+      >
+        Pay {formatRupees(invoiceTotal(invoice), { currency: invoice.currency })}
+      </PaymentButton>
+    </InvoicePayAction>
   );
 
   return (

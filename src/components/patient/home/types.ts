@@ -58,6 +58,8 @@ export interface HomeQueue {
   patientsAhead?: number | null;
   estimatedWaitMinutes: number | null;
   totalInQueue: number | null;
+  /** Token of the checked-in visit (K-014) from `GET in-person/me/today`, when the appointment row has none. */
+  tokenLabel?: string | null;
   isLoading: boolean;
 }
 

@@ -86,18 +86,6 @@ export async function getFoodCatalog() {
   }
 }
 
-export async function searchFoodCatalog(query: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) throw new Error('Unauthorized');
-
-  try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.DIET.FOODS.SEARCH(query));
-    return data;
-  } catch {
-    return [];
-  }
-}
-
 export async function createFoodItem(payload: {
   name: string;
   category: string;

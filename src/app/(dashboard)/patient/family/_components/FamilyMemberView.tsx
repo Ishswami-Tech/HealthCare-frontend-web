@@ -215,6 +215,7 @@ export function FamilyMemberView({ state, member, onEdit, onRemove, onRetry }: F
           <dl className="m-0 flex flex-col">
             <DetailRow label="Phone" value={member.phone?.trim() ?? ""} />
             <DetailRow label="Notes" value={member.notes?.trim() ?? ""} />
+            <DetailRow label="Allergies" value={member.allergies?.trim() ?? ""} />
             <DetailRow label="Added on" value={dateLabel(member.createdAt)} last />
           </dl>
         </Surface>

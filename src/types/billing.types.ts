@@ -65,6 +65,11 @@ export interface Invoice {
   items: InvoiceItem[];
   pdfUrl?: string;
   patientName?: string;
+  /**
+   * PENDING invoices: when the open payment attempt stops being payable (ISO), null when there is
+   * none. Set by `GET /billing/invoices/user/:userId` (15-minute payment window).
+   */
+  paymentExpiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

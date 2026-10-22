@@ -4,32 +4,19 @@ import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Activity,
   BookOpen,
   ChevronRight,
   CircleAlert,
-  Droplet,
   FileText,
-  Heart,
   Pill as PillIcon,
   Play,
   Users,
-  Weight,
   type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Note, PageHead, TBD_SURFACE } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { HomeLibraryItem } from "@/components/patient/home/types";
-import type { VitalKey, VitalTile } from "@/components/patient/health/patient-health.logic";
-
-const VITAL_LOOK: Record<VitalKey, { icon: LucideIcon; well: string; filled?: boolean }> = {
-  heartRate: { icon: Heart, well: "bg-[#fee2e2] text-[#dc2626] dark:bg-red-500/15 dark:text-red-300", filled: true },
-  bloodPressure: { icon: Activity, well: "bg-[#e0e7ff] text-[#4f46e5] dark:bg-indigo-500/15 dark:text-indigo-300" },
-  bloodSugar: { icon: Droplet, well: "bg-[#fef3c7] text-[#d97706] dark:bg-amber-500/15 dark:text-amber-300", filled: true },
-  weight: { icon: Weight, well: "bg-[#d1fae5] text-[#047857] dark:bg-emerald-500/15 dark:text-emerald-300" },
-};
-
 const CARD = cn(TBD_SURFACE, "min-w-0 text-ink");
 const FOCUS = "transition-shadow hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40";
 
@@ -87,84 +74,34 @@ function LibraryCover({ item }: { item: HomeLibraryItem }) {
 }
 
 export interface PatientHealthHubViewProps {
-  /** The four tiles in order. A tile whose `value` is null shows "No readings yet". */
-  vitals: VitalTile[];
-  /** "Vitals updated today, 8:30 am". Empty when there is no reading. */
-  vitalsUpdatedLabel: string;
-  isVitalsLoading?: boolean;
   /** The health record could not be loaded. */
-  vitalsFailed?: boolean;
+  failed?: boolean;
   onRetry?: () => void;
   cards: HealthHubCard[];
   library: { items: HomeLibraryItem[]; isLoading: boolean };
-  /** The Records section (medical history, vitals history, allergies and so on). */
+  /** The Records section (medical history, prescriptions, reports, allergies). */
   children?: ReactNode;
 }
 
-/** My Health: latest vitals, the three doors (reports, medicines, family), the library, then Records. */
-export function PatientHealthHubView({
-  vitals,
-  vitalsUpdatedLabel,
-  isVitalsLoading = false,
-  vitalsFailed = false,
-  onRetry,
-  cards,
-  library,
-  children,
-}: PatientHealthHubViewProps) {
-  const hasReading = vitals.some((tile) => tile.value !== null);
-  const description = isVitalsLoading
-    ? undefined
-    : vitalsFailed
-      ? "Your reports, medicines and records in one place."
-      : hasReading
-        ? vitalsUpdatedLabel || "Your latest vitals"
-        : "No vitals yet. Your clinic adds them at each visit.";
-
+/**
+ * My Health: the three doors (reports, medicines, family), the library, then Records.
+ * Product rule: no vitals anywhere (no tiles, no history tab).
+ */
+export function PatientHealthHubView({ failed = false, onRetry, cards, library, children }: PatientHealthHubViewProps) {
   return (
     <>
-      <PageHead title="My Health" description={description} />
+      <PageHead title="My Health" description="Your reports, medicines and records in one place." />
 
-      {vitalsFailed ? (
+      {failed ? (
         <Note tone="rose" icon={CircleAlert}>
-          We could not load your vitals.{" "}
+          We could not load your health record.{" "}
           {onRetry ? (
             <button type="button" onClick={onRetry} className="font-bold underline underline-offset-2">
               Try again
             </button>
           ) : null}
         </Note>
-      ) : (
-        <section aria-label="Latest vitals" className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-          {vitals.map((tile) => {
-            const look = VITAL_LOOK[tile.key];
-            const Icon = look.icon;
-            return (
-              <div key={tile.key} className={cn(CARD, "flex flex-col gap-3.5 p-[18px]")}>
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={cn("flex size-[38px] shrink-0 items-center justify-center rounded-[11px]", look.well)}
-                    aria-hidden="true"
-                  >
-                    <Icon className="size-[18px]" strokeWidth={2} {...(look.filled ? { fill: "currentColor" } : {})} />
-                  </span>
-                  <span className="min-w-0 text-[13px] leading-tight text-ink-muted">{tile.label}</span>
-                </div>
-                {isVitalsLoading ? (
-                  <Skeleton className="h-[31px] w-24 rounded-md" />
-                ) : tile.value !== null ? (
-                  <span className="text-[28px] font-extrabold leading-[1.1] tracking-[-0.4px] text-ink">
-                    {tile.value}{" "}
-                    <span className="text-[13px] font-semibold tracking-normal text-ink-muted">{tile.unit}</span>
-                  </span>
-                ) : (
-                  <span className="flex min-h-[31px] items-center text-sm font-semibold text-ink-muted">No readings yet</span>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      )}
+      ) : null}
 
       <nav aria-label="Health sections" className="grid gap-3 md:grid-cols-3 lg:gap-4">
         {cards.map((card) => {

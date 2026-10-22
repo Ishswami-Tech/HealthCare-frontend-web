@@ -54,26 +54,3 @@ export async function submitConsultationBooking(data: {
 
   return openMailDraft(subject, body);
 }
-
-export async function scheduleMessage(_messageData: {
-  type: "sms" | "email" | "whatsapp";
-  to: string | string[];
-  content: string;
-  subject?: string;
-  scheduledFor: string;
-  templateId?: string;
-  variables?: Record<string, string>;
-}) {
-  return null;
-}
-
-export async function cancelScheduledMessage(_messageId: string) {
-  return null;
-}
-
-export async function getScheduledMessages(_filters?: {
-  type?: "sms" | "email" | "whatsapp";
-  status?: "pending" | "sent" | "cancelled";
-}) {
-  return null;
-}

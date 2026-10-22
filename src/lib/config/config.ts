@@ -391,14 +391,8 @@ export const API_ENDPOINTS = {
     VERIFY_PHONE: '/auth/verify-phone',       // POST /auth/verify-phone
     SESSIONS: '/auth/sessions',              // GET /auth/sessions (list). One session is ended with POST /auth/logout { sessionId }
     GOOGLE_LOGIN: '/auth/google',            // POST /auth/google
-    CHECK_OTP_STATUS: '/auth/check-otp-status',
-    INVALIDATE_OTP: '/auth/invalidate-otp',
-    MAGIC_LINK: '/auth/magic-link',
-    VERIFY_MAGIC_LINK: '/auth/verify-magic-link',
     VERIFY_EMAIL: '/auth/verify-email',
     RESEND_VERIFICATION: '/auth/resend-verification',
-    FACEBOOK_LOGIN: '/auth/facebook',
-    APPLE_LOGIN: '/auth/apple',
     PERMISSIONS: '/auth/permissions',
     PERMISSION_VALIDATE: '/auth/permissions/validate',
   },
@@ -415,7 +409,7 @@ export const API_ENDPOINTS = {
     STATS: (id: string) => `/clinics/${id}/stats`,
     OPERATING_HOURS: (id: string) => `/clinics/${id}/operating-hours`,
     ANALYTICS: (id: string) => `/clinics/${id}/analytics`,
-    SETTINGS: (id: string) => `/clinics/${id}/settings`,
+    // No /clinics/:id/settings route: settings are the `settings` JSON of GET/PUT /clinics/:id.
   },
   
   // Clinic Locations Endpoints
@@ -452,7 +446,7 @@ export const API_ENDPOINTS = {
     VIDEO_REJECT_PROPOSAL: (id: string) => `/appointments/${id}/video/reject`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
     FORCE_CHECK_IN: (id: string) => `/appointments/${id}/force-check-in`,
-    SCAN_QR: '/appointments/check-in/scan-qr',
+    // POST /appointments/check-in/scan-qr is deprecated (backend delegate); patient QR uses IN_PERSON.CHECK_IN.
     // The backend has no /start-consultation route: a visit is started with
     // PATCH /appointments/:id/status and body { status: 'IN_PROGRESS' }.
     START: (id: string) => `/appointments/${id}/status`,
@@ -462,6 +456,8 @@ export const API_ENDPOINTS = {
     DOCTOR_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     UPDATE_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     SUMMARY_TRIGGER: '/appointments/summary/trigger',
+    /** Day at a glance; for a doctor's today it also carries `liveQueue` (same order as GET /queue). */
+    SUMMARY_DAILY: '/appointments/summary/daily',
     // Deprecated compatibility alias for queue callers that still reference
     // APPOINTMENTS.QUEUE. All queue flows now resolve to the standalone /queue/* API.
     QUEUE: {
@@ -514,6 +510,8 @@ export const API_ENDPOINTS = {
     HISTORY: '/queue/history',
     ANALYTICS: '/queue/analytics',
     UPDATE_POSITION: (queueId: string) => `/queue/${queueId}/position`,
+    // API_CONTRACT 4: keyed by the appointment id; body { priority: NORMAL | SENIOR | PREGNANT | EMERGENCY, reason? }
+    PRIORITY: (appointmentId: string) => `/queue-ops/appointments/${appointmentId}/priority`,
     PAUSE: '/queue/pause',
     RESUME: '/queue/resume',
     CONFIG: '/queue/config',
@@ -542,6 +540,7 @@ export const API_ENDPOINTS = {
     PRESCRIPTIONS: {
       GET: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
       LIST: '/pharmacy/prescriptions',
+      SUMMARY: '/pharmacy/prescriptions/summary',
       QUEUE: '/pharmacy/prescriptions/queue',
       GET_BY_PATIENT: (userId: string) => `/pharmacy/prescriptions/patient/${userId}`,
       CREATE: '/pharmacy/prescriptions',
@@ -575,11 +574,10 @@ export const API_ENDPOINTS = {
       CREATE: '/ayurveda/nadi-pariksha',
       GET_BY_PATIENT: (patientId: string) => `/ayurveda/nadi-pariksha?patientId=${patientId}`,
     },
+    // Diagnoses: create and read by id only (per patient they come with TIMELINE).
     DIAGNOSIS: {
-      BASE: '/ayurveda/diagnoses',
       CREATE: '/ayurveda/diagnoses',
       GET_BY_ID: (id: string) => `/ayurveda/diagnoses/${id}`,
-      GET_BY_PATIENT: (patientId: string) => `/ayurveda/diagnoses?patientId=${patientId}`,
     },
     SAMPRAPTI: {
       CREATE: (diagnosisId: string) => `/ayurveda/samprapti/${diagnosisId}/stage`,
@@ -591,10 +589,6 @@ export const API_ENDPOINTS = {
       GET_BY_PATIENT: (patientId: string) => `/ayurveda/dosha-imbalance?patientId=${patientId}`,
     },
     TIMELINE: (patientId: string) => `/ayurveda/patients/${patientId}/timeline`,
-    PRESCRIPTION: {
-      CREATE: '/ayurveda/prescriptions',
-      GET_BY_PATIENT: (patientId: string) => `/ayurveda/prescriptions?patientId=${patientId}`,
-    },
   },
 
   // Diet Endpoints
@@ -610,7 +604,7 @@ export const API_ENDPOINTS = {
     FOODS: {
       LIST: '/diet/foods',
       CREATE: '/diet/foods',
-      SEARCH: (query: string) => `/diet/foods/search?q=${encodeURIComponent(query)}`,
+      // No search route: GET /diet/foods filters by ?category= and ?tag= only.
     },
     COMPATIBILITY_CHECK: '/diet/compatibility/check',
   },
@@ -682,10 +676,7 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (doctorId: string) => `/doctors/${doctorId}`,
     CREATE: '/doctors',
     UPDATE: (doctorId: string) => `/doctors/${doctorId}`,
-    SCHEDULE: {
-      GET: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/schedule`,
-      UPDATE: (doctorId: string) => `/doctors/${doctorId}/schedule`,
-    },
+    // No schedule routes: the weekly schedule is `workingHours` on GET / PATCH /doctors/:id.
     AVAILABILITY: {
       GET: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     },
@@ -734,21 +725,10 @@ export const API_ENDPOINTS = {
     CHANGE_LOCATION: (id: string) => `/user/${id}/change-location`,
     SEARCH: '/user/search',
     STATS: '/user/stats',
-    BULK_UPDATE: '/user/bulk-update',
-    EXPORT: '/user/export',
-    CHANGE_PASSWORD: (id: string) => `/user/${id}/change-password`,
-    TOGGLE_VERIFICATION: (id: string) => `/user/${id}/toggle-verification`,
     // Backend: GET /user/:id/activity (there is no /activity-logs route).
     ACTIVITY_LOGS: (id: string) => `/user/${id}/activity`,
-    // NOT IMPLEMENTED BY THE BACKEND: the users controller has no /user/sessions routes
-    // (list, revoke one, revoke all). The only session routes are GET /auth/sessions and
-    // POST /auth/logout. These entries are kept so existing imports keep compiling.
-    TERMINATE_SESSION: (sessionId: string) => `/user/sessions/${sessionId}`,
-    SESSIONS: {
-      GET_ALL: '/user/sessions',
-      REVOKE: (sessionId: string) => `/user/sessions/${sessionId}`,
-      REVOKE_ALL: '/user/sessions/revoke-all',
-    },
+    // No bulk-update, export, admin change-password, toggle-verification or /user/sessions routes:
+    // sessions are AUTH.SESSIONS (GET /auth/sessions) + POST /auth/logout { sessionId }.
   },
   
   // Health Check Endpoints (Public, no /api/v1 prefix)
@@ -1002,8 +982,7 @@ export const API_ENDPOINTS = {
       CREATE: '/video/notes',
       UPDATE: (noteId: string) => `/video/notes/${noteId}`,
       GET: (consultationId: string) => `/video/notes/${consultationId}`,
-      // No backend route: a consultation note can be created, updated (PATCH) and saved to the EHR only.
-      DELETE: (noteId: string) => `/video/notes/${noteId}`,
+      // No DELETE route: a consultation note can be created, updated (PATCH) and saved to the EHR only.
       SAVE_TO_EHR: (noteId: string) => `/video/notes/${noteId}/save-to-ehr`,
     },
     VIRTUAL_BACKGROUND: {
@@ -1047,7 +1026,6 @@ export const API_ENDPOINTS = {
     },
     SEND: '/communication/send',
     APPOINTMENT_REMINDER: '/communication/appointment/reminder',
-    PRESCRIPTION_READY: '/communication/prescription/ready',
     PUSH: {
       SEND: '/communication/push',
       SEND_MULTIPLE: '/communication/push/multiple',
@@ -1071,26 +1049,6 @@ export const API_ENDPOINTS = {
       BACKUP: '/communication/chat/backup',
       HISTORY: (userId: string) => `/communication/chat/history/${userId}`,
       STATS: '/communication/chat/stats',
-    },
-    MESSAGING: {
-      SMS: '/messaging/sms',
-      EMAIL: '/messaging/email',
-      WHATSAPP: '/messaging/whatsapp',
-      TEMPLATES: {
-        BASE: '/messaging/templates',
-        GET: (templateId: string) => `/messaging/templates/${templateId}`,
-        CREATE: '/messaging/templates',
-        UPDATE: (templateId: string) => `/messaging/templates/${templateId}`,
-        DELETE: (templateId: string) => `/messaging/templates/${templateId}`,
-      },
-      HISTORY: '/messaging/history',
-      STATS: '/messaging/stats',
-      SCHEDULE: {
-        BASE: '/messaging/schedule',
-        GET: (messageId: string) => `/messaging/schedule/${messageId}`,
-        CREATE: '/messaging/schedule',
-        DELETE: (messageId: string) => `/messaging/schedule/${messageId}`,
-      },
     },
     STATS: '/communication/stats',
     ANALYTICS: '/communication/analytics',
@@ -1158,7 +1116,7 @@ export const API_ENDPOINTS = {
   // Medical Records Endpoints
   // Served by the EHR controller (@Controller('ehr')), so every path is /ehr-scoped.
   // `patientId` is the Patient-RECORD id (HealthRecord.patientId), not the user id.
-  // UPDATE is PUT. The backend has no template routes (TEMPLATES below will 404).
+  // UPDATE is PUT. The backend has no template routes.
   MEDICAL_RECORDS: {
     BASE: '/ehr/medical-records',
     GET_BY_PATIENT: (patientId: string) => `/ehr/medical-records/patient/${patientId}`,
@@ -1167,10 +1125,6 @@ export const API_ENDPOINTS = {
     DELETE: (recordId: string) => `/ehr/medical-records/${recordId}`,
     GET_BY_ID: (recordId: string) => `/ehr/medical-records/${recordId}`,
     UPLOAD: (recordId: string) => `/ehr/medical-records/${recordId}/upload`,
-    TEMPLATES: {
-      GET: '/ehr/medical-records/templates',
-      CREATE: '/ehr/medical-records/templates',
-    },
   },
   
   // Prescriptions Endpoints (align with pharmacy backend)
@@ -1184,22 +1138,7 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
   },
   
-  // Medicines Endpoints
-  // The backend has NO /medicines routes: the medicine catalogue is the pharmacy stock list
-  // (PHARMACY.* / `/pharmacy/inventory`). Kept only for the legacy actions in medical-records.server.ts.
-  MEDICINES: {
-    BASE: '/medicines',
-    GET_ALL: '/medicines',
-    CREATE: '/medicines',
-    UPDATE: (medicineId: string) => `/medicines/${medicineId}`,
-    DELETE: (medicineId: string) => `/medicines/${medicineId}`,
-    SEARCH: '/medicines/search',
-    INTERACTIONS: '/medicines/interactions',
-    INVENTORY: {
-      GET: '/medicines/inventory',
-      UPDATE: (medicineId: string) => `/medicines/${medicineId}/inventory`,
-    },
-  },
+  // No MEDICINES block: the backend has no /medicines routes (the catalogue is PHARMACY.* / /pharmacy/inventory).
   
   // Analytics Endpoints
   ANALYTICS: {
@@ -1212,32 +1151,16 @@ export const API_ENDPOINTS = {
     APPOINTMENTS: '/analytics/appointments',
     PATIENTS: '/analytics/patients',
     REVENUE: '/analytics/revenue',
-    DOCTORS_PERFORMANCE: '/analytics/doctors/performance',
     CLINICS_PERFORMANCE: '/analytics/clinics/performance',
     SERVICES_UTILIZATION: '/analytics/services/utilization',
     WAIT_TIMES: '/analytics/wait-times',
     SATISFACTION: '/analytics/satisfaction',
     QUEUE: '/analytics/queue',
     EXPORT: '/analytics/export',
-    CUSTOM: '/analytics/custom',
-    CUSTOM_QUERIES: {
-      CREATE: '/analytics/custom-queries',
-      GET_ALL: '/analytics/custom-queries',
-    },
   },
   
-  // Reports Endpoints
-  REPORTS: {
-    BASE: '/reports',
-    APPOINTMENTS: '/reports/appointments',
-    PATIENTS: '/reports/patients',
-    REVENUE: '/reports/revenue',
-    DOCTORS_PERFORMANCE: '/reports/doctors/performance',
-    CLINICS_SUMMARY: '/reports/clinics/summary',
-    HISTORY: '/reports/history',
-    DOWNLOAD: (reportId: string) => `/reports/${reportId}/download`,
-    DELETE: (reportId: string) => `/reports/${reportId}`,
-  },
+  // No REPORTS block: the backend has no /reports/* routes (reports are built from ANALYTICS.*).
+
   
   // Clinic Communication Endpoints
   CLINIC_COMMUNICATION: {
@@ -1249,11 +1172,127 @@ export const API_ENDPOINTS = {
     TEST_SMS: (clinicId: string) => `/clinics/${clinicId}/communication/test-sms`,
   },
 
+  // ==========================================================================
+  // TestByDoctor build: one group per backend area, paths per API_CONTRACT.md.
+  // Routes the backend does not serve yet are listed in src/lib/config/pendingEndpoints.md.
+  // ==========================================================================
+
+  // Prescription drafts (AsPrescribe, AsDrafts, DocDraftReview). API_CONTRACT section 5. A draft is created with PHARMACY.PRESCRIPTIONS.CREATE by the assistant (stored as DRAFT).
+  RX_DRAFTS: {
+    LIST: '/rx-drafts',                                          // ?status=DRAFT|RETURNED|APPROVED (&days=30 for APPROVED)
+    GET: (id: string) => `/rx-drafts/${id}`,
+    UPDATE: (id: string) => `/pharmacy/prescriptions/${id}`,     // PATCH items / notes / diagnosis
+    APPROVE: (id: string) => `/rx-drafts/${id}/approve`,         // DOCTOR
+    RETURN: (id: string) => `/rx-drafts/${id}/return`,           // DOCTOR, body { note }
+    RESUBMIT: (id: string) => `/rx-drafts/${id}/resubmit`,       // ASSISTANT_DOCTOR, RETURNED -> DRAFT, body { note? }
+    DISCARD: (id: string) => `/rx-drafts/${id}/discard`,
+  },
+
+  // Direct dispensing from clinic stock (API_CONTRACT §6).
+  DIRECT_DISPENSE: {
+    STOCK: '/direct-dispense/stock',                            // ?q&status=IN_STOCK|LOW|OUT&limit (no price for DOCTOR / ASSISTANT_DOCTOR)
+    LIST: '/direct-dispense',                                   // ?status&patientId&mine=true&limit
+    CREATE: '/direct-dispense',                                 // POST { patientId? | walkInName?+walkInPhone?, prescriptionId?, locationId?, note?, items }
+    GET: (id: string) => `/direct-dispense/${id}`,
+    UNDO: (id: string) => `/direct-dispense/${id}/undo`,        // dispenser, inside the 10 min undo window
+    REVERSE: (id: string) => `/direct-dispense/${id}/reverse`,  // CLINIC_ADMIN, PHARMACIST { reason }
+  },
+
+  // Doctor favourites, investigations and staff leave (API_CONTRACT sections 2, 13, 14)
+  DOCTOR_FAVOURITES: {
+    LIST: '/doctor-favourites',                                 // ?kind=MEDICINE|RX_TEMPLATE|DIAGNOSIS|INVESTIGATION|PATIENT|OTHER
+    UPSERT: '/doctor-favourites',                               // PUT { kind, itemKey, label, payload?, sortOrder? }
+    BULK: '/doctor-favourites/bulk',                            // PUT { items } one-off import of the old localStorage list
+    DELETE: (id: string) => `/doctor-favourites/${id}`,
+  },
+  INVESTIGATIONS: {
+    LIST: '/investigations',                                    // ?patientId&status
+    CREATE: '/investigations',                                  // POST { patientId, appointmentId?, visitId?, tests, urgency?, labDestination?, notes? }
+    STATUS: (id: string) => `/investigations/${id}/status`,     // PATCH { status }
+  },
+  LEAVE_REQUESTS: {
+    CREATE: '/leave-requests',
+    MINE: '/leave-requests/mine',
+    CANCEL: (id: string) => `/leave-requests/${id}/cancel`,
+    LIST: '/leave-requests',                                    // CLINIC_ADMIN ?status&from&to&userId
+    IMPACT: (id: string) => `/leave-requests/${id}/impact`,     // "N booked patients will be notified"
+    APPROVE: (id: string) => `/leave-requests/${id}/approve`,   // { note?, notifyPatients? }
+    DECLINE: (id: string) => `/leave-requests/${id}/decline`,   // { note? }
+  },
+
+  // Pharmacy additions (CaInventory, CaPurchaseOrder, PhExpiry, PhInventoryAlertSettings, PhHandover).
+  // Paths per API_CONTRACT sections 8 and 12. Pharmacy billing reuses BILLING.* (the API scopes the
+  // clinic invoice / payment lists to pharmacy rows for PHARMACIST).
+  PHARMACY_EXT: {
+    EXPIRING: '/pharmacy/inventory/expiring-soon',
+    BATCH_AUDIT: (batchId: string) => `/pharmacy-ops/batches/${batchId}/audit`,
+    EXPIRY_RETURN: (batchId: string) => `/pharmacy-ops/batches/${batchId}/return-to-supplier`, // { quantity, reason, supplierId? }
+    EXPIRY_DISCARD: (batchId: string) => `/pharmacy-ops/batches/${batchId}/discard`,          // { quantity, reason }
+    REORDER_RULES: '/pharmacy/inventory/reorder-rules',                                        // POST one rule per medicine
+    REORDER_EVALUATION: '/pharmacy/inventory/reorder-evaluation',                              // what the rules would order now
+    HANDOVER_CODE: (prescriptionId: string) => `/pharmacy-ops/prescriptions/${prescriptionId}/handover/code`, // PATIENT: 6-digit code + QR
+    HANDOVER_GET: (prescriptionId: string) => `/pharmacy-ops/prescriptions/${prescriptionId}/handover`,
+    HANDOVER_VERIFY: (prescriptionId: string) => `/pharmacy-ops/prescriptions/${prescriptionId}/handover/verify`, // { code, method? }
+    HANDOVER_CONFIRM: (handoverId: string) => `/pharmacy-ops/handovers/${handoverId}/confirm`,
+    HANDOVER_UNDO: (handoverId: string) => `/pharmacy-ops/handovers/${handoverId}/undo`,
+  },
+
+  // In-app help chat (API_CONTRACT: `support`). Patient: own thread; front desk / clinic admin: the clinic's open threads.
+  SUPPORT: {
+    MY_THREAD: '/support/thread',                                   // PATIENT
+    SEND: '/support/messages',                                      // PATIENT { body, quickReply? }
+    THREADS: '/support/threads',                                    // RECEPTIONIST, CLINIC_ADMIN
+    THREAD: (threadId: string) => `/support/threads/${threadId}`,   // full thread, when the API serves it
+    REPLY: (threadId: string) => `/support/threads/${threadId}/reply`, // { body }
+  },
+
+  // Patient lab booking (WebLabBooking)
+  LAB_BOOKING: {
+    // API_CONTRACT §13 (B13 WebLabBooking): packages + pickup windows, no prices.
+    PACKAGES: '/lab-bookings/packages',
+    CREATE: '/lab-bookings',
+    MINE: '/lab-bookings/mine',
+    CANCEL: (id: string) => `/lab-bookings/${id}/cancel`,
+  },
+
+  // Clinic admin billing ops, staff, holidays, QR and check-in log (API_CONTRACT §2, 3, 7, 9, 10, 15).
+  // Check-in itself (patient QR and staff one-click) and the reception desk are IN_PERSON.*.
+  CLINIC_ADMIN_OPS: {
+    BILLING_SUMMARY: '/billing-ops/summary',                    // ?from&to -> billed / collected / outstanding / overdue
+    OVERDUE_INVOICES: '/billing-ops/invoices/overdue',          // ?limit
+    INVOICE_REMINDERS: (invoiceId: string) => `/billing-ops/invoices/${invoiceId}/reminders`, // GET list, POST send
+    INVOICE_RECEIPT: (invoiceId: string) => `/billing-ops/invoices/${invoiceId}/receipt`,
+    STAFF_INVITES: '/staff-admin/invites',                      // POST create, GET ?status
+    STAFF_INVITE_RESEND: (inviteId: string) => `/staff-admin/invites/${inviteId}/resend`,
+    STAFF_INVITE_REVOKE: (inviteId: string) => `/staff-admin/invites/${inviteId}/revoke`,
+    STAFF_MEMBERS: '/staff-admin/members',                      // ?role&q
+    STAFF_MEMBER: (userId: string) => `/staff-admin/members/${userId}`,
+    HOLIDAYS: '/clinic-holidays',                               // GET ?from&to&locationId, POST
+    HOLIDAY: (holidayId: string) => `/clinic-holidays/${holidayId}`, // PATCH, DELETE
+    CHECK_IN_LOG: '/check-in-log',                              // ?date|from&to&locationId&outcome&method
+    CHECK_IN_FAILED: '/check-in-log/failed',                    // ?date
+    CHECK_IN_SUMMARY: '/check-in-log/summary',                  // ?date
+    CHECK_IN_RESOLVE: (attemptId: string) => `/check-in-log/${attemptId}/resolve`, // { resolution, note? }
+    LOCATION_QR: (locationId: string) => `/appointments/locations/${locationId}/qr-code`,
+    LOCATION_QR_REGENERATE: (locationId: string) => `/appointments/locations/${locationId}/qr-code/regenerate`, // { reason? }
+    AUDIT: '/clinic-audit',                                     // ?entityType&entityId&from&to&limit
+  },
+
   // Logging Endpoints
   LOGGING: {
     AUDIT: '/logger/audit',
     LOGS: '/logger/logs',
     EVENTS: '/logger/events',
+  },
+  // In-person flow V2 (API_CONTRACT "In-person flow V2"): booking location, patient QR check-in,
+  // reception one-click check-in (same endpoint), visit stage / token / people ahead / ETA.
+  IN_PERSON: {
+    LOCATIONS: '/in-person/locations',                          // ?lat&lng -> nearest first
+    MY_TODAY: '/in-person/me/today',                            // patient: today's in-person visits
+    VISIT: (appointmentId: string) => `/in-person/appointments/${appointmentId}`,
+    CHECK_IN: '/in-person/check-in',                            // patient {qrCode, appointmentId?} | staff {appointmentId}
+    DESK: '/in-person/desk',                                    // reception: ?date&locationId
+    WALK_IN: '/in-person/walk-in',                              // POST {patientId, locationId?, durationMinutes?, notes?} (contract 18.5)
   },
 } as const;
 
@@ -1288,6 +1327,8 @@ export interface ApiResponse<T = unknown> {
   path?: string;
   method?: string;
   requestId?: string;
+  /** Raw Content-Disposition of a file (non-JSON) response, for the server-chosen file name. */
+  contentDisposition?: string;
   meta?: {
     page?: number;
     limit?: number;

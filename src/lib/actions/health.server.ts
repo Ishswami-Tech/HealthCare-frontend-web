@@ -5,7 +5,10 @@ import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
 import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
 import { getServerSession } from './auth.server';
 
+// The probe itself failed (timeout, network, non-JSON, HTTP error): `probeFailed` lets the UI
+// tell "could not check" apart from a backend-reported outage (see lib/utils/health-status).
 const createUnavailableStatus = (error: string): DetailedHealthStatus => ({
+  probeFailed: true,
   database: { status: 'unavailable', isHealthy: false },
   cache: { status: 'unavailable', healthy: false },
   queue: { status: 'unavailable', healthy: false },

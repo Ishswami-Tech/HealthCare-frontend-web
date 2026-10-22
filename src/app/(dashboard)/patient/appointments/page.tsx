@@ -27,8 +27,11 @@ function PatientAppointmentsContent() {
   const initialTab = tabParam === "past" || tabParam === "cancelled" ? tabParam : undefined;
   // `&familyMemberId=<id>`: open the booking wizard for that family member.
   const queryFamilyMemberId = getSearchParam("familyMemberId") || undefined;
+  const normalizedBookingMode = bookingMode?.toUpperCase();
   const defaultConsultationMode =
-    bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
+    normalizedBookingMode === "VIDEO" || normalizedBookingMode === "IN_PERSON"
+      ? normalizedBookingMode
+      : undefined;
   const currentClinicId = useCurrentClinicId();
   const resolvedClinicId =
     queryClinicId ||
@@ -105,6 +108,7 @@ function PatientAppointmentsContent() {
         open={isBookingDialogOpen}
         onOpenChange={handleBookingDialogOpenChange}
         hideTrigger
+        videoOnly={false}
         {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
         {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
         {...(queryLocationId ? { locationId: queryLocationId } : {})}

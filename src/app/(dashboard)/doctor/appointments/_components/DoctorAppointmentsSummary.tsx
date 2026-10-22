@@ -11,7 +11,6 @@ import {
   Video,
   XCircle,
 } from "lucide-react";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -185,18 +184,6 @@ export function DoctorAppointmentsSummary({
         title="My Appointments"
         description={`Today is ${todayLabel || "today"}. Review active visits and appointment history.`}
         badge={connectionSlot ?? <ConnectionPill />}
-        actions={
-          <BookAppointmentDialog
-            {...(clinicId ? { clinicId } : {})}
-            {...(userId ? { initialDoctorId: userId } : {})}
-            trigger={
-              <Button size="md" className="w-full sm:w-auto">
-                <Video />
-                Book Video Appointment
-              </Button>
-            }
-          />
-        }
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7" role="group" aria-label="Appointment counts">

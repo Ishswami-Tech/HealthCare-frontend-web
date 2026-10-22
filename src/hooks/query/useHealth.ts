@@ -3,9 +3,19 @@ import { useHealthRealtime } from '../realtime/useHealthRealtime';
 import { useHealthStore } from '@/stores';
 import { useEffect } from 'react';
 import { getDetailedHealthStatus as getDetailedHealthStatusServerAction } from '@/lib/actions/health.server';
+import { nextHealthFailureStreak } from '@/lib/utils/health-status';
+
+/** HTTP /health poll interval for visitors without the admin health socket. */
+const HEALTH_HTTP_POLL_INTERVAL_MS = 60_000;
+/** Re-check sooner after a failing poll, so a blip clears (or an outage is confirmed) quickly. */
+const HEALTH_HTTP_RECHECK_INTERVAL_MS = 15_000;
 
 // Detailed health check response type matching backend structure
 export interface DetailedHealthStatus {
+  /** Set when the health probe itself failed (timeout / network / bad response). */
+  probeFailed?: boolean;
+  /** Consecutive failing HTTP polls up to this one (absent on live socket snapshots). */
+  failureStreak?: number;
   database?: {
     status: string;
     isHealthy: boolean;
@@ -122,6 +132,9 @@ export const useHealthStatus = () => {
  * Uses Zustand store for state management
  * Uses React Query with server action for initial fetch
  */
+/** Consecutive failing HTTP health polls (module scope: shared by every consumer of the query). */
+let httpFailureStreak = 0;
+
 export const useDetailedHealthStatus = () => {
   // Initialize Socket.IO connection (updates Zustand store)
   const { socket, reconnect, subscribe } = useHealthRealtime({ enabled: true });
@@ -133,22 +146,31 @@ export const useDetailedHealthStatus = () => {
   const lastUpdate = useHealthStore((state) => state.lastUpdate);
   const error = useHealthStore((state) => state.error);
 
-  // Strategy: Try Socket.IO first, fallback to REST polling if Socket.IO is not
-  // actually connected yet. This covers iOS/WebKit cases where the socket can
-  // stay stuck in "connecting" while the page still needs live health data.
-  const shouldUseRestFallback = connectionStatus !== 'connected';
-  
+  // Strategy: only SUPER_ADMIN / CLINIC_ADMIN open the /health socket (see useHealthRealtime).
+  // Everyone else - and admins whose socket is not connected (yet) - poll HTTP /health.
+  // React Query pauses refetchInterval while the tab is hidden (refetchIntervalInBackground: false).
+  const isSocketLive = connectionStatus === 'connected';
+  const shouldUseRestFallback = !isSocketLive;
+
   const queryResult = useQueryData<DetailedHealthStatus>(
     ['detailedHealthStatus'],
     async () => {
-      return await getDetailedHealthStatusServerAction();
+      const status = await getDetailedHealthStatusServerAction();
+      // One streak per fetch (the queryFn runs once per poll, whatever the number of consumers).
+      httpFailureStreak = nextHealthFailureStreak(httpFailureStreak, status);
+      return { ...status, failureStreak: httpFailureStreak };
     },
-    { 
-      // Only use REST polling as fallback when Socket.IO fails
-      refetchInterval: shouldUseRestFallback ? 15000 : false, // Poll every 15s only if Socket.IO failed
+    {
+      refetchInterval: shouldUseRestFallback
+        ? (query) =>
+            (query.state.data?.failureStreak ?? 0) > 0
+              ? HEALTH_HTTP_RECHECK_INTERVAL_MS
+              : HEALTH_HTTP_POLL_INTERVAL_MS
+        : false,
+      refetchIntervalInBackground: false,
       refetchOnWindowFocus: shouldUseRestFallback,
       refetchOnReconnect: true,
-      enabled: shouldUseRestFallback, // Only fetch via REST if Socket.IO failed
+      enabled: shouldUseRestFallback,
     }
   );
 
@@ -159,9 +181,9 @@ export const useDetailedHealthStatus = () => {
     }
   }, [socket, subscribe]);
 
-  // Prefer Socket.IO data (real-time), fallback to REST API data
-  const data = healthStatus || queryResult.data || null;
-  const isPending = connectionStatus === 'connecting' || (queryResult.isPending && shouldUseRestFallback);
+  // Prefer live Socket.IO data, otherwise the HTTP poll result
+  const data = (isSocketLive ? healthStatus : null) || queryResult.data || healthStatus || null;
+  const isPending = !data && (connectionStatus === 'connecting' || (queryResult.isPending && shouldUseRestFallback));
   
   return {
     data,

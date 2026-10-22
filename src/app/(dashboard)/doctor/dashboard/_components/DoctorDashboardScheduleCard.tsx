@@ -115,7 +115,19 @@ export function DoctorDashboardScheduleCard({
               <CellTitle
                 left={<VisitIcon isVideo={appointment.isVideo} />}
                 title={appointment.patientName}
-                description={`${appointment.isVideo ? "Video call" : "In-clinic"} · ${appointment.duration}`}
+                description={
+                  <>
+                    <span className="block truncate">
+                      {[appointment.isVideo ? "Video call" : "In-clinic", appointment.duration].filter(Boolean).join(" · ")}
+                    </span>
+                    {appointment.reason ? (
+                      <span className="block truncate text-ink-soft" title={appointment.reason}>
+                        <span className="sr-only">Patient remarks: </span>
+                        {appointment.reason}
+                      </span>
+                    ) : null}
+                  </>
+                }
               />
 
               <div className="flex flex-col gap-[3px]">

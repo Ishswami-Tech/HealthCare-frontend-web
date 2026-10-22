@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { VisitAvatar, VisitTypeChip } from "./ManagerVisitCard";
 import type { ManagerPayRenderer, ManagerVisit, ManagerVisitActions } from "./types";
 
-const PAST_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_180px_180px_110px]";
+const PAST_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_140px_140px_110px_110px]";
 const CLOSED_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_120px_120px_110px_150px]";
 const ROW = "flex flex-col gap-2.5 border-b border-hair py-3 text-ink last:border-b-0 @3xl:grid @3xl:items-center @3xl:gap-4";
 
@@ -43,7 +43,7 @@ function Head({ columns, labels }: { columns: string; labels: string[] }) {
   );
 }
 
-/** Completed visits: what it was, video or clinic, when, and a link to the summary. */
+/** Completed and missed visits: what it was, video or clinic, when, its outcome, and a link to the summary. */
 export function ManagerPastTable({
   visits,
   footer,
@@ -56,16 +56,19 @@ export function ManagerPastTable({
 }) {
   return (
     <Surface className="gap-0 pb-2">
-      <Head columns={PAST_COLUMNS} labels={["Visit", "Type", "Date", ""]} />
+      <Head columns={PAST_COLUMNS} labels={["Visit", "Type", "Date", "Outcome", ""]} />
       {visits.map((visit) => {
         const cells = (
           <>
-            <VisitCell visit={visit} description={who(visit)} />
+            <VisitCell visit={visit} description={[who(visit), visit.closedNote].filter(Boolean).join(" · ")} />
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
               <span>
                 <VisitTypeChip visit={visit} short />
               </span>
               <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
+              <span>
+                <Pill tone={visit.statusTone}>{visit.statusLabel}</Pill>
+              </span>
               {visit.summaryHref ? (
                 <span className="ml-auto inline-flex items-center justify-end gap-1 text-[13px] font-bold text-brand @3xl:ml-0">
                   {visit.summaryLabel}
@@ -81,12 +84,15 @@ export function ManagerPastTable({
         if (onRate && visit.canRate) {
           return (
             <div key={visit.id} className={cn(ROW, PAST_COLUMNS)}>
-              <VisitCell visit={visit} description={who(visit)} />
+              <VisitCell visit={visit} description={[who(visit), visit.closedNote].filter(Boolean).join(" · ")} />
               <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
                 <span>
                   <VisitTypeChip visit={visit} short />
                 </span>
                 <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
+                <span>
+                  <Pill tone={visit.statusTone}>{visit.statusLabel}</Pill>
+                </span>
                 <span className="ml-auto flex items-center justify-end gap-3 @3xl:ml-0">
                   <Button variant="outline" size="sm" onClick={() => onRate(visit.id)}>
                     <Star aria-hidden="true" />

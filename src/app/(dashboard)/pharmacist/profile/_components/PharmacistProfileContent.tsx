@@ -20,10 +20,13 @@ interface PharmacistProfileContentProps {
   isLoading: boolean;
   loadError?: string | null;
   onRetry?: () => void;
+  /** Page title and role tag for other staff roles that reuse this profile (assistant doctor). */
+  title?: string;
+  roleLabel?: string;
 }
 
 /** Form state, tabs and the save for the pharmacist profile. The layout is `PharmacistProfileView`. */
-export function PharmacistProfileContent({ userProfile, isLoading, loadError = null, onRetry }: PharmacistProfileContentProps) {
+export function PharmacistProfileContent({ userProfile, isLoading, loadError = null, onRetry, title, roleLabel }: PharmacistProfileContentProps) {
   const updateProfile = useUpdateUserProfile();
   const [form, setForm] = useState<PharmacistProfileForm>(() => toPharmacistProfileForm(userProfile));
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -62,6 +65,8 @@ export function PharmacistProfileContent({ userProfile, isLoading, loadError = n
       onPasswordDialogChange={setPasswordDialogOpen}
       // The shared change-password flow (`useAuth().changePasswordAsync`), mounted only while the dialog is open.
       changePasswordForm={passwordDialogOpen ? <ChangePasswordForm /> : null}
+      {...(title ? { title } : {})}
+      {...(roleLabel ? { roleLabel } : {})}
     />
   );
 }

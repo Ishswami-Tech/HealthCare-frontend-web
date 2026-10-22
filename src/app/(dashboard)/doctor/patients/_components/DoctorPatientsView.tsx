@@ -38,6 +38,11 @@ export interface DoctorPatientsViewProps {
   actions: ReactNode;
   /** Replaces the live connection tag (used by the design preview). */
   connectionSlot?: ReactNode;
+  /** Where "View EHR" goes (`<base>/<patientId>`). Default `/doctor/patients`. */
+  ehrBasePath?: string;
+  /** Banner texts; the assistant doctor's page passes its own. */
+  eyebrow?: string;
+  title?: string;
 }
 
 /** Live-updates tag in the banner: the same socket state the old indicator showed. */
@@ -96,6 +101,9 @@ export function DoctorPatientsView({
   onPrescribe,
   actions,
   connectionSlot,
+  ehrBasePath,
+  eyebrow = "Doctor Patients",
+  title = "My Patients",
 }: DoctorPatientsViewProps) {
   const hasFilters = hasAnyFilter(filters);
   const loadedLabel = loading
@@ -107,8 +115,8 @@ export function DoctorPatientsView({
   return (
     <DashboardPageShell>
       <PageHero
-        eyebrow="Doctor Patients"
-        title="My Patients"
+        eyebrow={eyebrow}
+        title={title}
         description="Review patient records, EHR summaries, contact details and follow-up context from a shared clinical workspace."
         badge={
           <>
@@ -171,6 +179,7 @@ export function DoctorPatientsView({
           hasFilters={hasFilters}
           onClearFilters={onClearFilters}
           onPrescribe={onPrescribe}
+          {...(ehrBasePath ? { ehrBasePath } : {})}
         />
       )}
     </DashboardPageShell>

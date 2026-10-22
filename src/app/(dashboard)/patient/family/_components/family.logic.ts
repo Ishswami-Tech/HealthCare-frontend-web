@@ -6,7 +6,7 @@ import { ageInMonths, formatDateLabel } from "@/lib/utils/date-time";
 /**
  * Pure helpers and the form schema for the patient's Family Members screens.
  * The form asks only for what `POST /family-members/me` stores (`CreateMyFamilyMemberDto`):
- * first name, last name, relation, gender, date of birth, phone and notes.
+ * first name, last name, relation, gender, date of birth, phone, notes and allergies.
  */
 
 // ── Dates and age ──────────────────────────────────────────────────────────
@@ -84,6 +84,7 @@ export const familyMemberSchema = z.object({
       "Enter a phone number, for example +91 98765 43210.",
     ),
   notes: z.string().trim().max(500, "Use 500 characters or fewer."),
+  allergies: z.string().trim().max(500, "Use 500 characters or fewer."),
 });
 
 export type FamilyMemberFormValues = z.infer<typeof familyMemberSchema>;
@@ -96,6 +97,7 @@ export const EMPTY_FAMILY_MEMBER: FamilyMemberFormValues = {
   dateOfBirth: "",
   phone: "",
   notes: "",
+  allergies: "",
 };
 
 /** Form values for editing a member. */
@@ -109,6 +111,7 @@ export function toFormValues(member: FamilyMember): FamilyMemberFormValues {
     dateOfBirth: dateKey(member.dateOfBirth),
     phone: member.phone ?? "",
     notes: member.notes ?? "",
+    allergies: member.allergies ?? "",
   };
 }
 
@@ -122,6 +125,7 @@ export function toCreateInput(values: FamilyMemberFormValues): CreateMyFamilyMem
     ...(values.dateOfBirth ? { dateOfBirth: values.dateOfBirth } : {}),
     ...(values.phone.trim() ? { phone: values.phone.trim() } : {}),
     ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
+    ...(values.allergies.trim() ? { allergies: values.allergies.trim() } : {}),
   };
 }
 
@@ -139,6 +143,7 @@ export function toUpdateInput(values: FamilyMemberFormValues): UpdateMyFamilyMem
     dateOfBirth: values.dateOfBirth || null,
     phone: values.phone.trim(),
     notes: values.notes.trim(),
+    allergies: values.allergies.trim(),
   };
 }
 

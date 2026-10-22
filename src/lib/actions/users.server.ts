@@ -500,74 +500,10 @@ export async function getUserStats() {
   });
 }
 
-/**
- * Bulk update users
+/*
+ * No bulk-update, export, admin change-password, toggle-verification or /user/sessions routes
+ * exist on the backend; sessions are GET /auth/sessions + POST /auth/logout { sessionId }.
  */
-export async function bulkUpdateUsers(userIds: string[], updates: Record<string, string | number | boolean>) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('bulkUpdateUsers', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.BULK_UPDATE, {
-      method: 'PATCH',
-      body: JSON.stringify({ userIds, updates })
-    });
-  }, { userIdsCount: userIds.length });
-}
-
-/**
- * Export users data
- */
-export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Record<string, string | number | boolean>) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('exportUsers', async () => {
-    const params = new URLSearchParams({ format });
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) {
-          params.append(key, value.toString());
-        }
-      });
-    }
-    return await requestUserApi(`${API_ENDPOINTS.USERS.EXPORT}?${params.toString()}`, { method: 'GET' });
-  }, { format });
-}
-
-/**
- * Change user password (admin action)
- */
-export async function changeUserPassword(userId: string, newPassword: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('changeUserPassword', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.CHANGE_PASSWORD(userId), {
-      method: 'PATCH',
-      body: JSON.stringify({ password: newPassword })
-    });
-  }, { userId });
-}
-
-/**
- * Toggle user verification status
- */
-export async function toggleUserVerification(userId: string, isVerified: boolean) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('toggleUserVerification', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.TOGGLE_VERIFICATION(userId), {
-      method: 'PATCH',
-      body: JSON.stringify({ isVerified })
-    });
-  }, { userId, isVerified });
-}
 
 /**
  * Get user activity logs
@@ -580,37 +516,6 @@ export async function getUserActivityLogs(userId: string, limit: number = 50) {
   return executeAction('getUserActivityLogs', async () => {
     return await requestUserApi(`${API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId)}?limit=${limit}`, { method: 'GET' });
   }, { userId, limit });
-}
-
-/**
- * Get user sessions
- */
-export async function getUserSessions(userId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('getUserSessions', async () => {
-    // SESSIONS is an object, use GET_ALL and pass userId as query param
-    return await requestUserApi(`${API_ENDPOINTS.USERS.SESSIONS.GET_ALL}?userId=${userId}`, { method: 'GET' });
-  }, { userId });
-}
-
-/**
- * Terminate user session
- */
-export async function terminateUserSession(userId: string, sessionId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('terminateUserSession', async () => {
-    // TERMINATE_SESSION takes only sessionId
-    return await requestUserApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId), {
-      method: 'DELETE',
-      body: JSON.stringify({}),
-    });
-  }, { userId, sessionId });
 }
 
 /**

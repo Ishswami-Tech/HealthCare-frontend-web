@@ -324,13 +324,17 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   
   // Parse response based on content type
   let data: any;
+  let isFileBody = false;
   if (contentType?.includes('application/json')) {
     data = await response.json();
   } else if (contentType?.includes('text/')) {
     data = await response.text();
   } else {
     data = await response.blob();
+    isFileBody = true;
   }
+  // File downloads: keep the server-chosen name (readable only when CORS exposes the header).
+  const contentDisposition = isFileBody ? response.headers.get('content-disposition') : null;
   
   // Handle error responses
   if (!response.ok) {
@@ -359,6 +363,7 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     data,
     statusCode: response.status,
     requestId: requestId || undefined,
+    ...(contentDisposition ? { contentDisposition } : {}),
     ...data, // Include any additional fields from the response
   };
 }
@@ -1317,12 +1322,7 @@ export class ClinicApiClient extends ApiClient {
       case 'google':
         endpoint = API_ENDPOINTS.AUTH.GOOGLE_LOGIN;
         break;
-      case 'facebook':
-        endpoint = API_ENDPOINTS.AUTH.FACEBOOK_LOGIN;
-        break;
-      case 'apple':
-        endpoint = API_ENDPOINTS.AUTH.APPLE_LOGIN;
-        break;
+      // The backend has only Google sign-in (no /auth/facebook or /auth/apple).
       default:
         throw new Error('Invalid provider');
     }
@@ -1339,12 +1339,9 @@ export class ClinicApiClient extends ApiClient {
     return this.get(API_ENDPOINTS.USERS.PROFILE);
   }
 
-  async getUserSessions(userId?: string) {
-    if (userId) {
-      return this.get(API_ENDPOINTS.USERS.SESSIONS.GET_ALL, { userId });
-    }
-    // Fallback to profile endpoint if no userId provided
-    return this.get(API_ENDPOINTS.USERS.PROFILE);
+  /** The signed-in user's sessions (GET /auth/sessions; there is no /user/sessions route). */
+  async getUserSessions() {
+    return this.get(API_ENDPOINTS.AUTH.SESSIONS);
   }
 
   // ✅ Clinic Management Methods
@@ -1521,10 +1518,6 @@ export class ClinicApiClient extends ApiClient {
 
   async checkInAppointment(id: string) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id));
-  }
-
-  async scanLocationQRAndCheckIn(data: { qrCode: string; locationId?: string }) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, data);
   }
 
   async getDoctorAvailability(

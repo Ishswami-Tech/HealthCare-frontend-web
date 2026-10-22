@@ -99,8 +99,12 @@ export type PrescriptionRow = {
   queueCategory?: string;
   queueStatus?: "PENDING" | "DISPENSED" | "CANCELLED";
   queuePosition?: number | null;
-  /** Latest hand-over time over all medicines (ISO); null when nothing was given. */
+  /** When the patient collected the medicines at the counter (verified hand-over, ISO); null before. */
   handedOverAt: string | null;
+  /** Latest dispense time over all medicines (ISO); null when nothing was given. */
+  dispensedAt: string | null;
+  /** Latest counter hand-over state from the API ("HANDED_OVER" once collected). */
+  handoverStatus: string | null;
   medicines: PrescriptionMedicine[];
   /** The untouched API record, for the cash payment dialog shared with the dashboard. */
   raw: unknown;
@@ -198,12 +202,15 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
     };
   });
 
-  const handedOverAt =
+  const dispensedAt =
     medicines
       .map((medicine) => medicine.dispensedAt)
       .filter((value): value is string => Boolean(value))
       .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())
       .pop() ?? null;
+  const handoverRaw = asRecord(raw.handover);
+  const handoverStatus = text(handoverRaw.status).toUpperCase() || null;
+  const handedOverAt = handoverStatus === "HANDED_OVER" ? text(handoverRaw.handedOverAt) || null : null;
 
   return {
     id,
@@ -232,6 +239,8 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
     queueStatus: raw.queueStatus as PrescriptionRow["queueStatus"],
     queuePosition: queueEntry.position > 0 ? queueEntry.position : null,
     handedOverAt,
+    dispensedAt,
+    handoverStatus,
     medicines,
     raw: input,
   };
@@ -302,8 +311,12 @@ export function isHistoryPrescription(prescription: PrescriptionRow): boolean {
   return prescription.status === "FILLED" || prescription.status === "CANCELLED";
 }
 
-/** A dispense can be reversed once something was handed over. */
+/**
+ * A dispense can be reversed once something was given, until the patient collected it at the
+ * counter (the API refuses it then: a return is recorded instead).
+ */
 export function canReverseDispense(prescription: PrescriptionRow): boolean {
+  if (prescription.handoverStatus === "HANDED_OVER") return false;
   return prescription.status === "PARTIAL" || prescription.status === "FILLED";
 }
 
