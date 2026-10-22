@@ -137,11 +137,14 @@ export default function PatientDashboard() {
   const queueAppointment = useMemo(() => findQueueAppointment(upcomingAppointments), [upcomingAppointments]);
   const { data: queueEntry, isPending: isQueuePending } = usePatientQueue({ enabled: !!queueAppointment });
   // The token (K-014) lives on the in-person visit, not on the appointment row.
-  const { data: inPersonToday } = useMyInPersonToday({ enabled: !!queueAppointment });
-  const queueToken = useMemo(() => {
+  const { data: inPersonToday } = useMyInPersonToday({ enabled: !!queueAppointment, live: true });
+  const queueVisitToday = useMemo(() => {
     const id = queueAppointment ? textOf(queueAppointment.id) : "";
-    return (inPersonToday ?? []).find((entry) => entry.appointmentId === id)?.token ?? null;
+    return (inPersonToday ?? []).find((entry) => entry.appointmentId === id) ?? null;
   }, [inPersonToday, queueAppointment]);
+  const queueToken = queueVisitToday?.token ?? null;
+  // Token numbers only ("Now serving K-011"): never another patient's name.
+  const nowServingToken = queueVisitToday?.nowServingToken ?? null;
   const queue = useMemo<HomeQueue | null>(() => {
     if (!queueAppointment) return null;
     // Only what the API returns: no place is shown until the live entry arrives.
@@ -151,9 +154,10 @@ export default function PatientDashboard() {
       estimatedWaitMinutes: queueEntry ? queueEntry.estimatedWaitTime : null,
       totalInQueue: queueEntry ? queueEntry.totalInQueue : null,
       tokenLabel: queueToken,
+      nowServingToken,
       isLoading: isQueuePending,
     };
-  }, [queueAppointment, queueEntry, isQueuePending, queueToken]);
+  }, [queueAppointment, queueEntry, isQueuePending, queueToken, nowServingToken]);
 
   // Key figures. A card is shown only when the summary carries that list.
   const stats = useMemo<HomeStat[]>(() => {

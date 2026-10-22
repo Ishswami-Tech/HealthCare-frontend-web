@@ -34,6 +34,8 @@ export interface ScannerFrameProps {
   onStop?: () => void;
   /** Opens the "type the code" path. Offered whenever the camera cannot be used. */
   onEnterCode?: () => void;
+  /** Caption under the scan frame while the camera is on ("SCAN TO CHECK IN"). */
+  scanLabel?: string;
   className?: string;
 }
 
@@ -81,6 +83,7 @@ export function ScannerFrame({
   onStart,
   onStop,
   onEnterCode,
+  scanLabel,
   className,
 }: ScannerFrameProps) {
   const enterCode = onEnterCode ? (
@@ -112,7 +115,10 @@ export function ScannerFrame({
 
       {status === "scanning" ? (
         <>
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center" aria-hidden="true">
+          <div
+            className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-4"
+            aria-hidden="true"
+          >
             <div className="relative size-[240px] max-w-[72%]">
               <svg viewBox="0 0 200 200" className="absolute inset-0 size-full">
                 <path
@@ -132,6 +138,11 @@ export function ScannerFrame({
                 />
               </LazyMotion>
             </div>
+            {scanLabel ? (
+              <span className="rounded-full bg-[#0f172a]/55 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[1.6px] text-[#a7f3d0] backdrop-blur-sm">
+                {scanLabel}
+              </span>
+            ) : null}
           </div>
           <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
             {onSwitchCamera ? (

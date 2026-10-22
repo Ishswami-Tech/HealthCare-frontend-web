@@ -17,7 +17,7 @@ export type CheckInFix = "rescan" | "reception" | "book" | "appointments" | "pla
 export const ENABLE_LOCATION_STEPS =
   "Allow location for this site (the lock or location icon next to the address, then Location > Allow) and turn on location on your phone, then try the desk code again.";
 
-const SCAN_INSTEAD = "Or scan the QR at the reception desk.";
+const SCAN_INSTEAD = "Or scan the QR at the reception desk, or ask the reception desk to check you in.";
 
 /** Where the patient renews / buys the monthly in-person plan (existing Plans & billing screen). */
 export const PATIENT_PLAN_ROUTE = "/patient/payments?tab=plans";
@@ -94,7 +94,7 @@ export function checkInErrorCopy(
       return {
         title: "You are not at the clinic yet",
         message:
-          serverMessage?.trim() || "You are too far from the clinic. Check in when you reach the clinic.",
+          `${serverMessage?.trim() || "You are too far from the clinic. Check in when you reach the clinic."} Already there? Ask the reception desk to check you in.`,
         fix: "appointments",
       };
     case "VIDEO_VISIT":

@@ -9,15 +9,17 @@ import {
   formatWait,
   isNextInLine,
   ticketHeadline,
+  tokensAhead,
   type QueueTicket,
   type QueueVisitInfo,
 } from "@/components/patient/queue/queueData";
 import { YoureNextNote } from "../../check-in/_components/CheckInViews";
 import { plural } from "@/lib/utils/labels";
+import { NotifyWhenNearToggle } from "./NotifyWhenNearToggle";
 
 /**
  * Live Queue (patient): the patient's own token, place, people ahead and estimated wait.
- * Props-driven. It draws only what `GET queue/me` returns: no other patient is ever listed.
+ * Props-driven. Other people in the line appear only as token numbers (never names or phones).
  */
 
 const BACK_HREF = "/patient/dashboard";
@@ -43,15 +45,22 @@ type LineRow = {
 
 function buildLine(ticket: QueueTicket): LineRow[] {
   const rows: LineRow[] = [];
-  if (!ticket.isWithDoctor && ticket.doctorBusy) {
-    rows.push({ key: "now", dot: "now", label: "Now", status: "A patient is with the doctor" });
+  if (!ticket.isWithDoctor && ticket.nowServingToken) {
+    rows.push({ key: "now", dot: "now", label: ticket.nowServingToken, status: "In consultation" });
+  } else if (!ticket.isWithDoctor && ticket.doctorBusy) {
+    rows.push({ key: "now", dot: "now", label: "Now", status: "In consultation" });
   }
-  if (!ticket.isWithDoctor && ticket.patientsAhead !== null && ticket.patientsAhead > 0) {
+  const between = tokensAhead(ticket);
+  if (between && between.length > 0) {
+    between.forEach((token, index) => {
+      rows.push({ key: `ahead-${token}`, dot: "open", label: token, status: index === 0 ? "Next" : "Waiting" });
+    });
+  } else if (!ticket.isWithDoctor && ticket.patientsAhead !== null && ticket.patientsAhead > 0) {
     rows.push({
       key: "ahead",
       dot: "open",
       label: `${ticket.patientsAhead} ahead`,
-      status: "Waiting before you",
+      status: ticket.patientsAhead === 1 ? "Next · waiting before you" : "Waiting before you",
     });
   }
   rows.push({
@@ -89,12 +98,14 @@ function LineDot({ kind }: { kind: LineRow["dot"] }) {
   );
 }
 
-function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: string | null }) {
+function QueueLine({ ticket, info }: { ticket: QueueTicket; info: QueueVisitInfo }) {
   const rows = buildLine(ticket);
   return (
     <Surface as="section" className="gap-2" aria-label="Your queue">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h2 className="m-0 text-base font-bold text-ink">{doctorName ? `Queue for ${doctorName}` : "Your queue"}</h2>
+        <h2 className="m-0 text-base font-bold text-ink">
+          {info.locationLabel ? `Queue at ${info.locationLabel}` : info.doctorName ? `Queue for ${info.doctorName}` : "Your queue"}
+        </h2>
         {ticket.totalInQueue !== null ? (
           <span className="text-[13px] text-ink-muted">{plural(ticket.totalInQueue, "patient")} in the queue</span>
         ) : null}
@@ -149,7 +160,7 @@ function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: st
           );
         })}
       </ol>
-      <p className="m-0 pt-1 text-xs text-ink-muted">Other patients are not shown here, to keep visits private.</p>
+      <p className="m-0 pt-1 text-xs text-ink-muted">Only token numbers are shown, to keep every visit private.</p>
     </Surface>
   );
 }
@@ -157,6 +168,8 @@ function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: st
 // ── Screens ────────────────────────────────────────────────────────────────
 
 export interface PatientQueueViewProps {
+  /** The queued visit, for the per-visit "Notify me" choice. */
+  appointmentId: string;
   ticket: QueueTicket;
   info: QueueVisitInfo;
   /** Reads the place again now. */
@@ -164,7 +177,7 @@ export interface PatientQueueViewProps {
   isRefreshing: boolean;
 }
 
-export function PatientQueueView({ ticket, info, onRefresh, isRefreshing }: PatientQueueViewProps) {
+export function PatientQueueView({ appointmentId, ticket, info, onRefresh, isRefreshing }: PatientQueueViewProps) {
   return (
     <div className="flex flex-col gap-5">
       <PageHead title="Live Queue" backHref={BACK_HREF} actions={<LiveBadge />} />
@@ -173,10 +186,13 @@ export function PatientQueueView({ ticket, info, onRefresh, isRefreshing }: Pati
         <div className="flex min-w-0 flex-col gap-5">
           {isNextInLine(ticket) ? <YoureNextNote /> : null}
           <QueueTokenCard ticket={ticket} layout="progress" />
-          <QueueLine ticket={ticket} doctorName={info.doctorName} />
+          <QueueLine ticket={ticket} info={info} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
+          {!ticket.isWithDoctor ? (
+            <NotifyWhenNearToggle appointmentId={appointmentId} patientsAhead={ticket.patientsAhead} />
+          ) : null}
           <Surface className="p-4">
             <div className="flex items-center gap-3.5">
               <IconBox icon={RefreshCw} tone="mint" size={40} />

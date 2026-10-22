@@ -108,6 +108,28 @@ export function PatientHomeWorkspace({
               </ul>
             </div>
           ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair pt-3.5">
+            <Link
+              href="/patient/appointments?tab=past"
+              className="inline-flex min-h-11 items-center gap-1 rounded-md text-[13px] font-bold text-ink-soft hover:text-ink focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
+            >
+              Past visits
+              <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+            </Link>
+            <button
+              type="button"
+              onClick={onBook}
+              disabled={isBookingOpening}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-md text-[13px] font-bold text-brand hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 disabled:opacity-60"
+            >
+              {isBookingOpening ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+              ) : (
+                <Plus className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+              )}
+              {isBookingOpening ? "Opening…" : "Book another"}
+            </button>
+          </div>
         </>
       ) : (
         <div className="flex flex-col items-center gap-1.5 rounded-[18px] bg-[#f5f8fc] px-5 py-[26px] text-center dark:bg-white/5">

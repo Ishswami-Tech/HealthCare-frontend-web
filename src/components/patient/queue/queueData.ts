@@ -30,6 +30,8 @@ export interface QueueTicket {
   doctorBusy: boolean | null;
   /** "01:42 pm" */
   checkedInLabel: string | null;
+  /** Token the doctor is seeing now (K-011). Only a token number, never a name. */
+  nowServingToken: string | null;
 }
 
 /** Who and where: taken from the patient's own appointment. */
@@ -137,6 +139,7 @@ export function toQueueTicket(entry: MyQueuePosition, tokenLabel?: string | null
     isWithDoctor,
     doctorBusy: isWithDoctor ? true : entry.nowServing,
     checkedInLabel: clockLabel(entry.checkedInAt),
+    nowServingToken: null,
   };
 }
 
@@ -157,6 +160,7 @@ export function toVisitTicket(visit: InPersonVisit | null | undefined): QueueTic
     isWithDoctor,
     doctorBusy: isWithDoctor ? true : visit.nowServingToken !== null,
     checkedInLabel: clockLabel(visit.checkedInAt),
+    nowServingToken: isWithDoctor ? visit.token?.trim() || null : visit.nowServingToken?.trim() || null,
   };
 }
 
@@ -188,6 +192,7 @@ export function toCheckInTicket(
     isWithDoctor: false,
     doctorBusy: null,
     checkedInLabel: clockLabel(checkIn.checkedInAt),
+    nowServingToken: null,
   };
 }
 
@@ -211,4 +216,44 @@ export function queueProgress(ticket: QueueTicket): number | null {
   if (ticket.isWithDoctor) return 1;
   if (ticket.patientsAhead === null) return null;
   return 1 / (ticket.patientsAhead + 1);
+}
+
+// ── Tokens between "now serving" and the patient ───────────────────────────
+
+interface ParsedToken {
+  prefix: string;
+  number: number;
+  width: number;
+}
+
+/** "K-014" -> { prefix: "K-", number: 14, width: 3 }. Null for anything else. */
+export function parseToken(token: string | null | undefined): ParsedToken | null {
+  const match = /^(.*?)(\d+)$/.exec(token?.trim() ?? "");
+  const digits = match?.[2];
+  if (!match || !digits) return null;
+  const number = Number(digits);
+  return Number.isSafeInteger(number) ? { prefix: match[1] ?? "", number, width: digits.length } : null;
+}
+
+/** Most token rows drawn between "now serving" and the patient; more than this shows a summary. */
+export const MAX_AHEAD_ROWS = 6;
+
+/**
+ * The token numbers waiting before the patient, in order (K-012, K-013), worked out from the
+ * now-serving token and the patient's own token. Only when the numbers agree with the people-ahead
+ * count from the API (no skipped or cancelled tokens in between); otherwise null, and the screen
+ * shows a count instead. Token numbers only: no other patient detail exists on this side.
+ */
+export function tokensAhead(ticket: QueueTicket): string[] | null {
+  if (ticket.isWithDoctor || ticket.patientsAhead === null) return null;
+  if (ticket.patientsAhead === 0) return [];
+  const mine = parseToken(ticket.tokenLabel);
+  const serving = parseToken(ticket.nowServingToken);
+  if (!mine || !serving || mine.prefix !== serving.prefix) return null;
+  const gap = mine.number - serving.number - 1;
+  if (gap !== ticket.patientsAhead || gap > MAX_AHEAD_ROWS) return null;
+  return Array.from(
+    { length: gap },
+    (_, index) => `${mine.prefix}${String(serving.number + 1 + index).padStart(mine.width, "0")}`,
+  );
 }

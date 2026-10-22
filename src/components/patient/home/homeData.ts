@@ -172,7 +172,9 @@ function doctorPhoto(appointment: Row): string | undefined {
   return /^(https?:)?\/\//.test(url) || url.startsWith("/") ? url : undefined;
 }
 
-function clinicContact(appointment: Row): Pick<HomeVisit, "locationLabel" | "clinicPhone" | "directionsUrl"> {
+function clinicContact(
+  appointment: Row,
+): Pick<HomeVisit, "locationLabel" | "addressLine" | "clinicPhone" | "directionsUrl" | "clinicPoint"> {
   const location = asRow(appointment.location);
   const clinic = asRow(appointment.clinic);
   const name = getAppointmentLocationName(appointment);
@@ -187,7 +189,9 @@ function clinicContact(appointment: Row): Pick<HomeVisit, "locationLabel" | "cli
 
   return {
     ...(hasName ? { locationLabel: name } : {}),
+    ...(address && address !== name ? { addressLine: [address, firstText(location?.city)].filter(Boolean).join(", ") } : {}),
     ...(phone ? { clinicPhone: phone.replace(/[^\d+]/g, "") } : {}),
+    ...(hasPoint ? { clinicPoint: { lat: latitude, lng: longitude } } : {}),
     ...(hasPoint
       ? { directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}` }
       : place

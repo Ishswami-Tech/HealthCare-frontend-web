@@ -85,3 +85,27 @@ export async function readFixIfGranted(): Promise<DeviceFix | null> {
   const result = await requestDeviceFix(OPTIONAL_FIX_TIMEOUT_MS);
   return result.ok ? result.fix : null;
 }
+
+const EARTH_RADIUS_METERS = 6_371_000;
+
+/** Straight-line distance in metres between two points (haversine). */
+export function distanceMeters(from: { lat: number; lng: number }, to: { lat: number; lng: number }): number {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = toRadians(to.lat - from.lat);
+  const dLng = toRadians(to.lng - from.lng);
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRadians(from.lat)) * Math.cos(toRadians(to.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/**
+ * Up to this distance the screens say "You're at the clinic". A display hint only: the server
+ * checks the real per-location radius when the patient checks in.
+ */
+export const AT_CLINIC_DISPLAY_METERS = 300;
+
+/** "40 m", "1.2 km". */
+export function formatDistance(meters: number): string {
+  const whole = Math.max(0, Math.round(meters));
+  return whole < 1000 ? `${whole} m` : `${(whole / 1000).toFixed(1)} km`;
+}

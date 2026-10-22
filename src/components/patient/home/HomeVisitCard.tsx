@@ -25,6 +25,10 @@ import { cn } from "@/lib/utils";
 import type { HomeQueue, HomeVisit } from "./types";
 import { plural } from "@/lib/utils/labels";
 import { selfCheckInWindowState, type SelfCheckInWindowState } from "@/lib/utils/appointmentUtils";
+import { formatDateInIST } from "@/lib/utils/date-time";
+import { ClinicMapTile } from "@/components/patient/queue/ClinicMapArt";
+import { formatDistance } from "@/components/patient/queue/deviceLocation";
+import { useClinicProximity } from "@/components/patient/queue/useClinicProximity";
 
 export interface HomeVisitActions {
   /** Open the video waiting room for this visit. */
@@ -111,6 +115,16 @@ function DoctorBlock({ visit }: { visit: HomeVisit }) {
 
 // ── Video ──────────────────────────────────────────────────────────────────
 
+/** "Starts in 25 minutes" up to a day ahead, then the day: "Starts Mon, 28 Sept". */
+function videoStartText(startsAt: string | null, now: number | null): string {
+  const start = startsAt ? new Date(startsAt).getTime() : Number.NaN;
+  if (now !== null && Number.isFinite(start) && start - now >= 24 * 60 * 60_000) {
+    const day = formatDateInIST(new Date(start), { weekday: "short", day: "numeric", month: "short" });
+    if (day) return `Starts ${day}`;
+  }
+  return describeStart(startsAt, now);
+}
+
 function VideoVisitCard({ visit, actions }: { visit: HomeVisit; actions: HomeVisitActions }) {
   const now = useMinuteClock();
   const isRejoin = visit.joinAction === "resume";
@@ -118,7 +132,7 @@ function VideoVisitCard({ visit, actions }: { visit: HomeVisit; actions: HomeVis
     ? "Pay to confirm this visit"
     : isRejoin
       ? "Your doctor has started the visit"
-      : describeStart(visit.startsAt, now);
+      : videoStartText(visit.startsAt, now);
   const reasonId = `visit-${visit.id}-join-note`;
   const showReason = !visit.canJoin && !visit.awaitingPayment && Boolean(visit.joinBlockedReason);
 
@@ -222,30 +236,51 @@ function VideoVisitCard({ visit, actions }: { visit: HomeVisit; actions: HomeVis
 
 // ── In clinic ──────────────────────────────────────────────────────────────
 
-const CHECK_IN_STEPS = ["Reach the clinic", "Scan desk QR", "Get token"] as const;
+type StepState = "done" | "current" | "todo";
 
-/** The three steps of a clinic check-in. Step 1 is the current one until the patient checks in. */
-function CheckInSteps() {
+const CHECK_IN_STEPS = ["Arrived", "Scan desk QR", "Get token"] as const;
+
+/**
+ * Arrived → Scan desk QR → Get token. `done` steps are ticked; `current` (or -1 for none) is
+ * the one to do now: step 1 while the check-in window is open, step 2 once the device shows the
+ * patient at the clinic.
+ */
+function CheckInSteps({ done, current }: { done: number; current: number }) {
   return (
-    <ol className="relative m-0 grid list-none grid-cols-3 p-0" aria-label="How check-in works">
+    <ol className="relative m-0 grid list-none grid-cols-3 p-0" aria-label="Check-in steps">
       <span aria-hidden="true" className="absolute left-[16.67%] top-[17px] h-0.5 w-[66.66%] bg-line" />
+      {done > 0 ? (
+        <span
+          aria-hidden="true"
+          className="absolute left-[16.67%] top-[17px] h-0.5 bg-[#34d399]"
+          style={{ width: `${(Math.min(done, CHECK_IN_STEPS.length - 1) / (CHECK_IN_STEPS.length - 1)) * 66.66}%` }}
+        />
+      ) : null}
       {CHECK_IN_STEPS.map((label, index) => {
-        const current = index === 0;
+        const state: StepState = index < done ? "done" : index === current ? "current" : "todo";
         return (
-          <li key={label} className="relative flex flex-col items-center gap-2 text-center">
+          <li
+            key={label}
+            className="relative flex flex-col items-center gap-2 text-center"
+            aria-current={state === "current" ? "step" : undefined}
+          >
             <span
               className={cn(
                 "flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold",
-                current
-                  ? "border-2 border-brand bg-card text-brand"
-                  : "bg-well text-ink-muted",
+                state === "done" && "bg-primary text-white",
+                state === "current" &&
+                  "border-2 border-brand bg-card text-brand shadow-[0_0_0_4px_#d1fae5] dark:shadow-none",
+                state === "todo" && "bg-well text-ink-muted",
               )}
               aria-hidden="true"
             >
-              {index + 1}
+              {state === "done" ? <Check className="size-4" strokeWidth={3} /> : index + 1}
             </span>
-            <span className={cn("text-xs font-bold", current ? "text-ink" : "text-ink-muted")}>
-              <span className="sr-only">Step {index + 1}: </span>
+            <span className={cn("text-xs font-bold", state === "todo" ? "text-ink-muted" : "text-ink")}>
+              <span className="sr-only">
+                Step {index + 1}
+                {state === "done" ? " (done)" : state === "current" ? " (now)" : ""}:{" "}
+              </span>
               {label}
             </span>
           </li>
@@ -255,70 +290,39 @@ function CheckInSteps() {
   );
 }
 
-function QueueTile({ label, value, accent = false, last = false }: { label: string; value: string; accent?: boolean; last?: boolean }) {
+function QueueTile({
+  label,
+  value,
+  accent = false,
+  last = false,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  last?: boolean;
+}) {
   return (
-    <div className={cn("flex flex-col items-center gap-0.5 px-1 text-center", !last && "border-r border-mint")}>
+    <div className={cn("flex min-w-0 flex-col items-center gap-0.5 px-1 text-center", !last && "border-r border-mint")}>
       <span className="text-xs text-ink-muted">{label}</span>
-      <span className={cn("text-[22px] font-extrabold leading-tight", accent ? "text-brand" : "text-ink")}>
+      <span className={cn("break-all text-[20px] font-extrabold leading-tight", accent ? "text-brand" : "text-ink")}>
         {value}
       </span>
     </div>
   );
 }
 
-/** Dots from "Now" to "You": one open dot per person ahead (at most four are drawn). */
-function QueueTrack({ ahead }: { ahead: number }) {
-  const drawn = Math.min(ahead, 4);
-  const hidden = ahead - drawn;
-  const columns = drawn + 1;
-  return (
-    <div
-      className="relative grid"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-      role="img"
-      aria-label={ahead === 0 ? "You are next" : `${plural(ahead, "patient")} ahead of you`}
-    >
-      {columns > 1 ? (
-        <span
-          aria-hidden="true"
-          className="absolute top-3 h-[3px] rounded-sm bg-[#bbe5c9] dark:bg-emerald-800"
-          style={{ left: `${50 / columns}%`, right: `${50 / columns}%` }}
-        />
-      ) : null}
-      {Array.from({ length: drawn }, (_, index) => (
-        <div key={index} className="relative flex flex-col items-center gap-1.5">
-          <span className="flex size-[26px] items-center justify-center">
-            {index === 0 ? (
-              <span className="size-3.5 rounded-full border-[3px] border-card bg-[#047857] shadow-[0_0_0_1px_#047857]" />
-            ) : (
-              <span className="size-3 rounded-full border-2 border-[#047857] bg-card" />
-            )}
-          </span>
-          <span className={cn("text-xs", index === 0 ? "font-semibold text-ink" : "font-medium text-ink-muted")}>
-            {index === 0 ? "Now" : index === drawn - 1 && hidden > 0 ? `+${hidden}` : " "}
-          </span>
-        </div>
-      ))}
-      <div className="relative flex flex-col items-center gap-1.5">
-        <span className="flex size-[26px] items-center justify-center rounded-full bg-primary text-white">
-          <Check className="size-3.5" strokeWidth={3} />
-        </span>
-        <span className="text-xs font-extrabold text-brand">You</span>
-      </div>
-    </div>
-  );
-}
-
+/** After check-in: token, now serving, people ahead and the wait. Token numbers only, never names. */
 function QueuePanel({ visit, queue }: { visit: HomeVisit; queue?: HomeQueue | null }) {
   const position = queue?.position ?? null;
   const ahead = queue?.patientsAhead ?? (position !== null ? Math.max(0, position - 1) : null);
   const wait = queue?.estimatedWaitMinutes ?? null;
   // The appointment row rarely carries the token; the in-person visit read does (K-014).
   const tokenLabel = visit.tokenLabel ?? queue?.tokenLabel ?? null;
+  const nowServing = queue?.nowServingToken ?? null;
 
-  if (queue?.isLoading && position === null) {
+  if (queue?.isLoading && position === null && !tokenLabel) {
     return (
-      <div className="flex flex-col gap-3 @4xl:col-span-2" aria-busy="true" aria-label="Loading your queue position">
+      <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading your queue position">
         <Skeleton className="h-[74px] w-full rounded-[14px]" />
         <Skeleton className="h-4 w-48 rounded-md" />
       </div>
@@ -327,36 +331,78 @@ function QueuePanel({ visit, queue }: { visit: HomeVisit; queue?: HomeQueue | nu
 
   if (!tokenLabel && position === null) {
     return (
-      <Note tone="green" icon={Activity} className="@4xl:col-span-2">
+      <Note tone="green" icon={Activity}>
         You are checked in. Open the live queue to see your place.
       </Note>
     );
   }
 
   return (
-    <>
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="grid grid-cols-3 rounded-[14px] bg-[#f4faf6] py-3.5 dark:bg-emerald-500/10">
-        <QueueTile label="Your token" value={tokenLabel ?? "—"} accent />
-        <QueueTile label="Your position" value={position !== null ? String(position) : "—"} />
-        <QueueTile label="Patients ahead" value={ahead !== null ? String(ahead) : "—"} last />
+        <QueueTile label="Your token" value={tokenLabel ?? (position !== null ? `#${position}` : "—")} accent />
+        <QueueTile label="Now serving" value={nowServing ?? "—"} />
+        <QueueTile label="Ahead of you" value={ahead !== null ? String(ahead) : "—"} last />
       </div>
-      <div className="flex min-w-0 flex-col gap-3.5">
-        {ahead !== null ? <QueueTrack ahead={ahead} /> : null}
-        <div className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1 text-[13px] text-ink-soft">
-          {wait !== null ? (
-            <span>
-              Estimated wait time:{" "}
-              <strong className="font-extrabold text-brand">~{Math.max(0, Math.round(wait))} min</strong>
-            </span>
-          ) : ahead === 0 ? (
-            <span className="font-bold text-brand">You are next.</span>
-          ) : (
-            <span>Wait time shows on the live queue.</span>
-          )}
-          {position !== null ? <span className="text-xs text-ink-muted">Updates every 30 seconds</span> : null}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1 text-[13px] text-ink-soft">
+        {ahead === 0 ? (
+          <span className="font-bold text-brand">You are next.</span>
+        ) : wait !== null ? (
+          <span>
+            Est. wait <strong className="font-extrabold text-brand">~{Math.max(0, Math.round(wait))} min</strong>
+          </span>
+        ) : (
+          <span>Wait time shows on the live queue.</span>
+        )}
+        <span className="text-xs text-ink-muted">Updates by itself</span>
       </div>
-    </>
+    </div>
+  );
+}
+
+function clinicWindowState(visit: HomeVisit, now: number | null): SelfCheckInWindowState | null {
+  // Same window as the server: 20 min before .. 45 min after the slot start. Shown for today's
+  // visits, and for a late / early slot whose open window crosses midnight (23:45 at 00:10).
+  const slot = visit.startsAt && now !== null ? selfCheckInWindowState(new Date(visit.startsAt), now) : null;
+  return visit.isToday || slot === "OPEN" ? slot : null;
+}
+
+function ClinicChip({
+  visit,
+  queue,
+  windowState,
+}: {
+  visit: HomeVisit;
+  queue?: HomeQueue | null;
+  windowState: SelfCheckInWindowState | null;
+}) {
+  if (visit.clinicStage === "queue") {
+    const token = visit.tokenLabel ?? queue?.tokenLabel ?? null;
+    return (
+      <Pill tone="green" dot>
+        {token ? `Checked in · Token ${token}` : "Checked in"}
+      </Pill>
+    );
+  }
+  if (visit.clinicStage === "in_progress") return <Pill tone="blue">In consultation</Pill>;
+  if (windowState === "OPEN") {
+    return (
+      <Pill tone="amber" dot>
+        Check-in open
+      </Pill>
+    );
+  }
+  if (windowState === "CLOSED") return <Pill tone="rose">Check-in closed</Pill>;
+  if (visit.isToday) return <Pill tone="slate">Not checked in</Pill>;
+  return <Pill tone={statusTone(visit.statusCode)}>{visit.statusLabel}</Pill>;
+}
+
+function ProximityBadge({ meters, atClinic }: { meters: number; atClinic: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[11px] font-bold text-[#065f46] shadow-sm dark:bg-black/60 dark:text-emerald-300">
+      <MapPin className="size-3" strokeWidth={2.4} aria-hidden="true" />
+      {atClinic ? `You're at the clinic · ${formatDistance(meters)}` : `${formatDistance(meters)} away`}
+    </span>
   );
 }
 
@@ -372,13 +418,13 @@ function ClinicVisitCard({
   const inQueue = visit.clinicStage === "queue";
   const withDoctor = visit.clinicStage === "in_progress";
   const now = useMinuteClock();
-  // Same window as the server: 20 min before .. 45 min after the slot start. Shown for today's
-  // visits, and for a late / early slot whose open window crosses midnight (23:45 at 00:10).
-  const slotWindowState: SelfCheckInWindowState | null =
-    visit.startsAt && now !== null ? selfCheckInWindowState(new Date(visit.startsAt), now) : null;
-  const windowState: SelfCheckInWindowState | null =
-    visit.isToday || slotWindowState === "OPEN" ? slotWindowState : null;
+  const windowState = clinicWindowState(visit, now);
   const checkInClosed = windowState === "CLOSED";
+  const windowOpen = windowState === "OPEN";
+  // Step 1 is ticked only when the device (permission already granted) puts the patient at the clinic.
+  const proximity = useClinicProximity(visit.clinicPoint ?? null, windowOpen && !inQueue && !withDoctor);
+  const stepsDone = proximity?.atClinic ? 1 : 0;
+  const stepsCurrent = windowOpen ? stepsDone : -1;
 
   return (
     <article
@@ -393,41 +439,37 @@ function ClinicVisitCard({
           <Hospital className="size-[15px]" strokeWidth={2.2} />
         </span>
         <span className="flex-1 text-sm font-bold text-ink">In-Clinic Visit</span>
-        {inQueue ? (
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-2.5 py-[5px] text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-white">
-            <span className="tbd-pulse size-1.5 rounded-full bg-[#a7f3d0]" aria-hidden="true" />
-            Live queue
-          </span>
-        ) : withDoctor ? (
-          <Pill tone="blue">In progress</Pill>
-        ) : windowState === "OPEN" ? (
-          <Pill tone="amber" dot>
-            Check-in open
-          </Pill>
-        ) : checkInClosed ? (
-          <Pill tone="rose">Check-in closed</Pill>
-        ) : (
-          <Pill tone={statusTone(visit.statusCode)}>{visit.statusLabel}</Pill>
-        )}
+        <ClinicChip visit={visit} queue={queue} windowState={windowState} />
       </div>
 
       <div
         className={cn(
-          "grid items-center gap-x-7 gap-y-5",
-          inQueue
-            ? "@4xl:grid-cols-[minmax(0,1fr)_320px_330px]"
-            : "@3xl:grid-cols-[minmax(0,1fr)_340px]",
+          "grid items-stretch gap-x-7 gap-y-5",
+          inQueue ? "@3xl:grid-cols-[minmax(0,1fr)_360px]" : "@3xl:grid-cols-[minmax(0,1fr)_260px]",
         )}
       >
-        <DoctorBlock visit={visit} />
+        <div className="flex min-w-0 flex-col justify-center gap-5">
+          <DoctorBlock visit={visit} />
+          {!inQueue && !withDoctor && !checkInClosed ? (
+            <CheckInSteps done={stepsDone} current={stepsCurrent} />
+          ) : null}
+          {withDoctor ? (
+            <Note tone="green" icon={Activity}>
+              Your consultation is in progress.
+            </Note>
+          ) : null}
+        </div>
         {inQueue ? (
-          <QueuePanel visit={visit} queue={queue} />
-        ) : withDoctor ? (
-          <Note tone="green" icon={Activity}>
-            Your visit is in progress.
-          </Note>
+          <div className="flex min-w-0 flex-col justify-center">
+            <QueuePanel visit={visit} queue={queue} />
+          </div>
         ) : (
-          <CheckInSteps />
+          <ClinicMapTile
+            directionsUrl={visit.directionsUrl}
+            placeName={visit.locationLabel}
+            className="h-[150px] @3xl:h-full @3xl:min-h-[190px]"
+            badge={proximity ? <ProximityBadge meters={proximity.meters} atClinic={proximity.atClinic} /> : null}
+          />
         )}
       </div>
 
@@ -454,12 +496,14 @@ function ClinicVisitCard({
           <Button size="md" className="h-12 w-full sm:w-auto" asChild>
             <Link href="/patient/queue">
               <Activity aria-hidden="true" />
-              Track Live Queue
+              View live queue
               <ArrowRight aria-hidden="true" />
             </Link>
           </Button>
         ) : withDoctor ? null : checkInClosed ? (
-          <p className="text-sm font-semibold text-ink-soft">Self check-in has closed. Please go to the reception desk.</p>
+          <p className="m-0 text-sm font-semibold text-ink-soft">
+            Self check-in has closed. Please ask the reception desk.
+          </p>
         ) : (
           <Button size="md" className="h-12 w-full sm:w-auto" onClick={actions.onCheckIn}>
             <ScanLine aria-hidden="true" />
@@ -491,8 +535,12 @@ export function HomeVisitCard({
 
 /** One line for every further upcoming visit, under the main card. */
 export function HomeVisitRow({ visit, actions }: { visit: HomeVisit; actions: HomeVisitActions }) {
+  const now = useMinuteClock();
   const isVideo = visit.kind === "video";
   const Icon = isVideo ? Video : Hospital;
+  const when = [visit.isToday ? "Today" : visit.dateLabel, visit.timeLabel].filter(Boolean).join(" · ");
+  const canCheckIn = !isVideo && visit.clinicStage === "upcoming" && clinicWindowState(visit, now) === "OPEN";
+  const subtitle = [visit.doctorName, isVideo ? "Video consultation" : "In-clinic visit"].filter(Boolean).join(" · ");
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line bg-card px-3.5 py-3">
       <span
@@ -507,18 +555,35 @@ export function HomeVisitRow({ visit, actions }: { visit: HomeVisit; actions: Ho
         <Icon className="size-4" strokeWidth={2.2} />
       </span>
       <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-        <span className="truncate text-sm font-bold text-ink">{visit.doctorName}</span>
-        <span className="truncate text-xs text-ink-muted">
-          {isVideo ? "Video" : "In clinic"} · {[visit.dateLabel, visit.timeLabel].filter(Boolean).join(" · ")}
-        </span>
+        <span className="truncate text-sm font-bold text-ink">{when}</span>
+        <span className="truncate text-xs text-ink-muted">{subtitle}</span>
       </span>
-      <Pill tone={visit.awaitingPayment ? "amber" : statusTone(visit.statusCode)}>{visit.statusLabel}</Pill>
+      {visit.clinicStage === "queue" && !isVideo ? (
+        <Pill tone="green">{visit.tokenLabel ? `Token ${visit.tokenLabel}` : "Checked in"}</Pill>
+      ) : (
+        <Pill tone={visit.awaitingPayment ? "amber" : statusTone(visit.statusCode)}>{visit.statusLabel}</Pill>
+      )}
       {isVideo && visit.canJoin ? (
         <Button variant="action" onClick={() => actions.onJoin(visit.id)}>
           <Video aria-hidden="true" />
           {visit.joinAction === "resume" ? "Rejoin session" : "Join session"}
         </Button>
-      ) : null}
+      ) : canCheckIn ? (
+        <Button onClick={actions.onCheckIn}>
+          <ScanLine aria-hidden="true" />
+          Check in
+        </Button>
+      ) : (
+        <Button variant="outline" asChild>
+          <Link
+            href={`/patient/appointments?id=${encodeURIComponent(visit.id)}`}
+            aria-label={`Details of the visit on ${when}`}
+          >
+            Details
+            <ChevronRight aria-hidden="true" />
+          </Link>
+        </Button>
+      )}
     </li>
   );
 }

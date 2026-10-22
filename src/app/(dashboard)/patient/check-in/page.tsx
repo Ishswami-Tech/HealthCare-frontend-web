@@ -9,6 +9,11 @@ import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { CheckInRefusedError, useInPersonCheckIn, useMyInPersonToday } from "@/hooks/query/useInPerson";
 import { showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
+import { formatDateInIST } from "@/lib/utils/date-time";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useActiveSubscription } from "@/hooks/query/useBilling";
+import { planStatusOf } from "@/components/billing/plan-status.logic";
+import { useClinicProximity } from "@/components/patient/queue/useClinicProximity";
 import type { CheckInFailureCode, InPersonVisit } from "@/types/in-person.types";
 import {
   CheckedInView,
@@ -20,6 +25,7 @@ import {
   CheckInSelectView,
   TodayVisitsView,
   type CheckInChoice,
+  type CheckInPlanInfo,
 } from "./_components/CheckInViews";
 import { ManualCodeDrawer } from "./_components/ManualCodeDrawer";
 import {
@@ -89,6 +95,23 @@ export default function PatientCheckInPage() {
     (visit) => visit.stage === "BOOKED" || visit.stage === "CHECKED_IN" || visit.stage === "WITH_DOCTOR",
   );
   const bookedToday = (todayVisits ?? []).find((visit) => visit.stage === "BOOKED") ?? null;
+  const introVisit = (visitToCheckIn ?? clinicVisits[0])?.visit ?? null;
+
+  // The monthly plan covers in-clinic visits: "Monthly plan active till … · this visit is included".
+  const { session } = useAuth();
+  const patientUserId = session?.user?.id ?? "";
+  const clinicId = session?.user?.clinicId ?? "";
+  const { data: activeSubscription } = useActiveSubscription(patientUserId, clinicId, Boolean(introVisit));
+  const planInfo = useMemo<CheckInPlanInfo | null>(() => {
+    const plan = planStatusOf(activeSubscription);
+    if (!plan.active) return null;
+    return {
+      planName: plan.planName,
+      activeTillLabel: plan.activeTill ? formatDateInIST(plan.activeTill, { day: "numeric", month: "short", year: "numeric" }) : null,
+    };
+  }, [activeSubscription]);
+  // "You're at the clinic · 40 m": only when the browser already shares the location (no prompt).
+  const proximity = useClinicProximity(introVisit?.clinicPoint ?? null, Boolean(introVisit) && step === "intro");
   const isLocating = state.kind === "locating";
   const isProcessing = isLocating || state.kind === "processing" || checkIn.isPending;
   // One check-in at a time: a double tap / Enter + click / the camera reading the poster twice
@@ -238,7 +261,7 @@ export default function PatientCheckInPage() {
     return <CheckInNoVisitView onBook={() => push("/patient/appointments?openBooking=1&mode=IN_PERSON")} />;
   }
 
-  const visit = (visitToCheckIn ?? clinicVisits[0])?.visit;
+  const visit = introVisit;
 
   if (step === "scan" || !visit) {
     return (
@@ -249,13 +272,15 @@ export default function PatientCheckInPage() {
           onEnterCode={() => setIsCodeDrawerOpen(true)}
           scanner={
             isProcessing ? (
-              <ScannerFrame status="checking" />
+              <ScannerFrame status="checking" className="h-[min(62vh,460px)]" />
             ) : (
               <QRScanner
                 onScanSuccess={(value) => void handleScan(value)}
                 onScanFailure={() => void 0}
                 autoStart={true}
+                className="h-[min(62vh,460px)]"
                 onEnterCode={() => setIsCodeDrawerOpen(true)}
+                scanLabel="Scan to check in"
               />
             )
           }
@@ -279,6 +304,8 @@ export default function PatientCheckInPage() {
       visit={visit}
       bookingRef={shortBookingRef(visit.id)}
       checkInWindow={inPersonVisit?.checkInWindow}
+      plan={planInfo}
+      proximity={proximity}
       onScan={() => setStep("scan")}
     />
   );

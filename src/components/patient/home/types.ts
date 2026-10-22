@@ -26,6 +26,8 @@ export interface HomeVisit {
   isToday: boolean;
   /** Clinic name and address line. In-clinic visits only. */
   locationLabel?: string;
+  /** Street address of the clinic, when it is not already the label. In-clinic visits only. */
+  addressLine?: string;
   statusCode: string;
   statusLabel: string;
   confirmationExpiresAt?: string | null;
@@ -46,6 +48,8 @@ export interface HomeVisit {
   clinicStage: HomeClinicStage;
   clinicPhone?: string;
   directionsUrl?: string;
+  /** The clinic pin (location coordinates), when the API has one. */
+  clinicPoint?: { lat: number; lng: number };
   /** Queue token, when the visit carries one. */
   tokenLabel?: string;
 }
@@ -60,6 +64,8 @@ export interface HomeQueue {
   totalInQueue: number | null;
   /** Token of the checked-in visit (K-014) from `GET in-person/me/today`, when the appointment row has none. */
   tokenLabel?: string | null;
+  /** Token the doctor is seeing now (K-011), from `GET in-person/me/today`. Never a name. */
+  nowServingToken?: string | null;
   isLoading: boolean;
 }
 

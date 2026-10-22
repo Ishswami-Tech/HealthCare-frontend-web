@@ -37,7 +37,6 @@ import {
   UserPlus,
   Banknote,
   LifeBuoy,
-  ListOrdered,
 } from "lucide-react";
 
 import { Permission } from "@/types/rbac.types";
@@ -114,10 +113,10 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Home", href: "/patient/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/patient/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Health", href: "/patient/health", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
-    { title: "Queue status", href: "/patient/queue", icon: ListOrdered },
+    // The live queue (`/patient/queue`) is reached from the visit card and check-in, not the nav.
+    { title: "Payments", href: "/patient/payments", icon: Wallet, permission: Permission.VIEW_BILLING },
     { title: "Lab tests", href: "/patient/lab-booking", icon: FlaskConical },
     { title: "Family", href: "/patient/family", icon: Users },
-    { title: "Payments", href: "/patient/payments", icon: Wallet, permission: Permission.VIEW_BILLING },
     { title: "Notifications", href: "/patient/notifications", icon: Bell },
     { title: "Help & chat", href: "/patient/help", icon: LifeBuoy },
   ],

@@ -38,6 +38,7 @@ export function PatientQueueContent() {
     const info = toVisitInfo(queueVisit?.row, queueVisit?.visit);
     return (
       <PatientQueueView
+        appointmentId={queued.appointmentId}
         ticket={ticket}
         info={{
           ...info,
