@@ -1950,6 +1950,7 @@ function BookAppointmentStep4({
     slotGroups,
     bookedSlots,
     appointmentDurationMinutes,
+    selectedDate ? formatISODateInIST(selectedDate) : undefined,
   );
   // Same order of checks as before: nothing chosen yet, loading, no slots, slots.
   const status = !shouldLoadAvailability
@@ -3244,11 +3245,18 @@ export function BookAppointmentDialog({
         setInternalOpen(nextOpen);
       }
 
+      // Reset on every open, not just close: this dialog is mounted once and reused across
+      // bookings (never unmounted), so without this a slot/step left over from the previous
+      // booking can survive into the next open and get silently resubmitted.
+      if (!dialogOpen && nextOpen) {
+        resetBookingFlowState();
+      }
       if (!nextOpen) {
         resetBookingFlowState();
       }
     },
     [
+      dialogOpen,
       onOpenChange,
       profileCompletionBlocked,
       profileCompletionRedirectUrl,

@@ -42,7 +42,7 @@ export function useOpenSlots(target: OpenSlotsTarget, date: string, enabled = tr
     const groups = groupSlotsByPeriod(extractAvailabilitySlots(data));
     const firstOpen = [...groups.morning, ...groups.afternoon, ...groups.evening].sort()[0] ?? "";
     return {
-      periods: canLoad ? buildSlotPeriods(groups, [], 0) : undefined,
+      periods: canLoad ? buildSlotPeriods(groups, [], 0, date) : undefined,
       firstOpen,
       isLoading: isPending && Boolean(date) && canLoad && enabled,
       error: error instanceof Error ? error.message : null,

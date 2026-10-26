@@ -34,8 +34,10 @@ export interface BookingDay {
 export interface BookingSlotOption {
   /** Raw slot value as the API returns it ("09:30"). */
   value: string;
-  /** Booked by someone else: shown struck through, cannot be picked. */
+  /** Booked by someone else, or already past: shown struck through, cannot be picked. */
   unavailable: boolean;
+  /** Why it is struck through ("Booked" vs "Expired" in the grid). Defaults to "booked". */
+  reason?: "booked" | "expired" | undefined;
 }
 
 export type BookingPeriodKey = "morning" | "afternoon" | "evening";

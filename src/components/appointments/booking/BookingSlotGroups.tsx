@@ -132,13 +132,14 @@ function SlotGrid({ slots, selected, onSelect, timeStyle, detail, columnsClassNa
       {slots.map((slot) => {
         const isSelected = !slot.unavailable && selected === slot.value;
         const label = formatSlotLabel(slot.value, timeStyle);
+        const unavailableText = slot.reason === "expired" ? "Expired" : "Booked";
         return (
           <button
             key={slot.value}
             type="button"
             disabled={slot.unavailable}
             aria-pressed={isSelected}
-            aria-label={slot.unavailable ? `${label}, not available` : label}
+            aria-label={slot.unavailable ? `${label}, ${unavailableText.toLowerCase()}` : label}
             onClick={() => onSelect(slot.value)}
             className={cn(
               "flex min-h-9 flex-col items-center justify-center gap-px rounded-lg border px-1 py-1.5 text-center transition-colors",
@@ -164,7 +165,7 @@ function SlotGrid({ slots, selected, onSelect, timeStyle, detail, columnsClassNa
                       : "text-ink-muted",
                 )}
               >
-                {slot.unavailable ? "Booked" : isSelected ? `Selected · ${detail}` : detail}
+                {slot.unavailable ? unavailableText : isSelected ? `Selected · ${detail}` : detail}
               </span>
             ) : null}
           </button>

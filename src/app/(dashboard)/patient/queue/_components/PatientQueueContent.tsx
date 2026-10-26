@@ -11,21 +11,25 @@ import {
   PatientQueueLoadingView,
   PatientQueueView,
 } from "./PatientQueueView";
-import { pickQueuedVisit, readAppointments, toVisitInfo, toVisitTicket } from "@/components/patient/queue/queueData";
+import { pickQueuedVisitById, readAppointments, toVisitInfo, toVisitTicket } from "@/components/patient/queue/queueData";
 
 /**
  * Data container for the patient Live Queue (V2). Token, people ahead, ETA and "you're next"
  * come from `GET in-person/me/today` (polled every 20 s while visible); the clinic address and
  * phone come from the patient's own appointment.
+ *
+ * `appointmentId`: which of today's (possibly several) checked-in visits to show. Passed by the
+ * visit card's own "Track live queue" link; omitted by the dashboard's generic one, which falls
+ * back to the first checked-in visit.
  */
-export function PatientQueueContent() {
+export function PatientQueueContent({ appointmentId }: { appointmentId?: string | undefined } = {}) {
   const { data: visits, isPending, isFetching, error, refetch } = useMyInPersonToday({ live: true });
   const { data: appointmentsData } = useMyAppointments();
   const [now] = useState(() => Date.now());
   const { language } = useLanguage();
 
   const appointments = useMemo(() => readAppointments(appointmentsData), [appointmentsData]);
-  const queued = pickQueuedVisit(visits);
+  const queued = pickQueuedVisitById(visits, appointmentId);
   const ticket = toVisitTicket(queued);
 
   const queueVisit = useMemo(() => {

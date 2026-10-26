@@ -25,6 +25,11 @@ type PatientQueueCardProps = {
 
 const STEPS = ["Book an in-clinic visit", "Reach the clinic", "Scan the QR at the desk"] as const;
 
+/** "/patient/queue", scoped to this visit's appointment when known (picks the right one of several). */
+function queueHref(appointmentId: string | null | undefined): string {
+  return appointmentId ? `/patient/queue?appointmentId=${encodeURIComponent(appointmentId)}` : "/patient/queue";
+}
+
 function Figure({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-0.5 rounded-[14px] bg-[#f4faf6] px-2 py-3 text-center dark:bg-emerald-500/10">
@@ -91,7 +96,7 @@ export function PatientQueueCard({
           />
         </div>
         <Button size="md" className="w-full sm:w-auto sm:self-end" asChild>
-          <Link href="/patient/queue">
+          <Link href={queueHref(checkedInVisit?.id)}>
             <Activity aria-hidden="true" />
             Track live queue
             <ArrowRight aria-hidden="true" />
@@ -132,7 +137,7 @@ export function PatientQueueCard({
       )}
       {checkedInVisit ? (
         <Button size="md" className="w-full sm:w-auto sm:self-end" asChild>
-          <Link href="/patient/queue">
+          <Link href={queueHref(checkedInVisit.id)}>
             <Activity aria-hidden="true" />
             Track live queue
           </Link>

@@ -38,8 +38,8 @@ function FollowUpForm({ appointmentId }: { appointmentId: string }) {
     enabled: Boolean(doctorId && date),
   });
   const periods = useMemo(
-    () => buildSlotPeriods(groupSlotsByPeriod(extractAvailabilitySlots(slotsQuery.data)), [], 0),
-    [slotsQuery.data],
+    () => buildSlotPeriods(groupSlotsByPeriod(extractAvailabilitySlots(slotsQuery.data)), [], 0, date),
+    [slotsQuery.data, date],
   );
   const openCount = periods.reduce((sum, period) => sum + period.openCount, 0);
   const backToComplete = visitHref(appointmentId, "complete");

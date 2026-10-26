@@ -169,6 +169,29 @@ export function pickQueuedVisit(visits: readonly InPersonVisit[] | null | undefi
   return (visits ?? []).find((visit) => visit.stage === "CHECKED_IN" || visit.stage === "WITH_DOCTOR") ?? null;
 }
 
+/**
+ * The queued visit for one specific appointment ("Track live queue" on that visit's own card).
+ * A patient can be checked in for more than one in-clinic visit today (a follow-up booked same
+ * day, a second family member's slot); without an id every card fell back to whichever visit
+ * `pickQueuedVisit` found first, so a later visit's card showed the first visit's place in line.
+ * Falls back to `pickQueuedVisit` when the id is absent or not (yet) in `visits` (the dashboard's
+ * generic link, or a stale id), not the common case.
+ */
+export function pickQueuedVisitById(
+  visits: readonly InPersonVisit[] | null | undefined,
+  appointmentId: string | null | undefined,
+): InPersonVisit | null {
+  if (appointmentId) {
+    const match = (visits ?? []).find(
+      (visit) =>
+        visit.appointmentId === appointmentId &&
+        (visit.stage === "CHECKED_IN" || visit.stage === "WITH_DOCTOR"),
+    );
+    if (match) return match;
+  }
+  return pickQueuedVisit(visits);
+}
+
 /** "You're next": checked in, nobody waiting ahead. */
 export function isNextInLine(ticket: QueueTicket | null): boolean {
   return Boolean(ticket && !ticket.isWithDoctor && ticket.patientsAhead === 0);

@@ -1,3 +1,4 @@
+import { formatDateKeyInIST, formatTimeInIST } from "@/lib/utils/date-time";
 import type { BookingPeriodKey, BookingSlotOption, BookingSlotPeriod } from "./types";
 
 /**
@@ -51,16 +52,31 @@ export function readBookedSlots(availability: unknown): string[] {
 }
 
 /**
+ * Minutes since midnight right now, in IST. A slot already at or before this, on today's date,
+ * went stale while the dialog sat open (the list was correct when it was fetched).
+ */
+function nowMinutesInIST(): number {
+  const label = formatTimeInIST(new Date(), { hour: "2-digit", minute: "2-digit", hour12: false });
+  return toMinutes(label) ?? 0;
+}
+
+/**
  * Builds the Morning / Afternoon / Evening groups.
  * `groups` are the bookable slots exactly as the dialog grouped them.
  * A booked slot is added (struck through) only when it sits on the same time grid as the open
  * slots and between the first and the last open slot, so bookings of another visit type or
  * outside the video hours never show up as chips.
+ *
+ * `dateKey` ("YYYY-MM-DD", IST): when it is today, any open slot at or before the current time
+ * is shown struck through as "Expired" instead of selectable. The availability API already drops
+ * past slots when it answers, but the grid can sit open past that slot's time (the user mid-flow,
+ * a stale cache); without this a dead slot stays clickable until the booking call refuses it.
  */
 export function buildSlotPeriods(
   groups: Record<BookingPeriodKey, string[]>,
   bookedSlots: string[],
   durationMinutes: number,
+  dateKey?: string,
 ): BookingSlotPeriod[] {
   const open = [...groups.morning, ...groups.afternoon, ...groups.evening];
   const openSet = new Set(open);
@@ -80,11 +96,24 @@ export function buildSlotPeriods(
     }
   }
 
+  const isToday = Boolean(dateKey) && dateKey === formatDateKeyInIST(new Date());
+  const nowMinutes = isToday ? nowMinutesInIST() : -1;
+  const isExpired = (value: string): boolean => {
+    if (!isToday) return false;
+    const minutes = toMinutes(value);
+    return minutes !== null && minutes <= nowMinutes;
+  };
+
   return PERIODS.map((period) => {
     const slots: BookingSlotOption[] = [
-      ...groups[period.key].map((value) => ({ value, unavailable: false })),
-      ...taken[period.key].map((value) => ({ value, unavailable: true })),
+      ...groups[period.key].map((value) =>
+        isExpired(value)
+          ? { value, unavailable: true as const, reason: "expired" as const }
+          : { value, unavailable: false as const },
+      ),
+      ...taken[period.key].map((value) => ({ value, unavailable: true as const, reason: "booked" as const })),
     ].sort((a, b) => a.value.localeCompare(b.value));
-    return { ...period, slots, openCount: groups[period.key].length };
+    const openCount = groups[period.key].filter((value) => !isExpired(value)).length;
+    return { ...period, slots, openCount };
   }).filter((period) => period.slots.length > 0);
 }

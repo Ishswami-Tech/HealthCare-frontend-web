@@ -96,7 +96,7 @@ export function ManagerVisitCard({
     </Button>
   ) : visit.canTrackQueue ? (
     <Button size="md" className="max-sm:flex-1" asChild>
-      <Link href="/patient/queue">
+      <Link href={`/patient/queue?appointmentId=${encodeURIComponent(visit.id)}`}>
         <Activity aria-hidden="true" />
         Track live queue
       </Link>
