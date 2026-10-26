@@ -128,6 +128,8 @@ type PaymentIntentResponse = {
     paymentIntent?: Record<string, unknown>;
   };
   paymentIntent?: Record<string, unknown>;
+  /** No gateway order was opened - e.g. a zero-amount (free) plan or invoice. Already settled. */
+  alreadyPaid?: boolean;
   error?: string;
   message?: string;
 };
@@ -983,6 +985,18 @@ export function PaymentButton({
     try {
       const paymentResponse = await getPaymentIntent();
       const paymentIntentResponse = paymentResponse as PaymentIntentResponse;
+
+      // A zero-amount plan/invoice (e.g. a free or load-test plan) never opens a gateway order -
+      // the backend settles it directly and there is nothing to redirect to or verify here.
+      if (paymentIntentResponse.success && paymentIntentResponse.alreadyPaid) {
+        invalidateSuccessfulPaymentQueries();
+        showSuccessToast("No payment needed - this plan is free.", {
+          id: TOAST_IDS.PAYMENT.SUCCESS,
+        });
+        onSuccess?.("");
+        return;
+      }
+
       const paymentIntentData =
         paymentIntentResponse.paymentIntent ||
         paymentIntentResponse.data?.paymentIntent;

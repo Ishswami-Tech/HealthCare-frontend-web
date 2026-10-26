@@ -948,6 +948,8 @@ export async function createPaymentIntent(
   success: boolean;
   invoice?: any;
   paymentIntent?: any;
+  /** No gateway order was opened (e.g. a zero-amount plan/invoice) - already settled. */
+  alreadyPaid?: boolean;
   message?: string;
   error?: string;
 }> {
@@ -989,11 +991,13 @@ export async function createPaymentIntent(
       success?: boolean;
       invoice?: unknown;
       paymentIntent?: unknown;
+      alreadyPaid?: boolean;
       message?: string;
       error?: string;
       data?: {
         invoice?: unknown;
         paymentIntent?: unknown;
+        alreadyPaid?: boolean;
         message?: string;
         error?: string;
       };
@@ -1001,6 +1005,7 @@ export async function createPaymentIntent(
 
     const resolvedInvoice = response.invoice ?? response.data?.invoice;
     const resolvedPaymentIntent = response.paymentIntent ?? response.data?.paymentIntent;
+    const resolvedAlreadyPaid = response.alreadyPaid ?? response.data?.alreadyPaid;
     const resolvedMessage = response.message ?? response.data?.message;
     const resolvedError = response.error ?? response.data?.error;
 
@@ -1015,6 +1020,7 @@ export async function createPaymentIntent(
       success: true,
       invoice: resolvedInvoice,
       paymentIntent: resolvedPaymentIntent,
+      ...(resolvedAlreadyPaid ? { alreadyPaid: true } : {}),
       ...(resolvedMessage ? { message: resolvedMessage } : {}),
     };
   } catch (error) {
