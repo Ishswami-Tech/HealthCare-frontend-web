@@ -14,6 +14,8 @@ export interface BillingPlan {
   features?: string[];
   isActive: boolean;
   clinicId?: string;
+  /** Whether a subscriber on this plan can book in-person visits for a family member, not just themselves. */
+  allowFamilyBooking: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -178,6 +180,7 @@ export interface CreateBillingPlanData {
   appointmentTypes?: string[];
   features?: string[];
   clinicId?: string;
+  allowFamilyBooking?: boolean;
 }
 
 export interface CreateSubscriptionData {

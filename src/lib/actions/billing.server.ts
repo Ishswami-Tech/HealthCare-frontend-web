@@ -97,6 +97,7 @@ function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {
     ...(normalizedFeatures.length > 0 ? { features: normalizedFeatures } : {}),
     isActive: raw.isActive !== false,
     ...(raw.clinicId ? { clinicId: String(raw.clinicId) } : {}),
+    allowFamilyBooking: Boolean(raw.allowFamilyBooking),
     createdAt: String(raw.createdAt ?? nowIsoTimestamp()),
     updatedAt: String(raw.updatedAt ?? nowIsoTimestamp()),
   };
@@ -335,6 +336,7 @@ export async function createBillingPlan(data: CreateBillingPlanData): Promise<{
         : {}),
       ...(data.clinicId ? { clinicId: data.clinicId } : {}),
       ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+      ...(data.allowFamilyBooking !== undefined ? { allowFamilyBooking: data.allowFamilyBooking } : {}),
     };
 
     const { status, data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.CREATE, {
@@ -384,6 +386,7 @@ export async function updateBillingPlan(
       payload.isUnlimitedAppointments = data.isUnlimitedAppointments;
     }
     if (data.isActive !== undefined) payload.isActive = data.isActive;
+    if (data.allowFamilyBooking !== undefined) payload.allowFamilyBooking = data.allowFamilyBooking;
 
     const { status, data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.UPDATE(id), {
       method: 'PUT',

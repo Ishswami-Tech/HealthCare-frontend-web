@@ -201,6 +201,7 @@ export function RoleBasedBillingDashboard({
         isActive: true,
         isUnlimitedAppointments: planForm.unlimited,
         ...(planForm.unlimited ? {} : { appointmentsIncluded: Math.max(1, parsedAppointments || 1) }),
+        allowFamilyBooking: planForm.allowFamilyBooking,
         description: `${name} (${planForm.cycle.toLowerCase()})`,
       });
 

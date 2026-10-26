@@ -19,6 +19,8 @@ export interface PlanFormState {
   cycle: PlanCycle;
   appointments: string;
   unlimited: boolean;
+  /** Whether a subscriber on this plan can book in-person visits for a family member, not just themselves. */
+  allowFamilyBooking: boolean;
   error: string;
 }
 
@@ -28,6 +30,7 @@ export const EMPTY_PLAN_FORM: PlanFormState = {
   cycle: "MONTHLY",
   appointments: "",
   unlimited: false,
+  allowFamilyBooking: false,
   error: "",
 };
 
@@ -144,6 +147,16 @@ export function CreatePlanDialog({
               />
             </div>
           ) : null}
+          <label htmlFor="billing-plan-family" className="flex items-center gap-2 text-sm text-ink">
+            <input
+              id="billing-plan-family"
+              type="checkbox"
+              className="size-4 accent-brand"
+              checked={form.allowFamilyBooking}
+              onChange={(event) => onChange({ allowFamilyBooking: event.target.checked })}
+            />
+            Allow booking for family members
+          </label>
           <Button type="submit" size="md" className="w-full" disabled={pending}>
             {pending ? "Creating…" : "Create Plan"}
           </Button>

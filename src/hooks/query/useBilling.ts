@@ -163,6 +163,7 @@ function toBillingPlanPayload(data: Partial<CreateBillingPlanData>, forUpdate: b
     ...(data.appointmentsIncluded !== undefined ? { appointmentsIncluded: data.appointmentsIncluded } : {}),
     ...(data.isUnlimitedAppointments !== undefined ? { isUnlimitedAppointments: data.isUnlimitedAppointments } : {}),
     ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+    ...(data.allowFamilyBooking !== undefined ? { allowFamilyBooking: data.allowFamilyBooking } : {}),
     // currency, interval and clinicId can only be set when the plan is created.
     ...(forUpdate
       ? {}
