@@ -293,7 +293,7 @@ export function OpdRegistrationDialogView({
                         {newField("firstName", "First name")}
                         {newField("lastName", "Last name")}
                         {newField("phone", "Mobile", { placeholder: "+91 98765 43210", inputMode: "tel", type: "tel" })}
-                        <Field label="Date of birth" htmlFor={id("new-dateOfBirth")}>
+                        <Field label="Date of birth (optional)" htmlFor={id("new-dateOfBirth")}>
                           <DateInput
                             id={id("new-dateOfBirth")}
                             value={newPatient.dateOfBirth}
@@ -474,7 +474,7 @@ export function OpdRegistrationDialogView({
                             ))}
                           </datalist>
                         </Field>
-                        <Field label="Date of birth" htmlFor={id("dep-dob")}>
+                        <Field label="Date of birth (optional)" htmlFor={id("dep-dob")}>
                           <DateInput
                             id={id("dep-dob")}
                             value={dependent.dateOfBirth}

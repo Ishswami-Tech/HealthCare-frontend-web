@@ -150,7 +150,7 @@ export function PatientPersonalDetailsView({
                 <Field htmlFor={profileFieldId("email")} labelClassName="min-h-5" label="Email" error={errors.email}>
                   <Input {...bind("email")} type="email" inputMode="email" autoComplete="email" />
                 </Field>
-                <Field htmlFor={profileFieldId("dateOfBirth")} labelClassName="min-h-5" label="Date of birth" error={errors.dateOfBirth}>
+                <Field htmlFor={profileFieldId("dateOfBirth")} labelClassName="min-h-5" label="Date of birth (optional)" error={errors.dateOfBirth}>
                   <Input {...bind("dateOfBirth")} type="date" autoComplete="bday" />
                 </Field>
 

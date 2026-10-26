@@ -113,7 +113,7 @@ function RegisterForm() {
               ))}
             </div>
           </Field>
-          <Field label="Date of birth" htmlFor="dateOfBirth">
+          <Field label="Date of birth (optional)" htmlFor="dateOfBirth">
             <Input id="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} {...form.register("dateOfBirth")} />
           </Field>
           <Field label="Address (optional)" htmlFor="address" className="sm:col-span-2">
