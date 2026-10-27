@@ -71,17 +71,26 @@ function PatientAppointmentsContent() {
   );
   const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
 
+  // Opening the dialog and stripping the query string used to happen in the same effect. Next's
+  // App Router patches history.replaceState to keep useSearchParams() in sync, so that call could
+  // itself trigger a re-render of this searchParams-subscribed, Suspense-wrapped component before
+  // setIsBookingDialogOpen(true) had committed — losing the open state and leaving the dialog
+  // stuck on "Opening booking..." forever (reproduced live: the banner never cleared and no
+  // dialog ever mounted). Splitting these into two effects, with the URL strip gated on the
+  // dialog actually being open, guarantees the open-state commit lands first.
   useEffect(() => {
     if (shouldOpenBooking) {
       setIsBookingDialogOpen(true);
       setBookingFamilyMemberId(queryFamilyMemberId);
     }
+  }, [shouldOpenBooking, queryFamilyMemberId]);
 
-    if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
+  useEffect(() => {
+    if (queryClinicId || queryLocationId || queryClinicName || bookingMode || isBookingDialogOpen) {
       document.getElementById("appointment-manager")?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
-  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking, queryFamilyMemberId]);
+  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, isBookingDialogOpen]);
 
   // Closing the wizard forgets the family member, so the next booking starts with "Myself".
   const handleBookingDialogOpenChange = (open: boolean) => {
