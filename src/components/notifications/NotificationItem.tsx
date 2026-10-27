@@ -176,30 +176,33 @@ export function NotificationItem({
       </button>
 
       {/* Actions — always visible, not hover-only: a hover-reveal never shows on a touch
-          screen, which made mark-as-read/remove undiscoverable there. */}
-      <div className="flex items-center gap-1">
+          screen, which made mark-as-read/remove undiscoverable there. Filled, semantically
+          colored circles (green = confirm/read, red = destructive) rather than plain ghost
+          icons, matching this app's "every button has a background color for its purpose"
+          convention — the same soft-tint pattern typeColors above already uses. */}
+      <div className="flex shrink-0 items-center gap-1.5">
         {!notification.isRead && (
           <Button
             variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs"
+            size="icon"
+            className="size-7 rounded-full bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-950/40 dark:text-green-300 dark:hover:bg-green-900/60"
             onClick={handleMarkAsRead}
             title="Mark as read"
             aria-label="Mark as read"
           >
-            <CheckCircle2 className="size-3" aria-hidden="true" />
+            <CheckCircle2 className="size-4" aria-hidden="true" />
           </Button>
         )}
         {onRemove && (
           <Button
             variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs hover:text-destructive"
+            size="icon"
+            className="size-7 rounded-full bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/60"
             onClick={handleRemove}
             title="Remove"
             aria-label="Remove notification"
           >
-            <X className="size-3" aria-hidden="true" />
+            <X className="size-4" aria-hidden="true" />
           </Button>
         )}
       </div>
