@@ -8,28 +8,20 @@ import { useMyClinic } from "@/hooks/query/useClinics";
 import { clinicHoursLines } from "./clinic-hours";
 
 /**
- * Help & support. The clinic's phone, WhatsApp, email and address are the same values the public
- * contact page shows (the `clinic.*` and `contact.contactInfo.*` translations). Clinic hours come
- * from the backend: the working hours of the clinic's locations (`GET /clinics/my-clinic`).
+ * Help & support. The clinic's phone, WhatsApp, email and address come from the patient's own
+ * clinic record (`GET /clinics/my-clinic`), never from the public marketing site's static
+ * translations — those name a different clinic/doctor for a patient on another clinic. Clinic
+ * hours come from the same record: the working hours of the clinic's locations.
  */
 export function PatientHelpContent() {
   const { session } = useAuth();
-  const { t } = useLanguage();
   const { data: myClinic } = useMyClinic();
   const hoursLines = clinicHoursLines(myClinic);
 
-  /** A translation, or "" when the key is missing (the lookup then returns the key itself). */
-  const value = (key: string) => {
-    const found = t(key).trim();
-    return found && found !== key ? found : "";
-  };
-
   const contacts = buildHelpContacts({
-    phones: [value("contact.contactInfo.phoneNumbers.details.0"), value("contact.contactInfo.phoneNumbers.details.1")].filter(
-      Boolean,
-    ),
-    whatsapp: value("clinic.whatsapp"),
-    email: value("clinic.email") || value("contact.contactInfo.emailAddresses.details.0"),
+    phones: [myClinic?.phone].filter((phone): phone is string => Boolean(phone)),
+    whatsapp: myClinic?.phone ?? "",
+    email: myClinic?.email ?? "",
   });
   const supportContacts = buildSupportContacts(myClinic?.supportPhone, myClinic?.supportEmail);
 
@@ -41,7 +33,7 @@ export function PatientHelpContent() {
       firstName={firstName || undefined}
       contacts={contacts}
       supportContacts={supportContacts}
-      address={value("clinic.address") || undefined}
+      address={myClinic?.address || undefined}
       hours={hoursLines.length > 0 ? hoursLines.join("\n") : undefined}
       contactPageHref="/contact"
       backHref="/patient/profile"
