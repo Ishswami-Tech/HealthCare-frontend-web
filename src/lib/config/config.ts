@@ -557,6 +557,7 @@ export const API_ENDPOINTS = {
     },
     SUPPLIERS: '/pharmacy/suppliers',
     AUDIT_BATCHES: '/pharmacy/audit/batches',
+    ALLERGY_SUMMARY: (patientId: string) => `/pharmacy/patients/${patientId}/allergy-summary`,
   },
 
   // Ayurveda Endpoints

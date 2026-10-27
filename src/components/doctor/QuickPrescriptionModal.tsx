@@ -323,6 +323,7 @@ function QuickPrescriptionSession({
       presentation={presentation}
       isOpen={isOpen}
       onClose={onClose}
+      patientId={patientId}
       patientName={patientName}
       {...(patientSummary ? { patientSummary } : {})}
       {...(visitLabel ? { visitLabel } : {})}

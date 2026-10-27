@@ -674,6 +674,26 @@ export async function getPrescriptionById(prescriptionId: string) {
 }
 
 /**
+ * Known allergies for a patient, for a warning banner on the prescribing screen
+ * (GET /pharmacy/patients/:patientId/allergy-summary).
+ */
+export async function getAllergySummary(
+  patientId: string,
+): Promise<{ allergies: string[] }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: Authentication required');
+  }
+
+  const { data } = await authenticatedApi(
+    API_ENDPOINTS.PHARMACY.ALLERGY_SUMMARY(patientId),
+  );
+  return (data as { allergies?: string[] } | null)?.allergies
+    ? (data as { allergies: string[] })
+    : { allergies: [] };
+}
+
+/**
  * Create prescription - POST /pharmacy/prescriptions (clinicId from x-clinic-id header)
  */
 export async function createPrescription(

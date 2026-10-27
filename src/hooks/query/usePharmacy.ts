@@ -18,6 +18,7 @@ import {
   getPrescriptions,
   getMedicineDeskQueue,
   getPrescriptionById,
+  getAllergySummary,
   createPrescription,
   updatePrescriptionStatus,
   dispensePrescription,
@@ -214,6 +215,22 @@ export const usePrescription = (prescriptionId: string) => {
     },
     {
       enabled: !!prescriptionId,
+    },
+  );
+};
+
+/**
+ * Known allergies for a patient, for a warning banner on the prescribing screen. Not a hard
+ * block (doctor-entered free text with real noise) — just surfaced before a medicine is picked.
+ */
+export const usePatientAllergySummary = (patientId: string | undefined) => {
+  return useQueryData(
+    ["allergy-summary", patientId],
+    async () => {
+      return await getAllergySummary(patientId as string);
+    },
+    {
+      enabled: Boolean(patientId),
     },
   );
 };

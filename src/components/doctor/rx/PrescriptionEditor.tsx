@@ -10,6 +10,7 @@ import { InitialsAvatar, Note, Pill, statusLabel, statusTone, TBD_SURFACE } from
 import { cn } from "@/lib/utils";
 import type { Medicine } from "@/types/pharmacy.types";
 import type { useMedicineFavourites, useRxKits } from "@/hooks/query/useDoctorFavourites";
+import { usePatientAllergySummary } from "@/hooks/query/usePharmacy";
 import { DiagnosisPicker } from "./DiagnosisPicker";
 import { MedicineCatalogue } from "./MedicineCatalogue";
 import { PrescriptionLines } from "./PrescriptionLines";
@@ -46,6 +47,8 @@ export interface PrescriptionEditorProps {
   /** Dialog only. */
   isOpen?: boolean;
   onClose: () => void;
+  /** For the known-allergies warning banner; omit to skip the check (e.g. no patient context yet). */
+  patientId?: string;
   patientName: string;
   patientSummary?: string;
   visitLabel?: string;
@@ -80,6 +83,7 @@ export function PrescriptionEditor({
   presentation = "dialog",
   isOpen = true,
   onClose,
+  patientId,
   patientName,
   patientSummary,
   visitLabel,
@@ -100,6 +104,11 @@ export function PrescriptionEditor({
   const [form, dispatch] = useReducer(prescriptionFormReducer, initialValues, (initial) => initial ?? emptyPrescriptionForm());
   const [managing, setManaging] = useState(false);
   const fieldId = useId();
+
+  // Warning only, never a hard block: allergy data here is doctor-entered free text with real
+  // noise, so a false-positive block would be worse than an occasional missed warning.
+  const allergySummary = usePatientAllergySummary(patientId);
+  const allergies = allergySummary.data?.allergies ?? [];
 
   const medicinesById = useMemo(() => new Map(medicines.map((medicine) => [medicine.id, medicine])), [medicines]);
   const addedIds = useMemo(() => new Set(form.medications.map((medication) => medication.medicineId).filter(Boolean)), [form.medications]);
@@ -216,6 +225,15 @@ export function PrescriptionEditor({
           </Pill>
         ) : null}
       </div>
+
+      {allergies.length > 0 ? (
+        <div className="flex items-start gap-2.5 rounded-[14px] border border-amber-300 bg-amber-50 px-3.5 py-2.5 dark:border-amber-900/60 dark:bg-amber-950/40">
+          <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+          <span className="text-[13px] font-semibold text-amber-900 dark:text-amber-200">
+            Known allergies: {allergies.join(", ")}. Check before prescribing.
+          </span>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <MedicineCatalogue
