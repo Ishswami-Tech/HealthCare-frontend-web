@@ -301,7 +301,10 @@ async function fetchInventory(clinicId: string, query: string): Promise<unknown>
 }
 
 /**
- * Get the medicines of a clinic as a plain list (no `page`: every matching row).
+ * Get the medicines of a clinic as a plain list. No `filters.limit`: every matching row (no
+ * `page` sent). With `filters.limit`: the backend ignores a bare `limit` without `page` and
+ * returns the whole inventory regardless (its documented legacy-compat behavior), so `page: 1`
+ * is sent alongside it to actually bound the result to the requested count.
  */
 export async function getMedicines(clinicId: string, filters?: MedicineListFilters) {
   const session = await getServerSession();
@@ -309,7 +312,10 @@ export async function getMedicines(clinicId: string, filters?: MedicineListFilte
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const data = await fetchInventory(clinicId, inventoryQuery(filters ?? {}));
+  const query = filters?.limit
+    ? inventoryQuery({ ...filters, page: 1 })
+    : inventoryQuery(filters ?? {});
+  const data = await fetchInventory(clinicId, query);
   return inventoryRows(data).map(normalizeMedicineRecord);
 }
 
