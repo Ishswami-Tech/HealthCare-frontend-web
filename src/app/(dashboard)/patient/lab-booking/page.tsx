@@ -22,6 +22,7 @@ import {
 } from "@/components/tbd";
 import { BookingDateStrip } from "@/components/appointments/booking/BookingDateStrip";
 import { useUserProfile } from "@/hooks/query/useUsers";
+import { useMyClinic } from "@/hooks/query/useClinics";
 import { useCancelLabBooking, useCreateLabBooking, useLabCatalog, useMyLabBookings } from "@/hooks/query/useLabBookings";
 import { asRow, text } from "@/components/patient/home/homeData";
 import { formatDateInIST, formatISODateInIST } from "@/lib/utils/date-time";
@@ -86,6 +87,19 @@ function MyBookings() {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Clinic-wide "Lab Reports Enabled" toggle (clinic-admin settings), defaults to on when unset. */
+function useLabBookingEnabled(): boolean {
+  const clinic = useMyClinic();
+  const settings: Record<string, unknown> = isRecord(clinic.data?.settings) ? clinic.data.settings : {};
+  const appt: Record<string, unknown> = isRecord(settings.appointmentSettings) ? settings.appointmentSettings : {};
+  const opd: Record<string, unknown> = isRecord(appt.opdControls) ? appt.opdControls : {};
+  return Boolean(opd.labBookingEnabled ?? true);
+}
+
 /** WebLabBooking: book a home sample pickup (`POST /lab-bookings`). No prices and no payment on this screen. */
 export default function PatientLabBookingPage() {
   const catalog = useLabCatalog();
@@ -93,6 +107,7 @@ export default function PatientLabBookingPage() {
   const create = useCreateLabBooking();
   const days = useMemo(() => pickupDays(), []);
   const profileRow = asRow(profile.data);
+  const labBookingEnabled = useLabBookingEnabled();
 
   const [packageCode, setPackageCode] = useState("");
   const [day, setDay] = useState<Date | undefined>(days[0]?.date);
@@ -140,7 +155,11 @@ export default function PatientLabBookingPage() {
       backHref="/patient/health/reports"
       backLabel="Reports"
     >
-      {catalog.isPending ? (
+      {!labBookingEnabled ? (
+        <Surface flush>
+          <EmptyBlock icon={FlaskConical} title="Home lab tests are not available right now" description="Your clinic has turned off home sample collection for now. Please check back later." />
+        </Surface>
+      ) : catalog.isPending ? (
         <SkeletonRows rows={4} />
       ) : catalog.error ? (
         <Surface flush>
