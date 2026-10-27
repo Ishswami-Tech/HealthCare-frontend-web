@@ -12,9 +12,9 @@ import { genderLabel } from "@/lib/utils/labels";
 
 const FAMILY_HREF = "/patient/family";
 
-/** Opens the booking wizard on the appointments page with this family member chosen. */
+/** Opens the booking wizard on the appointments page with this family member chosen, defaulted to video (the label this link carries). */
 function bookVideoVisitHref(memberId: string): string {
-  return `/patient/appointments?openBooking=1&familyMemberId=${encodeURIComponent(memberId)}`;
+  return `/patient/appointments?openBooking=1&mode=video&familyMemberId=${encodeURIComponent(memberId)}`;
 }
 
 export type FamilyMemberState = "loading" | "error" | "missing" | "ready";
