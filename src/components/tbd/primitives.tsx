@@ -525,12 +525,12 @@ export function ListRow({
 
 /** Round avatar with initials (fallback when there is no photo). */
 const AVATAR_TONES = [
-  "bg-[#fde68a] text-[#92400e]",
-  "bg-[#ddd6fe] text-[#5b21b6]",
-  "bg-[#bae6fd] text-[#075985]",
-  "bg-[#fecdd3] text-[#9f1239]",
-  "bg-[#bbf7d0] text-[#166534]",
-  "bg-[#fed7aa] text-[#9a3412]",
+  "bg-[#fde68a] text-[#92400e] dark:bg-amber-950/30 dark:text-amber-200",
+  "bg-[#ddd6fe] text-[#5b21b6] dark:bg-violet-950/30 dark:text-violet-200",
+  "bg-[#bae6fd] text-[#075985] dark:bg-sky-950/30 dark:text-sky-200",
+  "bg-[#fecdd3] text-[#9f1239] dark:bg-rose-950/30 dark:text-rose-200",
+  "bg-[#bbf7d0] text-[#166534] dark:bg-emerald-950/30 dark:text-emerald-200",
+  "bg-[#fed7aa] text-[#9a3412] dark:bg-orange-950/30 dark:text-orange-200",
 ] as const;
 
 export function InitialsAvatar({
