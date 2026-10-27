@@ -113,6 +113,8 @@ export function RoleBasedBillingDashboard({
     // `POST /billing/invoices/:id/mark-paid` needs `invoices:update`, which reception lacks.
     canMarkInvoicesPaid: isAdmin,
     showLedgerTab: isAdmin,
+    // `POST /billing/plans` is clinic-admin and super-admin only; finance holds no `billing:create`.
+    canCreatePlans: [Role.SUPER_ADMIN, Role.CLINIC_ADMIN].includes(userRole),
   };
   // What the API allows: `POST /billing/invoices` needs `invoices:create` (admins and finance;
   // reception is named on the route but lacks the permission, so the server answers 403);
@@ -316,6 +318,7 @@ export function RoleBasedBillingDashboard({
       syncing={isSyncing}
       onRefetch={() => onRefetch?.()}
       onNewInvoice={canCreateInvoices ? () => setIsCreateInvoiceOpen(true) : undefined}
+      onNewPlan={access.canCreatePlans ? () => setIsCreatePlanOpen(true) : undefined}
       plans={plans}
       subscriptions={subscriptions}
       invoices={invoices}

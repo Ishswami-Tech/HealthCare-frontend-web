@@ -14,6 +14,8 @@ export interface BillingAccess {
   canMarkInvoicesPaid: boolean;
   /** Ledger tab and the analytics summary (admin, finance). */
   showLedgerTab: boolean;
+  /** `POST /billing/plans` needs `billing:create` — only the clinic admin and super admin hold it, not finance. */
+  canCreatePlans: boolean;
 }
 
 /**

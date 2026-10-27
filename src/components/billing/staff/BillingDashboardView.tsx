@@ -62,6 +62,8 @@ export interface BillingDashboardViewProps {
   onRefetch: () => void;
   /** Given only to roles that may create an invoice. */
   onNewInvoice?: (() => void) | undefined;
+  /** Given only to roles that may create a billing plan (clinic admin, super admin). */
+  onNewPlan?: (() => void) | undefined;
 
   plans: BillingPlan[];
   subscriptions: Subscription[];
@@ -121,6 +123,7 @@ export function BillingDashboardView({
   syncing = false,
   onRefetch,
   onNewInvoice,
+  onNewPlan,
   plans,
   subscriptions,
   invoices,
@@ -192,6 +195,12 @@ export function BillingDashboardView({
               <RotateCcw className={cn(syncing && "animate-spin [animation-direction:reverse]")} />
               Sync Data
             </Button>
+            {onNewPlan ? (
+              <Button variant="outline" size="md" onClick={onNewPlan}>
+                <Plus />
+                New Plan
+              </Button>
+            ) : null}
             {onNewInvoice ? (
               <Button size="md" onClick={onNewInvoice}>
                 <Plus />
