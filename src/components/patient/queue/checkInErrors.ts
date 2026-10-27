@@ -84,6 +84,8 @@ export function checkInErrorCopy(
       return { title: "Old QR code", message: "This QR code was replaced. Please scan the new poster at the clinic.", fix: "rescan" };
     case "LOCATION_INACTIVE":
       return { title: "Check-in is off here", message: "Self check-in is switched off at this location. Please go to the reception desk.", fix: "reception" };
+    case "QR_CHECK_IN_DISABLED":
+      return { title: "QR check-in is off", message: "This clinic checks patients in from the queue instead of QR scanning. Please wait; reception will check you in.", fix: "reception" };
     case "LOCATION_REQUIRED":
       return {
         title: "Turn on location",

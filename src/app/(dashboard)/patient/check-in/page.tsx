@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useActiveSubscription } from "@/hooks/query/useBilling";
 import { planStatusOf } from "@/components/billing/plan-status.logic";
 import { useClinicProximity } from "@/components/patient/queue/useClinicProximity";
+import { useMyClinic } from "@/hooks/query/useClinics";
 import type { CheckInFailureCode, InPersonVisit } from "@/types/in-person.types";
 import {
   CheckedInView,
@@ -66,8 +67,22 @@ type CheckInState =
   | { kind: "error"; reason: CheckInFailureCode; message: string }
   | { kind: "location"; failure: LocationFailure };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Clinic-wide "QR Check-in Enabled" toggle (clinic-admin settings), defaults to on when unset. */
+function useQrCheckInEnabled(): boolean {
+  const clinic = useMyClinic();
+  const settings: Record<string, unknown> = isRecord(clinic.data?.settings) ? clinic.data.settings : {};
+  const appt: Record<string, unknown> = isRecord(settings.appointmentSettings) ? settings.appointmentSettings : {};
+  const opd: Record<string, unknown> = isRecord(appt.opdControls) ? appt.opdControls : {};
+  return Boolean(opd.qrCheckInEnabled ?? true);
+}
+
 export default function PatientCheckInPage() {
   const { push } = useRouter();
+  const qrCheckInEnabled = useQrCheckInEnabled();
   const { data: appointmentsData, isPending: isAppointmentsPending } = useMyAppointments();
   const { data: todayVisits } = useMyInPersonToday({ live: true });
   const checkIn = useInPersonCheckIn();
@@ -262,6 +277,20 @@ export default function PatientCheckInPage() {
   }
 
   const visit = introVisit;
+
+  // This clinic checks patients in from the queue instead of QR scanning: don't invite a scan
+  // that the backend would just refuse (see QR_CHECK_IN_DISABLED) - send them straight to the
+  // same "wait for reception" message.
+  if (!qrCheckInEnabled) {
+    return (
+      <CheckInErrorView
+        copy={checkInErrorCopy("QR_CHECK_IN_DISABLED", null)}
+        onScanAgain={() => push("/patient/appointments")}
+        onBook={() => push("/patient/appointments?openBooking=1")}
+        onRetryCode={() => push("/patient/appointments")}
+      />
+    );
+  }
 
   if (step === "scan" || !visit) {
     return (

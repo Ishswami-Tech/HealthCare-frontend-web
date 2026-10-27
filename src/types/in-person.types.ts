@@ -57,6 +57,7 @@ export type CheckInFailureCode =
   | "INVALID_QR"
   | "EXPIRED_QR"
   | "LOCATION_INACTIVE"
+  | "QR_CHECK_IN_DISABLED"
   | "QR_REQUIRED"
   | "QR_NOT_FOR_STAFF"
   | "APPOINTMENT_REQUIRED"
