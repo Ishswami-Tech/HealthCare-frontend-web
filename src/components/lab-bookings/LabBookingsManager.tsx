@@ -17,19 +17,26 @@ type FilterStatus = "ALL" | LabBookingStatus;
 
 const FILTERS: { key: FilterStatus; label: string }[] = [
   { key: "ALL", label: "All" },
+  { key: "REQUESTED", label: "Requested" },
   { key: "CONFIRMED", label: "Confirmed" },
   { key: "SAMPLE_COLLECTED", label: "Sample collected" },
   { key: "COMPLETED", label: "Completed" },
   { key: "CANCELLED", label: "Cancelled" },
 ];
 
-/** CONFIRMED -> SAMPLE_COLLECTED -> COMPLETED; CANCELLED is terminal, and so is COMPLETED. */
+/**
+ * REQUESTED -> CONFIRMED -> SAMPLE_COLLECTED -> COMPLETED; CANCELLED is terminal, and so is
+ * COMPLETED. REQUESTED is the backend's own creation-time default (every booking starts here,
+ * patient-submitted, nothing staff set it to) — it must still have a forward action or every new
+ * booking is stuck unconfirmed with no way for staff to act on it.
+ */
 const NEXT_STATUS: Partial<Record<LabBookingStatus, Exclude<LabBookingStatus, "REQUESTED">>> = {
+  REQUESTED: "CONFIRMED",
   CONFIRMED: "SAMPLE_COLLECTED",
   SAMPLE_COLLECTED: "COMPLETED",
 };
 const TERMINAL: ReadonlySet<LabBookingStatus> = new Set(["COMPLETED", "CANCELLED"]);
-const CANCELLABLE: ReadonlySet<LabBookingStatus> = new Set(["CONFIRMED", "SAMPLE_COLLECTED"]);
+const CANCELLABLE: ReadonlySet<LabBookingStatus> = new Set(["REQUESTED", "CONFIRMED", "SAMPLE_COLLECTED"]);
 
 /** `statusTone()`'s palette, as badge background/text classes. */
 const TONE_CLASSES: Record<string, string> = {
@@ -163,7 +170,8 @@ export function LabBookingsManager() {
           <div className="h-9 w-64 animate-pulse rounded bg-muted" />
           <div className="mt-2 h-4 w-80 animate-pulse rounded bg-muted" />
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <StatCardSkeleton icon={<FlaskConical className="size-4 text-amber-600" />} label="Requested" />
           <StatCardSkeleton icon={<FlaskConical className="size-4 text-blue-600" />} label="Confirmed" />
           <StatCardSkeleton icon={<FlaskConical className="size-4 text-blue-600" />} label="Sample collected" />
           <StatCardSkeleton icon={<FlaskConical className="size-4 text-green-600" />} label="Completed" />
@@ -187,7 +195,13 @@ export function LabBookingsManager() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">{counts.get("REQUESTED") ?? 0}</div>
+            <div className="text-sm text-gray-600">Requested</div>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{counts.get("CONFIRMED") ?? 0}</div>
