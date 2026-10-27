@@ -45,6 +45,9 @@ export const updateClinicSchema = z.object({
   // Empty string means "no logo/website set" (the form's default), not an invalid URL.
   logo: z.string().url().optional().or(z.literal('')),
   website: z.string().url().optional().or(z.literal('')),
+  // Empty string clears the clinic's support contact override (the form's default).
+  supportPhone: z.string().optional().or(z.literal('')),
+  supportEmail: z.string().email().optional().or(z.literal('')),
   operatingHours: z.string().optional(),
   description: z.string().max(500).optional(),
   timezone: z.string().optional(),

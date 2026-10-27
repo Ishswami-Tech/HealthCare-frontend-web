@@ -3,7 +3,7 @@
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useLanguage } from "@/lib/i18n/context";
 import { PatientHelpView } from "./PatientHelpView";
-import { HELP_FAQS, buildHelpContacts } from "./help.content";
+import { HELP_FAQS, buildHelpContacts, buildSupportContacts } from "./help.content";
 import { useMyClinic } from "@/hooks/query/useClinics";
 import { clinicHoursLines } from "./clinic-hours";
 
@@ -31,6 +31,7 @@ export function PatientHelpContent() {
     whatsapp: value("clinic.whatsapp"),
     email: value("clinic.email") || value("contact.contactInfo.emailAddresses.details.0"),
   });
+  const supportContacts = buildSupportContacts(myClinic?.supportPhone, myClinic?.supportEmail);
 
   const firstName =
     String(session?.user?.firstName || "").trim() || String(session?.user?.name || "").trim().split(/\s+/)[0] || "";
@@ -39,6 +40,7 @@ export function PatientHelpContent() {
     <PatientHelpView
       firstName={firstName || undefined}
       contacts={contacts}
+      supportContacts={supportContacts}
       address={value("clinic.address") || undefined}
       hours={hoursLines.length > 0 ? hoursLines.join("\n") : undefined}
       contactPageHref="/contact"

@@ -12,6 +12,8 @@ export interface PatientHelpViewProps {
   /** First name for the greeting; left out when it is not known. */
   firstName?: string | undefined;
   contacts: HelpContact[];
+  /** App/technical support rows — the clinic's own `supportPhone`/`supportEmail`, if set. */
+  supportContacts?: HelpContact[];
   address?: string | undefined;
   hours?: string | undefined;
   /** The public contact page (message form, map). */
@@ -28,15 +30,6 @@ const CONTACT_ICONS: Record<HelpContact["key"], TbdIcon> = {
   supportEmail: Mail,
 };
 
-/**
- * App/technical support — fixed, not clinic data, so it is always shown regardless of what the
- * clinic has published (unlike `contacts`, which comes from `buildHelpContacts`).
- */
-const SUPPORT_CONTACTS: HelpContact[] = [
-  { key: "supportCall", label: "Technical support", detail: "7218378311", href: "tel:+917218378311" },
-  { key: "supportEmail", label: "Technical support email", detail: "info@viddhakarma.com", href: "mailto:info@viddhakarma.com" },
-];
-
 const DOT_TONES: Record<HelpFaq["tone"], string> = {
   green: "bg-primary",
   orange: "bg-[#ea580c]",
@@ -47,6 +40,7 @@ const DOT_TONES: Record<HelpFaq["tone"], string> = {
 export function PatientHelpView({
   firstName,
   contacts,
+  supportContacts = [],
   address,
   hours,
   contactPageHref,
@@ -56,7 +50,7 @@ export function PatientHelpView({
   const [openIds, setOpenIds] = useState<string[]>(() => (faqs[0] ? [faqs[0].id] : []));
   const toggle = (id: string) =>
     setOpenIds((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
-  const allContacts = [...contacts, ...SUPPORT_CONTACTS];
+  const allContacts = [...contacts, ...supportContacts];
 
   return (
     <DashboardPageShell>

@@ -26,6 +26,10 @@ export interface Clinic {
   createdBy: string;
   /** ABDM Health Information Provider (HIP) id for this clinic. Scaffolding only. */
   abdmHipId?: string;
+  /** Clinic-set technical/app support phone, shown on the patient Help page. */
+  supportPhone?: string;
+  /** Clinic-set technical/app support email, shown on the patient Help page. */
+  supportEmail?: string;
 }
 
 export interface ClinicLocation {
@@ -202,6 +206,10 @@ export interface UpdateClinicData {
   settings?: Record<string, unknown>;
   /** ABDM Health Information Provider (HIP) id for this clinic. Scaffolding only. */
   abdmHipId?: string;
+  /** Clinic-set technical/app support phone, shown on the patient Help page. */
+  supportPhone?: string;
+  /** Clinic-set technical/app support email, shown on the patient Help page. */
+  supportEmail?: string;
 }
 
 export interface CreateClinicLocationData {
