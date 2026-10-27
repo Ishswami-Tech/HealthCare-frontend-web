@@ -140,12 +140,28 @@ export default function ClinicAdminDashboard() {
     );
   }, [doctorsData]);
 
+  // GET /queue only ever returns a raw locationId, never a name (same gap the "Location Health"
+  // table below works around with this exact clinicLocations lookup) — without this, the queue
+  // widget fell back to printing the UUID itself wherever a name was missing.
+  const locationNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    clinicLocations.forEach((location: any) => {
+      const id = String(location?.id || "");
+      if (id && location?.name) map.set(id, String(location.name));
+    });
+    return map;
+  }, [clinicLocations]);
+
   const queueItems = useMemo(
     () =>
       extractQueueEntries(liveQueueData)
         .filter((item: any) => !["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(String(item.status || "").toUpperCase()))
+        .map((item: any) => ({
+          ...item,
+          locationName: item.locationName || locationNameById.get(String(item.locationId || "")) || "",
+        }))
         .toSorted((a: any, b: any) => a.position - b.position),
-    [liveQueueData]
+    [liveQueueData, locationNameById]
   );
 
   const queueSections = useMemo(() => {
