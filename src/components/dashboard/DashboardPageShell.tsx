@@ -70,7 +70,7 @@ function HeaderActions({
   if (actions.length === 0 && !actionsSlot) return null;
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 lg:max-w-[50%]">
       {actions.map((action) => {
         const content = (
           <>
