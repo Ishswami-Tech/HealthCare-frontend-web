@@ -195,8 +195,9 @@ function WalkInForm() {
   const [offer, setOffer] = useState<{ patientId: string; message: string; slot: WalkInNextAvailable | null } | null>(null);
   const [bookedLabel, setBookedLabel] = useState("");
 
-  // Multi-doctor clinics: the desk must pick who sees the walk-in. With a single active doctor the
-  // server auto-assigns, so no doctorId is sent at all.
+  // The desk must pick who sees the walk-in only when its own location has more than one doctor.
+  // The server's auto-assign only fires when the clinic as a whole has a single doctor (it is not
+  // location-aware), so a location with exactly one doctor must still send that doctor's id itself.
   const doctorsQuery = useDoctors(clinicId, { isActive: true, ...(locationId ? { locationId } : {}) }, { enabled: Boolean(clinicId) });
   const doctors = useMemo(
     () => (Array.isArray(doctorsQuery.data) ? (doctorsQuery.data as Array<{ id?: string; name?: string; specialization?: string }>) : []).filter(
@@ -205,7 +206,9 @@ function WalkInForm() {
     [doctorsQuery.data],
   );
   const needsDoctor = doctors.length > 1;
-  const chosenDoctorId = needsDoctor && doctors.some((doctor) => doctor.id === doctorId) ? doctorId : "";
+  const chosenDoctorId = needsDoctor
+    ? (doctors.some((doctor) => doctor.id === doctorId) ? doctorId : "")
+    : (doctors[0]?.id ?? "");
 
   // One call (contract 18.5): the server creates the visit for now at the desk's location, assigns
   // the chosen doctor (or the clinic's single doctor) and checks the patient in (same service as
