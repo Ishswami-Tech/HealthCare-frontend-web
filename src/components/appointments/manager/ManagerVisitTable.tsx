@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils";
 import { VisitAvatar, VisitTypeChip } from "./ManagerVisitCard";
 import type { ManagerPayRenderer, ManagerVisit, ManagerVisitActions } from "./types";
 
-const PAST_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_140px_140px_110px_110px]";
+// The outcome column was 110px — just narrow enough that "COMPLETED" overflowed into the next
+// column and sat under the "Rate visit" button. Widened along with the actions column next to it.
+const PAST_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_140px_140px_135px_130px]";
 const CLOSED_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_120px_120px_110px_150px]";
 const ROW = "flex flex-col gap-2.5 border-b border-hair py-3 text-ink last:border-b-0 @3xl:grid @3xl:items-center @3xl:gap-4";
 

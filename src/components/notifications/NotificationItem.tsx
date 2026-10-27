@@ -175,8 +175,9 @@ export function NotificationItem({
         </div>
       </button>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      {/* Actions — always visible, not hover-only: a hover-reveal never shows on a touch
+          screen, which made mark-as-read/remove undiscoverable there. */}
+      <div className="flex items-center gap-1">
         {!notification.isRead && (
           <Button
             variant="ghost"
