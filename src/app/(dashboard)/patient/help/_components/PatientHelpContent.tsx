@@ -6,7 +6,6 @@ import { PatientHelpView } from "./PatientHelpView";
 import { HELP_FAQS, buildHelpContacts } from "./help.content";
 import { useMyClinic } from "@/hooks/query/useClinics";
 import { clinicHoursLines } from "./clinic-hours";
-import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 
 /**
  * Help & support. The clinic's phone, WhatsApp, email and address are the same values the public
@@ -45,7 +44,6 @@ export function PatientHelpContent() {
       contactPageHref="/contact"
       backHref="/patient/profile"
       faqs={HELP_FAQS}
-      chat={<SupportChatPanel />}
     />
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Clock, Mail, MapPin, MessageCircle, Minus, Phone, Plus } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
@@ -18,15 +18,24 @@ export interface PatientHelpViewProps {
   contactPageHref: string;
   backHref: string;
   faqs: HelpFaq[];
-  /** The in-app help chat, drawn above the common questions. */
-  chat?: ReactNode;
 }
 
 const CONTACT_ICONS: Record<HelpContact["key"], TbdIcon> = {
   whatsapp: MessageCircle,
   call: Phone,
   email: Mail,
+  supportCall: Phone,
+  supportEmail: Mail,
 };
+
+/**
+ * App/technical support — fixed, not clinic data, so it is always shown regardless of what the
+ * clinic has published (unlike `contacts`, which comes from `buildHelpContacts`).
+ */
+const SUPPORT_CONTACTS: HelpContact[] = [
+  { key: "supportCall", label: "Technical support", detail: "7218378311", href: "tel:+917218378311" },
+  { key: "supportEmail", label: "Technical support email", detail: "info@viddhakarma.com", href: "mailto:info@viddhakarma.com" },
+];
 
 const DOT_TONES: Record<HelpFaq["tone"], string> = {
   green: "bg-primary",
@@ -43,11 +52,11 @@ export function PatientHelpView({
   contactPageHref,
   backHref,
   faqs,
-  chat,
 }: PatientHelpViewProps) {
   const [openIds, setOpenIds] = useState<string[]>(() => (faqs[0] ? [faqs[0].id] : []));
   const toggle = (id: string) =>
     setOpenIds((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
+  const allContacts = [...contacts, ...SUPPORT_CONTACTS];
 
   return (
     <DashboardPageShell>
@@ -63,9 +72,9 @@ export function PatientHelpView({
               <p className="m-0 text-[13px] text-ink-muted">Reach the clinic the way that suits you.</p>
             </div>
 
-            {contacts.length > 0 ? (
+            {allContacts.length > 0 ? (
               <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
-                {contacts.map((contact) => {
+                {allContacts.map((contact) => {
                   const Icon = CONTACT_ICONS[contact.key];
                   const external = contact.key === "whatsapp";
                   return (
@@ -132,7 +141,6 @@ export function PatientHelpView({
         </SoftCard>
 
         <div className="flex min-w-0 flex-col gap-5">
-          {chat}
           <section className="flex min-w-0 flex-col gap-3" aria-labelledby="help-faq-title">
             <h2 id="help-faq-title" className="m-0 text-base font-bold text-ink">
               Common questions

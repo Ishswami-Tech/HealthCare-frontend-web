@@ -75,7 +75,7 @@ export const HELP_FAQS: HelpFaq[] = [
 // ── Ways to reach the clinic ───────────────────────────────────────────────
 
 export interface HelpContact {
-  key: "whatsapp" | "call" | "email";
+  key: "whatsapp" | "call" | "email" | "supportCall" | "supportEmail";
   label: string;
   /** The number or address, as the clinic publishes it. */
   detail: string;
