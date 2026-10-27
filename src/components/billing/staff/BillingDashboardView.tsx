@@ -27,7 +27,6 @@ import {
   NoActivePlanNote,
   PatientBillingStats,
   PatientPlansTab,
-  PatientSubscriptionsTab,
 } from "./BillingPatientSections";
 import {
   EMPTY_BILLING_FILTERS,
@@ -87,6 +86,12 @@ export interface BillingDashboardViewProps {
   onChoosePlan: (plan: BillingPlan) => void;
   subscribeError?: string;
 
+  /** Patient branch: cancel/renew the active subscription shown atop the Plans tab. */
+  onCancelSubscription?: (subscription: Subscription) => void;
+  onRenewSubscription?: (subscription: Subscription) => void;
+  cancellingSubscription?: boolean;
+  renewingSubscription?: boolean;
+
   /** Dialogs owned by the container (new invoice, subscription checkout). */
   children?: ReactNode;
 }
@@ -140,6 +145,10 @@ export function BillingDashboardView({
   openInvoicePdfPending = false,
   onChoosePlan,
   subscribeError = "",
+  onCancelSubscription,
+  onRenewSubscription,
+  cancellingSubscription = false,
+  renewingSubscription = false,
   children,
 }: BillingDashboardViewProps) {
   const { isPatient } = access;
@@ -309,21 +318,21 @@ export function BillingDashboardView({
         ) : null}
 
         {isPatient ? (
-          <>
-            <TabsContent value="plans">
-              <PatientPlansTab
-                plans={plans}
-                activePlanId={activeSubscription?.planId}
-                subscribeError={subscribeError}
-                loading={loading}
-                onChoosePlan={onChoosePlan}
-                onReload={onRefetch}
-              />
-            </TabsContent>
-            <TabsContent value="subscriptions">
-              <PatientSubscriptionsTab subscriptions={subscriptions} loading={loading} />
-            </TabsContent>
-          </>
+          <TabsContent value="plans">
+            <PatientPlansTab
+              plans={plans}
+              activePlanId={activeSubscription?.planId}
+              activeSubscription={activeSubscription}
+              subscribeError={subscribeError}
+              loading={loading}
+              onChoosePlan={onChoosePlan}
+              onReload={onRefetch}
+              onCancelSubscription={onCancelSubscription}
+              onRenewSubscription={onRenewSubscription}
+              cancellingSubscription={cancellingSubscription}
+              renewingSubscription={renewingSubscription}
+            />
+          </TabsContent>
         ) : null}
 
         <TabsContent value="invoices">

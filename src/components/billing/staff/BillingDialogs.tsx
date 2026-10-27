@@ -3,12 +3,12 @@
 import type { ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Note } from "@/components/tbd";
-import type { BillingPlan } from "@/types/billing.types";
+import type { BillingPlan, Subscription } from "@/types/billing.types";
 import { formatRupees } from "@/lib/utils/currency";
 
 export type PlanCycle = "MONTHLY" | "QUARTERLY" | "YEARLY";
@@ -211,6 +211,75 @@ export function ConfirmSubscriptionDialog({
             </div>
           </div>
         ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Confirms before cancelling the active subscription shown on the Plans tab. */
+export function ConfirmCancelSubscriptionDialog({
+  subscription,
+  pending,
+  onConfirm,
+  onClose,
+}: {
+  subscription: Subscription | null;
+  pending: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={!!subscription} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Cancel subscription</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to cancel this subscription? You will lose access to the remaining benefits
+            associated with this plan.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" size="md" onClick={onClose} disabled={pending}>
+            Keep Subscription
+          </Button>
+          <Button variant="destructive" size="md" onClick={onConfirm} disabled={pending}>
+            {pending ? "Cancelling…" : "Yes, Cancel"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Confirms before renewing the active subscription shown on the Plans tab. */
+export function ConfirmRenewSubscriptionDialog({
+  subscription,
+  pending,
+  onConfirm,
+  onClose,
+}: {
+  subscription: Subscription | null;
+  pending: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={!!subscription} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Renew subscription</DialogTitle>
+          <DialogDescription>
+            Renew this subscription to continue enjoying the plan benefits for another billing cycle.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" size="md" onClick={onClose} disabled={pending}>
+            Not Now
+          </Button>
+          <Button variant="action" size="md" onClick={onConfirm} disabled={pending}>
+            {pending ? "Renewing…" : "Confirm Renewal"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

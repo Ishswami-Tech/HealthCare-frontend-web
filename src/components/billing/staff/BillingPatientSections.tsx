@@ -1,9 +1,9 @@
 "use client";
 
-import { AlertCircle, CreditCard, Receipt, RefreshCw, Wallet } from "lucide-react";
+import { AlertCircle, CalendarDays, CreditCard, Receipt, RefreshCw, TicketCheck, Wallet, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, IconBox, Kpi, Note, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
+import { EmptyBlock, Kpi, Note, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
 import type { BillingPlan, Payment, Subscription } from "@/types/billing.types";
 import { formatBillingDate } from "./billing.logic";
 import { formatRupees } from "@/lib/utils/currency";
@@ -51,52 +51,157 @@ export function NoActivePlanNote({ onViewPlans }: { onViewPlans: () => void }) {
   );
 }
 
+/** The patient's own current subscription — status, period, visit usage, cancel/renew. Sits
+ * above the plan grid so "what I have" and "what I could switch to" are one view, not two tabs. */
+export function ActiveSubscriptionCard({
+  subscription,
+  onCancel,
+  onRenew,
+  cancelling = false,
+  renewing = false,
+}: {
+  subscription: Subscription;
+  onCancel: () => void;
+  onRenew: () => void;
+  cancelling?: boolean;
+  renewing?: boolean;
+}) {
+  const plan = subscription.plan;
+  const isCancelled = subscription.status === "CANCELLED";
+  const isPastDue = subscription.status === "PAST_DUE";
+  const limit = subscription.appointmentsLimit ?? subscription.appointmentsUsed + (subscription.appointmentsRemaining ?? 0);
+  const remainingVisits = subscription.remainingVisits ?? subscription.appointmentsRemaining ?? 0;
+  const visitsLabel =
+    plan?.isUnlimitedAppointments && !subscription.appointmentsLimit
+      ? "Unlimited"
+      : remainingVisits === 0 && subscription.appointmentsUsed === 0 && !limit
+        ? "—"
+        : `${subscription.appointmentsUsed} used${limit ? ` / ${limit}` : ""}`;
+
+  return (
+    <Surface as="section" aria-label="Your current plan" className="gap-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-base font-extrabold text-ink">{plan?.name || "Subscription Plan"}</span>
+            <Pill tone={subscription.status === "TRIALING" ? "blue" : statusTone(subscription.status)}>
+              {statusLabel(subscription.status)}
+            </Pill>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="size-3.5" aria-hidden="true" />
+              Started {formatBillingDate(subscription.startDate)}
+            </span>
+            {subscription.endDate || subscription.currentPeriodEnd ? (
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarDays className="size-3.5" aria-hidden="true" />
+                {isCancelled ? "Ended" : "Renews"} {formatBillingDate(subscription.endDate || subscription.currentPeriodEnd)}
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1.5">
+              <TicketCheck className="size-3.5" aria-hidden="true" />
+              {visitsLabel} visits
+            </span>
+          </div>
+          {isPastDue ? (
+            <p className="m-0 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              Payment is past due. Renewing may resolve the issue.
+            </p>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          {!isCancelled && !isPastDue ? (
+            <Button variant="outline" size="sm" onClick={onCancel} disabled={cancelling || renewing}>
+              <XCircle />
+              {cancelling ? "Cancelling…" : "Cancel"}
+            </Button>
+          ) : null}
+          <Button size="sm" onClick={onRenew} disabled={cancelling || renewing}>
+            <RefreshCw />
+            {renewing ? "Renewing…" : "Renew"}
+          </Button>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
 export function PatientPlansTab({
   plans,
   activePlanId,
+  activeSubscription,
   subscribeError,
   loading = false,
   onChoosePlan,
   onReload,
+  onCancelSubscription,
+  onRenewSubscription,
+  cancellingSubscription = false,
+  renewingSubscription = false,
 }: {
   plans: BillingPlan[];
   loading?: boolean;
   /** Plan of the active (or trial) subscription, if any. */
   activePlanId?: string | undefined;
+  /** The full active subscription record, shown above the plan grid. */
+  activeSubscription?: Subscription | undefined;
   subscribeError?: string;
   onChoosePlan: (plan: BillingPlan) => void;
   onReload: () => void;
+  onCancelSubscription?: (subscription: Subscription) => void;
+  onRenewSubscription?: (subscription: Subscription) => void;
+  cancellingSubscription?: boolean;
+  renewingSubscription?: boolean;
 }) {
+  const activeCard =
+    activeSubscription && onCancelSubscription && onRenewSubscription ? (
+      <ActiveSubscriptionCard
+        subscription={activeSubscription}
+        onCancel={() => onCancelSubscription(activeSubscription)}
+        onRenew={() => onRenewSubscription(activeSubscription)}
+        cancelling={cancellingSubscription}
+        renewing={renewingSubscription}
+      />
+    ) : null;
+
   if (loading && plans.length === 0) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading plans">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-[196px] rounded-[20px]" />
-        ))}
+      <div className="flex flex-col gap-4">
+        {activeCard}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading plans">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-[196px] rounded-[20px]" />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (plans.length === 0) {
     return (
-      <Surface flush>
-        <EmptyBlock
-          icon={CreditCard}
-          title="No subscription plans available right now"
-          description="Please refresh or contact clinic admin to publish billing plans for this clinic."
-          action={
-            <Button variant="outline" size="md" onClick={onReload}>
-              <RefreshCw />
-              Reload Plans
-            </Button>
-          }
-        />
-      </Surface>
+      <div className="flex flex-col gap-4">
+        {activeCard}
+        <Surface flush>
+          <EmptyBlock
+            icon={CreditCard}
+            title="No subscription plans available right now"
+            description="Please refresh or contact clinic admin to publish billing plans for this clinic."
+            action={
+              <Button variant="outline" size="md" onClick={onReload}>
+                <RefreshCw />
+                Reload Plans
+              </Button>
+            }
+          />
+        </Surface>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {activeCard}
       {subscribeError ? (
         <Note tone="rose" icon={AlertCircle}>
           <span role="alert">{subscribeError}</span>
@@ -139,53 +244,3 @@ export function PatientPlansTab({
   );
 }
 
-export function PatientSubscriptionsTab({
-  subscriptions,
-  loading = false,
-}: {
-  subscriptions: Subscription[];
-  loading?: boolean;
-}) {
-  if (loading && subscriptions.length === 0) {
-    return <Skeleton className="h-[72px] w-full rounded-[20px]" aria-busy="true" aria-label="Loading subscriptions" />;
-  }
-
-  if (subscriptions.length === 0) {
-    return (
-      <Surface flush>
-        <EmptyBlock
-          icon={CreditCard}
-          title="No subscriptions found"
-          description="You haven't subscribed to any billing plans yet."
-        />
-      </Surface>
-    );
-  }
-
-  return (
-    <Surface flush as="section" aria-label="Subscriptions">
-      <ul className="m-0 list-none p-0">
-        {subscriptions.map((subscription) => (
-          <li
-            key={subscription.id}
-            className="flex flex-wrap items-center gap-3.5 border-b border-hair px-5 py-3.5 last:border-b-0"
-          >
-            <IconBox icon={CreditCard} tone="mint" />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-sm font-bold text-ink">{subscription.plan?.name || "Subscription Plan"}</span>
-              <span className="text-xs text-ink-muted">
-                Started on{" "}
-                <span className="font-semibold text-ink-soft">
-                  {subscription.startDate ? formatBillingDate(subscription.startDate) : "Not available"}
-                </span>
-              </span>
-            </span>
-            <Pill tone={subscription.status === "TRIALING" ? "blue" : statusTone(subscription.status)}>
-              {statusLabel(subscription.status)}
-            </Pill>
-          </li>
-        ))}
-      </ul>
-    </Surface>
-  );
-}

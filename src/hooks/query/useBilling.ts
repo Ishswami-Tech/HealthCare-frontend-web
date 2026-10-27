@@ -409,6 +409,21 @@ export function useCancelSubscription() {
   );
 }
 
+export function useRenewSubscription() {
+  return useMutationOperation<Subscription, string>(
+    async (id: string) => {
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.RENEW(id), NO_BODY);
+      return (unwrapObject<Subscription>(result.data, ['subscription']) ?? (result.data as Subscription)) as Subscription;
+    },
+    {
+      toastId: 'subscription-renew',
+      loadingMessage: 'Renewing subscription...',
+      successMessage: 'Subscription renewed successfully',
+      invalidateQueries: [['subscriptions'], ['active-subscription'], ['clinic-subscriptions'], ['billing-analytics']],
+    }
+  );
+}
+
 export function useSubscriptionUsageStats(id: string) {
   return useQueryData<SubscriptionUsageStats>(
     ['subscription-usage', id],

@@ -15,6 +15,8 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   useCreateSubscription,
+  useCancelSubscription,
+  useRenewSubscription,
   useCreateBillingPlan,
   useGenerateInvoicePDF,
   useSendInvoiceViaWhatsApp,
@@ -27,6 +29,8 @@ import { cn } from "@/lib/utils";
 import { InvoiceForm } from "./InvoiceForm";
 import { BillingDashboardView } from "./staff/BillingDashboardView";
 import {
+  ConfirmCancelSubscriptionDialog,
+  ConfirmRenewSubscriptionDialog,
   ConfirmSubscriptionDialog,
   CreateInvoiceDialog,
   CreatePlanDialog,
@@ -68,7 +72,7 @@ interface RoleBasedBillingDashboardProps {
   headerOverride?: { eyebrow: string; title: string; description: string };
 }
 
-const PATIENT_TABS = ["plans", "subscriptions", "payments", "invoices"] as const;
+const PATIENT_TABS = ["plans", "payments", "invoices"] as const;
 const STAFF_TABS = ["overview", "invoices", "payments"] as const;
 const ADMIN_TABS = ["overview", "invoices", "payments", "ledger"] as const;
 
@@ -135,8 +139,12 @@ export function RoleBasedBillingDashboard({
   const [subscribeError, setSubscribeError] = useState("");
   const [isSubscriptionPaymentOpen, setIsSubscriptionPaymentOpen] = useState(false);
   const [pendingSubscriptionPayment, setPendingSubscriptionPayment] = useState<PendingSubscriptionPayment | null>(null);
+  const [subscriptionToCancel, setSubscriptionToCancel] = useState<Subscription | null>(null);
+  const [subscriptionToRenew, setSubscriptionToRenew] = useState<Subscription | null>(null);
 
   const createSubscriptionMutation = useCreateSubscription();
+  const cancelSubscriptionMutation = useCancelSubscription();
+  const renewSubscriptionMutation = useRenewSubscription();
   const createPlanMutation = useCreateBillingPlan();
   const sendInvoiceWhatsAppMutation = useSendInvoiceViaWhatsApp();
   const generateInvoicePDFMutation = useGenerateInvoicePDF();
@@ -174,6 +182,26 @@ export function RoleBasedBillingDashboard({
       setIsSubscriptionPaymentOpen(true);
     } catch (error) {
       setSubscribeError(error instanceof Error ? error.message : "Failed to create subscription.");
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!subscriptionToCancel) return;
+    try {
+      await cancelSubscriptionMutation.mutateAsync({ id: subscriptionToCancel.id });
+      setSubscriptionToCancel(null);
+    } catch {
+      // Error toast is already handled by the mutation wrapper.
+    }
+  };
+
+  const handleRenewSubscription = async () => {
+    if (!subscriptionToRenew) return;
+    try {
+      await renewSubscriptionMutation.mutateAsync(subscriptionToRenew.id);
+      setSubscriptionToRenew(null);
+    } catch {
+      // Error toast is already handled by the mutation wrapper.
     }
   };
 
@@ -335,6 +363,10 @@ export function RoleBasedBillingDashboard({
       openInvoicePdfPending={generateInvoicePDFMutation.isPending}
       onChoosePlan={setPlanToConfirm}
       subscribeError={subscribeError}
+      onCancelSubscription={setSubscriptionToCancel}
+      onRenewSubscription={setSubscriptionToRenew}
+      cancellingSubscription={cancelSubscriptionMutation.isPending}
+      renewingSubscription={renewSubscriptionMutation.isPending}
     >
       <CreateInvoiceDialog open={isCreateInvoiceOpen} onOpenChange={setIsCreateInvoiceOpen}>
         <InvoiceForm
@@ -364,6 +396,20 @@ export function RoleBasedBillingDashboard({
         pending={createSubscriptionMutation.isPending}
         onConfirm={() => void handleSubscribePlan()}
         onClose={() => setPlanToConfirm(null)}
+      />
+
+      <ConfirmCancelSubscriptionDialog
+        subscription={subscriptionToCancel}
+        pending={cancelSubscriptionMutation.isPending}
+        onConfirm={() => void handleCancelSubscription()}
+        onClose={() => setSubscriptionToCancel(null)}
+      />
+
+      <ConfirmRenewSubscriptionDialog
+        subscription={subscriptionToRenew}
+        pending={renewSubscriptionMutation.isPending}
+        onConfirm={() => void handleRenewSubscription()}
+        onClose={() => setSubscriptionToRenew(null)}
       />
 
       <SubscriptionPaymentDialog

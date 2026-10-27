@@ -31,8 +31,11 @@ const PaymentButton = dynamic(
   { ssr: false },
 );
 
-/** Old deep links (`?tab=payments` after a payment) land on the invoices list. */
-const TAB_ALIASES: Partial<Record<string, PatientBillingTab>> = { payments: "invoices" };
+/**
+ * Old deep links: `?tab=payments` (after a payment) lands on the invoices list; `subscriptions`
+ * was its own tab before it was folded into Plans (the active subscription now shows there).
+ */
+const TAB_ALIASES: Partial<Record<string, PatientBillingTab>> = { payments: "invoices", subscriptions: "plans" };
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : "";

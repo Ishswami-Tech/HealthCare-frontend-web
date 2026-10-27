@@ -41,7 +41,7 @@ import {
 import { formatRupees } from "@/lib/utils/currency";
 import { EMPTY_DATE_LABEL, formatDateLabel } from "@/lib/utils/date-time";
 
-export const PATIENT_BILLING_TABS = ["invoices", "plans", "subscriptions"] as const;
+export const PATIENT_BILLING_TABS = ["invoices", "plans"] as const;
 export type PatientBillingTab = (typeof PATIENT_BILLING_TABS)[number];
 
 /** Id of the block, so "View plans" can scroll to it. */
@@ -335,21 +335,22 @@ function SubscriptionsList({
   failed,
   showHistory,
   onToggleHistory,
-  onOpenPlans,
+  /** Shown inline above the Plans grid, where "no subscriptions" and "view plans" are redundant. */
+  embedded = false,
 }: {
   groups: SubscriptionGroups;
   loading: boolean;
   failed: boolean;
   showHistory: boolean;
   onToggleHistory: () => void;
-  onOpenPlans: () => void;
+  embedded?: boolean;
 }) {
   if (loading) {
     return <Skeleton className="h-[76px] w-full rounded-[20px]" aria-busy="true" aria-label="Loading subscriptions" />;
   }
 
   if (groups.all.length === 0 && failed) {
-    return (
+    return embedded ? null : (
       <Surface flush>
         <EmptyBlock
           icon={AlertCircle}
@@ -362,20 +363,7 @@ function SubscriptionsList({
   }
 
   if (groups.all.length === 0) {
-    return (
-      <Surface flush>
-        <EmptyBlock
-          icon={Wallet}
-          title="You do not have any subscriptions yet"
-          description="Pick a plan to start using subscription benefits."
-          action={
-            <Button size="md" onClick={onOpenPlans}>
-              View plans
-            </Button>
-          }
-        />
-      </Surface>
-    );
+    return null;
   }
 
   const hasActive = groups.active.length > 0;
@@ -387,7 +375,7 @@ function SubscriptionsList({
     <div className="flex flex-col gap-4">
       {!hasActive && hasEnded ? (
         <Note tone="amber" icon={AlertCircle} className="flex-wrap">
-          <strong className="font-bold">Your subscription has ended.</strong> You can buy a plan again from the Plans tab.
+          <strong className="font-bold">Your subscription has ended.</strong> Pick a plan below to subscribe again.
         </Note>
       ) : null}
       <Surface flush as="section" aria-label="Subscriptions">
@@ -420,16 +408,13 @@ function SubscriptionsList({
           })}
         </ul>
       </Surface>
-      <div className="flex flex-wrap items-center gap-2.5">
-        <Button variant="outline" size="md" onClick={onOpenPlans}>
-          View plans
-        </Button>
-        {hasActive && hasEnded ? (
+      {hasActive && hasEnded ? (
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button variant="ghost" size="md" onClick={onToggleHistory} aria-expanded={showHistory}>
             {showHistory ? "Hide subscription history" : `View subscription history (${groups.ended.length})`}
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -459,13 +444,12 @@ export function BillingMoreTabs({
 }: BillingMoreTabsProps) {
   return (
     <Tabs id={BILLING_TABS_ID} value={tab} onValueChange={onTabChange} className="scroll-mt-24 gap-4">
-      <TabsList aria-label="Invoices, plans and subscriptions">
+      <TabsList aria-label="Invoices and plans">
         <TabsTrigger value="invoices">
           Invoices
           {invoicesLoading ? null : <TabsCount>{invoices.length}</TabsCount>}
         </TabsTrigger>
         <TabsTrigger value="plans">Plans</TabsTrigger>
-        <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
       </TabsList>
 
       <TabsContent value="invoices">
@@ -479,7 +463,15 @@ export function BillingMoreTabs({
         />
       </TabsContent>
 
-      <TabsContent value="plans">
+      <TabsContent value="plans" className="flex flex-col gap-4">
+        <SubscriptionsList
+          groups={subscriptions}
+          loading={subscriptionsLoading}
+          failed={subscriptionsFailed}
+          showHistory={showSubscriptionHistory}
+          onToggleHistory={onToggleSubscriptionHistory}
+          embedded
+        />
         <PlansGrid
           plans={plans}
           loading={plansLoading}
@@ -489,17 +481,6 @@ export function BillingMoreTabs({
           onReloadPlans={onReloadPlans}
           pendingInvoice={pendingPlanInvoice(invoices)}
           onOpenInvoices={() => onTabChange("invoices")}
-        />
-      </TabsContent>
-
-      <TabsContent value="subscriptions">
-        <SubscriptionsList
-          groups={subscriptions}
-          loading={subscriptionsLoading}
-          failed={subscriptionsFailed}
-          showHistory={showSubscriptionHistory}
-          onToggleHistory={onToggleSubscriptionHistory}
-          onOpenPlans={() => onTabChange("plans")}
         />
       </TabsContent>
     </Tabs>
