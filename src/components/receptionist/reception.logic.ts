@@ -64,6 +64,8 @@ export interface ReceptionVisit {
   canReschedule: boolean;
   /** "1 of 2 changes left" */
   rescheduleHint: string | null;
+  /** Not yet checked in today, and the backend's cancel rule allows it (receptionist can request CANCELLED). */
+  canCancel: boolean;
   /** Lower-case text the desk search matches (name, phone, booking id). */
   searchText: string;
 }
@@ -181,6 +183,7 @@ export function toReceptionVisit(appointment: Row, now: number): ReceptionVisit 
       isClinic && stage === "booked" && !terminal && NO_SHOW_STATUSES.has(status) && startsAt !== null && startsAt.getTime() < now,
     canReschedule: visit.canReschedule,
     rescheduleHint: visit.rescheduleHint,
+    canCancel: stage === "booked" && visit.canCancel,
     searchText: [visit.title, phone, visit.id, visit.doctorName].join(" ").toLowerCase(),
   };
 }

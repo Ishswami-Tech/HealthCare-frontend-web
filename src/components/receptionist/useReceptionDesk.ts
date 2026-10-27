@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   useAppointments,
+  useCancelAppointment,
   useMarkAppointmentNoShow,
   useUpdateAppointmentStatus,
 } from "@/hooks/query/useAppointments";
@@ -246,4 +247,20 @@ export function useReceptionNoShow() {
   );
 
   return { mark, isPending: markNoShow.isPending };
+}
+
+/**
+ * Cancels a visit that has not been checked in yet (`PATCH /appointments/:id/status
+ * { status: CANCELLED }`, the same mutation the patient's own cancel flow uses). No undo: the
+ * slot is released immediately, so the row action confirms with the patient/receptionist first.
+ */
+export function useReceptionCancel() {
+  const cancelMutation = useCancelAppointment();
+
+  const cancel = useCallback(
+    (visit: Pick<ReceptionVisit, "id">, reason?: string) => cancelMutation.mutateAsync({ id: visit.id, reason }),
+    [cancelMutation],
+  );
+
+  return { cancel, isPending: cancelMutation.isPending };
 }
