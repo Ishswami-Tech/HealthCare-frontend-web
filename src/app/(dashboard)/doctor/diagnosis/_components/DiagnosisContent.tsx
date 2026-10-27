@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ClipboardList, Loader2, Stethoscope } from "lucide-react";
@@ -38,6 +38,58 @@ const ADVICE_SNIPPETS = [
 ] as const;
 
 const DURATION_PREFIX = "Duration: ";
+
+// Nothing in this form persisted until "Save note"/"Continue to prescription" was clicked, so a
+// crashed tab, closed browser or dropped network request before that click lost the whole note —
+// this is a best-effort, per-visit localStorage draft to cover that gap (not a substitute for a
+// periodic server-side save, which would additionally cover "doctor's machine is gone").
+interface ConsultDraft {
+  complaint: string;
+  diagnosis: string;
+  advice: string;
+  symptoms: string[];
+  duration: string;
+  savedAt: number;
+}
+
+function consultDraftKey(appointmentId: string): string {
+  return `consult-draft:${appointmentId}`;
+}
+
+function readConsultDraft(key: string): ConsultDraft | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ConsultDraft>;
+    if (typeof parsed.savedAt !== "number") return null;
+    return {
+      complaint: parsed.complaint ?? "",
+      diagnosis: parsed.diagnosis ?? "",
+      advice: parsed.advice ?? "",
+      symptoms: Array.isArray(parsed.symptoms) ? parsed.symptoms : [],
+      duration: parsed.duration ?? "",
+      savedAt: parsed.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeConsultDraft(key: string, draft: ConsultDraft): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // Storage full or unavailable (private browsing): autosave is best-effort only.
+  }
+}
+
+function clearConsultDraft(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Nothing to do if storage itself is unavailable.
+  }
+}
 
 /**
  * DocDiagnosis: the complaint, diagnosis (ICD codes, provisional / final) and examination & advice of
@@ -138,6 +190,7 @@ function DiagnosisForm({
   saving: boolean;
   onSave: (values: DiagnosisValues, continueToRx: boolean) => Promise<void>;
 }) {
+  const draftKey = consultDraftKey(context.appointmentId);
   const [complaint, setComplaint] = useState(saved.complaint);
   const [diagnosis, setDiagnosis] = useState(saved.diagnosis);
   const [advice, setAdvice] = useState(saved.advice);
@@ -146,6 +199,49 @@ function DiagnosisForm({
     saved.symptoms.find((item) => item.startsWith(DURATION_PREFIX))?.slice(DURATION_PREFIX.length) ?? "",
   );
   const [error, setError] = useState<string | null>(null);
+  // Computed once at mount (the component remounts per visit via its `key`): an unsaved local
+  // draft newer than what loaded from the server, offered as a restore rather than silently
+  // applied, so it never clobbers a note someone else already saved for this visit.
+  const [restoreDraft, setRestoreDraft] = useState<ConsultDraft | null>(() => {
+    const draft = readConsultDraft(draftKey);
+    if (!draft) return null;
+    const hasContent = Boolean(draft.complaint.trim() || draft.diagnosis.trim() || draft.advice.trim() || draft.symptoms.length || draft.duration.trim());
+    if (!hasContent) {
+      clearConsultDraft(draftKey);
+      return null;
+    }
+    const matchesSaved = draft.complaint === saved.complaint && draft.diagnosis === saved.diagnosis && draft.advice === saved.advice;
+    return matchesSaved ? null : draft;
+  });
+
+  // Debounced autosave: a crashed tab or dropped network request before an explicit "Save note"
+  // loses nothing older than this interval instead of losing the whole note.
+  useEffect(() => {
+    if (readOnly) return;
+    const hasContent = Boolean(complaint.trim() || diagnosis.trim() || advice.trim() || symptoms.length || duration.trim());
+    const timer = window.setTimeout(() => {
+      if (hasContent) {
+        writeConsultDraft(draftKey, { complaint, diagnosis, advice, symptoms, duration, savedAt: Date.now() });
+      } else {
+        clearConsultDraft(draftKey);
+      }
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [complaint, diagnosis, advice, symptoms, duration, draftKey, readOnly]);
+
+  const applyRestoredDraft = () => {
+    if (!restoreDraft) return;
+    setComplaint(restoreDraft.complaint);
+    setDiagnosis(restoreDraft.diagnosis);
+    setAdvice(restoreDraft.advice);
+    setSymptoms(restoreDraft.symptoms);
+    setDuration(restoreDraft.duration);
+    setRestoreDraft(null);
+  };
+  const discardRestoredDraft = () => {
+    clearConsultDraft(draftKey);
+    setRestoreDraft(null);
+  };
 
   const append = (current: string, text: string) => (current.trim() ? `${current.trim()} ${text}` : text);
   const toggleSymptom = (symptom: string) =>
@@ -158,6 +254,7 @@ function DiagnosisForm({
         { complaint, diagnosis, advice, symptoms: duration ? [...symptoms, `${DURATION_PREFIX}${duration}`] : symptoms },
         next,
       );
+      clearConsultDraft(draftKey);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "The visit note could not be saved.");
     }
@@ -182,6 +279,22 @@ function DiagnosisForm({
         ) : null
       }
     >
+      {restoreDraft ? (
+        <Surface className="flex-row flex-wrap items-center justify-between gap-3 border-amber-300 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40">
+          <span className="text-[13px] font-semibold text-ink">
+            You have an unsaved note from earlier that never made it to this visit.
+          </span>
+          <span className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={discardRestoredDraft}>
+              Discard
+            </Button>
+            <Button size="sm" onClick={applyRestoredDraft}>
+              Restore draft
+            </Button>
+          </span>
+        </Surface>
+      ) : null}
+
       <Surface className="flex-row flex-wrap items-center gap-3">
         <InitialsAvatar name={context.patientName} size={42} />
         <span className="flex min-w-[160px] flex-1 flex-col">
