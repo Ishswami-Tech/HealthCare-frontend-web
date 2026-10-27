@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMyClinic } from "@/hooks/query/useClinics";
 
 export interface BookingStepperStep {
   id: string;
@@ -71,8 +72,14 @@ export function BookingStepper<T extends BookingStepperStep>({
   );
 }
 
-/** Compact help line under the stepper. */
+/** Compact help line under the stepper, showing the clinic's own support phone. Renders nothing
+ *  if the clinic hasn't set one (Clinic Admin settings), rather than falling back to a fixed
+ *  number that would not reach that clinic. */
 export function BookingHelpLine({ className }: { className?: string | undefined }) {
+  const { data: myClinic } = useMyClinic();
+  const supportPhone = (myClinic?.supportPhone ?? "").trim();
+  if (!supportPhone) return null;
+
   return (
     <p
       className={cn(
@@ -82,10 +89,10 @@ export function BookingHelpLine({ className }: { className?: string | undefined 
     >
       <span>Need help?</span>
       <a
-        href="tel:+917218378311"
+        href={`tel:${supportPhone}`}
         className="font-bold text-[#b45309] underline-offset-2 hover:underline dark:text-amber-300"
       >
-        +91 7218378311
+        {supportPhone}
       </a>
     </p>
   );
