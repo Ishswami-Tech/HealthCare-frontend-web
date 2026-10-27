@@ -6,7 +6,9 @@ import { formatRupees } from "@/lib/utils/currency";
 
 const CHART_CONFIG = {
   paid: { label: "Paid", theme: { light: "#047857", dark: "#34d399" } },
-  pending: { label: "Pending", theme: { light: "#fbbf24", dark: "#fbbf24" } },
+  // Same light/dark asymmetry as "paid" above (a darker shade reads on white, a lighter one on
+  // black) — this pair previously used the identical hex for both themes.
+  pending: { label: "Pending", theme: { light: "#d97706", dark: "#fbbf24" } },
 } satisfies ChartConfig;
 
 interface SplitBarProps {
