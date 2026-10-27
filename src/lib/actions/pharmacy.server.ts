@@ -782,49 +782,57 @@ export async function getPrescriptionPaymentSummary(prescriptionId: string) {
 
 /**
  * Dispense prescription items - supports full or partial fulfillment via backend POST /pharmacy/prescriptions/:id/dispense
+ *
+ * Returns an ActionResult instead of throwing: a blocked dispense (insufficient/expired stock,
+ * payment pending, ...) is a routine 4xx the dispense dialog needs to show, not an exception —
+ * authenticatedApi rethrows those as a raw ApiError instance, which isn't a plain serializable
+ * error and crashed the dialog ("Minified React error #441") instead of showing the backend's
+ * actual reason. Found during a pharmacist full-day operational test.
  */
 export async function dispensePrescription(
   prescriptionId: string,
   dispensingData?: DispensePrescriptionData,
-) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
+): Promise<ActionResult<unknown>> {
+  return toActionResult(async () => {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      throw new Error('Unauthorized: Authentication required');
+    }
 
-  const { data } = await authenticatedApi(
-    API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.DISPENSE(prescriptionId),
-    {
-      method: "POST",
-      body: JSON.stringify({
-        ...(dispensingData?.dispensedMedications?.length
-          ? {
-              items: dispensingData.dispensedMedications.map((item) => ({
-                medicineId: item.medicineId,
-                ...(item.prescriptionItemId
-                  ? { prescriptionItemId: item.prescriptionItemId }
-                  : {}),
-                quantity: item.quantityDispensed,
-                batchNumber: item.batchNumber,
-                expiryDate: item.expiryDate,
-                // A substitute and its reason travel with the line (the API accepts both).
-                ...(item.substituteMedicineId
-                  ? { substituteMedicineId: item.substituteMedicineId }
-                  : {}),
-                ...(item.substituteMedicineId && item.substitutionReason
-                  ? { substitutionReason: item.substitutionReason }
-                  : {}),
-              })),
-            }
-          : {}),
-        ...(dispensingData?.dispensedAt
-          ? { dispensedAt: dispensingData.dispensedAt }
-          : {}),
-        ...(dispensingData?.notes ? { notes: dispensingData.notes } : {}),
-      }),
-    },
-  );
-  return data;
+    const { data } = await authenticatedApi(
+      API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.DISPENSE(prescriptionId),
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ...(dispensingData?.dispensedMedications?.length
+            ? {
+                items: dispensingData.dispensedMedications.map((item) => ({
+                  medicineId: item.medicineId,
+                  ...(item.prescriptionItemId
+                    ? { prescriptionItemId: item.prescriptionItemId }
+                    : {}),
+                  quantity: item.quantityDispensed,
+                  batchNumber: item.batchNumber,
+                  expiryDate: item.expiryDate,
+                  // A substitute and its reason travel with the line (the API accepts both).
+                  ...(item.substituteMedicineId
+                    ? { substituteMedicineId: item.substituteMedicineId }
+                    : {}),
+                  ...(item.substituteMedicineId && item.substitutionReason
+                    ? { substitutionReason: item.substitutionReason }
+                    : {}),
+                })),
+              }
+            : {}),
+          ...(dispensingData?.dispensedAt
+            ? { dispensedAt: dispensingData.dispensedAt }
+            : {}),
+          ...(dispensingData?.notes ? { notes: dispensingData.notes } : {}),
+        }),
+      },
+    );
+    return data;
+  });
 }
 
 /**

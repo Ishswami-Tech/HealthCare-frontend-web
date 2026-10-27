@@ -596,7 +596,7 @@ export const useDispensePrescription = () => {
       prescriptionId: string;
       dispensingData: DispensePrescriptionData;
     }) => {
-      return await dispensePrescription(prescriptionId, dispensingData);
+      return dataOrThrow(await dispensePrescription(prescriptionId, dispensingData));
     },
     {
       toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
