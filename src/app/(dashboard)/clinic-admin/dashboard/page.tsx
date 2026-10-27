@@ -810,7 +810,7 @@ export default function ClinicAdminDashboard() {
                 </div>
                 <div className={cn(
                   "flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase",
-                  item.isUp ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"
+                  item.isUp ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
                 )}>
                   {item.isUp ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
                   {item.trend}
@@ -854,8 +854,8 @@ export default function ClinicAdminDashboard() {
               <Users className="size-5 text-indigo-600 dark:text-indigo-300" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-              <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700">Doctors {staffSummary.doctors}</Badge>
-              <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700">Reception {staffSummary.reception}</Badge>
+              <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300">Doctors {staffSummary.doctors}</Badge>
+              <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300">Reception {staffSummary.reception}</Badge>
             </div>
             <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-indigo-700 hover:no-underline">
               <Link href="/clinic-admin/staff">Open staff page</Link>
@@ -871,8 +871,8 @@ export default function ClinicAdminDashboard() {
               <MapPin className="size-5 text-emerald-600 dark:text-emerald-300" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-              <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">Queued {queueItems.length}</Badge>
-              <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">Paused {inactiveLocationCount}</Badge>
+              <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">Queued {queueItems.length}</Badge>
+              <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">Paused {inactiveLocationCount}</Badge>
             </div>
             <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-emerald-700 hover:no-underline">
               <Link href="/clinic-admin/locations">Open locations page</Link>
@@ -888,8 +888,8 @@ export default function ClinicAdminDashboard() {
               <CalendarDays className="size-5 text-sky-600 dark:text-sky-300" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-              <Badge variant="outline" className="border-sky-200 bg-white text-sky-700">Doctors {doctorRosterSummary.total}</Badge>
-              <Badge variant="outline" className="border-sky-200 bg-white text-sky-700">Specialties {doctorRosterSummary.specialties}</Badge>
+              <Badge variant="outline" className="border-sky-200 bg-white text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300">Doctors {doctorRosterSummary.total}</Badge>
+              <Badge variant="outline" className="border-sky-200 bg-white text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300">Specialties {doctorRosterSummary.specialties}</Badge>
             </div>
             <Button asChild variant="link" className="mt-2 h-auto p-0 text-xs font-semibold text-sky-700 hover:no-underline">
               <Link href="/clinic-admin/schedule">Open schedule page</Link>
@@ -905,10 +905,10 @@ export default function ClinicAdminDashboard() {
               <Settings className="size-5 text-violet-600 dark:text-violet-300" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-              <Badge variant="outline" className="border-violet-200 bg-white text-violet-700">
+              <Badge variant="outline" className="border-violet-200 bg-white text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-300">
                 {clinicSettingsSnapshot.walkInAllowed ? "Walk-ins on" : "Walk-ins off"}
               </Badge>
-              <Badge variant="outline" className="border-violet-200 bg-white text-violet-700">
+              <Badge variant="outline" className="border-violet-200 bg-white text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-300">
                 {clinicSettingsSnapshot.clinicPaused ? "Paused" : "Open"}
               </Badge>
             </div>
@@ -958,16 +958,16 @@ export default function ClinicAdminDashboard() {
           </CardHeader>
           <CardContent className="gap-y-3 p-4">
             <div className="flex flex-wrap gap-2 text-[11px]">
-              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.generalConsultationEnabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
+              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.generalConsultationEnabled ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300")}>
                 General {clinicSettingsSnapshot.generalConsultationEnabled ? "On" : "Off"}
               </Badge>
-              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.videoConsultationEnabled ? "border-sky-200 bg-sky-50 text-sky-700" : "border-amber-200 bg-amber-50 text-amber-700")}>
+              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.videoConsultationEnabled ? "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300" : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300")}>
                 Video {clinicSettingsSnapshot.videoConsultationEnabled ? "On" : "Off"}
               </Badge>
-              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.emergencyOnly ? "border-rose-200 bg-rose-50 text-rose-700" : "border-border bg-background text-muted-foreground")}>
+              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.emergencyOnly ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300" : "border-border bg-background text-muted-foreground")}>
                 {clinicSettingsSnapshot.emergencyOnly ? "Emergency only" : "Standard mode"}
               </Badge>
-              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.clinicPaused ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700")}>
+              <Badge variant="outline" className={cn("border", clinicSettingsSnapshot.clinicPaused ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300")}>
                 {clinicSettingsSnapshot.clinicPaused ? "Paused" : "Open"}
               </Badge>
             </div>
@@ -1029,14 +1029,14 @@ export default function ClinicAdminDashboard() {
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
                 <span className="rounded-full border border-border bg-background px-2.5 py-1">Live queue snapshot</span>
                 <span className="rounded-full border border-border bg-background px-2.5 py-1">Location lanes</span>
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                   Live Monitoring
                 </span>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100"
                 onClick={() => push("/queue")}
               >
                 View Queue Workspace
@@ -1053,17 +1053,17 @@ export default function ClinicAdminDashboard() {
             ) : queueItems.length > 0 ? (
         <div className="flex flex-col gap-y-3">
                 {highlightedQueueItem ? (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
                           Next patient
                         </div>
                         <div className="mt-1 truncate text-lg font-semibold text-foreground">
                           {highlightedQueueItem.patientName || "Walk-in Patient"}
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">
+                          <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                             {highlightedQueueItem.locationName || highlightedQueueItem.locationId || "Main clinic"}
                           </Badge>
                           <span>{highlightedQueueItem.doctorName || "Assigned doctor pending"}</span>
@@ -1076,9 +1076,9 @@ export default function ClinicAdminDashboard() {
                         className={cn(
                           "shrink-0 px-2.5 py-1 text-xs font-semibold",
                           String(highlightedQueueItem.status || "").toUpperCase() === "IN_PROGRESS"
-                            ? "border-blue-200 bg-blue-50 text-blue-700"
+                            ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
                             : String(highlightedQueueItem.status || "").toUpperCase() === "CONFIRMED"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
                               : "border-border bg-background text-muted-foreground"
                         )}
                       >
@@ -1121,7 +1121,7 @@ export default function ClinicAdminDashboard() {
                       {activeQueueSection?.title || "Live queue"}
                     </div>
                   </div>
-                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                     {selectedQueueItems.length}
                   </Badge>
                 </div>
@@ -1156,7 +1156,7 @@ export default function ClinicAdminDashboard() {
                             <div className="truncate">{item.doctorName || (item.assignedDoctorId ? "Assigned Doctor" : "Unassigned Doctor")}</div>
                             {item.primaryDoctorId &&
                             String(item.primaryDoctorId) !== String(item.assignedDoctorId || "") ? (
-                              <Badge variant="outline" className="mt-1 border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] font-semibold uppercase text-amber-700">
+                              <Badge variant="outline" className="mt-1 border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] font-semibold uppercase text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
                                 Delegated
                               </Badge>
                             ) : null}
@@ -1173,9 +1173,9 @@ export default function ClinicAdminDashboard() {
                               className={cn(
                                 "rounded-lg border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest",
                                 String(item.status || "").toUpperCase() === "IN_PROGRESS"
-                                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                                  ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
                                   : String(item.status || "").toUpperCase() === "CONFIRMED"
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
                                     : "border-border bg-muted text-muted-foreground"
                               )}
                             >
@@ -1225,7 +1225,7 @@ export default function ClinicAdminDashboard() {
                               <div className="text-xs">{item.timeLabel}</div>
                             </TableCell>
                             <TableCell className="py-2 text-right">
-                              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] font-semibold uppercase text-amber-700">
+                              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] font-semibold uppercase text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
                                 {item.paymentStatus === "PAID" ? "Ready" : "Awaiting payment"}
                               </Badge>
                             </TableCell>
@@ -1264,7 +1264,7 @@ export default function ClinicAdminDashboard() {
                   Payment-gated prescription handovers across the clinic
                 </CardDescription>
               </div>
-              <Badge variant="outline" className="w-fit border-amber-200 bg-amber-50 text-amber-700">
+              <Badge variant="outline" className="w-fit border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
                 Live medication flow
               </Badge>
             </CardHeader>
@@ -1371,8 +1371,8 @@ export default function ClinicAdminDashboard() {
                               className={cn(
                                 "border text-[10px] font-semibold uppercase",
                                 location.isActive
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-amber-200 bg-amber-50 text-amber-700"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                  : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
                               )}
                             >
                               {location.isActive ? "Active" : "Paused"}
