@@ -128,6 +128,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Check-In", href: "/receptionist/check-in", icon: ClipboardList, permission: Permission.MANAGE_QUEUE },
     { title: "Walk-in", href: "/receptionist/walk-in", icon: UserPlus, permission: Permission.CREATE_APPOINTMENTS },
     { title: "Collect payment", href: "/receptionist/collect", icon: Banknote, permission: Permission.PROCESS_PAYMENTS },
+    { title: "Lab bookings", href: "/receptionist/lab-bookings", icon: FlaskConical },
     { title: "Billing & Collections", href: "/billing?tab=invoices", icon: Wallet, permission: Permission.MANAGE_BILLING },
     // Patients' help-chat threads (`/support/threads`).
     { title: "Messages", href: "/receptionist/messages", icon: MessageSquareText },
@@ -168,6 +169,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   LAB_TECHNICIAN: [
     { title: "Dashboard", href: "/lab-technician/dashboard", icon: LayoutDashboard },
     { title: "Test Results", href: "/lab-technician/results", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
+    { title: "Bookings", href: "/lab-technician/bookings", icon: FlaskConical },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
   ],
   SUPPORT_STAFF: [

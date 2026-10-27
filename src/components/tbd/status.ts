@@ -15,6 +15,8 @@ const STATUS_TONES: Record<string, PillTone> = {
   IN_PROGRESS: "blue",
   WAITING: "amber",
   ON_HOLD: "amber",
+  // lab bookings
+  SAMPLE_COLLECTED: "blue",
   COMPLETED: "teal",
   DISCHARGED: "slate",
   CANCELLED: "rose",

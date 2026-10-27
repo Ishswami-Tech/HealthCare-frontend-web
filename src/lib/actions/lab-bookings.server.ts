@@ -104,3 +104,41 @@ export async function cancelLabBooking(id: string): Promise<ActionResult<LabBook
     return caughtFailure(error);
   }
 }
+
+/**
+ * Staff view of every booking for the clinic (reception, clinic admin, lab technician):
+ * `GET /lab-bookings?status=`. `status` omitted returns every status.
+ */
+export async function getStaffLabBookings(status?: LabBookingStatus): Promise<ActionResult<LabBooking[]>> {
+  try {
+    const session = await requireSession();
+    if (!session.success) return session;
+    const endpoint = status ? `${API_ENDPOINTS.LAB_BOOKING.LIST}?status=${status}` : API_ENDPOINTS.LAB_BOOKING.LIST;
+    const { status: httpStatus, data } = await authenticatedApi<LabBooking[]>(endpoint);
+    return statusFailure(httpStatus, "Lab bookings") ?? actionSuccess(Array.isArray(data) ? data : []);
+  } catch (error) {
+    return caughtFailure(error);
+  }
+}
+
+/**
+ * Advance a booking's status (reception, clinic admin, lab technician):
+ * `PATCH /lab-bookings/:id/status`. The backend refuses once a booking is COMPLETED or
+ * CANCELLED (terminal states) — callers should not offer status actions on those.
+ */
+export async function setLabBookingStatus(
+  id: string,
+  nextStatus: Exclude<LabBookingStatus, "REQUESTED">
+): Promise<ActionResult<LabBooking>> {
+  try {
+    const session = await requireSession();
+    if (!session.success) return session;
+    const { status, data } = await authenticatedApi<LabBooking>(API_ENDPOINTS.LAB_BOOKING.SET_STATUS(id), {
+      method: "PATCH",
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    return statusFailure(status, "Lab booking") ?? actionSuccess(data);
+  } catch (error) {
+    return caughtFailure(error);
+  }
+}

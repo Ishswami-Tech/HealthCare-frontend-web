@@ -1253,6 +1253,9 @@ export const API_ENDPOINTS = {
     CREATE: '/lab-bookings',
     MINE: '/lab-bookings/mine',
     CANCEL: (id: string) => `/lab-bookings/${id}/cancel`,
+    // Staff (reception, clinic admin, lab technician): GET /lab-bookings?status=, PATCH status.
+    LIST: '/lab-bookings',
+    SET_STATUS: (id: string) => `/lab-bookings/${id}/status`,
   },
 
   // Clinic admin billing ops, staff, holidays, QR and check-in log (API_CONTRACT §2, 3, 7, 9, 10, 15).

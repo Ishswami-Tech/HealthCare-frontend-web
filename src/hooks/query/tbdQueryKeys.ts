@@ -62,6 +62,8 @@ export const tbdKeys = {
     tests: (clinicId: string) => ["lab-booking", clinicId, "tests"] as const,
     slots: (clinicId: string, testId: string, date: string) => ["lab-booking", clinicId, "slots", testId, date] as const,
     mine: (clinicId: string) => ["lab-booking", clinicId, "mine"] as const,
+    /** Staff list (reception, clinic admin, lab technician), optionally filtered by status. */
+    staff: (clinicId: string, status?: string) => ["lab-booking", clinicId, "staff", status ?? "all"] as const,
   },
 } as const;
 

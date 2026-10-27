@@ -9,7 +9,10 @@ import {
   createLabBooking,
   getLabCatalog,
   getMyLabBookings,
+  getStaffLabBookings,
+  setLabBookingStatus,
   type CreateLabBookingInput,
+  type LabBookingStatus,
 } from "@/lib/actions/lab-bookings.server";
 
 function unwrap<T>(result: { success: true; data: T } | { success: false; error: string }): T {
@@ -44,3 +47,26 @@ export const useCancelLabBooking = () =>
     successMessage: "Lab booking cancelled",
     invalidateQueries: [[...tbdKeys.labBooking.all()]],
   });
+
+/** Staff list of every booking for the clinic (`GET /lab-bookings?status=`). */
+export const useStaffLabBookings = (status?: LabBookingStatus) => {
+  const clinicId = useCurrentClinicId();
+  return useQueryData(
+    tbdKeys.labBooking.staff(clinicId, status),
+    async () => unwrap(await getStaffLabBookings(status)),
+    TBD_CACHE.working
+  );
+};
+
+/** Advance a booking's status (`PATCH /lab-bookings/:id/status`). */
+export const useSetLabBookingStatus = () =>
+  useMutationOperation(
+    async ({ id, status }: { id: string; status: Exclude<LabBookingStatus, "REQUESTED"> }) =>
+      unwrap(await setLabBookingStatus(id, status)),
+    {
+      toastId: "lab-booking-set-status",
+      loadingMessage: "Updating the booking...",
+      successMessage: "Booking updated",
+      invalidateQueries: [[...tbdKeys.labBooking.all()]],
+    }
+  );
