@@ -145,6 +145,7 @@ function createInitialProfileData(
       languagesSpoken: stringList(pick("languagesSpoken", "languages")),
       clinicAffiliations: [],
       localizedProfile: toLocalizedProfileDraft(pick("localizedProfile")),
+      abdmHprId: fieldText(pick("abdmHprId")),
     },
     consultationSettings: {
       consultationFee: fieldText(pick("consultationFee")),
@@ -324,6 +325,7 @@ export function DoctorProfileContent({
       certifications: professionalInfo.certifications.map((line) => line.trim()).filter(Boolean),
       languages: professionalInfo.languagesSpoken.map((line) => line.trim()).filter(Boolean),
       localizedProfile: toLocalizedProfilePayload(professionalInfo.localizedProfile),
+      ...(omitEmpty(professionalInfo.abdmHprId) ? { abdmHprId: omitEmpty(professionalInfo.abdmHprId) } : {}),
     };
   };
 

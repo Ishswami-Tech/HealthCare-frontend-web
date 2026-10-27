@@ -48,6 +48,7 @@ const basicsOf = (location: ClinicLocation): Basics => ({
   address: location.address ?? "",
   city: location.city ?? "",
   zipCode: location.zipCode ?? "",
+  abdmHfrId: location.abdmHfrId ?? "",
 });
 
 // CaLocationEdit (B3): details, weekly hours, QR, holidays and open / close of one location.
@@ -153,6 +154,9 @@ export default function CaLocationEditPage() {
               </Field>
               <Field label="PIN code" htmlFor="loc-zip">
                 <Input id="loc-zip" value={basics.zipCode} onChange={(e) => setBasics({ ...basics, zipCode: e.target.value })} />
+              </Field>
+              <Field label="ABDM HFR ID" htmlFor="loc-abdm-hfr-id">
+                <Input id="loc-abdm-hfr-id" value={basics.abdmHfrId} onChange={(e) => setBasics({ ...basics, abdmHfrId: e.target.value })} />
               </Field>
             </div>
             <Note tone="blue">Patient QR check-in opens {CHECK_IN_OPENS_MINUTES_BEFORE} minutes before the slot and closes {CHECK_IN_CLOSES_MINUTES_AFTER} minutes after it starts.</Note>

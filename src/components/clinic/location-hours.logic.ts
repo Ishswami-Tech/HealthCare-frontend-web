@@ -139,6 +139,8 @@ export interface LocationBasics {
   address: string;
   city: string;
   zipCode: string;
+  /** ABDM Health Facility Registry (HFR) id for this location. Scaffolding only. */
+  abdmHfrId: string;
 }
 
 /**
@@ -152,7 +154,7 @@ export function locationChanges(
   editedHours: WeekHours,
 ): Partial<LocationBasics> & { workingHours?: WorkingHoursPayload } {
   const changes: Partial<LocationBasics> & { workingHours?: WorkingHoursPayload } = {};
-  for (const key of ["name", "phone", "address", "city", "zipCode"] as const) {
+  for (const key of ["name", "phone", "address", "city", "zipCode", "abdmHfrId"] as const) {
     const next = edited[key].trim();
     if (next !== initial[key].trim()) changes[key] = next;
   }

@@ -66,6 +66,13 @@ export function DoctorProfileProfessionalTab({
               onChange={(e) => updateProfessionalInfo("experience", e.target.value)}
             />
           </ProfileField>
+          <ProfileField label="ABDM HPR ID" htmlFor="abdmHprId">
+            <Input
+              id="abdmHprId"
+              value={professionalInfo.abdmHprId}
+              onChange={(e) => updateProfessionalInfo("abdmHprId", e.target.value)}
+            />
+          </ProfileField>
         </div>
 
         <div className="flex flex-col gap-2">

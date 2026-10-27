@@ -35,6 +35,7 @@ import {
 import { ClinicAdminShortcuts } from "@/components/clinic-admin/ClinicAdminShortcuts";
 import { OperatingWindowsEditor } from "@/components/dashboard/OperatingWindowsEditor";
 import { PaymentProviderSettings } from "@/components/clinic-admin/PaymentProviderSettings";
+import { AbdmSettings } from "./_components/AbdmSettings";
 import { BookableServicesSettings } from "./_components/BookableServicesSettings";
 import { BookingDaysWalkInSettings } from "./_components/BookingDaysWalkInSettings";
 import { AlertTriangle, Loader2, Save, Plus, Stethoscope, Trash2, Video, Ban } from "lucide-react";
@@ -746,6 +747,7 @@ export default function ClinicAdminSettingsPage() {
             </CardContent>
           </Card>
           {clinic?.id ? <PaymentProviderSettings clinicId={clinic.id} currency={clinicForm.currency} /> : null}
+          {clinic?.id ? <AbdmSettings clinicId={clinic.id} abdmHipId={clinic.abdmHipId} /> : null}
           {clinic?.id ? (
             <BookableServicesSettings clinicId={clinic.id} clinicSettings={clinic.settings} className={PROFILE_CARD_CLASS} />
           ) : null}

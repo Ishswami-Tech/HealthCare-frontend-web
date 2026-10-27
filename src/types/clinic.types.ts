@@ -24,6 +24,8 @@ export interface Clinic {
   createdAt: string;
   updatedAt: string;
   createdBy: string;
+  /** ABDM Health Information Provider (HIP) id for this clinic. Scaffolding only. */
+  abdmHipId?: string;
 }
 
 export interface ClinicLocation {
@@ -45,6 +47,8 @@ export interface ClinicLocation {
   settings?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  /** ABDM Health Facility Registry (HFR) id for this location. Scaffolding only. */
+  abdmHfrId?: string;
 }
 
 export interface ClinicUser {
@@ -196,6 +200,8 @@ export interface UpdateClinicData {
   status?: string;
   isActive?: boolean;
   settings?: Record<string, unknown>;
+  /** ABDM Health Information Provider (HIP) id for this clinic. Scaffolding only. */
+  abdmHipId?: string;
 }
 
 export interface CreateClinicLocationData {
@@ -233,6 +239,8 @@ export interface UpdateClinicLocationData {
     | { start: string; end: string }
     | Record<string, { start: string; end: string } | Array<{ start: string; end: string }> | null>;
   settings?: Record<string, unknown>;
+  /** ABDM Health Facility Registry (HFR) id for this location. Scaffolding only. */
+  abdmHfrId?: string;
 }
 
 export interface AssignClinicAdminData {

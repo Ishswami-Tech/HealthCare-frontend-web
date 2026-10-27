@@ -30,6 +30,8 @@ export interface DoctorProfileProfessionalInfo {
   clinicAffiliations: string[];
   /** Public name, headline and highlights per language (en / hi / mr). */
   localizedProfile: LocalizedProfileDraft;
+  /** ABDM Health Professional Registry (HPR) id. Scaffolding only; not yet verified against ABDM. */
+  abdmHprId: string;
 }
 
 export interface DoctorProfileConsultationSettings {

@@ -430,6 +430,8 @@ export async function updateDoctorProfile(doctorUserId: string, profileData: {
   languages?: string[];
   /** Public name, headline and highlights per language; null clears them. */
   localizedProfile?: LocalizedProfile | null;
+  /** ABDM Health Professional Registry (HPR) id. Scaffolding only. */
+  abdmHprId?: string;
 }) {
   const session = await getServerSession();
   if (!session?.user) return { success: false as const, error: 'Unauthorized' };

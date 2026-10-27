@@ -52,4 +52,6 @@ export const updateClinicSchema = z.object({
   language: z.string().optional(),
   isActive: z.boolean().optional(),
   settings: z.record(z.string(), z.unknown()).optional(),
+  // ABDM Health Information Provider (HIP) id for this clinic. Scaffolding only.
+  abdmHipId: z.string().optional(),
 });
