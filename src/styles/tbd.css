@@ -110,9 +110,45 @@
   --wash-a: 254, 215, 170;
   --wash-b: 253, 230, 138;
 }
+/* Dark mode: each tone keeps its own hue as a low-opacity glow over the shared dark page
+ * background, instead of every route collapsing into the same bare near-black page — the wash
+ * is what gives each section its identity in light mode, so it needs a per-tone dark version too,
+ * not one generic rule for all six. Same two-gradient-plus-page-color structure as the light
+ * rules above, just tinted color instead of a flat pastel fill. */
 .dark .tbd-wash {
   background:
-    radial-gradient(520px 360px at 100% 0%, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0) 70%),
+    radial-gradient(520px 360px at 100% 0%, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 70%),
+    radial-gradient(460px 320px at 8% 26%, rgba(56, 189, 248, 0.07) 0%, rgba(56, 189, 248, 0) 70%),
+    var(--background);
+}
+.dark .tbd-wash[data-tone="sky"] {
+  background:
+    radial-gradient(520px 360px at 100% 0%, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0) 70%),
+    radial-gradient(460px 320px at 8% 26%, rgba(16, 185, 129, 0.07) 0%, rgba(16, 185, 129, 0) 70%),
+    var(--background);
+}
+.dark .tbd-wash[data-tone="lavender"] {
+  background:
+    radial-gradient(520px 360px at 100% 0%, rgba(167, 139, 250, 0.12) 0%, rgba(167, 139, 250, 0) 70%),
+    radial-gradient(460px 320px at 8% 26%, rgba(244, 114, 182, 0.07) 0%, rgba(244, 114, 182, 0) 70%),
+    var(--background);
+}
+.dark .tbd-wash[data-tone="sun"] {
+  background:
+    radial-gradient(520px 360px at 100% 0%, rgba(251, 191, 36, 0.12) 0%, rgba(251, 191, 36, 0) 70%),
+    radial-gradient(460px 320px at 8% 26%, rgba(16, 185, 129, 0.07) 0%, rgba(16, 185, 129, 0) 70%),
+    var(--background);
+}
+.dark .tbd-wash[data-tone="aqua"] {
+  background:
+    radial-gradient(520px 360px at 100% 0%, rgba(45, 212, 191, 0.12) 0%, rgba(45, 212, 191, 0) 70%),
+    radial-gradient(460px 320px at 8% 26%, rgba(56, 189, 248, 0.07) 0%, rgba(56, 189, 248, 0) 70%),
+    var(--background);
+}
+.dark .tbd-wash[data-tone="peach"] {
+  background:
+    radial-gradient(520px 360px at 100% 0%, rgba(251, 146, 60, 0.12) 0%, rgba(251, 146, 60, 0) 70%),
+    radial-gradient(460px 320px at 8% 26%, rgba(251, 191, 36, 0.07) 0%, rgba(251, 191, 36, 0) 70%),
     var(--background);
 }
 
