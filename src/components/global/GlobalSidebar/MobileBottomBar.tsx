@@ -83,12 +83,19 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-semibold transition-colors",
-                  isActive
-                    ? "bg-mint text-brand font-bold"
-                    : "text-ink-muted hover:bg-mint-soft hover:text-ink"
+                  isActive ? "text-brand font-bold" : "text-ink-muted hover:text-ink"
                 )}
               >
-                <Icon className="size-4.5 shrink-0" />
+                {/* Small solid pill behind just the icon when active — same treatment as the
+                    mobile app's bottom tab bar, instead of a background filling the whole tab. */}
+                <span
+                  className={cn(
+                    "flex h-8 w-14 items-center justify-center rounded-2xl transition-colors",
+                    isActive ? "bg-brand shadow-[0_6px_14px_-4px_rgba(16,185,129,0.45)]" : "bg-transparent"
+                  )}
+                >
+                  <Icon className={cn("size-4.5 shrink-0", isActive ? "text-white" : "text-ink-muted")} />
+                </span>
                 <span className="whitespace-nowrap text-center leading-none">
                   {link.title}
                 </span>
