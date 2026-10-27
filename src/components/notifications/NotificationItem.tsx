@@ -49,11 +49,11 @@ const ROLES_WITH_APPOINTMENTS = new Set([
 const ROLES_WITH_PRESCRIPTIONS = new Set(["doctor", "assistant-doctor", "pharmacist"]);
 
 const typeColors = {
-  APPOINTMENT: "bg-blue-100 text-blue-700 border-blue-200",
-  PRESCRIPTION: "bg-green-100 text-green-700 border-green-200",
-  REMINDER: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  SYSTEM: "bg-red-100 text-red-700 border-red-200",
-  MARKETING: "bg-purple-100 text-purple-700 border-purple-200",
+  APPOINTMENT: "bg-blue-100 text-blue-700 border-blue-200 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300",
+  PRESCRIPTION: "bg-green-100 text-green-700 border-green-200 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300",
+  REMINDER: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:border-yellow-900/60 dark:bg-yellow-950/40 dark:text-yellow-300",
+  SYSTEM: "bg-red-100 text-red-700 border-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300",
+  MARKETING: "bg-purple-100 text-purple-700 border-purple-200 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300",
 };
 
 export function NotificationItem({
