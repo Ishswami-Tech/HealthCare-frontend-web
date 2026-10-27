@@ -241,6 +241,13 @@ function LoginPageContent() {
       if (!result.success) {
         // Display the backend error message (e.g., rate limit, validation errors)
         setAuthError(result.message || "Failed to request OTP");
+        // A rate-limit response means a still-valid code was already sent (and may be
+        // sitting unread in the user's email/WhatsApp from an earlier click) rather than
+        // that nothing was sent: still show the OTP box so they can enter it, instead of
+        // stranding them on the identifier screen until the whole cooldown re-expires.
+        if (/code was just sent/i.test(result.message || "")) {
+          setLoginFlow((current) => ({ ...current, showOTPInput: true }));
+        }
         return;
       }
       // Request succeeded - show OTP input
