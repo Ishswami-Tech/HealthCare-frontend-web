@@ -67,7 +67,47 @@ function extractBackendErrorCode(error: ApiErrorResponse | Error | unknown): str
   return undefined;
 }
 
+/**
+ * class-validator's global exception filter shape: `{ message: "Validation failed", errors: [{
+ * field, constraints: { ruleName: "the actual reason" } }] }` (or the same `errors` array
+ * re-wrapped as `details.validationErrors` once client.ts has turned the response into an
+ * ApiError). The top-level `message` is always that same generic "Validation failed" string —
+ * extractBackendErrorMessage's other candidates stopped there (it's the first non-empty
+ * candidate) and never reached the one field that actually says what was wrong (e.g. "phone must
+ * be a valid phone number ..."); getErrorMessageForStatus does prefer a real backendMessage over
+ * its generic per-status fallback, but had nothing better than "Validation failed" to prefer.
+ * Found 2026-10-28 chasing a pharmacy "supplier creation failure" report that turned out to be a
+ * real, correct validation rejection (bad phone format) the UI showed as a bare "Please check
+ * your input and try again." with no indication of which field or why — this affects every 400
+ * from any class-validator DTO across the app, not just suppliers.
+ */
+function extractValidationConstraintsMessage(error: ApiErrorResponse): string {
+  const rawErrors = error.errors;
+  const wrappedErrors =
+    error.details && typeof error.details === 'object'
+      ? (error.details as Record<string, unknown>).validationErrors
+      : undefined;
+  const list = Array.isArray(rawErrors) ? rawErrors : Array.isArray(wrappedErrors) ? wrappedErrors : undefined;
+  if (!list) return '';
+
+  const messages: string[] = [];
+  for (const item of list) {
+    if (item && typeof item === 'object') {
+      const constraints = (item as Record<string, unknown>).constraints;
+      if (constraints && typeof constraints === 'object') {
+        for (const value of Object.values(constraints as Record<string, unknown>)) {
+          if (typeof value === 'string' && value.trim()) messages.push(value.trim());
+        }
+      }
+    }
+  }
+  return messages.join(' ');
+}
+
 function extractBackendErrorMessage(error: ApiErrorResponse): string {
+  const validationMessage = extractValidationConstraintsMessage(error);
+  if (validationMessage) return validationMessage;
+
   const candidates = [error.message, error.error, error.details];
   for (const candidate of candidates) {
     const extracted = extractNestedMessage(candidate);
