@@ -31,6 +31,10 @@ interface Props {
   dateFilter: DoctorAppointmentDateFilter;
   dateFrom: string;
   dateTo: string;
+  /** "Follow-ups only" toggle, orthogonal to status. */
+  followUpOnly: boolean;
+  followUpAppointmentsCount: number;
+  visitTypeFilter: "ALL" | "IN_PERSON" | "VIDEO_CALL";
   appointments: TransformedAppointment[];
   filteredAppointments: TransformedAppointment[];
   activeAppointmentsCount: number;
@@ -50,6 +54,8 @@ interface Props {
   setAppointmentViewFilter: (value: DoctorAppointmentViewFilter) => void;
   setDateFilter: (value: DoctorAppointmentDateFilter) => void;
   setDateRange: (from: string, to: string) => void;
+  setFollowUpOnly: (value: boolean) => void;
+  setVisitTypeFilter: (value: "ALL" | "IN_PERSON" | "VIDEO_CALL") => void;
   setSelectedAppointment: (value: TransformedAppointment | null) => void;
   setDiagnosis: (value: string) => void;
   setPrescription: (value: string) => void;
@@ -86,6 +92,9 @@ export function DoctorAppointmentsContent(props: Props) {
     dateFilter,
     dateFrom,
     dateTo,
+    followUpOnly,
+    followUpAppointmentsCount,
+    visitTypeFilter,
     filteredAppointments,
     activeAppointmentsCount,
     inProgressAppointmentsCount,
@@ -104,6 +113,8 @@ export function DoctorAppointmentsContent(props: Props) {
     setAppointmentViewFilter,
     setDateFilter,
     setDateRange,
+    setFollowUpOnly,
+    setVisitTypeFilter,
     setSelectedAppointment,
     setDiagnosis,
     setPrescription,
@@ -194,6 +205,11 @@ export function DoctorAppointmentsContent(props: Props) {
         dateFilter={dateFilter}
         dateFrom={dateFrom}
         dateTo={dateTo}
+        followUpOnly={followUpOnly}
+        setFollowUpOnly={setFollowUpOnly}
+        followUpAppointmentsCount={followUpAppointmentsCount}
+        visitTypeFilter={visitTypeFilter}
+        setVisitTypeFilter={setVisitTypeFilter}
         activeAppointmentsCount={activeAppointmentsCount}
         inProgressAppointmentsCount={inProgressAppointmentsCount}
         confirmedAppointmentsCount={confirmedAppointmentsCount}

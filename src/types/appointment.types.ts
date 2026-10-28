@@ -444,6 +444,8 @@ export interface AppointmentFilters {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   search?: string;
+  /** Only follow-up appointments (true) or only non-follow-up ones (false). */
+  isFollowUp?: boolean;
 }
 
 export interface QueueEntry {

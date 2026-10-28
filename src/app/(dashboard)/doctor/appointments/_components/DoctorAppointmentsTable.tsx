@@ -17,6 +17,7 @@ import {
   Video,
 } from "lucide-react";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import { DoctorCaseSheetDialog } from "../../dashboard/_components/DoctorCaseSheetDialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +38,7 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
  * `@5xl` is a container width, so the layout follows the card, not the window.
  */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_100px_minmax(0,1.1fr)_388px] @5xl:items-center @5xl:gap-x-4";
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.5fr)_minmax(0,0.85fr)_minmax(0,1fr)_100px_minmax(0,1fr)_388px] @5xl:items-center @5xl:gap-x-4";
 const CELL_BELOW = "col-[2/-1] @5xl:col-auto @5xl:row-auto";
 
 interface DoctorAppointmentsTableProps {
@@ -341,16 +342,19 @@ function SkeletonRows({ rows = 5, rowGrid }: { rows?: number; rowGrid: string })
           </div>
           <div className={cn(CELL_BELOW, "row-[2] flex flex-col gap-1.5")}>
             <Skeleton className="h-3.5 w-24 rounded" />
-            <Skeleton className="h-3 w-40 max-w-full rounded" />
+          </div>
+          <div className={cn(CELL_BELOW, "row-[3] flex flex-col gap-1.5")}>
+            <Skeleton className="h-3.5 w-24 rounded" />
+            <Skeleton className="h-3 w-20 rounded" />
           </div>
           <div className="col-[2] row-[1] @5xl:col-auto @5xl:row-auto">
             <Skeleton className="h-[22px] w-20 rounded-lg" />
           </div>
-          <div className={cn(CELL_BELOW, "row-[3] flex flex-col gap-1.5")}>
+          <div className={cn(CELL_BELOW, "row-[4] flex flex-col gap-1.5")}>
             <Skeleton className="h-3.5 w-36 max-w-full rounded" />
             <Skeleton className="h-3 w-24 rounded" />
           </div>
-          <div className={cn(CELL_BELOW, "row-[4] flex gap-2")}>
+          <div className={cn(CELL_BELOW, "row-[5] flex gap-2")}>
             <Skeleton className="size-9 rounded-xl" />
             <Skeleton className="h-9 w-24 rounded-xl" />
           </div>
@@ -381,6 +385,10 @@ export function DoctorAppointmentsTable({
 }: DoctorAppointmentsTableProps) {
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [pageIndex, setPageIndex] = useState(0);
+  // Opens the case sheet in a dialog instead of navigating to /doctor/patients/[id] — same fix
+  // as the dashboard's "Open case sheet", reported again here: clicking a patient's name took
+  // the doctor off this list entirely.
+  const [caseSheetPatientId, setCaseSheetPatientId] = useState<string | null>(null);
   const [appliedResetKey, setAppliedResetKey] = useState(resetKey);
   if (appliedResetKey !== resetKey) {
     setAppliedResetKey(resetKey);
@@ -397,6 +405,7 @@ export function DoctorAppointmentsTable({
   const rowGrid = ROW_GRID;
 
   return (
+    <>
     <Surface flush as="section" className="@container" aria-label={isMissedView ? "Missed appointments" : "Appointments"}>
       {selectedCount > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hair bg-mint-soft px-5 py-2.5">
@@ -438,6 +447,7 @@ export function DoctorAppointmentsTable({
         >
           <span role="columnheader">Patient</span>
           <span role="columnheader">Type</span>
+          <span role="columnheader">When</span>
           <span role="columnheader">Status</span>
           <span role="columnheader">Patient remarks</span>
           <span role="columnheader">Actions</span>
@@ -499,14 +509,15 @@ export function DoctorAppointmentsTable({
                     }
                     title={
                       app.patientId ? (
-                        <Link
-                          href={`/doctor/patients/${encodeURIComponent(app.patientId)}`}
-                          className="text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
-                          aria-label={`Open profile for ${app.patientName}`}
-                          title="Open patient profile"
+                        <button
+                          type="button"
+                          className="text-left text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
+                          aria-label={`Open case sheet for ${app.patientName}`}
+                          title="Open case sheet"
+                          onClick={() => setCaseSheetPatientId(app.patientId)}
                         >
                           {app.patientName}
-                        </Link>
+                        </button>
                       ) : (
                         app.patientName
                       )
@@ -519,16 +530,19 @@ export function DoctorAppointmentsTable({
                 <div role="cell" className={cn(CELL_BELOW, "row-[2] min-w-0")}>
                   <CellTitle
                     title={getVisitTypeLabel(app.type)}
-                    description={`${app.appointmentDate} · ${app.time} · ${app.duration}`}
+                    description={app.isFollowUp ? "Follow-up" : undefined}
                   />
+                </div>
+                <div role="cell" className={cn(CELL_BELOW, "row-[3] min-w-0")}>
+                  <CellTitle title={app.appointmentDate} description={`${app.time} · ${app.duration}`} />
                 </div>
                 <div role="cell" className="col-[2] row-[1] min-w-0 @5xl:col-auto @5xl:row-auto">
                   <Pill tone={statusTone(app.status)}>{statusLabel(app.status)}</Pill>
                 </div>
-                <div role="cell" className={cn(CELL_BELOW, "row-[3] min-w-0")}>
+                <div role="cell" className={cn(CELL_BELOW, "row-[4] min-w-0")}>
                   <PatientRemarkCell remark={app.chiefComplaint} urgency={app.urgency} />
                 </div>
-                <div role="cell" className={cn(CELL_BELOW, "row-[4] min-w-0")}>
+                <div role="cell" className={cn(CELL_BELOW, "row-[5] min-w-0")}>
                   <RowActions
                     appointment={app}
                     clinicId={clinicId}
@@ -600,5 +614,13 @@ export function DoctorAppointmentsTable({
         </div>
       )}
     </Surface>
+    <DoctorCaseSheetDialog
+      open={caseSheetPatientId !== null}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setCaseSheetPatientId(null);
+      }}
+      patientId={caseSheetPatientId ?? ""}
+    />
+    </>
   );
 }

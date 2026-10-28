@@ -393,6 +393,8 @@ export interface AppointmentListQueryInput {
   locationId?: string | undefined;
   page?: number | undefined;
   limit?: number | undefined;
+  /** Only follow-up appointments (true) or only non-follow-up ones (false). */
+  isFollowUp?: boolean | undefined;
 }
 
 export interface AppointmentListPage {
@@ -422,6 +424,7 @@ export function buildAppointmentListFilterQuery(
   put('clinicId', params?.clinicId);
   put('locationId', params?.locationId);
   put('status', Array.isArray(params?.status) ? params.status.join(',') : params?.status);
+  if (params?.isFollowUp !== undefined) put('isFollowUp', params.isFollowUp);
 
   if (params?.date) {
     // An exact day wins: the backend ignores the range when `date` is present.

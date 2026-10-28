@@ -206,6 +206,8 @@ export interface TransformedAppointment {
   prescription?: string;
   treatmentPlan?: string;
   metadata?: Record<string, unknown>;
+  /** A review visit created from an earlier appointment's "Book follow-up" step. */
+  isFollowUp: boolean;
 }
 
 interface ConsultationDraftState {
@@ -230,6 +232,10 @@ type DoctorAppointmentsState = {
   consultationNotes: string;
   prescription: string;
   diagnosis: string;
+  /** "Follow-ups only" toggle — orthogonal to status, so it stays separate from the status dropdown. */
+  followUpOnly: boolean;
+  /** Visit-type filter — also orthogonal to status (an in-clinic or video visit can have any status). */
+  visitTypeFilter: "ALL" | "IN_PERSON" | "VIDEO_CALL";
 };
 
 type DoctorAppointmentsAction =
@@ -242,6 +248,8 @@ type DoctorAppointmentsAction =
   | { type: "setConsultationNotes"; value: string }
   | { type: "setPrescription"; value: string }
   | { type: "setDiagnosis"; value: string }
+  | { type: "setFollowUpOnly"; value: boolean }
+  | { type: "setVisitTypeFilter"; value: "ALL" | "IN_PERSON" | "VIDEO_CALL" }
   | { type: "resetConsultationDraft" };
 
 const initialDoctorAppointmentsState: DoctorAppointmentsState = {
@@ -255,6 +263,8 @@ const initialDoctorAppointmentsState: DoctorAppointmentsState = {
   consultationNotes: "",
   prescription: "",
   diagnosis: "",
+  followUpOnly: false,
+  visitTypeFilter: "ALL",
 };
 
 function doctorAppointmentsReducer(
@@ -266,6 +276,10 @@ function doctorAppointmentsReducer(
       return { ...state, searchTerm: action.value };
     case "setAppointmentViewFilter":
       return { ...state, appointmentViewFilter: action.value };
+    case "setFollowUpOnly":
+      return { ...state, followUpOnly: action.value };
+    case "setVisitTypeFilter":
+      return { ...state, visitTypeFilter: action.value };
     case "setDateFilter":
       return {
         ...state,
@@ -398,9 +412,19 @@ export default function DoctorAppointments() {
       consultationNotes,
       prescription,
       diagnosis,
+      followUpOnly,
+      visitTypeFilter,
     },
     dispatch,
   ] = useReducer(doctorAppointmentsReducer, initialDoctorAppointmentsState);
+
+  const setFollowUpOnly = (value: boolean) => {
+    dispatch({ type: "setFollowUpOnly", value });
+  };
+
+  const setVisitTypeFilter = (value: "ALL" | "IN_PERSON" | "VIDEO_CALL") => {
+    dispatch({ type: "setVisitTypeFilter", value });
+  };
 
   const setSearchTerm = (value: string) => {
     dispatch({ type: "setSearchTerm", value });
@@ -430,6 +454,12 @@ export default function DoctorAppointments() {
     ];
     const match = valid.find((v) => v === wanted);
     if (match) dispatch({ type: "setAppointmentViewFilter", value: match });
+  }, []);
+
+  // The dashboard's "Follow-ups" shortcut opens `?isFollowUp=true`, same pattern as `?view=`.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("isFollowUp");
+    if (wanted === "true") dispatch({ type: "setFollowUpOnly", value: true });
   }, []);
 
   const setAppointmentViewFilter = (value: DoctorAppointmentViewFilter) => {
@@ -597,6 +627,7 @@ export default function DoctorAppointments() {
             app.metadata && typeof app.metadata === "object" && !Array.isArray(app.metadata)
               ? (app.metadata as Record<string, unknown>)
               : {},
+          isFollowUp: Boolean(app.isFollowUp),
         };
       })
       .sort((left: TransformedAppointment, right: TransformedAppointment) => {
@@ -634,18 +665,29 @@ export default function DoctorAppointments() {
         app.chiefComplaint?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus = matchesDoctorAppointmentViewFilter(app.status, appointmentViewFilter);
+      const matchesFollowUp = !followUpOnly || app.isFollowUp;
+      const matchesVisitType =
+        visitTypeFilter === "ALL" ? true : visitTypeFilter === "VIDEO_CALL" ? app.isVideo : !app.isVideo;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesFollowUp && matchesVisitType;
     });
-  }, [dateScopedAppointments, searchTerm, appointmentViewFilter]);
+  }, [dateScopedAppointments, searchTerm, appointmentViewFilter, followUpOnly, visitTypeFilter]);
 
   const completedAppointmentsCount = useMemo(
     () => dateScopedAppointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.COMPLETED).length,
     [dateScopedAppointments]
   );
 
+  // The "Active" status FILTER (dropdown) stays broad — scheduled, confirmed or in progress, so
+  // picking it shows everyone not yet concluded. The "Active" stat TILE excludes in-progress:
+  // it used to double-count (In Progress is itself one of the three statuses "Active" matches),
+  // so the two numbers never summed to anything a doctor could trust at a glance.
   const activeAppointmentsCount = useMemo(
-    () => dateScopedAppointments.filter((a: TransformedAppointment) => matchesDoctorAppointmentViewFilter(a.status, "ACTIVE")).length,
+    () =>
+      dateScopedAppointments.filter(
+        (a: TransformedAppointment) =>
+          matchesDoctorAppointmentViewFilter(a.status, "ACTIVE") && a.status !== APPOINTMENT_STATUS.IN_PROGRESS,
+      ).length,
     [dateScopedAppointments]
   );
 
@@ -671,6 +713,11 @@ export default function DoctorAppointments() {
 
   const inProgressAppointmentsCount = useMemo(
     () => dateScopedAppointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length,
+    [dateScopedAppointments]
+  );
+
+  const followUpAppointmentsCount = useMemo(
+    () => dateScopedAppointments.filter((a: TransformedAppointment) => a.isFollowUp).length,
     [dateScopedAppointments]
   );
 
@@ -856,6 +903,11 @@ export default function DoctorAppointments() {
       dateFilter={dateFilter}
       dateFrom={dateFrom}
       dateTo={dateTo}
+      followUpOnly={followUpOnly}
+      setFollowUpOnly={setFollowUpOnly}
+      followUpAppointmentsCount={followUpAppointmentsCount}
+      visitTypeFilter={visitTypeFilter}
+      setVisitTypeFilter={setVisitTypeFilter}
       appointments={appointments}
       filteredAppointments={filteredAppointments}
       activeAppointmentsCount={activeAppointmentsCount}
