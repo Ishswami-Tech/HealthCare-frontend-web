@@ -30,7 +30,6 @@ import {
   UserRound,
   HandHeart,
   CalendarOff,
-  CalendarCheck2,
   UserX,
   FlaskConical,
   MessageSquareText,
@@ -87,7 +86,10 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Rx drafts", href: "/doctor/drafts", icon: ClipboardCheck, permission: Permission.REVIEW_PRESCRIPTION_DRAFTS },
     { title: "Investigations", href: "/doctor/investigations", icon: FlaskConical, permission: Permission.VIEW_MEDICAL_RECORDS },
     { title: "Dispense", href: "/doctor/dispense", icon: PackageCheck, permission: Permission.DISPENSE_FROM_CLINIC_STOCK },
-    { title: "Follow-ups", href: "/doctor/follow-up", icon: CalendarCheck2, permission: Permission.VIEW_APPOINTMENTS },
+    // No standalone "Follow-ups" link: /doctor/follow-up only works opened with a specific
+    // appointmentId (it books a follow-up from a visit) — clicked bare from this sidebar it
+    // always dead-ended on "Open a visit to book its follow-up". The dashboard's Follow-ups
+    // card and its "Workspace Tools" shortcut (both deep-link into Appointments) replace it.
     { title: "Missed visits", href: "/doctor/no-show", icon: UserX, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Leave", href: "/doctor/leave", icon: CalendarOff, permission: Permission.MANAGE_DOCTOR_LEAVE },
     { title: "Reviews", href: "/doctor/reviews", icon: Star },

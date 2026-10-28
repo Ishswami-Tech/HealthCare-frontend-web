@@ -23,6 +23,7 @@ import type { AppointmentWithRelations } from "@/types/appointment.types";
 import type { CanonicalQueueEntry } from "@/types/queue.types";
 import {
   buildDoctorDashboardStats,
+  buildDoctorFollowUpLines,
   buildDoctorQueueLines,
   buildDoctorQueueSections,
   buildDoctorTodayRow,
@@ -352,7 +353,9 @@ export function useDoctorDashboardData() {
     () => ({
       all: todayRows.length,
       confirmed: todayRows.filter((row) => row.appointment.statusEnum === "CONFIRMED").length,
+      inProgress: todayRows.filter((row) => row.appointment.statusEnum === "IN_PROGRESS").length,
       completed: todayRows.filter((row) => row.appointment.statusEnum === "COMPLETED").length,
+      cancelled: todayRows.filter((row) => row.appointment.statusEnum === "CANCELLED").length,
     }),
     [todayRows]
   );
@@ -367,6 +370,24 @@ export function useDoctorDashboardData() {
 
   // Right rail: in-clinic, checked-in patients only (video visits never join the queue).
   const queueLines = useMemo(() => buildDoctorQueueLines(liveQueueEntries, timelineById), [liveQueueEntries, timelineById]);
+
+  // Right rail "Follow-ups": upcoming review visits (isFollowUp), separate from the main
+  // appointments query above since that one is bounded to yesterday/today only.
+  const { data: followUpAppointments } = useAppointments({
+    ...(clinicId ? { clinicId } : {}),
+    ...(doctorId ? { doctorId } : {}),
+    isFollowUp: true,
+    startDate: today,
+    limit: 5,
+  });
+  const followUpAppointmentsArray = useMemo(
+    () => (Array.isArray(followUpAppointments) ? followUpAppointments : (followUpAppointments as any)?.appointments || []),
+    [followUpAppointments]
+  );
+  const followUpLines = useMemo(
+    () => buildDoctorFollowUpLines(followUpAppointmentsArray),
+    [followUpAppointmentsArray]
+  );
 
   const activeConsult = useMemo<TransformedAppointment | null>(() => {
     if (!currentInPersonConsult) {
@@ -623,6 +644,7 @@ export function useDoctorDashboardData() {
     lastCompletedVisit,
     nextPatient,
     queueLines,
+    followUpLines,
     todayRows,
     onConsultSummaryChange: (value: string) => dispatch({ type: "setConsultSummary", value }),
     onSelectQueueLane: handleSelectQueueLane,
@@ -630,7 +652,6 @@ export function useDoctorDashboardData() {
     onCancelSkipMedicine: handleCancelSkipMedicine,
     prescriptionAppointment,
     onJoinVideoSession: (appointmentId: string) => push(buildVideoSessionRoute(appointmentId)),
-    onOpenEhr: (patientId: string) => push(`/doctor/patients/${patientId}`),
     onNavigateAppointments: () => push("/doctor/appointments"),
     onNavigatePatients: () => push("/doctor/patients"),
     onNavigateNoShow: () => push("/doctor/appointments?view=NO_SHOW"),

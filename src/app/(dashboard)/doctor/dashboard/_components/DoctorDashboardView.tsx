@@ -10,6 +10,7 @@ import {
   DoctorDashboardOpenVisitsCard,
   type OpenVideoVisit,
 } from "./DoctorDashboardOpenVisitsCard";
+import { DoctorDashboardFollowUpsCard } from "./DoctorDashboardFollowUpsCard";
 import { DoctorDashboardQueueCard } from "./DoctorDashboardQueueCard";
 import { DoctorDashboardScheduleCard } from "./DoctorDashboardScheduleCard";
 import { DoctorDashboardSentBanner } from "./DoctorDashboardSentBanner";
@@ -18,6 +19,7 @@ import { DoctorDashboardSummaryCard, type DoctorDashboardCounts } from "./Doctor
 import type {
   CompletedVisitSummary,
   DoctorAppointmentFilter,
+  DoctorFollowUpLine,
   DoctorNextPatient,
   DoctorQueueLine,
   DoctorTodayRow,
@@ -46,10 +48,11 @@ export interface DoctorDashboardViewProps {
 
   rows: DoctorTodayRow[];
   filter: DoctorAppointmentFilter;
-  filterCounts: { all: number; confirmed: number; completed: number };
+  filterCounts: { all: number; confirmed: number; inProgress: number; completed: number; cancelled: number };
   isLoadingAppointments: boolean;
 
   queueLines: DoctorQueueLine[];
+  followUpLines: DoctorFollowUpLine[];
 
   isStartPending: boolean;
   isCompletePending: boolean;
@@ -61,7 +64,6 @@ export interface DoctorDashboardViewProps {
   onJoinVideoSession: (appointmentId: string) => void;
   onOpenPrescription: (appointment: TransformedAppointment) => void;
   onOpenPrescriptionForConsult: () => void;
-  onOpenEhr: (patientId: string) => void;
   onCompleteAppointment: (appointmentId: string) => void | Promise<void>;
   onConsultNotesChange: (value: string) => void;
   onToggleSkipMedicine: () => void;
@@ -123,7 +125,6 @@ export function DoctorDashboardView(props: DoctorDashboardViewProps) {
             onJoinVideoSession={props.onJoinVideoSession}
             onStartAppointment={props.onStartAppointment}
             onOpenPrescription={props.onOpenPrescription}
-            onOpenEhr={props.onOpenEhr}
             onCompleteAppointment={props.onCompleteAppointment}
           />
 
@@ -136,6 +137,7 @@ export function DoctorDashboardView(props: DoctorDashboardViewProps) {
 
         <aside className="flex min-w-0 flex-col gap-5" aria-label="Queue and tools">
           <DoctorDashboardQueueCard lines={props.queueLines} />
+          <DoctorDashboardFollowUpsCard lines={props.followUpLines} />
           <DoctorDashboardSidebar />
           <DoctorDashboardOpenVisitReminder visits={props.openVideoVisits} />
         </aside>

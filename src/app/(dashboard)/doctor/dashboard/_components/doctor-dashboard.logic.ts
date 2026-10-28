@@ -3,6 +3,7 @@ import type { CanonicalQueueEntry } from "@/types/queue.types";
 import { resolveQueueDisplayLabel } from "@/lib/queue/queue-adapter";
 import {
   formatDateInIST,
+  formatTimeInIST,
   getAppointmentDateTimeValue,
   getAppointmentPaymentDisplayState,
   getAppointmentPatientName,
@@ -49,7 +50,7 @@ export interface TransformedAppointment {
   sentToPharmacy: boolean;
 }
 
-export type DoctorAppointmentFilter = "ALL" | "CONFIRMED" | "COMPLETED";
+export type DoctorAppointmentFilter = "ALL" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 /** What a row of "Today's Appointments" lets the doctor do. */
 export type DoctorTodayRowAction = "START" | "START_LOCKED" | "JOIN" | "PRESCRIBE" | "COMPLETE" | "NONE";
@@ -105,6 +106,17 @@ export interface DoctorQueueLine {
   status: "IN_PROGRESS" | "CHECKED_IN" | "QUEUED";
   /** Minutes of waiting, when the queue reports them. */
   waitMinutes: number | null;
+}
+
+/** One line of the right-rail "Follow-ups" card: an upcoming review visit booked from an earlier one. */
+export interface DoctorFollowUpLine {
+  key: string;
+  appointmentId: string;
+  patientName: string;
+  /** "Wed, 12 Nov" */
+  dateLabel: string;
+  /** "10:30 AM", or "" when the slot has no time yet. */
+  timeLabel: string;
 }
 
 export interface PrescriptionModalState {
@@ -583,6 +595,26 @@ export function buildDoctorQueueLines(
   });
 
   return lines;
+}
+
+/** Right-rail "Follow-ups" card: the doctor's own upcoming review visits, soonest first. */
+export function buildDoctorFollowUpLines(appointments: AppointmentWithRelations[]): DoctorFollowUpLine[] {
+  return appointments
+    .map((appointment) => {
+      const dateTime = getAppointmentDateTimeValue(appointment);
+      return {
+        key: appointment.id,
+        appointmentId: appointment.id,
+        patientName: getAppointmentPatientName(appointment) || "Patient",
+        dateLabel: dateTime ? formatDateInIST(dateTime, { weekday: "short", day: "2-digit", month: "short" }) : "",
+        timeLabel: dateTime
+          ? formatTimeInIST(dateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+          : "",
+        sortMs: dateTime ? dateTime.getTime() : Number.MAX_SAFE_INTEGER,
+      };
+    })
+    .sort((left, right) => left.sortMs - right.sortMs)
+    .map(({ sortMs: _sortMs, ...line }) => line);
 }
 
 export function buildDoctorDashboardStats(

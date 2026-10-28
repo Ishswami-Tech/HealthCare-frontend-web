@@ -62,6 +62,7 @@ export default function DoctorDashboardContent() {
         filterCounts={data.appointmentCounts}
         isLoadingAppointments={isLoadingAppointments}
         queueLines={data.queueLines}
+        followUpLines={data.followUpLines}
         isStartPending={data.isStartPending}
         isCompletePending={data.isCompletePending}
         isPrescriptionOpen={data.prescriptionModal.isOpen}
@@ -71,7 +72,6 @@ export default function DoctorDashboardContent() {
         onJoinVideoSession={data.onJoinVideoSession}
         onOpenPrescription={data.onOpenPrescription}
         onOpenPrescriptionForConsult={data.onOpenPrescriptionForConsult}
-        onOpenEhr={data.onOpenEhr}
         onCompleteAppointment={data.onCompleteAppointment}
         onConsultNotesChange={data.onConsultSummaryChange}
         onToggleSkipMedicine={data.onToggleSkipMedicine}
