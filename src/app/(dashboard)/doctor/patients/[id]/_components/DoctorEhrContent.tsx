@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { QuickPrescriptionModal, type PrescriptionSavedResult } from "@/components/doctor/QuickPrescriptionModal";
+import {
+  QuickPrescriptionModal,
+  type PrescriptionSavedResult,
+} from "@/components/doctor/QuickPrescriptionModal";
 import { PatientAppointmentHistory } from "@/components/patient/PatientAppointmentHistory";
 import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
 import {
@@ -21,27 +24,44 @@ import {
 } from "@/hooks/query/usePatients";
 import { usePatientAppointmentHistory } from "@/hooks/query/usePatientAppointmentHistory";
 import { usePatientDirectoryEntry } from "@/hooks/query/usePatientDirectory";
-import { useCreatePatientVisit, usePatientVisits } from "@/hooks/query/usePatientVisits";
+import {
+  useCreatePatientVisit,
+  usePatientVisits,
+} from "@/hooks/query/usePatientVisits";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { useAuthStore } from "@/stores/auth.store";
 import { canViewCaseSheet } from "@/lib/utils/case-sheet-access";
 import { parseIstDateTime } from "@/lib/utils/date-time";
 import { Permission } from "@/types/rbac.types";
-import { patientSummaryLine, toDoctorPatientRow } from "../../_components/doctorPatients.logic";
+import {
+  patientSummaryLine,
+  toDoctorPatientRow,
+} from "../../_components/doctorPatients.logic";
 import { DoctorEhrView } from "./DoctorEhrView";
 import { useEhrPatient } from "./useEhrPatient";
 
 type Raw = Record<string, unknown>;
 
 const asRecord = (value: unknown): Raw =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Raw)
+    : {};
 
-const asText = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+const asText = (value: unknown): string =>
+  typeof value === "string" ? value.trim() : "";
 
 function toArray(value: unknown): Raw[] {
   if (Array.isArray(value)) return value as Raw[];
   const record = asRecord(value);
-  for (const key of ["data", "items", "records", "appointments", "history", "labs", "results"]) {
+  for (const key of [
+    "data",
+    "items",
+    "records",
+    "appointments",
+    "history",
+    "labs",
+    "results",
+  ]) {
     const candidate = record[key];
     if (Array.isArray(candidate)) return candidate as Raw[];
   }
@@ -55,7 +75,13 @@ function planItemRows(items: unknown, kind: string, planId: string): Raw[] {
     const entry = asRecord(item);
     const text = asText(entry.text);
     if (!text) return [];
-    return [{ id: `${planId}-${kind}-${index}`, title: text, description: entry.done === true ? `${kind} (done)` : kind }];
+    return [
+      {
+        id: `${planId}-${kind}-${index}`,
+        title: text,
+        description: entry.done === true ? `${kind} (done)` : kind,
+      },
+    ];
   });
 }
 
@@ -69,7 +95,15 @@ function carePlanRows(value: unknown): Raw[] {
   const planId = asText(plan.id) || "care-plan";
   const summary = asText(plan.summary);
   return [
-    ...(summary ? [{ id: `${planId}-summary`, title: asText(plan.title) || "Care plan", description: summary }] : []),
+    ...(summary
+      ? [
+          {
+            id: `${planId}-summary`,
+            title: asText(plan.title) || "Care plan",
+            description: summary,
+          },
+        ]
+      : []),
     ...planItemRows(plan.goals, "Goal", planId),
     ...planItemRows(plan.interventions, "Intervention", planId),
   ];
@@ -86,9 +120,17 @@ type VisitListItem = VisitSelectorVisit;
 /** Visits from the list, plus visits only known from appointments; newest first, one per id. */
 function mergeVisits(
   listed: VisitListItem[],
-  pages: ReadonlyArray<{ rows: ReadonlyArray<{ date: string; time: string; visit: { id: string; opdNumber: string } | null | undefined }> }>,
+  pages: ReadonlyArray<{
+    rows: ReadonlyArray<{
+      date: string;
+      time: string;
+      visit: { id: string; opdNumber: string } | null | undefined;
+    }>;
+  }>,
 ): VisitListItem[] {
-  const byId = new Map<string, VisitListItem>(listed.map((visit) => [visit.id, visit]));
+  const byId = new Map<string, VisitListItem>(
+    listed.map((visit) => [visit.id, visit]),
+  );
   for (const page of pages) {
     for (const row of page.rows) {
       if (!row.visit || byId.has(row.visit.id)) continue;
@@ -101,7 +143,9 @@ function mergeVisits(
     }
   }
   return [...byId.values()].sort(
-    (a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime(),
+    (a, b) =>
+      new Date(b.registrationDate).getTime() -
+      new Date(a.registrationDate).getTime(),
   );
 }
 
@@ -115,10 +159,13 @@ export function DoctorEhrContent({
   patientId,
   backHref,
   onPrescriptionSaved,
+  embedded,
 }: {
   patientId: string;
   backHref?: string;
   onPrescriptionSaved?: (result: PrescriptionSavedResult) => void;
+  /** Rendered inside a dialog rather than as the page itself — see DoctorEhrView's `embedded`. */
+  embedded?: boolean;
 }) {
   const { clinicId } = useClinicContext();
   const clinic = clinicId || "";
@@ -130,7 +177,9 @@ export function DoctorEhrContent({
   const [pickedVisitId, setPickedVisitId] = useState<string | null>(null);
   const [prescribing, setPrescribing] = useState(false);
 
-  const visitsQuery = usePatientVisits(clinic, patientId, { limit: MAX_VISITS });
+  const visitsQuery = usePatientVisits(clinic, patientId, {
+    limit: MAX_VISITS,
+  });
   const createVisit = useCreatePatientVisit();
   const role = useAuthStore((state) => state.session?.user?.role);
   const caseSheetAllowed = canViewCaseSheet(role);
@@ -139,26 +188,44 @@ export function DoctorEhrContent({
   // counts even when the list has not caught up, so the header never says "none" wrongly.
   const appointmentHistory = usePatientAppointmentHistory(patientId);
   const visits = useMemo(
-    () => mergeVisits(visitsQuery.data?.visits ?? [], appointmentHistory.data?.pages ?? []),
+    () =>
+      mergeVisits(
+        visitsQuery.data?.visits ?? [],
+        appointmentHistory.data?.pages ?? [],
+      ),
     [visitsQuery.data, appointmentHistory.data],
   );
-  const visitsLoading = visitsQuery.isPending || (visits.length === 0 && appointmentHistory.isPending);
+  const visitsLoading =
+    visitsQuery.isPending ||
+    (visits.length === 0 && appointmentHistory.isPending);
   // The newest visit is open until the doctor picks another one.
   const visitId = pickedVisitId ?? visits[0]?.id ?? null;
 
-  const { patient, loading, failed, retry } = useEhrPatient(clinic, patientId, visitId, visitsQuery.isPending);
+  const { patient, loading, failed, retry } = useEhrPatient(
+    clinic,
+    patientId,
+    visitId,
+    visitsQuery.isPending,
+  );
   const patientRecord = useMemo(() => patient ?? {}, [patient]);
   const patientEntityId = asText(patientRecord.id) || patientId;
   // EHR routes are keyed by the patient's user id.
   const patientUserId = patient
-    ? asText(patientRecord.userId) || asText(asRecord(patientRecord.user).id) || patientId
+    ? asText(patientRecord.userId) ||
+      asText(asRecord(patientRecord.user).id) ||
+      patientId
     : "";
 
-  const { data: ehrData, isPending: ehrPending } = useComprehensiveHealthRecord(patientUserId);
+  const { data: ehrData, isPending: ehrPending } =
+    useComprehensiveHealthRecord(patientUserId);
   const { data: appointmentsData } = usePatientAppointments(patientId);
-  const { data: historyData } = usePatientMedicalRecords(clinic, patientUserId, {
-    enabled: !!clinic && !!patientUserId,
-  });
+  const { data: historyData } = usePatientMedicalRecords(
+    clinic,
+    patientUserId,
+    {
+      enabled: !!clinic && !!patientUserId,
+    },
+  );
   const { data: labsData } = usePatientLabResults(patientUserId);
   const { data: carePlanData } = usePatientCarePlan(patientId);
 
@@ -170,7 +237,10 @@ export function DoctorEhrContent({
       appointments: toArray(appointmentsData),
       history: preferList(historyData, ehr.medicalHistory),
       labs: preferList(labsData, ehr.labReports),
-      carePlan: preferList(carePlanRows(carePlanData), ehr.carePlan ?? ehr.carePlans),
+      carePlan: preferList(
+        carePlanRows(carePlanData),
+        ehr.carePlan ?? ehr.carePlans,
+      ),
       prescriptions: toArray(ehr.prescriptions),
     }),
     [appointmentsData, carePlanData, ehr, historyData, labsData, patientRecord],
@@ -179,7 +249,8 @@ export function DoctorEhrContent({
   // UHID and the contact details kept outside the login (imported patients have no login phone).
   const { data: directoryEntry } = usePatientDirectoryEntry(clinic, patientId);
   const row = useMemo(() => toDoctorPatientRow(patientRecord), [patientRecord]);
-  const summary = row.age === null && !row.gender ? "" : patientSummaryLine(row);
+  const summary =
+    row.age === null && !row.gender ? "" : patientSummaryLine(row);
   const header = {
     name: patient ? row.name : "",
     summary,
@@ -187,24 +258,33 @@ export function DoctorEhrContent({
     fullId: patientEntityId,
     uhid: directoryEntry?.uhid ?? "",
     bloodGroup:
-      asText(patientRecord.bloodGroup) || asText(asRecord(patientRecord.user).bloodGroup) || asText(ehr.bloodGroup),
+      asText(patientRecord.bloodGroup) ||
+      asText(asRecord(patientRecord.user).bloodGroup) ||
+      asText(ehr.bloodGroup),
     phone: row.phone || directoryEntry?.phone || "",
     email: row.email || directoryEntry?.email || "",
   };
 
   const handleNewVisit = async () => {
     try {
-      const visit = await createVisit.mutateAsync({ clinicId: clinic, input: { patientId: patientEntityId } });
+      const visit = await createVisit.mutateAsync({
+        clinicId: clinic,
+        input: { patientId: patientEntityId },
+      });
       setPickedVisitId(visit.id);
     } catch {
       // The mutation hook shows the error.
     }
   };
 
-  const canOpenCaseSheet = Boolean(clinic && patient && patientUserId && caseSheetAllowed);
+  const canOpenCaseSheet = Boolean(
+    clinic && patient && patientUserId && caseSheetAllowed,
+  );
   const canPrescribe =
     Boolean(patient) &&
-    (canDraftPrescription ? hasPermission(Permission.DRAFT_PRESCRIPTIONS) : hasPermission(Permission.MANAGE_PRESCRIPTIONS));
+    (canDraftPrescription
+      ? hasPermission(Permission.DRAFT_PRESCRIPTIONS)
+      : hasPermission(Permission.MANAGE_PRESCRIPTIONS));
 
   return (
     <>
@@ -214,6 +294,7 @@ export function DoctorEhrContent({
         onRetry={retry}
         header={header}
         {...(backHref ? { backHref } : {})}
+        {...(embedded ? { embedded } : {})}
         visitSelector={
           <VisitSelectorView
             visits={visits}

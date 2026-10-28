@@ -1,13 +1,34 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRight, CircleCheck, Loader2, Pill as PillIcon, Play, Stethoscope, Timer } from "lucide-react";
+import {
+  ChevronRight,
+  CircleCheck,
+  FileText,
+  Loader2,
+  Pill as PillIcon,
+  Play,
+  Stethoscope,
+  Timer,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyBlock, Field, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
-import type { DoctorNextPatient, TransformedAppointment } from "./doctor-dashboard.logic";
+import {
+  EmptyBlock,
+  Field,
+  InitialsAvatar,
+  Pill,
+  Surface,
+  statusLabel,
+  statusTone,
+} from "@/components/tbd";
+import type {
+  DoctorNextPatient,
+  TransformedAppointment,
+} from "./doctor-dashboard.logic";
 import { visitHref } from "@/components/doctor/visit/visit-routes";
+import { DoctorCaseSheetDialog } from "./DoctorCaseSheetDialog";
 
 const CARD = "border border-[#a7f3d0] dark:border-emerald-800";
 const LINK =
@@ -17,7 +38,11 @@ function CardStrip({ label, right }: { label: string; right?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-[#d1fae5] bg-[#ecfdf5] px-5 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
       <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[1.1px] text-brand">
-        <Stethoscope className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+        <Stethoscope
+          className="size-3.5"
+          strokeWidth={2.4}
+          aria-hidden="true"
+        />
         {label}
       </span>
       {right}
@@ -35,7 +60,9 @@ function PatientIdentity({
   statusPill: ReactNode;
   children?: ReactNode;
 }) {
-  const summary = [appointment.patientMeta, appointment.timeLabel].filter(Boolean).join(" · ");
+  const summary = [appointment.patientMeta, appointment.timeLabel]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center">
@@ -44,15 +71,26 @@ function PatientIdentity({
         <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
           <div className="flex flex-wrap items-center gap-2">
             {statusPill}
-            {appointment.isVideo ? <Pill tone="video">Video call</Pill> : <Pill tone="clinic">In-clinic</Pill>}
-            {appointment.priority === "URGENT" ? <Pill tone="rose">Urgent</Pill> : null}
+            {appointment.isVideo ? (
+              <Pill tone="video">Video call</Pill>
+            ) : (
+              <Pill tone="clinic">In-clinic</Pill>
+            )}
+            {appointment.priority === "URGENT" ? (
+              <Pill tone="rose">Urgent</Pill>
+            ) : null}
           </div>
           <span className="truncate text-xl font-extrabold leading-[1.15] tracking-[-0.3px] text-ink">
             {appointment.patientName}
           </span>
-          {summary ? <span className="text-[13px] text-ink-soft">{summary}</span> : null}
+          {summary ? (
+            <span className="text-[13px] text-ink-soft">{summary}</span>
+          ) : null}
           {appointment.reason ? (
-            <span className="line-clamp-2 text-[13px] text-ink" title={appointment.reason}>
+            <span
+              className="line-clamp-2 text-[13px] text-ink"
+              title={appointment.reason}
+            >
               <span className="font-bold">Patient remarks: </span>
               {appointment.reason}
             </span>
@@ -130,7 +168,11 @@ export function DoctorDashboardNextPatientCard({
               disabled={action !== "START" || isStartPending}
               onClick={onStartConsultation}
             >
-              {isStartPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Play aria-hidden="true" />}
+              {isStartPending ? (
+                <Loader2 className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Play aria-hidden="true" />
+              )}
               Start consultation
             </Button>
           ) : null}
@@ -138,9 +180,16 @@ export function DoctorDashboardNextPatientCard({
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="text-[13px] font-medium text-ink-muted">{hint}</span>
           <span className="flex-1" />
-          <Link href={`/doctor/patients/${appointment.patientId}`} className={LINK}>
+          <Link
+            href={`/doctor/patients/${appointment.patientId}`}
+            className={LINK}
+          >
             View EHR
-            <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+            <ChevronRight
+              className="size-3.5"
+              strokeWidth={2.4}
+              aria-hidden="true"
+            />
           </Link>
         </div>
       </div>
@@ -177,94 +226,129 @@ export function DoctorDashboardConsultationCard({
   onCancelSkipMedicine,
   onCompleteWithoutMedicine,
 }: DoctorDashboardConsultationCardProps) {
+  const [caseSheetOpen, setCaseSheetOpen] = useState(false);
   return (
-    <Surface as="section" flush className={CARD} aria-label="Now consulting">
-      <CardStrip
-        label="Now consulting"
-        right={
-          <span
-            className="inline-flex items-center gap-1.5 text-[13px] font-extrabold tabular-nums text-brand-dark"
-            aria-label={`Consultation time ${consultElapsedLabel}`}
-            suppressHydrationWarning
-          >
-            <Timer className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
-            {consultElapsedLabel}
-          </span>
-        }
-      />
-      <div className="flex flex-col gap-3.5 px-5 pb-5 pt-[18px]">
-        <PatientIdentity
-          appointment={appointment}
-          statusPill={
-            <Pill tone="blue" dot>
-              In progress
-            </Pill>
+    <>
+      <Surface as="section" flush className={CARD} aria-label="Now consulting">
+        <CardStrip
+          label="Now consulting"
+          right={
+            <span
+              className="inline-flex items-center gap-1.5 text-[13px] font-extrabold tabular-nums text-brand-dark"
+              aria-label={`Consultation time ${consultElapsedLabel}`}
+              suppressHydrationWarning
+            >
+              <Timer
+                className="size-3.5"
+                strokeWidth={2.4}
+                aria-hidden="true"
+              />
+              {consultElapsedLabel}
+            </span>
           }
         />
-
-        <Field label="Consultation notes" htmlFor="consultation-notes">
-          <Textarea
-            id="consultation-notes"
-            value={consultSummary}
-            maxLength={1000}
-            onChange={(event) => onConsultSummaryChange(event.target.value)}
-            placeholder="Symptoms, findings, diagnosis and advice"
-            className="min-h-[96px] border-line"
+        <div className="flex flex-col gap-3.5 px-5 pb-5 pt-[18px]">
+          <PatientIdentity
+            appointment={appointment}
+            statusPill={
+              <Pill tone="blue" dot>
+                In progress
+              </Pill>
+            }
           />
-        </Field>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Button
-            size="md"
-            className="w-full sm:w-auto"
-            disabled={isPrescriptionOpen}
-            onClick={onOpenPrescriptionForConsult}
-          >
-            <PillIcon aria-hidden="true" />
-            Prescribe medicines
-          </Button>
-          {confirmSkipMedicine ? (
-            <>
+          <Field label="Consultation notes" htmlFor="consultation-notes">
+            <Textarea
+              id="consultation-notes"
+              value={consultSummary}
+              maxLength={1000}
+              onChange={(event) => onConsultSummaryChange(event.target.value)}
+              placeholder="Symptoms, findings, diagnosis and advice"
+              className="min-h-[96px] border-line"
+            />
+          </Field>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              size="md"
+              className="w-full sm:w-auto"
+              disabled={isPrescriptionOpen}
+              onClick={onOpenPrescriptionForConsult}
+            >
+              <PillIcon aria-hidden="true" />
+              Prescribe medicines
+            </Button>
+            {confirmSkipMedicine ? (
+              <>
+                <Button
+                  size="md"
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  disabled={isCompletePending}
+                  onClick={onCompleteWithoutMedicine}
+                >
+                  {isCompletePending ? (
+                    <Loader2 className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <CircleCheck aria-hidden="true" />
+                  )}
+                  Yes, complete without medicine
+                </Button>
+                <Button
+                  size="md"
+                  variant="ghost"
+                  disabled={isCompletePending}
+                  onClick={onCancelSkipMedicine}
+                >
+                  Go back
+                </Button>
+              </>
+            ) : (
               <Button
                 size="md"
                 variant="outline"
                 className="w-full sm:w-auto"
-                disabled={isCompletePending}
-                onClick={onCompleteWithoutMedicine}
+                onClick={onToggleSkipMedicine}
               >
-                {isCompletePending ? (
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                ) : (
-                  <CircleCheck aria-hidden="true" />
-                )}
-                Yes, complete without medicine
+                <CircleCheck aria-hidden="true" />
+                Complete without medicine
               </Button>
-              <Button size="md" variant="ghost" disabled={isCompletePending} onClick={onCancelSkipMedicine}>
-                Go back
-              </Button>
-            </>
-          ) : (
-            <Button size="md" variant="outline" className="w-full sm:w-auto" onClick={onToggleSkipMedicine}>
-              <CircleCheck aria-hidden="true" />
-              Complete without medicine
-            </Button>
-          )}
-          <span className="hidden flex-1 sm:block" />
-          <Link href={visitHref(appointment.id)} className={LINK}>
-            Visit flow
-            <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
-          </Link>
-          <Link href={`/doctor/patients/${appointment.patientId}`} className={LINK}>
-            Open case sheet
-            <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
-          </Link>
+            )}
+            <span className="hidden flex-1 sm:block" />
+            <Link href={visitHref(appointment.id)} className={LINK}>
+              Visit flow
+              <ChevronRight
+                className="size-3.5"
+                strokeWidth={2.4}
+                aria-hidden="true"
+              />
+            </Link>
+            <button
+              type="button"
+              className={LINK}
+              onClick={() => setCaseSheetOpen(true)}
+            >
+              <FileText
+                className="size-3.5"
+                strokeWidth={2.4}
+                aria-hidden="true"
+              />
+              Open case sheet
+            </button>
+          </div>
+          {confirmSkipMedicine ? (
+            <p className="m-0 text-[13px] text-ink-muted" role="status">
+              This completes the visit with your notes. No medicine is sent to
+              the pharmacy.
+            </p>
+          ) : null}
         </div>
-        {confirmSkipMedicine ? (
-          <p className="m-0 text-[13px] text-ink-muted" role="status">
-            This completes the visit with your notes. No medicine is sent to the pharmacy.
-          </p>
-        ) : null}
-      </div>
-    </Surface>
+      </Surface>
+      <DoctorCaseSheetDialog
+        open={caseSheetOpen}
+        onOpenChange={setCaseSheetOpen}
+        patientId={appointment.patientId}
+      />
+    </>
   );
 }
