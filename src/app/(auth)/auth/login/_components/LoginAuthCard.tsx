@@ -248,6 +248,7 @@ export function LoginAuthCard({
                             onEmailChange(e.target.value);
                             field.onChange(e.target.value);
                           }}
+                          onFocus={(e) => e.currentTarget.select()}
                           disabled={isFormDisabled || showOTPInput}
                           autoComplete="email"
                           className="h-full rounded-none border-none bg-transparent px-0 pr-3.5 text-base font-semibold text-ink shadow-none placeholder:font-medium focus-visible:ring-0 focus-visible:ring-offset-0 md:text-base dark:bg-transparent"

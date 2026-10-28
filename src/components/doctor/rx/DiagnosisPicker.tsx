@@ -174,7 +174,15 @@ export function DiagnosisPicker({
               setQuery(event.target.value);
               setOpen(true);
             }}
-            onFocus={() => setOpen(true)}
+            onFocus={(event) => {
+              setOpen(true);
+              // Re-focusing this box with leftover text in it (e.g. after a blur-commit that
+              // didn't visibly clear it) left the cursor wherever the click landed, so typing
+              // inserted mid-word into the stale text instead of replacing it — reported live as
+              // a diagnosis silently corrupted with no visible warning. Select-all on focus makes
+              // the next keystroke always replace, never splice.
+              event.currentTarget.select();
+            }}
             onBlur={() => {
               // Typed text left in the box (not yet added) would otherwise be dropped on save:
               // leaving the field (e.g. clicking Save) adds it as a diagnosis.
