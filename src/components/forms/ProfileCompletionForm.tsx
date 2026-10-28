@@ -515,8 +515,15 @@ function ProfileCompletionFormContent({
     const cleaned = phone.trim().replace(/[^\d+]/g, "");
     if (!cleaned) return "";
     if (cleaned.startsWith("+")) return cleaned;
-    if (cleaned.length === 10) return `+91${cleaned}`;
-    return `+${cleaned}`;
+    // A bare "+" + national digits (no country code) misparses as another country whose
+    // calling code happens to match the leading digits — e.g. "+98XXXXXXXXX" resolves to
+    // Iran (+98), not a 10-digit Indian number starting with 98. Only a clean 10-digit
+    // national number is unambiguous; anything else must already carry the "91" country
+    // code (possibly with a leading trunk "0") before we add the "+".
+    const digitsOnly = cleaned.replace(/^0+/, "");
+    if (digitsOnly.length === 10) return `+91${digitsOnly}`;
+    if (digitsOnly.startsWith("91") && digitsOnly.length === 12) return `+${digitsOnly}`;
+    return `+91${digitsOnly}`;
   };
 
   const initialPhoneValue =
