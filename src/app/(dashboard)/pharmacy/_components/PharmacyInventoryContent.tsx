@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -120,6 +120,7 @@ export default function PharmacyInventoryContent() {
   const ordersAllowed = String(session?.user?.role ?? "").toUpperCase() !== Role.SUPER_ADMIN;
   const canManage = permissions.canManageInventory;
   const searchParams = useSearchParams();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { tab, setTab } = useHashTab({ tabs: INVENTORY_TABS, defaultValue: "inventory" });
@@ -141,12 +142,19 @@ export default function PharmacyInventoryContent() {
   useWebSocketQuerySync();
 
   // Drop `action` / `item` from the address once read, so a refresh does not reopen the dialog.
+  // Uses the router, not a raw `history.replaceState`: that only rewrites the visible address bar
+  // — Next's own tracked `useSearchParams()` never updates, so every submission made from the
+  // deep-linked dialog (e.g. Receive-stock opened via a dashboard restock link) kept posting with
+  // the stale `action=add&item=<uuid>` search params still attached server-side, failing every time.
   useEffect(() => {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has("action") && !url.searchParams.has("item")) return;
-    url.searchParams.delete("action");
-    url.searchParams.delete("item");
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    if (!searchParams.has("action") && !searchParams.has("item")) return;
+    const params = new URLSearchParams(searchParams);
+    params.delete("action");
+    params.delete("item");
+    const query = params.toString();
+    router.replace(query ? `${window.location.pathname}?${query}` : window.location.pathname, {
+      scroll: false,
+    });
   }, []);
 
   // ── Queries ──────────────────────────────────────────────────────────────

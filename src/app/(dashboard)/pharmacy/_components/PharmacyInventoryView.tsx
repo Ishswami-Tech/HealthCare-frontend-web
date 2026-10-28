@@ -48,6 +48,7 @@ import type {
 } from "./pharmacy-inventory.schemas";
 import type { BatchAlert, BatchRow } from "./pharmacy-stock.logic";
 import type { InventoryCounts } from "@/lib/actions/pharmacy.server";
+import { isUuidLike } from "@/lib/utils/clinic-id";
 
 export const INVENTORY_TABS = ["inventory", "orders", "pharmacies", "analytics", "settings"] as const;
 export type InventoryTab = (typeof INVENTORY_TABS)[number];
@@ -223,9 +224,18 @@ export function PharmacyInventoryView({
     dialog && dialog.kind === kind && "medicineKey" in dialog ? findMedicine(overview.rows, dialog.medicineKey) : null;
 
   const restockTarget = medicineOf("restock");
-  // A dashboard restock link whose medicine is not in the list opens "Add medicine" with the name filled in.
+  // A dashboard restock link whose medicine is not in the list opens "Add medicine" with the name
+  // filled in — but only when the link's key is actually a name (the `restockKey` fallback for a
+  // medicine with no id). A key that's a raw medicine id (the common case) couldn't be resolved
+  // because it's missing from the current view (pagination/filtering), not because it doesn't
+  // exist — dumping that id into the name field corrupts the form instead of helping, so we leave
+  // the dialog closed for that case rather than opening Add Medicine with a UUID as its name.
   const unknownRestockItem =
-    dialog?.kind === "restock" && dialog.fromLink === true && !inventoryLoading && !restockTarget
+    dialog?.kind === "restock" &&
+    dialog.fromLink === true &&
+    !inventoryLoading &&
+    !restockTarget &&
+    !isUuidLike(dialog.medicineKey)
       ? dialog.medicineKey
       : null;
   const addOpen = canManage && (dialog?.kind === "add" || unknownRestockItem !== null);
