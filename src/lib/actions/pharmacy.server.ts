@@ -1465,8 +1465,9 @@ export async function exportPharmacyData(
 
 // ── ActionResult variants of the stock / supplier writes ─────────────────────
 // A thrown server-action error loses its message in a production build; these return the
-// backend reason instead ("A medicine named ... already exists", "phone must be a valid ..."),
-// so the add / edit dialogs can show it.
+// backend reason instead ("A medicine named ... already exists", "phone must be a valid ...",
+// "Manufacture date cannot be in the future"), so the add / edit / receive / correct dialogs
+// can show it instead of a generic "React error #441" digest.
 
 async function toActionResult<T>(run: () => Promise<T>): Promise<ActionResult<T>> {
   try {
@@ -1498,4 +1499,16 @@ export async function updateSupplierAction(
   ...args: Parameters<typeof updateSupplier>
 ): Promise<ActionResult<Awaited<ReturnType<typeof updateSupplier>>>> {
   return toActionResult(() => updateSupplier(...args));
+}
+
+export async function receiveStockBatchAction(
+  ...args: Parameters<typeof receiveStockBatch>
+): Promise<ActionResult<Awaited<ReturnType<typeof receiveStockBatch>>>> {
+  return toActionResult(() => receiveStockBatch(...args));
+}
+
+export async function adjustBatchStockAction(
+  ...args: Parameters<typeof adjustBatchStock>
+): Promise<ActionResult<Awaited<ReturnType<typeof adjustBatchStock>>>> {
+  return toActionResult(() => adjustBatchStock(...args));
 }

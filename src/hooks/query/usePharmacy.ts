@@ -35,8 +35,8 @@ import {
   createSupplierAction,
   updateSupplierAction,
   getStockBatches,
-  receiveStockBatch,
-  adjustBatchStock,
+  receiveStockBatchAction,
+  adjustBatchStockAction,
   getInventoryAlerts,
   exportPharmacyData,
   reversePrescriptionDispense,
@@ -660,7 +660,7 @@ export const STOCK_QUERIES = [
 export const useReceiveStockBatch = () => {
   return useMutationOperation(
     async ({ clinicId, ...batch }: { clinicId: string } & ReceiveStockBatchInput) => {
-      return await receiveStockBatch(clinicId, batch);
+      return dataOrThrow(await receiveStockBatchAction(clinicId, batch));
     },
     {
       toastId: TOAST_IDS.PHARMACY.BATCH_RECEIVE,
@@ -677,7 +677,7 @@ export const useReceiveStockBatch = () => {
 export const useAdjustBatchStock = () => {
   return useMutationOperation(
     async ({ clinicId, ...adjustment }: { clinicId: string } & AdjustBatchStockInput) => {
-      return await adjustBatchStock(clinicId, adjustment);
+      return dataOrThrow(await adjustBatchStockAction(clinicId, adjustment));
     },
     {
       toastId: TOAST_IDS.PHARMACY.BATCH_ADJUST,
