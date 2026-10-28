@@ -12,7 +12,6 @@ import {
   type SetStateAction,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
 import type {
   AppointmentServiceDefinition,
   AppointmentType,
@@ -5012,7 +5011,7 @@ export function BookAppointmentDialog({
         ? shouldCollectVideoPayment
           ? !acceptedVideoPaymentPolicy || isBooking || isVideoPaymentPending
           : isBooking
-        : isCreatingInPersonAppointment || isSubscriptionGateLoading;
+        : isCreatingInPersonAppointment || isSubscriptionGateLoading || needsSubscriptionPlan;
     const confirmLabel = isVideoPaymentPending
       ? "Payment in progress"
       : consultationMode === "VIDEO"
@@ -5398,23 +5397,17 @@ export function BookAppointmentDialog({
           )}
           {...(isPageLayout ? { "data-tone": "sky" } : {})}
         >
-          <LazyMotion features={domAnimation}>
-            <AnimatePresence mode="wait" initial={false}>
-              <m.div
-                key={currentStepId}
-                initial={{
-                  opacity: 0,
-                  x: stepDirection === "forward" ? 20 : -20,
-                }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: stepDirection === "forward" ? -20 : 20 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="min-h-0"
-              >
-                {stepContent}
-              </m.div>
-            </AnimatePresence>
-          </LazyMotion>
+          {/* Plain render, no animation library in the mount/unmount path (2026-10-28): confirmed
+              live via direct DOM inspection that AnimatePresence's exit lifecycle can get stuck
+              and never actually unmount the previous step — both the old and new step's content
+              ended up coexisting as DOM siblings, the old one visible and the new one stuck at
+              opacity:0 from an entry animation that never ran, with zero console error. Tried
+              dropping `mode="wait"` and dropping the opacity tween first; neither fixed it, since
+              the real defect is the exit-to-removal handoff itself, not any one tween. A core
+              booking step must never depend on an animation library's lifecycle completing to be
+              visible — losing the slide/fade polish here is the right trade for a flow real
+              patients depend on actually working. */}
+          <div className="min-h-0">{stepContent}</div>
         </div>
 
         {/* Footer hide on success screen */}
