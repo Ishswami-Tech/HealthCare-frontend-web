@@ -188,6 +188,7 @@ export function DirectDispenseWorkspace({
               addedIds={addedIds}
               onAdd={(item) => setLines((current) => [...current, draftLineFromStock(item)])}
               locationLabel={locationLabel}
+              totalAvailable={stockView.data?.total}
             />
           </Surface>
         </div>

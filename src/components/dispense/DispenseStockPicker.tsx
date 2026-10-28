@@ -2,7 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmptyBlock, GridHead, GridRow, LoadError, Pill, SearchBox, SkeletonRows } from "@/components/tbd";
+import { EmptyBlock, GridHead, GridRow, LoadError, Note, Pill, SearchBox, SkeletonRows } from "@/components/tbd";
 import { expiryLabel, type DispenseStockItem } from "@/lib/dispense/direct-dispense";
 
 const COLUMNS = "minmax(0,2fr) 90px 110px 96px";
@@ -18,6 +18,8 @@ export function DispenseStockPicker({
   addedIds,
   onAdd,
   locationLabel,
+  /** The clinic's real medicine count, when it is more than `items` holds (the list is capped). */
+  totalAvailable,
 }: {
   search: string;
   onSearch: (value: string) => void;
@@ -28,7 +30,9 @@ export function DispenseStockPicker({
   addedIds: ReadonlySet<string>;
   onAdd: (item: DispenseStockItem) => void;
   locationLabel?: string | undefined;
+  totalAvailable?: number | undefined;
 }) {
+  const truncated = !loading && !failed && typeof totalAvailable === "number" && totalAvailable > items.length;
   return (
     <div className="flex flex-col gap-3">
       <SearchBox
@@ -82,6 +86,12 @@ export function DispenseStockPicker({
           })
         )}
       </div>
+      {truncated ? (
+        <Note tone="blue">
+          Showing {items.length.toLocaleString()} of {(totalAvailable as number).toLocaleString()} medicines. Search
+          by name to find one not shown here.
+        </Note>
+      ) : null}
     </div>
   );
 }
