@@ -257,7 +257,16 @@ export function PaymentButton({
   const clinicId = clinicIdProp || sessionClinicId || undefined;
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
-  const cashfreeSdkPromiseRef = useRef<Promise<CashfreeCheckoutClient | null> | null>(null);
+  // Cashfree's JS SDK rejects a payment_session_id minted in one environment (sandbox/production)
+  // when loaded in the other — and each clinic configures its OWN Cashfree credentials (see
+  // payment-config.service.ts), independent of this site's own build-time NODE_ENV. A clinic
+  // still testing with sandbox credentials on a production-deployed frontend hit "invalid
+  // payment_session_id" on every single checkout attempt, 100% reproducible: the SDK always
+  // loaded in the frontend's static default mode, never the specific order's actual mode. The
+  // cache now keys on mode so a client loaded for one mode is never handed back for the other.
+  const cashfreeSdkPromiseRef = useRef<Map<"sandbox" | "production", Promise<CashfreeCheckoutClient | null>>>(
+    new Map(),
+  );
   const userRole = (session?.user?.role || "").toUpperCase();
 
   // The clinic's real payment config — the only source of truth for which
@@ -292,7 +301,10 @@ export function PaymentButton({
   )
     ? (resolvedProviderGuess as PaymentProvider)
     : (defaultProvider as PaymentProvider);
-  const cashfreeMode =
+  // Only a fallback/warm-up default — the mode that actually matters is read off each payment
+  // intent's own metadata.environment (see resolveCashfreeMode below), since that is set by
+  // whichever Cashfree credentials the CLINIC configured, not by this site's own build.
+  const defaultCashfreeMode: "sandbox" | "production" =
     process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
       ? "production"
       : process.env.NEXT_PUBLIC_CASHFREE_MODE === "sandbox"
@@ -300,6 +312,14 @@ export function PaymentButton({
         : process.env.NODE_ENV === "production"
           ? "production"
           : "sandbox";
+  const resolveCashfreeMode = (
+    paymentIntent?: Record<string, unknown>,
+  ): "sandbox" | "production" => {
+    const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
+    return metadata.environment === "production" || metadata.environment === "sandbox"
+      ? (metadata.environment as "sandbox" | "production")
+      : defaultCashfreeMode;
+  };
   const paymentBridgeUrl = APP_CONFIG.PAYMENT.BRIDGE_URL.trim();
 
   const invalidateSuccessfulPaymentQueries = () => {
@@ -374,25 +394,27 @@ export function PaymentButton({
     }
   };
 
-  const preloadCashfreeSdk = () => {
+  const preloadCashfreeSdk = (mode: "sandbox" | "production" = defaultCashfreeMode) => {
     if (paymentBridgeUrl) {
       return Promise.resolve(null);
     }
-    if (cashfreeSdkPromiseRef.current) {
-      return cashfreeSdkPromiseRef.current;
+    const cached = cashfreeSdkPromiseRef.current.get(mode);
+    if (cached) {
+      return cached;
     }
 
-    cashfreeSdkPromiseRef.current = import("@cashfreepayments/cashfree-js")
+    const loadPromise = import("@cashfreepayments/cashfree-js")
       .then(async ({ load }) => {
-        const client = await load({ mode: cashfreeMode });
+        const client = await load({ mode });
         return (client as CashfreeCheckoutClient | null) ?? null;
       })
       .catch((error) => {
-        cashfreeSdkPromiseRef.current = null;
+        cashfreeSdkPromiseRef.current.delete(mode);
         throw error;
       });
 
-    return cashfreeSdkPromiseRef.current;
+    cashfreeSdkPromiseRef.current.set(mode, loadPromise);
+    return loadPromise;
   };
 
   const buildPaymentBridgeLaunchUrl = (
@@ -715,7 +737,6 @@ export function PaymentButton({
   const handleCashfreePayment = async (
     paymentIntent: Record<string, unknown>,
     usedProvider: PaymentProvider,
-    preloadedCashfree?: CashfreeCheckoutClient | null,
   ) => {
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse =
@@ -749,21 +770,27 @@ export function PaymentButton({
       );
     }
 
+    const orderCashfreeMode = resolveCashfreeMode(paymentIntent);
+
     console.debug("[PaymentButton] Cashfree checkout started", {
       usedProvider,
       hasPaymentSessionId: Boolean(paymentSessionId),
       hasCheckoutUrl: Boolean(checkoutUrl),
+      orderCashfreeMode,
     });
 
     try {
-      const cashfreePromise = preloadedCashfree
-        ? Promise.resolve(preloadedCashfree)
-        : preloadCashfreeSdk();
+      // Always load for THIS order's own environment (see resolveCashfreeMode), never the
+      // hover/focus warm-up's speculative default — a mismatch is exactly what throws "invalid
+      // payment_session_id" (the loaded SDK instance and the session id disagree on sandbox vs
+      // production). preloadCashfreeSdk's per-mode cache makes the already-correct case (the
+      // common one: the warm-up guessed right) a no-op and only actually reloads when it didn't.
+      const cashfreePromise = preloadCashfreeSdk(orderCashfreeMode);
 
       const cashfree = await withTimeout(
         cashfreePromise,
         CASHFREE_LOAD_TIMEOUT_MS,
-        `Cashfree SDK load timed out in ${cashfreeMode} mode`,
+        `Cashfree SDK load timed out in ${orderCashfreeMode} mode`,
       );
 
       if (!cashfree) {
@@ -772,7 +799,7 @@ export function PaymentButton({
           return;
         }
         throw new Error(
-          `Cashfree SDK is not available in ${cashfreeMode} mode`,
+          `Cashfree SDK is not available in ${orderCashfreeMode} mode`,
         );
       }
 
@@ -827,7 +854,7 @@ export function PaymentButton({
       console.error("[PaymentButton] Cashfree checkout failed", {
         error: message,
         usedProvider,
-        cashfreeMode,
+        orderCashfreeMode,
         // orderId, checkoutUrl, redirectUrl omitted to avoid logging sensitive payment identifiers
       });
 
@@ -1040,8 +1067,7 @@ export function PaymentButton({
 
       switch (usedProvider) {
         case "cashfree": {
-          const cashfreeClient = await preloadCashfreeSdk();
-          await handleCashfreePayment(paymentIntent, usedProvider, cashfreeClient);
+          await handleCashfreePayment(paymentIntent, usedProvider);
           break;
         }
         case "razorpay": {
