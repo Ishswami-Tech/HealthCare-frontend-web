@@ -3205,7 +3205,7 @@ export function BookAppointmentDialog({
   // Reading from the cache is fine because the dialog uses the profile
   // only for an authoritative `profileComplete` check on the patient
   // record - the same key is already warmed by `DashboardLayout`.
-  const { data: currentPatientProfile } = useUserProfile(
+  const { data: currentPatientProfile, isPending: isPatientProfilePending } = useUserProfile(
     dialogOpen ? undefined : { enabled: false }
   );
   const authoritativeProfileComplete = useMemo(
@@ -4803,7 +4803,15 @@ export function BookAppointmentDialog({
     }
     if (currentStepId === "slot") {
       const hasDate = !!selectedDate && !isBookingDateDisabled(selectedDate);
-      return hasDate && !!activeSelectedSlot;
+      // A self-booking patient's resolvedBookingPatientId comes from the userProfile query,
+      // which only starts fetching once this dialog opens (see useUserProfile above) — reaching
+      // the confirm step before it settles landed on a confirm screen built from a stale/empty
+      // patient id (found live: a console warning "Patient profile not found or missing
+      // patient.id" right after this step, reliably reproduced only under rapid scripted
+      // clicking, never a human pausing between steps, but worth closing properly rather than
+      // relying solely on the submit-time refetch fallback further down this file).
+      const patientProfileReady = isPrivilegedScheduler || !isPatientProfilePending;
+      return hasDate && !!activeSelectedSlot && patientProfileReady;
     }
     return true;
   }, [
@@ -4820,6 +4828,7 @@ export function BookAppointmentDialog({
     selectedServiceId,
     activeSelectedSlot,
     selectedPatientId,
+    isPatientProfilePending,
   ]);
 
   const goNext = useCallback(() => {
@@ -5292,7 +5301,12 @@ export function BookAppointmentDialog({
               consultationMode={consultationMode}
               requiresVideoPayment={requiresVideoPayment}
               videoPaymentCompleted={videoPaymentCompleted}
-              selectedSlot={activeSelectedSlot}
+              // The raw selection, not activeSelectedSlot: once booked, a live-availability push
+              // (the now-taken slot dropping out of effectiveSlots) filtered activeSelectedSlot
+              // back to "", showing "Wed, 28 Oct · None" on the success screen even though the
+              // real appointment record held the correct time — the booking already happened, so
+              // this screen shows what was booked, not what's still open to pick.
+              selectedSlot={selectedSlot}
               clinicVideoCallWindow={clinicVideoCallWindow}
               selectedService={selectedService ?? null}
               selectedDoctor={selectedDoctor ?? null}
