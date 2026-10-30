@@ -1,8 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import Link from "next/link";
-import { CalendarOff, Clock, Loader2, Plus, Users } from "lucide-react";
+import { CalendarOff, ChevronDown, Loader2, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,9 +30,138 @@ import { useCancelLeave, useMyLeaveRequests, useRequestLeave, type CreateLeaveIn
 import { useRealTimeAppointments } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateInIST, formatDateKeyInIST } from "@/lib/utils/date-time";
 import { appointmentsInLeave, leaveProblem, LEAVE_KIND_LABEL, LEAVE_STATUS, sortLeave } from "./leave.logic";
+import { DoctorWeeklyOPDSchedule } from "./DoctorWeeklyOPDSchedule";
+import { DoctorScheduleCalendar } from "./DoctorScheduleCalendar";
 
 const KINDS: LeaveKind[] = ["LEAVE", "HALF_DAY", "BREAK"];
 const ALL_LOCATIONS = "__all";
+
+/** The statuses that stay in the main list; everything else folds into "Past / cancelled". */
+const ACTIVE_LEAVE_STATUSES = new Set<LeaveRequest["status"]>(["PENDING", "APPROVED"]);
+
+/**
+ * The leave rows, grouped: active (PENDING / APPROVED) rows first, then a collapsed
+ * "Past / cancelled" sub-section the doctor can open when they need the history. The
+ * cancelled pill noise of the main list disappears without losing the data.
+ */
+function LeaveRowList({
+  rows,
+  todayKey,
+  onCancel,
+  cancelling,
+}: {
+  rows: LeaveRequest[];
+  todayKey: string;
+  onCancel: (rowId: string) => void;
+  cancelling: boolean;
+}) {
+  const [pastOpen, setPastOpen] = useState(false);
+  const active = rows.filter((row) => ACTIVE_LEAVE_STATUSES.has(row.status));
+  const inactive = rows.filter((row) => !ACTIVE_LEAVE_STATUSES.has(row.status));
+
+  return (
+    <>
+      {active.length > 0 ? (
+        <ul className="m-0 list-none p-0">
+          {active.map((row) => (
+            <LeaveRow key={row.id} row={row} todayKey={todayKey} onCancel={onCancel} cancelling={cancelling} />
+          ))}
+        </ul>
+      ) : null}
+
+      {inactive.length > 0 ? (
+        <div>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 border-b border-hair px-5 py-2 text-[12px] font-bold text-ink-muted hover:text-ink"
+            onClick={() => setPastOpen((open) => !open)}
+            aria-expanded={pastOpen}
+          >
+            <ChevronDown className={`size-3.5 transition-transform ${pastOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+            Past / cancelled ({inactive.length})
+          </button>
+          {pastOpen ? (
+            <ul className="m-0 list-none p-0 opacity-80">
+              {inactive.map((row) => (
+                <InactiveLeaveRow key={row.id} row={row} />
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** One active row (PENDING / APPROVED): full-height line, date tile, pill, cancel action. */
+function LeaveRow({
+  row,
+  todayKey,
+  onCancel,
+  cancelling,
+}: {
+  row: LeaveRequest;
+  todayKey: string;
+  onCancel: (rowId: string) => void;
+  cancelling: boolean;
+}) {
+  const status = LEAVE_STATUS[row.status] ?? LEAVE_STATUS.PENDING;
+  const cancellable = ACTIVE_LEAVE_STATUSES.has(row.status) && row.endDate >= todayKey;
+  const block = dayBlock(row.startDate);
+  return (
+    <li className="flex flex-wrap items-center gap-4 border-b border-hair px-5 py-3 last:border-b-0">
+      <span className="flex w-12 shrink-0 flex-col items-center rounded-[12px] bg-mint-soft py-1.5 text-brand-dark">
+        <span className="text-lg font-extrabold leading-none">{block.day}</span>
+        <span className="text-[10px] font-extrabold tracking-[0.5px]">{block.month}</span>
+      </span>
+      <span className="flex min-w-[180px] flex-1 flex-col gap-0.5">
+        <span className="text-sm font-bold text-ink">
+          {LEAVE_KIND_LABEL[row.kind]}
+          {row.reason ? <span className="font-medium text-ink-muted"> · {row.reason}</span> : null}
+        </span>
+        <span className="text-xs text-ink-muted">
+          {rangeLabel(row)}
+          {row.impactedAppointmentCount !== null
+            ? ` · ${row.impactedAppointmentCount} booked ${row.impactedAppointmentCount === 1 ? "patient" : "patients"}`
+            : ""}
+          {row.patientsNotifiedAt ? " · patients told" : ""}
+        </span>
+        {row.decisionNote ? <span className="text-xs text-ink-soft">Admin: {row.decisionNote}</span> : null}
+      </span>
+      <Pill tone={status.tone} dot>
+        {status.label}
+      </Pill>
+      {cancellable ? (
+        <Button size="compact" variant="outline" disabled={cancelling} onClick={() => onCancel(row.id)}>
+          Cancel
+        </Button>
+      ) : null}
+    </li>
+  );
+}
+
+/** One cancelled/declined row in the sub-section: a compact muted line, no pill stack. */
+function InactiveLeaveRow({ row }: { row: LeaveRequest }) {
+  const status = LEAVE_STATUS[row.status] ?? LEAVE_STATUS.PENDING;
+  return (
+    <li className="flex flex-wrap items-center gap-3 border-b border-hair px-5 py-2 last:border-b-0">
+      <span className="flex w-11 shrink-0 flex-col items-center rounded-[10px] bg-muted py-1 text-ink-soft/70">
+        <span className="text-sm font-extrabold leading-none">{dayBlock(row.startDate).day}</span>
+        <span className="text-[10px] font-extrabold tracking-[0.5px]">{dayBlock(row.startDate).month}</span>
+      </span>
+      <span className="flex min-w-[150px] flex-1 flex-col gap-0.5">
+        <span className="text-[13px] font-bold text-ink-muted">
+          {LEAVE_KIND_LABEL[row.kind]}
+          {row.reason ? <span className="font-medium text-ink-soft/70"> · {row.reason}</span> : null}
+        </span>
+        <span className="text-xs text-ink-soft/70">{rangeLabel(row)}</span>
+      </span>
+      <Pill tone={status.tone} dot>
+        {status.label}
+      </Pill>
+    </li>
+  );
+}
 
 function dayBlock(date: string) {
   const parsed = new Date(`${date}T00:00:00+05:30`);
@@ -50,27 +178,44 @@ function rangeLabel(row: Pick<LeaveRequest, "startDate" | "endDate" | "startTime
   return row.kind !== "LEAVE" && row.startTime && row.endTime ? `${days} · ${row.startTime}–${row.endTime}` : days;
 }
 
-/** DocLeave: the doctor asks for leave, reduced hours or a break; the clinic admin approves it. */
+/** DocLeave: the doctor's own schedule and time off — weekly OPD hours plus leave, reduced
+ * hours or a break request that the clinic admin approves. */
 export function DoctorLeaveContent() {
   const [adding, setAdding] = useState(false);
+  // The IST day key the "Add leave" drawer should open pre-filled to, or null for "today".
+  const [prefillDate, setPrefillDate] = useState<string | null>(null);
   const leave = useMyLeaveRequests();
   const cancel = useCancelLeave();
   const todayKey = formatDateKeyInIST(new Date());
   const rows = useMemo(() => sortLeave(leave.data ?? [], todayKey), [leave.data, todayKey]);
 
+  // Open the drawer fresh (header button) or with a chosen day pre-filled (the calendar).
+  // Leave can only start today or later, so a past day picked in the calendar falls back to
+  // today instead of handing the drawer an invalid date.
+  const openAddLeave = (dateKey: string | null) => {
+    setPrefillDate(dateKey && dateKey < todayKey ? todayKey : dateKey);
+    setAdding(true);
+  };
+
   return (
     <TbdPage
-      title="Leave & breaks"
-      description="Ask for leave, reduced hours or a break. The clinic admin approves it and booked patients are told to reschedule."
+      title="Your schedule & leave"
+      description="See the month at a glance, check your weekly OPD hours, or ask for leave, reduced hours or a break. Leave goes to the clinic admin, who approves it and tells booked patients to reschedule."
       backHref="/doctor/profile"
       backLabel="Profile"
       actions={
-        <Button size="md" onClick={() => setAdding(true)}>
+        <Button size="md" onClick={() => openAddLeave(null)}>
           <Plus aria-hidden="true" />
           Add leave
         </Button>
       }
     >
+      {/* "This month": the at-a-glance hero. A read-only calendar over the same data as the
+          sections below it; its "Add leave" opens the drawer with that day's dates pre-filled. */}
+      <DoctorScheduleCalendar onAddLeave={(dateKey) => openAddLeave(dateKey)} />
+
+      {/* Section 2: the doctor's leave and break requests, with a single muted line carrying
+          the notes that used to be two cards. */}
       <Surface flush as="section" aria-label="Your leave and breaks">
         <div className="border-b border-hair px-5 py-4">
           <SectionTitle icon={CalendarOff} title="Your leave and breaks" count={leave.data ? rows.length : undefined} />
@@ -86,68 +231,49 @@ export function DoctorLeaveContent() {
             description="Add a full day off, reduced hours or a break. Patients already booked in that time are told once it is approved."
           />
         ) : (
-          <ul className="m-0 list-none p-0">
-            {rows.map((row) => {
-              const block = dayBlock(row.startDate);
-              const status = LEAVE_STATUS[row.status] ?? LEAVE_STATUS.PENDING;
-              const cancellable = (row.status === "PENDING" || row.status === "APPROVED") && row.endDate >= todayKey;
-              return (
-                <li key={row.id} className="flex flex-wrap items-center gap-4 border-b border-hair px-5 py-3 last:border-b-0">
-                  <span className="flex w-12 shrink-0 flex-col items-center rounded-[12px] bg-mint-soft py-1.5 text-brand-dark">
-                    <span className="text-lg font-extrabold leading-none">{block.day}</span>
-                    <span className="text-[10px] font-extrabold tracking-[0.5px]">{block.month}</span>
-                  </span>
-                  <span className="flex min-w-[180px] flex-1 flex-col gap-0.5">
-                    <span className="text-sm font-bold text-ink">
-                      {LEAVE_KIND_LABEL[row.kind]}
-                      {row.reason ? <span className="font-medium text-ink-muted"> · {row.reason}</span> : null}
-                    </span>
-                    <span className="text-xs text-ink-muted">
-                      {rangeLabel(row)}
-                      {row.impactedAppointmentCount !== null
-                        ? ` · ${row.impactedAppointmentCount} booked ${row.impactedAppointmentCount === 1 ? "patient" : "patients"}`
-                        : ""}
-                      {row.patientsNotifiedAt ? " · patients told" : ""}
-                    </span>
-                    {row.decisionNote ? <span className="text-xs text-ink-soft">Admin: {row.decisionNote}</span> : null}
-                  </span>
-                  <Pill tone={status.tone} dot>
-                    {status.label}
-                  </Pill>
-                  {cancellable ? (
-                    <Button size="compact" variant="outline" disabled={cancel.isPending} onClick={() => cancel.mutate(row.id)}>
-                      Cancel
-                    </Button>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
+          <LeaveRowList rows={rows} todayKey={todayKey} onCancel={(rowId) => cancel.mutate(rowId)} cancelling={cancel.isPending} />
         )}
+        {/* The info notes, consolidated into one muted line instead of cards. */}
+        <div className="border-t border-hair px-5 py-3">
+          <p className="m-0 text-[12px] leading-5 text-ink-muted">
+            Clinic holidays are set by the clinic admin · A break never cancels a booked patient ·
+            Video visits stop taking new bookings 5 hours ahead.
+          </p>
+        </div>
       </Surface>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Surface>
-          <SectionTitle icon={Clock} title="Weekly hours" description="Hours are set per clinic location. Slots and the patient app follow them." />
-          <Link
-            href="/doctor/profile#availability"
-            className="inline-flex min-h-10 items-center self-start rounded-xl border border-line bg-card px-4 text-[13px] font-bold text-ink hover:bg-mint-soft"
-          >
-            Edit weekly hours
-          </Link>
-        </Surface>
-        <Note tone="blue">
-          Clinic holidays are set by the clinic admin. Breaks never cancel a booked patient: a break over a booked slot waits for you to move the
-          patient. Video visits stop taking new bookings 5 hours ahead.
-        </Note>
-      </div>
+      {/* Section 3: weekly OPD hours live here (and on the Profile's Availability tab — they
+          edit the same record). */}
+      <DoctorWeeklyOPDSchedule />
 
-      {adding ? <AddLeaveDrawer onClose={() => setAdding(false)} todayKey={todayKey} /> : null}
+      {adding ? (
+        <AddLeaveDrawer
+          onClose={() => {
+            setAdding(false);
+            setPrefillDate(null);
+          }}
+          todayKey={todayKey}
+          initialDate={prefillDate}
+        />
+      ) : null}
     </TbdPage>
   );
 }
 
-function AddLeaveDrawer({ onClose, todayKey }: { onClose: () => void; todayKey: string }) {
+/**
+ * The "Add leave" drawer. `initialDate` (an IST day key) pre-fills the From/To fields to
+ * that day — the schedule calendar's "Add leave" shortcut does this; left undefined the
+ * drawer opens on today, exactly as the header button has always behaved.
+ */
+function AddLeaveDrawer({
+  onClose,
+  todayKey,
+  initialDate,
+}: {
+  onClose: () => void;
+  todayKey: string;
+  initialDate?: string | null;
+}) {
   const id = useId();
   const { user } = useAuth();
   const { clinicId } = useClinicContext();
@@ -155,8 +281,8 @@ function AddLeaveDrawer({ onClose, todayKey }: { onClose: () => void; todayKey: 
   const request = useRequestLeave();
   const cancel = useCancelLeave();
   const [kind, setKind] = useState<LeaveKind>("LEAVE");
-  const [startDate, setStartDate] = useState(todayKey);
-  const [endDate, setEndDate] = useState(todayKey);
+  const [startDate, setStartDate] = useState(initialDate ?? todayKey);
+  const [endDate, setEndDate] = useState(initialDate ?? todayKey);
   const [startTime, setStartTime] = useState("13:00");
   const [endTime, setEndTime] = useState("17:00");
   const [locationId, setLocationId] = useState(ALL_LOCATIONS);
