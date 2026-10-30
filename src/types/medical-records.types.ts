@@ -324,6 +324,10 @@ export interface Prescription {
   id?: string;
   doctorId?: string;
   patientId: string;
+  /** The OPD visit this prescription was written for (per-patient list endpoint; may be absent). */
+  visitId?: string | null;
+  /** The appointment it was written from (per-patient list endpoint; may be absent). */
+  appointmentId?: string | null;
   medications?: Array<{
     name: string;
     dosage?: string;

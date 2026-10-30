@@ -15,6 +15,7 @@ import {
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePrescriberDoctor } from "@/hooks/query/usePrescriberDoctor";
 import { useStaffRole } from "@/hooks/utils/useStaffRole";
+import { useQueryClient } from "@tanstack/react-query";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import {
   usePatientAppointments,
@@ -29,16 +30,20 @@ import {
   usePatientVisits,
 } from "@/hooks/query/usePatientVisits";
 import { useRBAC } from "@/hooks/utils/useRBAC";
+import { Button } from "@/components/ui/button";
+import { SectionTitle, Surface } from "@/components/tbd";
 import { useAuthStore } from "@/stores/auth.store";
 import { canViewCaseSheet } from "@/lib/utils/case-sheet-access";
 import { parseIstDateTime } from "@/lib/utils/date-time";
 import { Permission } from "@/types/rbac.types";
 import {
+  genderLabel,
   patientSummaryLine,
   toDoctorPatientRow,
 } from "../../_components/doctorPatients.logic";
 import { DoctorEhrView } from "./DoctorEhrView";
 import { useEhrPatient } from "./useEhrPatient";
+import { PatientDemographicsEdit } from "./PatientDemographicsDialog";
 
 type Raw = Record<string, unknown>;
 
@@ -254,6 +259,10 @@ export function DoctorEhrContent({
   const header = {
     name: patient ? row.name : "",
     summary,
+    // The view shows `${age} years` and the gender verbatim, so pass the display-ready
+    // values: the raw whole-years figure (null until known) and the labeled gender.
+    age: row.age,
+    gender: patient ? genderLabel(row.gender) : "",
     idLabel: patientEntityId.slice(0, 8).toUpperCase(),
     fullId: patientEntityId,
     uhid: directoryEntry?.uhid ?? "",
@@ -275,6 +284,16 @@ export function DoctorEhrContent({
     } catch {
       // The mutation hook shows the error.
     }
+  };
+
+  // After the demographics dialog saves, refresh the two caches the header reads on its own:
+  // the directory entry (UHID / contact kept outside the login) and the health record (the
+  // Overview tiles and the record sections). `useUpdatePatient` already invalidates the shared
+  // patient/user lists; these two exact keys are this screen's own.
+  const queryClient = useQueryClient();
+  const onDemographicsSaved = () => {
+    void queryClient.invalidateQueries({ queryKey: ["patientDirectoryEntry", clinic, patientId] });
+    void queryClient.invalidateQueries({ queryKey: ["ehr", "comprehensive", patientUserId] });
   };
 
   const canOpenCaseSheet = Boolean(
@@ -306,6 +325,14 @@ export function DoctorEhrContent({
         onNewVisit={clinic && patient ? () => void handleNewVisit() : undefined}
         newVisitPending={createVisit.isPending}
         onPrescribe={canPrescribe ? () => setPrescribing(true) : undefined}
+        patientDemographicsEdit={
+          <PatientDemographicsEdit
+            patient={patientRecord}
+            name={row.name}
+            userId={patientUserId}
+            onSaved={onDemographicsSaved}
+          />
+        }
         record={record}
         recordLoading={Boolean(patientUserId) && ehrPending}
         renderAppointmentHistory={
@@ -314,6 +341,7 @@ export function DoctorEhrContent({
                 <PatientAppointmentHistory
                   clinicId={clinic}
                   patientId={patientEntityId}
+                  doctorEntityId={doctorEntityId}
                   caseSheetAllowed={caseSheetAllowed}
                   onOpenTab={openTab}
                   onOpenVisit={(id) => {
@@ -331,11 +359,18 @@ export function DoctorEhrContent({
               patientId={patientEntityId}
               patientUserId={patientUserId}
               visitId={visitId}
+              onOpenVisit={setPickedVisitId}
             />
           ) : canOpenCaseSheet ? (
-            <div className="rounded-[20px] border border-dashed border-line bg-card px-5 py-8 text-center text-sm text-ink-muted">
-              No OPD visit yet. Use “New OPD visit” above to open a case sheet.
-            </div>
+            <Surface className="gap-3">
+              <SectionTitle
+                title="Start the case sheet"
+                description="No OPD visit yet. Register one to open the case sheet."
+              />
+              <Button className="self-start" onClick={() => void handleNewVisit()}>
+                Start case sheet
+              </Button>
+            </Surface>
           ) : undefined
         }
       />
