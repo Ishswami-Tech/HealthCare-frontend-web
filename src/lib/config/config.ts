@@ -681,6 +681,10 @@ export const API_ENDPOINTS = {
     AVAILABILITY: {
       GET: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     },
+    /** Per-day OPD-window overrides (L1): create-or-replace one dated override for a doctor
+     * day (`[]` = closed). The URL doctor-id accepts the Doctor entity id or the doctor's
+     * User id — the backend resolves both. */
+    DAY_AVAILABILITY: (doctorId: string) => `/doctors/${encodeURIComponent(doctorId)}/day-availability`,
     PATIENTS: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/patients`,
     REVIEWS: {
       GET: (doctorId: string) => `/doctors/${doctorId}/reviews`,
