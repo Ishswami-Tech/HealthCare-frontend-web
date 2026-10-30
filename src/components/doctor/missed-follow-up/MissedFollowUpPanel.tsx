@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Archive, CalendarPlus, Loader2, MessageCircle, Phone, UserX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,15 +25,20 @@ import {
   SearchBox,
   SkeletonRows,
   Surface,
-  TbdPage,
 } from "@/components/tbd";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useClinicContext } from "@/hooks/query/useClinics";
 import { useSendUnifiedCommunication } from "@/hooks/query/useCommunication";
 import { useDoctorFavourites, useRemoveFavourite, useSaveFavouritesBulk } from "@/hooks/query/useDoctorFavourites";
 import { useRealTimeAppointments } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateKeyInIST } from "@/lib/utils/date-time";
-import { archiveKey, archivedIds, DEFAULT_MISSED_MESSAGE, messageFor, toMissedVisits, type MissedVisit } from "./missed.logic";
+import {
+  archivedIds,
+  archiveKey,
+  DEFAULT_MISSED_MESSAGE,
+  messageFor,
+  toMissedVisits,
+  type MissedVisit,
+} from "./missed-logic";
 
 type RangeFilter = "7" | "30";
 type TypeFilter = "ALL" | "VIDEO" | "CLINIC" | "ARCHIVED";
@@ -48,12 +53,22 @@ function daysAgoKey(days: number): string {
 }
 
 /**
- * DocMissedBulk: patients who did not turn up in the last 7 / 30 days. Select several and message
- * them on WhatsApp, or archive the ones that are handled; each row has Call and Book again.
+ * The bulk follow-up panel of missed (no-show) visits: select patients and message them on
+ * WhatsApp, archive the ones you have followed up, or re-book a missed patient. Rendered from
+ * the Appointments page's "Missed appointments" view (`?view=NO_SHOW`), so the follow-up work
+ * and the single-row list live on one screen.
+ *
+ * @param clinicId the booking location for the row's "Re-book".
+ * @param showBack when the panel stands alone, link to the full missed list on Appointments.
  */
-export function MissedFollowUpContent() {
+export function MissedFollowUpPanel({
+  clinicId,
+  showBack = false,
+}: {
+  clinicId?: string | undefined;
+  showBack?: boolean;
+}) {
   const { session } = useAuth();
-  const { clinicId } = useClinicContext();
   const [range, setRange] = useState<RangeFilter>("7");
   const [type, setType] = useState<TypeFilter>("ALL");
   const [search, setSearch] = useState("");
@@ -70,7 +85,10 @@ export function MissedFollowUpContent() {
   const archive = useSaveFavouritesBulk(ARCHIVE_MESSAGES);
   const unarchive = useRemoveFavourite({ successMessage: "Moved back to the list" });
 
-  const visits = useMemo(() => toMissedVisits((appointments.data as { data?: unknown } | undefined)?.data), [appointments.data]);
+  const visits = useMemo(
+    () => toMissedVisits((appointments.data as { data?: unknown } | undefined)?.data),
+    [appointments.data],
+  );
   const archived = useMemo(() => archivedIds(favourites.data ?? []), [favourites.data]);
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -109,137 +127,132 @@ export function MissedFollowUpContent() {
   const loading = appointments.isFetching && !appointments.data;
 
   return (
-    <TbdPage
-      title="Missed and no-show"
-      description="Select patients, then message them or archive the ones you have followed up."
-      backHref="/doctor/appointments?view=NO_SHOW"
-      backLabel="Appointments"
-    >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <Surface flush as="section" aria-label="Missed visits">
+      <div className="grid grid-cols-1 gap-4 px-5 pt-4 sm:grid-cols-2">
         <Kpi label="Missed, not archived" value={loading ? "—" : String(openCount)} icon={UserX} />
         <Kpi label="Archived" value={loading ? "—" : String(visits.length - openCount)} icon={Archive} />
       </div>
 
-      <Surface flush as="section" aria-label="Missed visits">
-        <div className="flex flex-col gap-3 border-b border-hair px-5 py-4">
-          <SearchBox value={search} onChange={setSearch} placeholder="Search patient name or phone" />
-          <div className="flex flex-wrap items-center gap-2">
-            {(
-              [
-                { value: "7", label: "Last 7 days" },
-                { value: "30", label: "Last 30 days" },
-              ] as const
-            ).map((option) => (
-              <ChoiceChip key={option.value} size="sm" shape="box" active={range === option.value} onClick={() => setRange(option.value)}>
-                {option.label}
-              </ChoiceChip>
-            ))}
-            <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
-            {(
-              [
-                { value: "ALL", label: "All" },
-                { value: "VIDEO", label: "Video" },
-                { value: "CLINIC", label: "In-clinic" },
-                { value: "ARCHIVED", label: "Archived" },
-              ] as const
-            ).map((option) => (
-              <ChoiceChip
-                key={option.value}
-                size="sm"
-                shape="box"
-                active={type === option.value}
-                onClick={() => {
-                  setType(option.value);
-                  setSelected(new Set());
-                }}
-              >
-                {option.label}
-              </ChoiceChip>
-            ))}
-          </div>
+      <div className="mt-4 flex flex-col gap-3 border-y border-hair px-5 py-4">
+        <SearchBox value={search} onChange={setSearch} placeholder="Search patient name or phone" />
+        <div className="flex flex-wrap items-center gap-2">
+          {(
+            [
+              { value: "7", label: "Last 7 days" },
+              { value: "30", label: "Last 30 days" },
+            ] as const
+          ).map((option) => (
+            <ChoiceChip key={option.value} size="sm" shape="box" active={range === option.value} onClick={() => setRange(option.value)}>
+              {option.label}
+            </ChoiceChip>
+          ))}
+          <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
+          {(
+            [
+              { value: "ALL", label: "All" },
+              { value: "VIDEO", label: "Video" },
+              { value: "CLINIC", label: "In-clinic" },
+              { value: "ARCHIVED", label: "Archived" },
+            ] as const
+          ).map((option) => (
+            <ChoiceChip
+              key={option.value}
+              size="sm"
+              shape="box"
+              active={type === option.value}
+              onClick={() => {
+                setType(option.value);
+                setSelected(new Set());
+              }}
+            >
+              {option.label}
+            </ChoiceChip>
+          ))}
         </div>
+      </div>
 
-        {selectedVisits.length > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hair bg-mint-soft px-5 py-2.5" role="region" aria-label="Selected patients">
-            <span className="min-w-0 text-sm font-bold text-brand-dark" role="status">
-              {selectedVisits.length} selected
-              <span className="font-medium"> · {selectedVisits.map((visit) => visit.patientName.split(/\s+/)[0]).join(", ")}</span>
-            </span>
-            <span className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => setMessaging(true)}>
-                <MessageCircle aria-hidden="true" />
-                Message selected
+      {selectedVisits.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hair bg-mint-soft px-5 py-2.5" role="region" aria-label="Selected patients">
+          <span className="min-w-0 text-sm font-bold text-brand-dark" role="status">
+            {selectedVisits.length} selected
+            <span className="font-medium"> · {selectedVisits.map((visit) => visit.patientName.split(/\s+/)[0]).join(", ")}</span>
+          </span>
+          <span className="flex flex-wrap items-center gap-2">
+            <Button onClick={() => setMessaging(true)}>
+              <MessageCircle aria-hidden="true" />
+              Message selected
+            </Button>
+            {type === "ARCHIVED" ? null : (
+              <Button variant="outline" disabled={archive.isPending} onClick={archiveSelected}>
+                <Archive aria-hidden="true" />
+                Archive
               </Button>
-              {type === "ARCHIVED" ? null : (
-                <Button variant="outline" disabled={archive.isPending} onClick={archiveSelected}>
-                  <Archive aria-hidden="true" />
-                  Archive
-                </Button>
-              )}
-              <Button variant="ghost" aria-label="Clear selection" onClick={() => setSelected(new Set())}>
-                <X aria-hidden="true" />
-              </Button>
-            </span>
-          </div>
-        ) : null}
+            )}
+            <Button variant="ghost" aria-label="Clear selection" onClick={() => setSelected(new Set())}>
+              <X aria-hidden="true" />
+            </Button>
+          </span>
+        </div>
+      ) : null}
 
-        <div role="table" aria-label="Missed visits" aria-busy={loading}>
-          <GridHead
-            columns={COLUMNS}
-            labels={[
-              <Checkbox
-                key="all"
-                aria-label="Select all"
-                checked={allSelected}
-                onCheckedChange={(checked) => setSelected(checked ? new Set(shown.map((visit) => visit.appointmentId)) : new Set())}
-              />,
-              "Patient",
-              "Missed visit",
-              "Reason",
-              "Actions",
-            ]}
+      <div role="table" aria-label="Missed visits" aria-busy={loading}>
+        <GridHead
+          columns={COLUMNS}
+          labels={[
+            <Checkbox
+              key="all"
+              aria-label="Select all"
+              checked={allSelected}
+              onCheckedChange={(checked) => setSelected(checked ? new Set(shown.map((visit) => visit.appointmentId)) : new Set())}
+            />,
+            "Patient",
+            "Missed visit",
+            "Reason",
+            "Actions",
+          ]}
+        />
+        {loading ? (
+          <SkeletonRows rows={4} />
+        ) : appointments.error && !appointments.data ? (
+          <LoadError title="Missed visits could not be loaded" message="Check the connection and try again." onRetry={() => void appointments.refetch()} />
+        ) : shown.length === 0 ? (
+          <EmptyBlock
+            icon={UserX}
+            title={type === "ARCHIVED" ? "Nothing archived" : "No missed visits"}
+            description={type === "ARCHIVED" ? "Archived missed visits show here." : "Patients who do not turn up in this period show here."}
           />
-          {loading ? (
-            <SkeletonRows rows={4} />
-          ) : appointments.error && !appointments.data ? (
-            <LoadError title="Missed visits could not be loaded" message="Check the connection and try again." onRetry={() => void appointments.refetch()} />
-          ) : shown.length === 0 ? (
-            <EmptyBlock
-              icon={UserX}
-              title={type === "ARCHIVED" ? "Nothing archived" : "No missed visits"}
-              description={type === "ARCHIVED" ? "Archived missed visits show here." : "Patients who do not turn up in this period show here."}
+        ) : (
+          shown.map((visit) => (
+            <MissedRow
+              key={visit.appointmentId}
+              visit={visit}
+              clinicId={clinicId || ""}
+              selected={selected.has(visit.appointmentId)}
+              onToggle={() => toggle(visit.appointmentId)}
+              {...(type === "ARCHIVED"
+                ? {
+                    onUnarchive: () => {
+                      const favourite = (favourites.data ?? []).find((item) => item.itemKey === archiveKey(visit.appointmentId));
+                      if (favourite) unarchive.mutate(favourite.id);
+                    },
+                  }
+                : {})}
             />
-          ) : (
-            shown.map((visit) => (
-              <MissedRow
-                key={visit.appointmentId}
-                visit={visit}
-                clinicId={clinicId || ""}
-                selected={selected.has(visit.appointmentId)}
-                onToggle={() => toggle(visit.appointmentId)}
-                {...(type === "ARCHIVED"
-                  ? {
-                      onUnarchive: () => {
-                        const favourite = (favourites.data ?? []).find((item) => item.itemKey === archiveKey(visit.appointmentId));
-                        if (favourite) unarchive.mutate(favourite.id);
-                      },
-                    }
-                  : {})}
-              />
-            ))
-          )}
-        </div>
-      </Surface>
+          ))
+        )}
+      </div>
 
-      <Note tone="blue">
-        Each patient gets their own message. Re-book opens the booking form with the patient and visit type filled in.{" "}
-        <Link href="/doctor/appointments?view=NO_SHOW" className="font-bold underline">
-          See all missed appointments
-        </Link>
-      </Note>
+      {showBack ? (
+        <Note tone="blue">
+          Each patient gets their own message. Re-book opens the booking form with the patient and visit type filled in.{" "}
+          <Link href="/doctor/appointments?view=NO_SHOW" className="font-bold underline">
+            See all missed appointments
+          </Link>
+        </Note>
+      ) : null}
 
       {messaging ? <MessageDialog visits={selectedVisits} onClose={() => setMessaging(false)} onSent={() => setSelected(new Set())} /> : null}
-    </TbdPage>
+    </Surface>
   );
 }
 
@@ -303,7 +316,6 @@ function MissedRow({
 }
 
 function MessageDialog({ visits, onClose, onSent }: { visits: MissedVisit[]; onClose: () => void; onSent: () => void }) {
-  const id = useId();
   const send = useSendUnifiedCommunication();
   const [template, setTemplate] = useState(DEFAULT_MISSED_MESSAGE);
   const [error, setError] = useState<string | null>(null);
@@ -341,8 +353,14 @@ function MessageDialog({ visits, onClose, onSent }: { visits: MissedVisit[]; onC
       width={560}
     >
       <DialogBody>
-        <Field label="Message" htmlFor={`${id}-message`}>
-          <Textarea id={`${id}-message`} value={template} maxLength={600} className="min-h-[120px] border-line" onChange={(event) => setTemplate(event.target.value)} />
+        <Field label="Message" htmlFor="missed-message">
+          <Textarea
+            id="missed-message"
+            value={template}
+            maxLength={600}
+            className="min-h-[120px] border-line"
+            onChange={(event) => setTemplate(event.target.value)}
+          />
         </Field>
         {first ? (
           <Note tone="green" icon={MessageCircle}>

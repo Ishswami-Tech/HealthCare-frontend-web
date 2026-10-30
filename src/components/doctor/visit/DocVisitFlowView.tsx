@@ -144,7 +144,7 @@ function PrescriptionCard({ visit, onPrescribe }: { visit: DoctorVisitData; onPr
             title="Prescription"
             icon={Stethoscope}
             action={
-              <Link href="/doctor/drafts" className="text-[13px] font-bold text-brand hover:underline">
+              <Link href="/doctor/prescriptions?status=draft" className="text-[13px] font-bold text-brand hover:underline">
                 Drafts from the assistant
               </Link>
             }
@@ -152,7 +152,7 @@ function PrescriptionCard({ visit, onPrescribe }: { visit: DoctorVisitData; onPr
         </div>
         <EmptyBlock
           title="No prescription yet"
-          description="A prescription the assistant drafts for this patient waits for your approval in Rx drafts."
+          description="A prescription the assistant drafts for this patient waits for your approval under Prescriptions · Drafts."
           action={canWrite ? <Button onClick={onPrescribe}>Write prescription</Button> : undefined}
         />
       </Surface>

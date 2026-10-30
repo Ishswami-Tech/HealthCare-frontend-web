@@ -31,6 +31,7 @@ export const ASSISTANT_ROUTES = {
 } as const;
 
 export const DOCTOR_DRAFT_ROUTES = {
-  inbox: "/doctor/drafts",
+  // Drafts live on the Prescriptions screen (Drafts tab); /doctor/drafts redirects there.
+  inbox: "/doctor/prescriptions?status=draft",
   review: (draftId: string) => routeFor("/doctor/drafts/[id]", { id: draftId }),
 } as const;

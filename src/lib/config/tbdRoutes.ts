@@ -55,6 +55,9 @@ export const REGISTERED_ROUTES: readonly RegisteredRoute[] = [
   { batch: "B7", path: "/doctor/visit/[appointmentId]/summary", screen: "DocCaseSummary", title: "Case summary" },
   { batch: "B7", path: "/doctor/visit/[appointmentId]/complete", screen: "DocCompleteVisit", title: "Complete visit" },
   { batch: "B7", path: "/doctor/follow-up", screen: "DocFollowUp", title: "Follow-up" },
+  // DocDispense was consolidated into the Prescriptions screen's "Stock hand-over" tab
+  // (`/doctor/prescriptions?tab=handover`); the route stays registered so old links resolve —
+  // the page now redirects there, carrying the pre-fill query over.
   { batch: "B7", path: "/doctor/dispense", screen: "DocDispense", title: "Dispense" },
   { batch: "B7", path: "/doctor/prescriptions/[id]", screen: "DocRxDetail", title: "Prescription" },
   { batch: "B7", path: "/doctor/prescriptions/[id]/print", screen: "DocRxPrint", title: "Print prescription" },

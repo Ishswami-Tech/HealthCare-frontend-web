@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import type { Medicine } from "@/types/pharmacy.types";
 import type { useMedicineFavourites, useRxKits } from "@/hooks/query/useDoctorFavourites";
 import { usePatientAllergySummary } from "@/hooks/query/usePharmacy";
+import { OngoingMedicinesPanel, type OngoingMedicineRow, type OngoingMedicinesPanelData } from "./OngoingMedicinesPanel";
 import { DiagnosisPicker } from "./DiagnosisPicker";
 import { MedicineCatalogue } from "./MedicineCatalogue";
 import { PrescriptionLines } from "./PrescriptionLines";
@@ -20,6 +21,7 @@ import {
   createMedicationRow,
   emptyPrescriptionForm,
   isMedicationComplete,
+  medicineTitle,
   prescriptionFormReducer,
   quantityOf,
   stockOf,
@@ -67,6 +69,11 @@ export interface PrescriptionEditorProps {
   onSearchChange?: (value: string) => void;
   isSearching?: boolean;
   shortcuts: PrescriptionShortcuts;
+  /** The patient's current / ongoing medicines (what they are already taking), shown above the
+   *  prescription. Omit to skip the panel (no patient context, or the caller does not fetch it). */
+  ongoing?: OngoingMedicinesPanelData | null;
+  /** The ongoing-medicines list is still loading. */
+  ongoingLoading?: boolean;
 }
 
 const medicineWord = (count: number) => `${count} ${count === 1 ? "medicine" : "medicines"}`;
@@ -100,6 +107,8 @@ export function PrescriptionEditor({
   onSearchChange,
   isSearching = false,
   shortcuts,
+  ongoing,
+  ongoingLoading = false,
 }: PrescriptionEditorProps) {
   const [form, dispatch] = useReducer(prescriptionFormReducer, initialValues, (initial) => initial ?? emptyPrescriptionForm());
   const [managing, setManaging] = useState(false);
@@ -117,6 +126,33 @@ export function PrescriptionEditor({
 
   const addMedicine = (medicine: Medicine) =>
     dispatch({ type: "addMedication", value: createMedicationRow(medicine, shortcuts.favourites.presetFor(medicine.id)) });
+  // The "current medicines" panel: link a line to stock by name when the catalogue has it, else
+  // add it as an outside line — the dose / how-often / days are prefilled from the patient's
+  // current course so the doctor just confirms.
+  const ongoingTitle = (medicine: OngoingMedicineRow) =>
+    medicineTitle({ name: medicine.name, strength: medicine.strength }).toLowerCase();
+  const addOngoing = (medicine: OngoingMedicineRow) => {
+    const inStock = medicines.find((row) => medicineTitle(row).toLowerCase() === ongoingTitle(medicine));
+    dispatch({
+      type: "addMedication",
+      value: createMedicationRow(
+        inStock ? inStock : { id: "", name: medicine.name, strength: medicine.strength },
+        {
+          ...(medicine.dosage ? { dosage: medicine.dosage } : {}),
+          ...(medicine.frequency ? { frequency: medicine.frequency } : {}),
+          ...(medicine.days ? { days: medicine.days } : {}),
+        },
+      ),
+    });
+  };
+  // Per row, whether "+" may add it right now: never once the medicines reached the pharmacy;
+  // in the complete-visit flow outside (non-stock) lines are allowed, so everything adds;
+  // otherwise only a medicine the stock catalogue has can be added (a draft keeps to stock only).
+  const canAddOngoing = (medicine: OngoingMedicineRow) => {
+    if (medicinesLocked) return false;
+    if (allowOutside) return true;
+    return medicines.some((row) => medicineTitle(row).toLowerCase() === ongoingTitle(medicine));
+  };
   const addRows = (rows: PrescriptionMedicationRow[]) => dispatch({ type: "addMedications", value: rows });
   const addKit = (kit: RxKit) =>
     addRows(
@@ -263,6 +299,15 @@ export function PrescriptionEditor({
         />
 
         <div className="flex min-w-0 flex-col gap-3.5">
+          {patientId ? (
+            <OngoingMedicinesPanel
+              ongoing={ongoing ?? null}
+              isLoading={ongoingLoading}
+              canAdd={canAddOngoing}
+              onAdd={addOngoing}
+            />
+          ) : null}
+
           <DiagnosisPicker value={form.diagnosis} onChange={(value) => dispatch({ type: "setField", field: "diagnosis", value })} />
 
           <div className="flex flex-col gap-2.5">

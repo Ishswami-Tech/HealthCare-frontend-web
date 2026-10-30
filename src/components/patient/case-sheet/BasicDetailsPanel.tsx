@@ -5,19 +5,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Pencil, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Pill, SectionTitle, FIELD_LABEL, ChoiceChip, FactTile } from "@/components/tbd";
+import { FIELD_LABEL, FactTile } from "@/components/tbd";
 import { ageInYears, formatDateInIST } from "@/lib/utils/date-time";
-import { SPECIAL_CASE_OPTIONS } from "@/lib/constants/case-sheet-fixed-lists";
 import { useUpdatePatient } from "@/hooks/query/usePatients";
 import { useStableSnapshot } from "./use-stable-snapshot";
-import { patientVisitKeys, useUpdatePatientVisit } from "@/hooks/query/usePatientVisits";
+import { patientVisitKeys } from "@/hooks/query/usePatientVisits";
 import type {
   PatientVisit,
-  SpecialCaseFlag,
   VisitPatientSummary,
 } from "@/types/patient-visit.types";
-import { CaseSheetCard, GroupLabel, SaveButton } from "./case-sheet-parts";
+import { CaseSheetCard } from "./case-sheet-parts";
 
 interface BasicDetailsPanelProps {
   clinicId: string;
@@ -37,12 +34,6 @@ type DemographicKey = (typeof DEMOGRAPHIC_FIELDS)[number]["key"];
 
 export type BasicDetailsDemographics = Record<DemographicKey, string>;
 
-export interface BasicDetailsVisitInput {
-  specialCaseFlags: SpecialCaseFlag[];
-  internationalId: string | null;
-  presentIllness: string | null;
-}
-
 function computeAge(dateOfBirth: string | null, age: number | null): string {
   if (age) return `${age} y`;
   const years = ageInYears(dateOfBirth);
@@ -55,19 +46,19 @@ export interface BasicDetailsPanelViewProps {
   /** Saves the patient's address details. Resolves true when saved. */
   onSaveDemographics: (demographics: BasicDetailsDemographics) => Promise<boolean>;
   isSavingDemographics: boolean;
-  /** Saves the details of this OPD visit. Resolves true when saved. */
-  onSaveVisit: (input: BasicDetailsVisitInput) => Promise<boolean>;
-  isSavingVisit: boolean;
 }
 
-/** Layout and draft state of Basic Details. Data and saving come in through props. */
+/**
+ * The patient's registration record (name, contact, demographics): shown as
+ * facts, edited one block at a time. This card holds the patient-level basics
+ * only — the per-visit details live in the Complaints section's "This visit"
+ * card instead.
+ */
 export function BasicDetailsPanelView({
   visit,
   patient,
   onSaveDemographics,
   isSavingDemographics,
-  onSaveVisit,
-  isSavingVisit,
 }: BasicDetailsPanelViewProps) {
   const [editing, setEditing] = useState(false);
   const [demographics, setDemographics] = useState<BasicDetailsDemographics>({
@@ -77,10 +68,6 @@ export function BasicDetailsPanelView({
     occupation: "",
     organization: "",
   });
-  const [flags, setFlags] = useState<SpecialCaseFlag[]>(visit.specialCaseFlags);
-  const [internationalId, setInternationalId] = useState(visit.internationalId ?? "");
-  const [presentIllness, setPresentIllness] = useState(visit.presentIllness ?? "");
-  const [visitDirty, setVisitDirty] = useState(false);
 
   // Snapshots so a background refetch with identical data doesn't reset the drafts.
   const savedDemographics = useStableSnapshot<BasicDetailsDemographics>({
@@ -90,40 +77,14 @@ export function BasicDetailsPanelView({
     occupation: patient?.occupation ?? "",
     organization: patient?.organization ?? "",
   });
-  const savedVisitDetails = useStableSnapshot({
-    specialCaseFlags: visit.specialCaseFlags,
-    internationalId: visit.internationalId ?? "",
-    presentIllness: visit.presentIllness ?? "",
-  });
 
   useEffect(() => {
     setDemographics(savedDemographics);
   }, [savedDemographics]);
 
-  useEffect(() => {
-    setFlags(savedVisitDetails.specialCaseFlags);
-    setInternationalId(savedVisitDetails.internationalId);
-    setPresentIllness(savedVisitDetails.presentIllness);
-    setVisitDirty(false);
-  }, [savedVisitDetails]);
-
   const saveDemographics = async () => {
     // On failure the form stays open so the user can retry without losing edits.
     if (await onSaveDemographics(demographics)) setEditing(false);
-  };
-
-  const saveVisit = async () => {
-    const saved = await onSaveVisit({
-      specialCaseFlags: flags,
-      internationalId: internationalId.trim() || null,
-      presentIllness: presentIllness.trim() || null,
-    });
-    if (saved) setVisitDirty(false);
-  };
-
-  const toggleFlag = (flag: SpecialCaseFlag) => {
-    setFlags((prev) => (prev.includes(flag) ? prev.filter((f) => f !== flag) : [...prev, flag]));
-    setVisitDirty(true);
   };
 
   return (
@@ -196,70 +157,6 @@ export function BasicDetailsPanelView({
           ))}
         </div>
       )}
-
-      <div className="flex flex-col gap-3.5 rounded-2xl border border-line bg-[#fbfdfc] p-[18px] dark:bg-white/[0.03]">
-        <SectionTitle
-          title="This visit"
-          description="Details that apply to this OPD visit only"
-          action={
-            <SaveButton
-              label="Save visit"
-              saving={isSavingVisit}
-              disabled={isSavingVisit || !visitDirty}
-              onClick={() => void saveVisit()}
-            />
-          }
-        />
-        <div className="flex flex-col gap-2" role="group" aria-labelledby="visit-special-case">
-          <GroupLabel id="visit-special-case">Special case</GroupLabel>
-          <div className="flex flex-wrap gap-2">
-            {SPECIAL_CASE_OPTIONS.map((option) => (
-              <ChoiceChip
-                key={option.value}
-                active={flags.includes(option.value)}
-                onClick={() => toggleFlag(option.value)}
-              >
-                {option.label}
-              </ChoiceChip>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-[1fr_2fr]">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <label htmlFor="visit-international-id" className={FIELD_LABEL}>International ID</label>
-            <Input
-              id="visit-international-id"
-              placeholder="Passport / foreign ID"
-              value={internationalId}
-              onChange={(event) => {
-                setInternationalId(event.target.value);
-                setVisitDirty(true);
-              }}
-            />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <label htmlFor="visit-present-illness" className={FIELD_LABEL}>Present illness</label>
-            <Textarea
-              id="visit-present-illness"
-              rows={2}
-              className="min-h-16"
-              placeholder="Why the patient came today"
-              value={presentIllness}
-              onChange={(event) => {
-                setPresentIllness(event.target.value);
-                setVisitDirty(true);
-              }}
-            />
-          </div>
-        </div>
-        {visit.doctorId ? (
-          <div>
-            <Pill tone="green" dot>
-              Assigned doctor set
-            </Pill>
-          </div>
-        ) : null}
-      </div>
     </CaseSheetCard>
   );
 }
@@ -270,7 +167,6 @@ export function BasicDetailsPanel({ clinicId, visit, patient }: BasicDetailsPane
   // through the staff-facing, clinic-scoped PUT /patients/:userId route (the
   // /user/:id route only allows self-updates).
   const updatePatient = useUpdatePatient();
-  const updateVisit = useUpdatePatientVisit();
 
   const saveDemographics = async (demographics: BasicDetailsDemographics) => {
     if (!patient?.userId) return false;
@@ -285,24 +181,12 @@ export function BasicDetailsPanel({ clinicId, visit, patient }: BasicDetailsPane
     }
   };
 
-  const saveVisit = async (input: BasicDetailsVisitInput) => {
-    try {
-      await updateVisit.mutateAsync({ clinicId, visitId: visit.id, input });
-      return true;
-    } catch {
-      // Error toast is shown by the mutation hook; keep the unsaved edits.
-      return false;
-    }
-  };
-
   return (
     <BasicDetailsPanelView
       visit={visit}
       patient={patient}
       onSaveDemographics={saveDemographics}
       isSavingDemographics={updatePatient.isPending}
-      onSaveVisit={saveVisit}
-      isSavingVisit={updateVisit.isPending}
     />
   );
 }

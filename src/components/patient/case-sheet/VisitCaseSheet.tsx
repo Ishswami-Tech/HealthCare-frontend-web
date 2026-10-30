@@ -1,14 +1,12 @@
 "use client";
 
-import { runSave } from "./run-save";
-import { useStableSnapshot } from "./use-stable-snapshot";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { AlertTriangle, FlaskConical } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { TabsContent } from "@/components/ui/tabs";
-import { Chip, LoadError, Surface, FIELD_LABEL } from "@/components/tbd";
+import { Chip, FIELD_LABEL, LoadError, Surface } from "@/components/tbd";
 import { HashTabs } from "@/hooks/navigation/HashTabs";
 import { cn } from "@/lib/utils";
 import {
@@ -20,6 +18,7 @@ import {
   SROTAS_PARIKSHA,
 } from "@/lib/constants/ayurveda-classical-exam-categories";
 import {
+  usePatientVisits,
   useUpdatePatientVisit,
   useUpsertClassicalExamFindings,
   useUpsertVisitVitalsExamination,
@@ -32,6 +31,7 @@ import { ClassicalExamSection } from "./ClassicalExamSection";
 import { GeneralExaminationForm, PhysicalMeasurementForm } from "./ExaminationForms";
 import { FamilyHistoryTable } from "./FamilyHistoryTable";
 import { HabitGrid, NidraPanel } from "./HabitGrid";
+import { LastVisitStrip, type PreviousVisitInfo } from "./LastVisitStrip";
 import { MedicineHistoryTable } from "./MedicineHistoryTable";
 import { PastHistoryChecklist } from "./PastHistoryChecklist";
 import { PrakritiAssessmentPanel } from "./PrakritiAssessmentPanel";
@@ -39,6 +39,9 @@ import { TherapyPlanPanel } from "./TherapyPlanPanel";
 import { TherapyProgressPanel } from "./TherapyProgressPanel";
 import { DietChartPanel } from "./DietChartPanel";
 import { PatientFilesPanel } from "./PatientFilesPanel";
+import { ThisVisitPanel } from "./ThisVisitPanel";
+import { runSave } from "./run-save";
+import { useStableSnapshot } from "./use-stable-snapshot";
 
 const SECTION_TABS = [
   "basic",
@@ -93,7 +96,7 @@ const SECTION_GROUPS: readonly { id: string; label: string; tabs: readonly Secti
   {
     id: "history",
     label: "History",
-    tabs: ["basic", "complaints", "past-history", "habits", "family", "medicines"],
+    tabs: ["complaints", "basic", "past-history", "habits", "family", "medicines"],
   },
   {
     id: "examination",
@@ -160,11 +163,13 @@ function CaseSheetSectionNav() {
 
 /**
  * The case-sheet frame: hash tabs (#history/<section>) with the section
- * navigation on top. Children are the `TabsContent` panels.
+ * navigation on top. Children are the `TabsContent` panels. Lands on the
+ * Complaints section: the case sheet is the doctor's consultation space, so
+ * the per-visit details and the last visit come first.
  */
 export function CaseSheetShell({ children }: { children: ReactNode }) {
   return (
-    <HashTabs tabs={SECTION_TABS} defaultValue="basic" namespace="history" className="flex flex-col gap-5">
+    <HashTabs tabs={SECTION_TABS} defaultValue="complaints" namespace="history" className="flex flex-col gap-5">
       <CaseSheetSectionNav />
       {children}
     </HashTabs>
@@ -291,6 +296,24 @@ interface VisitCaseSheetProps {
   patientId: string;
   patientUserId: string;
   visitId: string;
+  /** Opens another visit's case sheet; shown by the last-visit strip when set. */
+  onOpenVisit?: ((visitId: string) => void) | undefined;
+}
+
+/** The "last visit" facts the strip shows: just the fields it reads. */
+function lastVisitFrom(list: PatientVisit[], currentVisitId: string): PreviousVisitInfo | null {
+  // The list is newest first, so the previous visit sits just after the current one.
+  const index = list.findIndex((visit) => visit.id === currentVisitId);
+  const previous = index === -1 ? undefined : list[index + 1];
+  if (!previous || previous.id === currentVisitId) return null;
+  return {
+    id: previous.id,
+    opdNumber: previous.opdNumber,
+    registrationDate: previous.registrationDate,
+    presentComplaints: previous.presentComplaints,
+    presentIllness: previous.presentIllness,
+    knownCaseOf: previous.knownCaseOf,
+  };
 }
 
 /**
@@ -298,11 +321,26 @@ interface VisitCaseSheetProps {
  * sub-section, as nested hash tabs (#history/<section>) so the top-level EHR
  * tab bar stays small.
  */
-export function VisitCaseSheet({ clinicId, patientId, patientUserId, visitId }: VisitCaseSheetProps) {
+export function VisitCaseSheet({
+  clinicId,
+  patientId,
+  patientUserId,
+  visitId,
+  onOpenVisit,
+}: VisitCaseSheetProps) {
   const caseSheetQuery = useVisitCaseSheet(clinicId, visitId);
   const updateVisit = useUpdatePatientVisit();
   const upsertVitals = useUpsertVisitVitalsExamination();
   const upsertExams = useUpsertClassicalExamFindings();
+  // The patient's visits, newest first: the Complaints section starts from the last one.
+  // `patientId` is the Patient entity id the visit list is keyed by (the EHR's
+  // visit chips use the same id).
+  const visitsQuery = usePatientVisits(clinicId, patientId, { limit: 50 });
+  // The visit before this one (runs on every render, so it stays before the early returns).
+  const lastVisit = useMemo(
+    () => lastVisitFrom(visitsQuery.data?.visits ?? [], visitId),
+    [visitsQuery.data, visitId],
+  );
 
   const caseSheet = caseSheetQuery.data;
   if (!caseSheet) {
@@ -313,7 +351,7 @@ export function VisitCaseSheet({ clinicId, patientId, patientUserId, visitId }: 
     );
   }
 
-  const { visit, patient, vitalsExamination, classicalExams, labReports } = caseSheet;
+  const { visit, patient, vitalsExamination, classicalExams, labReports, medications } = caseSheet;
   const saveVisit = (input: UpdatePatientVisitInput) =>
     updateVisit.mutateAsync({ clinicId, visitId, input });
   const saveExams = (findings: Parameters<typeof upsertExams.mutateAsync>[0]["findings"]) =>
@@ -336,6 +374,14 @@ export function VisitCaseSheet({ clinicId, patientId, patientUserId, visitId }: 
         <BasicDetailsPanel clinicId={clinicId} visit={visit} patient={patient} />
       </TabsContent>
       <TabsContent value="complaints" className={SECTION_CONTENT}>
+        {lastVisit ? (
+          <LastVisitStrip
+            visit={lastVisit}
+            activeMedicationsCount={medications.length}
+            {...(onOpenVisit ? { onOpenVisit } : {})}
+          />
+        ) : null}
+        <ThisVisitPanel visit={visit} onSave={saveVisit} isSaving={updateVisit.isPending} />
         <ComplaintsPanel visit={visit} onSave={saveVisit} isSaving={updateVisit.isPending} />
       </TabsContent>
       <TabsContent value="past-history" className={SECTION_CONTENT}>

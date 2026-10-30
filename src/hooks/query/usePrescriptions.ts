@@ -220,7 +220,10 @@ export const usePrescriptions = (doctorId?: string, filters?: {
 };
 
 /**
- * Hook to get prescriptions for a specific patient
+ * Hook to get prescriptions for a specific patient.
+ *
+ * `enabled` (optional) switches the query off until the caller is ready — the prescribe screen
+ * fetches it only when it actually shows the "current medicines" panel.
  */
 export const usePatientPrescriptions = (
   doctorId: string,
@@ -229,7 +232,8 @@ export const usePatientPrescriptions = (
     status?: string;
     startDate?: string;
     endDate?: string;
-  }
+  },
+  options?: { enabled?: boolean }
 ) => {
   return useQueryData(
     ['patientPrescriptions', doctorId, patientId, filters],
@@ -241,7 +245,7 @@ export const usePatientPrescriptions = (
       return { prescriptions: toPrescriptionRows(result.data) };
     },
     {
-      enabled: !!doctorId && !!patientId,
+      enabled: (options?.enabled ?? true) && !!doctorId && !!patientId,
     }
   );
 };

@@ -106,10 +106,17 @@ function createInitialProfileData(
       if (!(day in availability)) continue;
       if (Array.isArray(value)) {
         const firstSlot = value[0];
+        // Sessions past the first (for example an evening OPD block set on the Schedule page)
+        // are kept in `extraSessions` so this editor never drops them on save.
+        const extraSessions = value
+          .slice(1)
+          .filter((slot) => slot?.start && slot?.end)
+          .map((slot) => ({ start: String(slot.start), end: String(slot.end) }));
         availability[day as keyof typeof availability] = {
           available: Boolean(firstSlot?.start && firstSlot?.end),
           startTime: firstSlot?.start || "",
           endTime: firstSlot?.end || "",
+          ...(extraSessions.length ? { extraSessions } : {}),
         };
       } else if (value && typeof value === "object") {
         const dayValue = value as DoctorProfileAvailabilityDay;
@@ -117,6 +124,7 @@ function createInitialProfileData(
           available: Boolean(dayValue.available),
           startTime: dayValue.startTime || "",
           endTime: dayValue.endTime || "",
+          ...(dayValue.extraSessions?.length ? { extraSessions: dayValue.extraSessions } : {}),
         };
       }
     }
@@ -175,14 +183,25 @@ function formatAvailabilityPayload(
   const formattedAvailability: Record<string, { start: string; end: string }[]> = {};
   Object.entries(availability).forEach(([day, schedule]) => {
     if (schedule.available && schedule.startTime && schedule.endTime) {
+      // The main block plus any extra sessions (multi-block days set on the Schedule page):
+      // the slot engine reads a per-day array of `{ start, end }` sessions, so saving from the
+      // Profile page never drops the doctor's evening OPD blocks.
       formattedAvailability[day] = [
         {
           start: schedule.startTime,
           end: schedule.endTime,
         },
+        ...(schedule.extraSessions || []),
       ];
     } else {
-      formattedAvailability[day] = [];
+      // Even with the main block off, keep any extra sessions the doctor set elsewhere:
+      // only a fully empty day is written as "not available".
+      const extras = schedule.extraSessions ?? [];
+      const fallback =
+        schedule.startTime && schedule.endTime
+          ? [{ start: schedule.startTime, end: schedule.endTime }]
+          : [];
+      formattedAvailability[day] = extras.length ? extras : fallback;
     }
   });
   return formattedAvailability;

@@ -120,7 +120,12 @@ export function DoctorDraftReviewScreen({ draftId }: { draftId: string }) {
   const draft = draftQuery.data;
 
   return (
-    <TbdPage title="Review draft" backHref={DOCTOR_DRAFT_ROUTES.inbox} backLabel="Rx drafts" actions={draft ? <DraftStatusPill status={draft.status} /> : null}>
+    <TbdPage
+      title="Review draft"
+      backHref={DOCTOR_DRAFT_ROUTES.inbox}
+      backLabel="Prescriptions"
+      actions={draft ? <DraftStatusPill status={draft.status} /> : null}
+    >
       {draftQuery.error && !draft ? (
         <Surface flush>
           <LoadError title="This draft could not be opened" onRetry={() => void draftQuery.refetch()} />

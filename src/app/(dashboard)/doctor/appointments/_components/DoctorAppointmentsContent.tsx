@@ -6,6 +6,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { Note } from "@/components/tbd";
+import { MissedFollowUpPanel } from "@/components/doctor/missed-follow-up/MissedFollowUpPanel";
 import { DoctorAppointmentsSummary } from "./DoctorAppointmentsSummary";
 import { DoctorAppointmentsTable, canCompleteConfirmedVideoVisit } from "./DoctorAppointmentsTable";
 import {
@@ -225,6 +226,12 @@ export function DoctorAppointmentsContent(props: Props) {
         loading={isLoadingAppointments}
         connectionSlot={connectionSlot}
       />
+
+      {appointmentViewFilter === "NO_SHOW" ? (
+        // The bulk follow-up screen was consolidated into this view: message, archive and
+        // re-book a missed patient without leaving Appointments.
+        <MissedFollowUpPanel clinicId={clinicId} />
+      ) : null}
 
       {appointmentsLoadFailed ? (
         <Note tone="rose" icon={AlertCircle}>

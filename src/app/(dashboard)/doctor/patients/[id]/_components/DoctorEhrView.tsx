@@ -22,12 +22,19 @@ import {
   type PatientClinicalRecordViewProps,
 } from "@/components/patient/PatientClinicalRecordView";
 
-/** What the patient header shows. Empty strings are left out. */
+/**
+ * What the patient header shows. Every field except `name` is optional; empty ones are
+ * left out of the band (the id chip falls back to the short "Patient ID" label when no
+ * UHID has been issued yet).
+ */
 export interface DoctorEhrHeaderInfo {
   name: string;
-  /** "32 years · Female" */
-  summary: string;
-  /** Short patient id shown after "Patient ID:". */
+  /** Whole years; shown next to the gender, computed from the date of birth when only
+   * that is on record. */
+  age: number | null;
+  /** "Male" — left out of the band when it is not on record. */
+  gender: string;
+  /** Short patient id shown after "Patient ID:" (used when no UHID has been issued yet). */
   idLabel: string;
   /** The full id, as a tooltip. */
   fullId: string;
@@ -52,6 +59,12 @@ export interface DoctorEhrViewProps {
   newVisitPending: boolean;
   /** Leave out when this user may not prescribe. */
   onPrescribe?: (() => void) | undefined;
+  /**
+   * The "Edit details" dialog (with its open state and the save handler) built by the data
+   * container; the header only renders its trigger. Leave out to hide the trigger — the
+   * view stays props-only like the rest of it.
+   */
+  patientDemographicsEdit?: ReactNode;
   record: Pick<
     PatientClinicalRecordViewProps,
     | "patient"
@@ -86,10 +99,22 @@ function PatientHeader({
   onNewVisit,
   newVisitPending,
   onPrescribe,
+  patientDemographicsEdit,
 }: Pick<
   DoctorEhrViewProps,
-  "header" | "visitSelector" | "onNewVisit" | "newVisitPending" | "onPrescribe"
+  | "header"
+  | "visitSelector"
+  | "onNewVisit"
+  | "newVisitPending"
+  | "onPrescribe"
+  | "patientDemographicsEdit"
 >) {
+  const summary = [
+    header.age !== null ? `${header.age} years` : "",
+    header.gender,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <>
       <div
@@ -121,9 +146,9 @@ function PatientHeader({
             {header.name}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
-            {header.summary ? (
+            {summary ? (
               <span className="mr-1 whitespace-nowrap text-sm font-semibold text-ink-soft">
-                {header.summary}
+                {summary}
               </span>
             ) : null}
             {header.bloodGroup ? (
@@ -137,36 +162,37 @@ function PatientHeader({
             ) : null}
           </div>
         </div>
-        {onNewVisit || onPrescribe ? (
-          <div className="flex w-full flex-wrap gap-2.5 lg:w-auto lg:shrink-0">
-            {onNewVisit ? (
-              <Button
-                variant="outline"
-                size="md"
-                className="flex-1 lg:flex-none"
-                onClick={onNewVisit}
-                disabled={newVisitPending}
-              >
-                {newVisitPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Plus />
-                )}
-                New OPD visit
-              </Button>
-            ) : null}
-            {onPrescribe ? (
-              <Button
-                size="md"
-                className="flex-1 lg:flex-none"
-                onClick={onPrescribe}
-              >
-                <PillIcon />
-                Move to Prescription
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="flex w-full flex-wrap items-center gap-2.5 lg:w-auto lg:shrink-0">
+          {patientDemographicsEdit ? (
+            <div className="flex-1 lg:flex-none">{patientDemographicsEdit}</div>
+          ) : null}
+          {onNewVisit ? (
+            <Button
+              variant="outline"
+              size="md"
+              className="flex-1 lg:flex-none"
+              onClick={onNewVisit}
+              disabled={newVisitPending}
+            >
+              {newVisitPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Plus />
+              )}
+              New OPD visit
+            </Button>
+          ) : null}
+          {onPrescribe ? (
+            <Button
+              size="md"
+              className="flex-1 lg:flex-none"
+              onClick={onPrescribe}
+            >
+              <PillIcon />
+              Move to Prescription
+            </Button>
+          ) : null}
+        </div>
       </div>
       <div className="border-t border-hair px-4 py-3 sm:px-6">
         {visitSelector}
@@ -223,6 +249,7 @@ export function DoctorEhrView({
   onNewVisit,
   newVisitPending,
   onPrescribe,
+  patientDemographicsEdit,
   record,
   recordLoading,
   caseSheet,
@@ -269,6 +296,10 @@ export function DoctorEhrView({
         <PatientClinicalRecordView
           {...record}
           loading={recordLoading}
+          /* The header band already shows the demographics (name, age, gender, blood
+             group, phone, email) and is where they are edited: keep the Overview
+             snapshot to the clinical facts only. */
+          hideHeaderDuplicates
           caseSheet={caseSheet}
           {...(renderAppointmentHistory ? { renderAppointmentHistory } : {})}
           {...(showBills === undefined ? {} : { showBills })}
@@ -279,6 +310,7 @@ export function DoctorEhrView({
               onNewVisit={onNewVisit}
               newVisitPending={newVisitPending}
               onPrescribe={onPrescribe}
+              patientDemographicsEdit={patientDemographicsEdit}
             />
           }
         />

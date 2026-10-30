@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, Plus } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
-import { EmptyBlock, LoadError, LoadErrorNote, PageHero, StatTile, TBD_SURFACE } from "@/components/tbd";
+import { EmptyBlock, LoadError, LoadErrorNote, PageHero, SegTabs, StatTile, TBD_SURFACE } from "@/components/tbd";
 import type { PrescriptionSummary } from "@/hooks/query/usePrescriptions";
 import { cn } from "@/lib/utils";
 import type { DoctorPrescriptionRow } from "./doctor-prescriptions.logic";
@@ -13,10 +13,18 @@ import type { DoctorRxFilterState } from "./useDoctorPrescriptionFilters";
 import { DoctorPrescriptionsFilterBar } from "./DoctorPrescriptionsFilterBar";
 import { DoctorPrescriptionsPager } from "./DoctorPrescriptionsPager";
 import { DoctorPrescriptionsTable } from "./DoctorPrescriptionsTable";
+import { DoctorStockHandoverTab } from "./DoctorStockHandoverTab";
+
+/** The two views of the prescriptions screen; the URL picks one (`?tab=handover`). */
+export type DoctorRxTab = "prescriptions" | "handover";
 
 export interface DoctorPrescriptionsViewProps {
   filterState: DoctorRxFilterState;
   filtersActive: boolean;
+  /** Which view the screen shows: the prescription list or the stock hand-over. */
+  activeTab: DoctorRxTab;
+  /** Switch the view; the URL query follows. */
+  onTabChange: (tab: DoctorRxTab) => void;
   /** IST day key of today ("" before hydration). */
   todayKey: string;
   /** Rows of the current page. */
@@ -155,6 +163,8 @@ function EmptyList({ filterState, filtersActive }: { filterState: DoctorRxFilter
 export function DoctorPrescriptionsView({
   filterState,
   filtersActive,
+  activeTab,
+  onTabChange,
   todayKey,
   rows,
   total,
@@ -172,13 +182,18 @@ export function DoctorPrescriptionsView({
   const { filters, update, hrefFor } = filterState;
   const [barRef, barHeight] = useElementHeight<HTMLDivElement>();
   const showEmpty = !isLoading && !loadFailed && rows.length === 0;
+  const handover = activeTab === "handover";
 
   return (
     <DashboardPageShell className="gap-3 md:gap-3.5">
       <PageHero
         eyebrow="Doctor Prescriptions"
         title="Prescriptions"
-        description="Payment, packing and handover stay with the medicine desk."
+        description={
+          handover
+            ? "Hand medicines over from clinic stock. Stock is deducted and the record goes to billing automatically."
+            : "Payment, packing and handover stay with the medicine desk."
+        }
         className="px-5 py-4 [&_h1]:text-[22px]"
         actions={
           <Button size="md" onClick={onCreate}>
@@ -188,54 +203,70 @@ export function DoctorPrescriptionsView({
         }
       />
 
-      <SummaryTiles summary={summary} loading={summaryLoading} filters={filters} hrefFor={hrefFor} />
-
-      <DoctorPrescriptionsFilterBar
-        ref={barRef}
-        filterState={filterState}
-        filtersActive={filtersActive}
-        showDrafts={(summary?.drafts ?? 0) > 0}
-        todayKey={todayKey}
+      <SegTabs
+        ariaLabel="Prescription views"
+        value={activeTab}
+        onChange={onTabChange}
+        options={[
+          { value: "prescriptions" as DoctorRxTab, label: "Prescriptions" },
+          { value: "handover" as DoctorRxTab, label: "Stock hand-over" },
+        ]}
       />
 
-      {refreshFailed ? (
-        <LoadErrorNote title="Could not refresh prescriptions." message="Showing the last list loaded." onRetry={onRetry} />
-      ) : null}
+      {handover ? (
+        <DoctorStockHandoverTab />
+      ) : (
+        <>
+          <SummaryTiles summary={summary} loading={summaryLoading} filters={filters} hrefFor={hrefFor} />
 
-      <section aria-label="Prescriptions list" className={cn(TBD_SURFACE, "min-w-0 overflow-clip")}>
-        {loadFailed ? (
-          <LoadError
-            title="Could not load prescriptions"
-            message="Check your connection and try again."
-            onRetry={onRetry}
+          <DoctorPrescriptionsFilterBar
+            ref={barRef}
+            filterState={filterState}
+            filtersActive={filtersActive}
+            draftCount={summary?.drafts ?? 0}
+            todayKey={todayKey}
           />
-        ) : showEmpty ? (
-          <EmptyList filterState={filterState} filtersActive={filtersActive} />
-        ) : (
-          <>
-            <DoctorPrescriptionsTable
-              rows={rows}
-              todayKey={todayKey}
-              isLoading={isLoading}
-              isRefreshing={isRefreshing}
-              skeletonRows={Math.min(filters.size, MAX_SKELETON_ROWS)}
-              stickyTop={barHeight}
-              onOpen={onOpen}
-              onDownload={onDownload}
-            />
-            {!isLoading ? (
-              <DoctorPrescriptionsPager
-                page={filters.page}
-                pageSize={filters.size}
-                total={total}
-                rowCount={rows.length}
-                onPageChange={(page) => update({ page })}
-                onPageSizeChange={(size) => update({ size: size || DEFAULT_FILTERS.size })}
+
+          {refreshFailed ? (
+            <LoadErrorNote title="Could not refresh prescriptions." message="Showing the last list loaded." onRetry={onRetry} />
+          ) : null}
+
+          <section aria-label="Prescriptions list" className={cn(TBD_SURFACE, "min-w-0 overflow-clip")}>
+            {loadFailed ? (
+              <LoadError
+                title="Could not load prescriptions"
+                message="Check your connection and try again."
+                onRetry={onRetry}
               />
-            ) : null}
-          </>
-        )}
-      </section>
+            ) : showEmpty ? (
+              <EmptyList filterState={filterState} filtersActive={filtersActive} />
+            ) : (
+              <>
+                <DoctorPrescriptionsTable
+                  rows={rows}
+                  todayKey={todayKey}
+                  isLoading={isLoading}
+                  isRefreshing={isRefreshing}
+                  skeletonRows={Math.min(filters.size, MAX_SKELETON_ROWS)}
+                  stickyTop={barHeight}
+                  onOpen={onOpen}
+                  onDownload={onDownload}
+                />
+                {!isLoading ? (
+                  <DoctorPrescriptionsPager
+                    page={filters.page}
+                    pageSize={filters.size}
+                    total={total}
+                    rowCount={rows.length}
+                    onPageChange={(page) => update({ page })}
+                    onPageSizeChange={(size) => update({ size: size || DEFAULT_FILTERS.size })}
+                  />
+                ) : null}
+              </>
+            )}
+          </section>
+        </>
+      )}
     </DashboardPageShell>
   );
 }

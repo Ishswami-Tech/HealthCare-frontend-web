@@ -519,9 +519,12 @@ export const useDeleteMedicine = () => {
 };
 
 /**
- * Hook to create prescription for a clinic
+ * Hook to create prescription for a clinic.
+ *
+ * `successMessage` (optional) overrides the success toast wording for this call — the doctor
+ * screens say the prescription "sent to the pharmacy" instead of a generic "created".
  */
-export const useCreatePrescription = () => {
+export const useCreatePrescription = (options?: { successMessage?: string }) => {
   return useMutationOperation(
     async ({
       clinicId,
@@ -547,7 +550,7 @@ export const useCreatePrescription = () => {
     {
       toastId: TOAST_IDS.PRESCRIPTION.CREATE,
       loadingMessage: "Creating prescription...",
-      successMessage: "Prescription created successfully",
+      successMessage: options?.successMessage ?? "Prescription created successfully",
       invalidateQueries: [["prescriptions"], ["medicineDeskQueue"], ["pharmacyStats"], ["pharmacyBatchAudit"]],
     },
   );

@@ -429,11 +429,9 @@ export function DoctorAppointmentsTable({
           <UserX className="size-[18px] shrink-0 text-[#be123c] dark:text-rose-300" strokeWidth={2.2} aria-hidden="true" />
           <h2 className="m-0 text-sm font-bold text-ink">Missed appointments</h2>
           <p className="m-0 text-[13px] font-medium text-ink-muted">
-            Patients who do not turn up show here with Call and Book again.
+            Patients who do not turn up show here with Call and Book again; the follow-up panel
+            above them messages and archives them in bulk.
           </p>
-          <Link href="/doctor/no-show" className="ml-auto text-[13px] font-bold text-brand hover:text-brand-dark">
-            Follow up in bulk
-          </Link>
         </div>
       ) : null}
 

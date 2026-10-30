@@ -49,6 +49,12 @@ export interface DoctorProfileAvailabilityDay {
   available: boolean;
   startTime: string;
   endTime: string;
+  /**
+   * Sessions beyond the first, as `{ start, end }` pairs. The Profile editor shows the first
+   * block only; extra blocks (e.g. an evening OPD block from the Schedule page) are carried
+   * through so a Profile save never drops them.
+   */
+  extraSessions?: Array<{ start: string; end: string }>;
 }
 
 export interface DoctorProfileFormState {

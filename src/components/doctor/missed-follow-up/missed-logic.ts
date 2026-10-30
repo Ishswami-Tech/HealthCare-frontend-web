@@ -72,4 +72,3 @@ export function archivedIds(favourites: readonly { itemKey: string }[]): Set<str
     favourites.filter((favourite) => favourite.itemKey.startsWith("missed-archive:")).map((favourite) => favourite.itemKey.slice("missed-archive:".length)),
   );
 }
-

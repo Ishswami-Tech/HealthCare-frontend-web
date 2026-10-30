@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHydrated } from "@/hooks/utils/useHydrated";
 import { showErrorToast, showInfoToast } from "@/hooks/utils/use-toast";
@@ -9,8 +9,8 @@ import { downloadPrescriptionPdf } from "@/lib/utils/prescription-pdf-download";
 import { usePrescriptionPage, usePrescriptionSummary } from "@/hooks/query/usePrescriptions";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateKeyInIST } from "@/lib/utils/date-time";
-import { DoctorPrescriptionsView } from "./DoctorPrescriptionsView";
-import { normalizeDoctorPrescriptions, type DoctorPrescriptionRow } from "./doctor-prescriptions.logic";
+import { DoctorPrescriptionsView, type DoctorRxTab } from "./DoctorPrescriptionsView";
+import { isDraftPrescription, normalizeDoctorPrescriptions, type DoctorPrescriptionRow } from "./doctor-prescriptions.logic";
 import {
   applyClientQuery,
   hasNonDefaultFilters,
@@ -25,13 +25,37 @@ export function DoctorPrescriptionsContent() {
   const { session } = useAuth();
   const doctorId = session?.user?.id || "";
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // "Today" is an IST day key; it only exists once the page runs in the browser.
   const isHydrated = useHydrated();
   const todayKey = isHydrated ? formatDateKeyInIST(new Date()) : "";
 
+  // The screen has two views: the prescription list and the stock hand-over. The URL picks
+  // one (`?tab=handover`), the same deep-link shape the Profile screen uses for its tabs.
+  const activeTab: DoctorRxTab = searchParams?.get("tab") === "handover" ? "handover" : "prescriptions";
+
   const filterState = useDoctorPrescriptionFilters();
   const { filters, update } = filterState;
+
+  /**
+   * Switching the view keeps the list filters but drops the hand-over pre-fills (they belong to
+   * the tab that was left), so the address never shows a patient from the other view.
+   */
+  const changeTab = useCallback(
+    (tab: DoctorRxTab) => {
+      const params = new URLSearchParams(window.location.search);
+      params.delete("tab");
+      params.delete("patientId");
+      params.delete("appointmentId");
+      params.delete("prescriptionId");
+      if (tab === "handover") params.set("tab", "handover");
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router],
+  );
 
   const listParams = useMemo(() => toListParams(filters, todayKey), [filters, todayKey]);
   const range = useMemo(() => resolveDateRange(filters, todayKey), [filters, todayKey]);
@@ -74,8 +98,14 @@ export function DoctorPrescriptionsContent() {
     router.push("/doctor/prescriptions/new");
   };
 
+  // Draft rows (assistant-prepared, awaiting the doctor) open the review screen with the
+  // approve / return workflow; everything else opens the read-only prescription detail.
   const openDetail = (prescription: DoctorPrescriptionRow) => {
-    if (prescription.id) router.push(`/doctor/prescriptions/${encodeURIComponent(prescription.id)}`);
+    if (!prescription.id) return;
+    const href = isDraftPrescription(prescription)
+      ? `/doctor/drafts/${encodeURIComponent(prescription.id)}`
+      : `/doctor/prescriptions/${encodeURIComponent(prescription.id)}`;
+    router.push(href);
   };
 
   const handleDownload = (prescription: DoctorPrescriptionRow) => {
@@ -98,6 +128,8 @@ export function DoctorPrescriptionsContent() {
     <DoctorPrescriptionsView
       filterState={filterState}
       filtersActive={hasNonDefaultFilters(filters)}
+      activeTab={activeTab}
+      onTabChange={changeTab}
       todayKey={todayKey}
       rows={view.rows}
       total={view.total}

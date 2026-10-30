@@ -1,8 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { DoctorDraftsInboxScreen } from "@/components/prescription-drafts/DoctorDraftReviewScreens";
-
-// DocDraftReview inbox (B4): the assistant's drafts waiting for the doctor.
+// Drafts now live on the Prescriptions screen (Drafts tab). Old links keep working:
+// they land on that tab of the list instead of a separate inbox.
 export default function DocDraftsPage() {
-  return <DoctorDraftsInboxScreen />;
+  redirect("/doctor/prescriptions?status=draft");
 }

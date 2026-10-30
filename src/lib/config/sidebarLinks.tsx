@@ -23,8 +23,6 @@ import {
   BarChart3,
   Boxes,
   ScanLine,
-  PencilLine,
-  ClipboardCheck,
   PackageCheck,
   Package,
   UserRound,
@@ -82,30 +80,35 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Patients", href: "/doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
-    // Drafts written by the assistant doctor, waiting for approval.
-    { title: "Rx drafts", href: "/doctor/drafts", icon: ClipboardCheck, permission: Permission.REVIEW_PRESCRIPTION_DRAFTS },
+    // Drafts live on the Prescriptions screen (Drafts tab): assistant-prepared rows waiting for
+    // approval. /doctor/drafts still loads and forwards there, so old links keep working.
     { title: "Investigations", href: "/doctor/investigations", icon: FlaskConical, permission: Permission.VIEW_MEDICAL_RECORDS },
-    { title: "Dispense", href: "/doctor/dispense", icon: PackageCheck, permission: Permission.DISPENSE_FROM_CLINIC_STOCK },
+    // No "Stock hand-over" link: the hand-over from clinic stock (deducts stock, bills) is a tab
+    // of the Prescriptions screen — "Prescriptions · Stock hand-over" (`?tab=handover`). The old
+    // /doctor/dispense route still loads and forwards to that tab, so old links keep working.
     // No standalone "Follow-ups" link: /doctor/follow-up only works opened with a specific
     // appointmentId (it books a follow-up from a visit) — clicked bare from this sidebar it
     // always dead-ended on "Open a visit to book its follow-up". The dashboard's Follow-ups
     // card and its "Workspace Tools" shortcut (both deep-link into Appointments) replace it.
-    { title: "Missed visits", href: "/doctor/no-show", icon: UserX, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "Leave", href: "/doctor/leave", icon: CalendarOff, permission: Permission.MANAGE_DOCTOR_LEAVE },
-    { title: "Reviews", href: "/doctor/reviews", icon: Star },
+    // No "Missed visits" link: the bulk follow-up (message, archive, re-book) now lives on the
+    // Appointments screen's "Missed appointments" view (`?view=NO_SHOW`); /doctor/no-show still
+    // loads and forwards there, so old links keep working.
+    // No "Reviews" link either: patient reviews live on the Profile screen (Reviews tab, fed by
+    // the same useDoctorReviews query); /doctor/reviews forwards to /doctor/profile?tab=reviews.
+    { title: "Schedule", href: "/doctor/leave", icon: CalendarOff, permission: Permission.MANAGE_DOCTOR_LEAVE },
     // No Earnings / Billing link: the doctor never sees billing amounts (clinic admin owns billing).
     { title: "Notifications", href: "/doctor/notifications", icon: Bell },
     { title: "Profile", href: "/doctor/profile", icon: UserRound },
   ],
   ASSISTANT_DOCTOR: [
-    // Assistant doctor: prescription drafts for the doctor, hand-over from clinic stock (no vitals, no check-in desk).
+    // Assistant doctor: drafts and approved history on one Prescriptions screen (the "New
+    // draft" / "Quick Rx" buttons live there); hand-over from clinic stock (no vitals, no check-in desk).
     // No Billing / Earnings link: the assistant never sees billing amounts.
     { title: "Dashboard", href: "/assistant-doctor/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/assistant-doctor/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Patients", href: "/assistant-doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
-    { title: "Prescribe", href: "/assistant-doctor/prescribe", icon: PencilLine, permission: Permission.DRAFT_PRESCRIPTIONS },
-    { title: "Drafts", href: "/assistant-doctor/drafts", icon: ClipboardCheck, permission: Permission.DRAFT_PRESCRIPTIONS },
+    { title: "Prescriptions", href: "/assistant-doctor/drafts", icon: Pill, permission: Permission.DRAFT_PRESCRIPTIONS },
     { title: "Dispense", href: "/assistant-doctor/dispense", icon: PackageCheck, permission: Permission.DISPENSE_FROM_CLINIC_STOCK },
     { title: "Stock", href: "/assistant-doctor/stock", icon: Package, permission: Permission.VIEW_STOCK_READONLY },
     { title: "Notifications", href: "/assistant-doctor/notifications", icon: Bell },

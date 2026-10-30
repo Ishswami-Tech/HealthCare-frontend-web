@@ -19,8 +19,8 @@ import type { DoctorRxFilterState } from "./useDoctorPrescriptionFilters";
 export interface DoctorPrescriptionsFilterBarProps {
   filterState: DoctorRxFilterState;
   filtersActive: boolean;
-  /** Shows the Drafts tab (the doctor has drafts waiting). */
-  showDrafts: boolean;
+  /** Drafts awaiting the doctor's approval; 0 hides the tab's count. */
+  draftCount: number;
   /** Today's IST day key, the latest day the custom range may end on. */
   todayKey: string;
   /** The view measures the bar to stick the table header right under it. */
@@ -37,7 +37,7 @@ const SELECT_TRIGGER =
 export function DoctorPrescriptionsFilterBar({
   filterState,
   filtersActive,
-  showDrafts,
+  draftCount,
   todayKey,
   ref,
 }: DoctorPrescriptionsFilterBarProps) {
@@ -48,7 +48,8 @@ export function DoctorPrescriptionsFilterBar({
     { value: "active", label: "Active" },
     { value: "completed", label: "Completed" },
     { value: "cancelled", label: "Cancelled" },
-    ...(showDrafts || filters.status === "draft" ? [{ value: "draft" as const, label: "Drafts" }] : []),
+    // The permanent home for assistant-prepared prescriptions awaiting the doctor's approval.
+    { value: "draft", label: "Drafts", ...(draftCount > 0 ? { count: draftCount } : {}) },
   ];
 
   return (

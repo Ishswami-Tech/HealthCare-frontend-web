@@ -6,8 +6,10 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { useMedicineFavourites, useRxKits } from "@/hooks/query/useDoctorFavourites";
 import { useCreateEhrPrescriptionNote } from "@/hooks/query/useMedicalRecords";
 import { useCreatePrescription } from "@/hooks/query/usePharmacy";
-import { usePrescriptions, useUpdatePrescription } from "@/hooks/query/usePrescriptions";
+import { usePatientPrescriptions, usePrescriptions, useUpdatePrescription } from "@/hooks/query/usePrescriptions";
+import { showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { PrescriptionEditor, type PrescriptionEditorMode } from "./rx/PrescriptionEditor";
+import { toOngoingMedicinesPanel } from "./rx/OngoingMedicinesPanel";
 import { usePrescriptionCatalogue } from "./rx/usePrescriptionCatalogue";
 import {
   formatMedicationSummary,
@@ -113,7 +115,11 @@ function QuickPrescriptionSession({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const completeAppointment = useCompleteAppointment();
-  const createPharmacyPrescription = useCreatePrescription();
+  // Doctor mode says the medicines "sent to the pharmacy" (they do); the assistant's draft
+  // stays on the generic wording, since nothing reaches the pharmacy until the doctor approves.
+  const createPharmacyPrescription = useCreatePrescription(
+    isDraft ? undefined : { successMessage: "Prescription sent to the pharmacy" },
+  );
   const updatePrescription = useUpdatePrescription();
   const createEhrNote = useCreateEhrPrescriptionNote();
   const catalogue = usePrescriptionCatalogue(clinicId || "");
@@ -124,6 +130,16 @@ function QuickPrescriptionSession({
   const kits = useRxKits({ enabled: active });
   const ownPrescriptions = usePrescriptions(doctorId, undefined, { enabled: active && !isDraft });
   const recentIds = useMemo(() => recentMedicineIds(ownPrescriptions.data?.prescriptions), [ownPrescriptions.data]);
+
+  // What the patient is already taking, for the "current medicines" panel of the prescribe screen.
+  // Doctor mode only (the assistant's draft shows the doctor's view, not a re-fetch of it).
+  const patientPrescriptions = usePatientPrescriptions(doctorId, patientId, undefined, {
+    enabled: active && !isDraft && !isEdit,
+  });
+  const ongoingMedicines = useMemo(
+    () => toOngoingMedicinesPanel(patientPrescriptions.data?.prescriptions),
+    [patientPrescriptions.data],
+  );
 
   const editorMode: PrescriptionEditorMode = isEdit ? "edit" : isDraft ? "draft" : appointmentId ? "complete" : "save";
 
@@ -340,6 +356,8 @@ function QuickPrescriptionSession({
       onSearchChange={catalogue.setSearchText}
       isSearching={catalogue.isSearching}
       shortcuts={{ favourites, kits, recentIds }}
+      ongoing={ongoingMedicines}
+      ongoingLoading={active && !isDraft && !isEdit && patientPrescriptions.isPending}
     />
   );
 }
