@@ -135,14 +135,34 @@ function minutesToClock(total: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+/** Overlap of two window lists (both sorted or not); empty when they never meet. */
+function intersectWindows(left: readonly ClinicWindow[], right: readonly ClinicWindow[]): ClinicWindow[] {
+  const overlap: ClinicWindow[] = [];
+  for (const a of left) {
+    for (const b of right) {
+      const startMinutes = Math.max(a.startMinutes, b.startMinutes);
+      const endMinutes = Math.min(a.endMinutes, b.endMinutes);
+      if (startMinutes < endMinutes) overlap.push({ startMinutes, endMinutes });
+    }
+  }
+  return overlap.sort((a, b) => a.startMinutes - b.startMinutes);
+}
+
 /** Hours of one open weekday, by the server cascade: location, else the doctor, else the clinic windows. */
 function cascadeWindows(input: BookingWeekInput, weekDay: BookingWeekDay): ClinicWindow[] {
   const location = readWeeklyWindows(parseJsonish(input.locationWorkingHours), weekDay);
-  if (location.length > 0) return location;
   const doctor = readWeeklyWindows(input.doctorWorkingHours, weekDay);
-  if (doctor.length > 0) return doctor;
-  const clinicWindows = input.appointmentSettings?.operatingWindowsByDay;
-  return isRecord(clinicWindows) ? readClinicWindows(parseJsonish(clinicWindows[weekDay])) : [];
+  const clinicWindowsRaw = input.appointmentSettings?.operatingWindowsByDay;
+  const clinic = isRecord(clinicWindowsRaw) ? readClinicWindows(parseJsonish(clinicWindowsRaw[weekDay])) : [];
+  const cascade = location.length > 0 ? location : doctor.length > 0 ? doctor : clinic;
+  if (!input.inClinic || cascade.length === 0) return cascade;
+  // In-clinic, the slot grid is the server list clipped to the clinic windows AND the doctor's
+  // weekly hours (clinicHours `clipInClinicSlots`). Apply the same clip here so the card prints
+  // the hours the grid actually offers (a 00:00-23:59 location with a 09:00-17:00 doctor shows
+  // 09:00-17:00, not the location's day).
+  return [clinic, doctor]
+    .filter((layer) => layer.length > 0)
+    .reduce<ClinicWindow[]>((current, layer) => intersectWindows(current, layer), cascade);
 }
 
 /**
