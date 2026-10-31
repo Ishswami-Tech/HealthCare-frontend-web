@@ -108,8 +108,11 @@ export function clipSlotsToWindows(
 }
 
 /**
- * When the open times are closer together than `minStep` minutes, keeps one chip per `minStep`
- * (the earliest of each run). A grid that is already coarse enough is returned as it is.
+ * When the open times are closer together than `minStep` minutes, keeps one chip per fixed
+ * `stride`-minute bucket of the day (the earliest open time in each bucket). Buckets are anchored
+ * to midnight, not to the previous chip, so a booked slot only changes the chip of its own bucket
+ * and the grid after it stays on 10:00, 10:15, ... instead of drifting (09:48, 10:03, ...).
+ * A grid that is already coarse enough is returned as it is.
  */
 export function thinDenseSlots(slots: readonly string[], minStep = MIN_DISPLAY_STEP_MINUTES): string[] {
   const entries = slots
@@ -122,12 +125,14 @@ export function thinDenseSlots(slots: readonly string[], minStep = MIN_DISPLAY_S
     if (gap > 0 && gap < smallestGap) smallestGap = gap;
   }
   if (smallestGap >= minStep) return entries.map((entry) => entry.slot);
+  const stride = smallestGap * Math.ceil(minStep / smallestGap);
   const kept: string[] = [];
-  let lastKept = Number.NEGATIVE_INFINITY;
+  let lastBucket = Number.NEGATIVE_INFINITY;
   for (const entry of entries) {
-    if (entry.minutes - lastKept >= minStep) {
+    const bucket = Math.floor(entry.minutes / stride);
+    if (bucket !== lastBucket) {
       kept.push(entry.slot);
-      lastKept = entry.minutes;
+      lastBucket = bucket;
     }
   }
   return kept;
