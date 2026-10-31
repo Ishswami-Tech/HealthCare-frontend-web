@@ -1,4 +1,5 @@
 import { formatDateKeyInIST, formatTimeInIST } from "@/lib/utils/date-time";
+import { thinDenseSlots } from "./clinicHours";
 import type { BookingPeriodKey, BookingSlotOption, BookingSlotPeriod } from "./types";
 
 /**
@@ -79,6 +80,14 @@ export function buildSlotPeriods(
   dateKey?: string,
 ): BookingSlotPeriod[] {
   const open = [...groups.morning, ...groups.afternoon, ...groups.evening];
+  // Dense grids (a 3-minute visit length) are thinned for display only; every chip is still a
+  // slot the API reported as open.
+  const shownOpen = new Set(thinDenseSlots(open));
+  const shownGroups: Record<BookingPeriodKey, string[]> = {
+    morning: groups.morning.filter((slot) => shownOpen.has(slot)),
+    afternoon: groups.afternoon.filter((slot) => shownOpen.has(slot)),
+    evening: groups.evening.filter((slot) => shownOpen.has(slot)),
+  };
   const openSet = new Set(open);
   const openMinutes = open.map(toMinutes).filter((value): value is number => value !== null);
   const first = openMinutes.length > 0 ? Math.min(...openMinutes) : null;
@@ -106,14 +115,14 @@ export function buildSlotPeriods(
 
   return PERIODS.map((period) => {
     const slots: BookingSlotOption[] = [
-      ...groups[period.key].map((value) =>
+      ...shownGroups[period.key].map((value) =>
         isExpired(value)
           ? { value, unavailable: true as const, reason: "expired" as const }
           : { value, unavailable: false as const },
       ),
       ...taken[period.key].map((value) => ({ value, unavailable: true as const, reason: "booked" as const })),
     ].sort((a, b) => a.value.localeCompare(b.value));
-    const openCount = groups[period.key].filter((value) => !isExpired(value)).length;
+    const openCount = shownGroups[period.key].filter((value) => !isExpired(value)).length;
     return { ...period, slots, openCount };
   }).filter((period) => period.slots.length > 0);
 }

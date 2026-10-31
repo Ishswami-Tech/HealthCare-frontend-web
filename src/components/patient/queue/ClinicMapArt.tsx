@@ -77,7 +77,7 @@ export function ClinicMapTile({
       {badge ? <span className="absolute bottom-3 left-3 right-3 z-10 flex">{badge}</span> : null}
       {directionsUrl ? (
         <span
-          className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-lg bg-white/90 px-2 py-1 text-[11px] font-bold text-[#047857] shadow-sm dark:bg-black/60 dark:text-emerald-300"
+          className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-lg bg-white/90 px-2 py-1 text-xs font-bold text-[#047857] shadow-sm dark:bg-black/60 dark:text-emerald-300"
           aria-hidden="true"
         >
           Open map

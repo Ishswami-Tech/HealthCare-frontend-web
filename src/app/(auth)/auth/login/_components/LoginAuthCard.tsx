@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import PhoneInput from "@/components/ui/phone-input";
 import { SocialLogin } from "@/components/auth/social-login";
+import { validateLoginIdentifier } from "./login-identifier";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ChevronLeft, Loader2, Mail, Phone } from "lucide-react";
@@ -330,10 +331,9 @@ export function LoginAuthCard({
               className="group w-full"
               onClick={() => {
                 const id = otpForm.getValues("identifier");
-                if (!id) {
-                  otpForm.setError("identifier", {
-                    message: "Please enter your email or phone",
-                  });
+                const identifierProblem = validateLoginIdentifier(otpMethod, id ?? "");
+                if (identifierProblem) {
+                  otpForm.setError("identifier", { message: identifierProblem });
                   return;
                 }
                 onRequestOTP(id);

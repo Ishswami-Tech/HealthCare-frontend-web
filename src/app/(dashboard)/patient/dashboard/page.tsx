@@ -32,6 +32,7 @@ import {
   toLibraryItem,
   type Row,
 } from "@/components/patient/home/homeData";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
 import type {
   HomeLibraryItem,
@@ -88,7 +89,19 @@ export default function PatientDashboard() {
   }, [doctorsData]);
 
   // Composed single-round-trip summary (appointments, prescriptions, EHR, invoices, payments).
-  const { data: summary, isPending: isPendingSummary } = usePatientDashboardSummary({ enabled: !!patientId });
+  const {
+    data: summary,
+    isPending: isPendingSummary,
+    isFetching: isFetchingSummary,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = usePatientDashboardSummary({ enabled: !!patientId });
+  const summaryFailedParts = Object.values(summary?.errors ?? {}).some(Boolean);
+  const loadError = summaryError
+    ? sanitizeErrorMessage(summaryError) || "Please check your connection and try again."
+    : summaryFailedParts
+      ? "Some of your information could not be loaded."
+      : null;
 
   const summaryAppointments = useMemo<Row[]>(
     () => (Array.isArray(summary?.appointments) ? summary.appointments.map(asRecord).filter((row): row is Row => !!row) : []),
@@ -285,6 +298,9 @@ export default function PatientDashboard() {
       queue={queue}
       queueVisitId={queueAppointment ? textOf(queueAppointment.id) : null}
       visitActions={visitActions}
+      loadError={loadError}
+      onRetry={() => void refetchSummary()}
+      isRetrying={isFetchingSummary}
       library={{
         tab: libraryTab,
         onTabChange: setLibraryTab,

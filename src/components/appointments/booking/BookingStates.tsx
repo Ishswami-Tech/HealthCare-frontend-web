@@ -99,7 +99,7 @@ export function BookingSkeletonRows({ rows = 4, className }: { rows?: number | u
 /** Small uppercase label above a group of options. */
 export function BookingGroupLabel({ children, className }: { children: ReactNode; className?: string | undefined }) {
   return (
-    <p className={cn("m-0 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted", className)}>
+    <p className={cn("m-0 text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted", className)}>
       {children}
     </p>
   );

@@ -35,6 +35,7 @@ import {
   invoiceSubject,
   invoiceTotal,
   isPaidInvoice,
+  overdueLabel,
   pendingPlanInvoice,
   type SubscriptionGroups,
 } from "./patientBilling.logic";
@@ -77,7 +78,8 @@ const AUTO = "@3xl:col-auto @3xl:row-auto";
 function invoiceDateLine(invoice: Invoice): string {
   if (isPaidInvoice(invoice)) return `Paid ${formatDateLabel(invoicePaidAt(invoice) ?? invoice.updatedAt, EMPTY_DATE_LABEL)}`;
   if (invoiceDisplayState(invoice) === "closed") return "No payment needed";
-  return `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}`;
+  const overdue = overdueLabel(invoice);
+  return `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}${overdue ? ` · ${overdue}` : ""}`;
 }
 
 function InvoicesList({
@@ -95,7 +97,7 @@ function InvoicesList({
 
   if (loading) {
     return (
-      <Surface flush aria-busy="true" aria-label="Loading invoices">
+      <Surface flush aria-busy="true" role="status" aria-label="Loading invoices">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="flex items-center gap-4 border-b border-hair px-5 py-4 last:border-b-0">
             <div className="flex flex-1 flex-col gap-1.5">
@@ -137,7 +139,7 @@ function InvoicesList({
         aria-hidden="true"
         className={cn(
           INVOICE_GRID,
-          "hidden border-b border-hair px-5 py-3 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted @3xl:grid",
+          "hidden border-b border-hair px-5 py-3 text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted @3xl:grid",
         )}
       >
         <span>Invoice</span>
@@ -222,7 +224,7 @@ function PlansGrid({
 }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading plans">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" role="status" aria-label="Loading plans">
         {Array.from({ length: 3 }).map((_, index) => (
           <Skeleton key={index} className="h-[212px] rounded-[20px]" />
         ))}
@@ -346,7 +348,7 @@ function SubscriptionsList({
   embedded?: boolean;
 }) {
   if (loading) {
-    return <Skeleton className="h-[76px] w-full rounded-[20px]" aria-busy="true" aria-label="Loading subscriptions" />;
+    return <Skeleton className="h-[76px] w-full rounded-[20px]" aria-busy="true" role="status" aria-label="Loading subscriptions" />;
   }
 
   if (groups.all.length === 0 && failed) {

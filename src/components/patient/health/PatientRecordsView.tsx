@@ -66,7 +66,7 @@ export interface PatientRecordsViewProps {
 
 function ListSkeleton() {
   return (
-    <div className="flex flex-col" aria-busy="true" aria-label="Loading your records">
+    <div className="flex flex-col" aria-busy="true" role="status" aria-label="Loading your records">
       {[0, 1, 2].map((index) => (
         <div key={index} className="flex items-center gap-3.5 border-b border-hair py-3.5 last:border-b-0">
           <Skeleton className="size-11 shrink-0 rounded-[14px]" />

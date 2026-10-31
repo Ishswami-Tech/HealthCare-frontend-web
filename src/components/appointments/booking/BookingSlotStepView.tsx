@@ -66,7 +66,7 @@ function LiveSyncLine({ liveSync }: { liveSync: BookingLiveSync }) {
     <div className="flex flex-wrap items-center gap-2">
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-bold",
+          "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-bold",
           liveSync.className ??
             (liveSync.mode === "live"
               ? "border-[#a7f3d0] bg-[#ecfdf5] text-[#065f46] dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
@@ -78,7 +78,7 @@ function LiveSyncLine({ liveSync }: { liveSync: BookingLiveSync }) {
         <Icon className="size-3" aria-hidden="true" />
         {liveSync.label}
       </span>
-      <span className="text-[11px] font-medium text-ink-muted">{liveSync.description}</span>
+      <span className="text-xs font-medium text-ink-muted">{liveSync.description}</span>
     </div>
   );
 }
@@ -96,7 +96,7 @@ function DateLiveSyncTitle({ liveSync }: { liveSync?: BookingLiveSync | null }) 
       <span>Date and time</span>
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-bold",
+          "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-bold",
           liveSync?.className ??
             (mode === "live"
               ? "border-[#a7f3d0] bg-[#ecfdf5] text-[#065f46] dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
@@ -184,7 +184,7 @@ function ClearSlotButton({ onClear, children }: { onClear: () => void; children:
     <button
       type="button"
       onClick={onClear}
-      className="shrink-0 rounded-md text-[13px] font-bold text-brand hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
+      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md px-2 text-[13px] font-bold text-brand hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
     >
       {children}
     </button>
@@ -222,6 +222,9 @@ function SlotStepPage({
   const isVideo = mode === "VIDEO";
   const length = slotLengthLabel(durationMinutes);
   const typeLine = [feeLabel, length].filter(Boolean).join(" · ");
+  // Same slot object as tapping it in the grid: the first open chip of the day.
+  const firstOpenSlot =
+    periods.flatMap((period) => period.slots).find((slot) => !slot.unavailable)?.value ?? "";
   return (
     <BookingDoctorPage
       doctor={doctor}
@@ -273,12 +276,24 @@ function SlotStepPage({
             className="[&_h2]:text-sm"
           />
           {isVideo && videoWindow && status === "ready" ? (
-            <p className="m-0 text-[11px] text-ink-muted">
+            <p className="m-0 text-xs text-ink-muted">
               Video slots are available only within {videoWindow.start} - {videoWindow.end}.
             </p>
           ) : null}
           {!isVideo && status === "ready" && length ? (
-            <p className="m-0 text-[11px] text-ink-muted">{length} per slot</p>
+            <p className="m-0 text-xs text-ink-muted">{length} per slot</p>
+          ) : null}
+          {status === "ready" && !selectedSlot && firstOpenSlot ? (
+            <button
+              type="button"
+              onClick={() => onSelectSlot(firstOpenSlot)}
+              className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[#a7f3d0] bg-[#ecfdf5] px-3 py-2 text-left text-sm font-semibold text-[#065f46] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+            >
+              <span>
+                Earliest on {dateShort}: {formatSlotLabel(firstOpenSlot, "12h")}
+              </span>
+              <span className="font-extrabold">Select</span>
+            </button>
           ) : null}
           {status === "ready" ? (
             <BookingSlotGroups
@@ -344,7 +359,7 @@ function SlotStepCompact({
               <span className="text-sm font-bold text-ink">Select 1 slot</span>
               <span className="text-xs font-medium text-ink-muted">{length ? `${length} call` : "Call"} within clinic video hours.</span>
             </span>
-            <span className="rounded-lg border border-[#a7f3d0] bg-[#ecfdf5] px-[9px] py-1 text-[11px] font-extrabold text-[#047857] dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+            <span className="rounded-lg border border-[#a7f3d0] bg-[#ecfdf5] px-[9px] py-1 text-xs font-extrabold text-[#047857] dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
               {selectedSlot ? "1/1" : "0/1"}
             </span>
           </div>
@@ -358,7 +373,7 @@ function SlotStepCompact({
             {length ? <Chip icon={Clock}>{length}</Chip> : null}
           </div>
           {videoWindow ? (
-            <span className="text-[11px] font-medium text-ink-muted">
+            <span className="text-xs font-medium text-ink-muted">
               Video slots are available only within {videoWindow.start} – {videoWindow.end}.
             </span>
           ) : null}
@@ -369,7 +384,7 @@ function SlotStepCompact({
                 <span className="text-sm font-bold text-brand-dark">
                   Selected slot: {selectedSlot}
                 </span>
-                <span className="text-[11px] font-medium text-brand">
+                <span className="text-xs font-medium text-brand">
                   {[dateLong, length ? `${length} video call` : "video call"].join(" · ")}
                 </span>
               </span>

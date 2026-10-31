@@ -21,7 +21,7 @@ const CARD = cn(TBD_SURFACE, "flex min-w-0 items-center gap-3.5 rounded-[18px] p
 export function PatientHomeStats({ stats, isLoading = false }: { stats: HomeStat[]; isLoading?: boolean }) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" aria-busy="true" aria-label="Loading your numbers">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" aria-busy="true" role="status" aria-label="Loading your numbers">
         {[0, 1, 2, 3].map((index) => (
           <div key={index} className={CARD}>
             <Skeleton className="size-11 shrink-0 rounded-[14px]" />

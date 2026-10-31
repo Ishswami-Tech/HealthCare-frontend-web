@@ -78,7 +78,7 @@ export function LibraryCard({ item }: { item: LibraryCardItem }) {
       <LibraryCover src={item.coverImageUrl} category={item.category} isVideo={item.isVideo} className="h-[72px] w-24 rounded-xl" />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         {item.eyebrow ? (
-          <span className={cn("truncate text-[11px] font-extrabold uppercase tracking-[0.4px]", tone.text)}>{item.eyebrow}</span>
+          <span className={cn("truncate text-xs font-extrabold uppercase tracking-[0.4px]", tone.text)}>{item.eyebrow}</span>
         ) : null}
         <span className="line-clamp-2 text-sm font-bold leading-[1.3]">{item.title}</span>
         {item.meta ? <span className="truncate text-xs text-ink-muted">{item.meta}</span> : null}

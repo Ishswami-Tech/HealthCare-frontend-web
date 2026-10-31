@@ -128,7 +128,7 @@ interface SlotGridProps {
 /** The slot chips of one period (selected = emerald or the period colour, unavailable = grey). */
 function SlotGrid({ slots, selected, onSelect, timeStyle, detail, columnsClassName, theme }: SlotGridProps) {
   return (
-    <div className={cn("grid gap-1.5", columnsClassName)}>
+    <div className={cn("grid gap-2", columnsClassName)}>
       {slots.map((slot) => {
         const isSelected = !slot.unavailable && selected === slot.value;
         const label = formatSlotLabel(slot.value, timeStyle);
@@ -142,7 +142,7 @@ function SlotGrid({ slots, selected, onSelect, timeStyle, detail, columnsClassNa
             aria-label={slot.unavailable ? `${label}, ${unavailableText.toLowerCase()}` : label}
             onClick={() => onSelect(slot.value)}
             className={cn(
-              "flex min-h-9 flex-col items-center justify-center gap-px rounded-lg border px-1 py-1.5 text-center transition-colors",
+              "flex min-h-11 flex-col items-center justify-center gap-px rounded-lg border px-1 py-1.5 text-center transition-colors",
               "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40",
               isSelected
                 ? (theme?.slotSelected ?? "border-primary bg-primary text-white shadow-[0_4px_10px_rgba(4,120,87,0.22)]")
@@ -155,7 +155,7 @@ function SlotGrid({ slots, selected, onSelect, timeStyle, detail, columnsClassNa
             {detail ? (
               <span
                 className={cn(
-                  "text-[11px]",
+                  "text-xs",
                   isSelected
                     ? theme
                       ? "text-white/85"
@@ -267,7 +267,7 @@ function BookingSlotPeriodTabs({
               </span>
               <span
                 className={cn(
-                  "text-[11px] font-medium",
+                  "text-xs font-medium",
                   isActive ? "opacity-80" : disabled ? "" : "text-ink-muted",
                 )}
               >
@@ -284,7 +284,7 @@ function BookingSlotPeriodTabs({
           aria-labelledby={`booking-slot-tab-${activePeriod.key}`}
           className="flex flex-col gap-2"
         >
-          <p className="m-0 text-[11px] font-medium text-ink-muted">{activePeriod.range}</p>
+          <p className="m-0 text-xs font-medium text-ink-muted">{activePeriod.range}</p>
           <SlotGrid
             slots={activePeriod.slots}
             selected={selected}
@@ -355,8 +355,8 @@ export function BookingSlotGroups({
             <div className="flex items-center gap-2">
               <Icon className="size-4 shrink-0 text-ink-muted" strokeWidth={2} aria-hidden="true" />
               <h3 className="m-0 text-xs font-extrabold uppercase tracking-[0.6px] text-ink-soft">{period.label}</h3>
-              <span className="text-[11px] font-medium text-ink-muted">({period.range})</span>
-              <span className="ml-auto rounded-md bg-well px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted">
+              <span className="text-xs font-medium text-ink-muted">({period.range})</span>
+              <span className="ml-auto rounded-md bg-well px-1.5 py-0.5 text-xs font-semibold text-ink-muted">
                 {period.openCount} {period.openCount === 1 ? "slot" : "slots"}
               </span>
             </div>

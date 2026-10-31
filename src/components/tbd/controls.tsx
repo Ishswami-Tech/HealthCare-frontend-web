@@ -40,7 +40,7 @@ export function FilterChips<T extends string>({
             disabled={option.disabled}
             onClick={() => onChange(option.value)}
             className={cn(
-              "inline-flex min-h-[38px] items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-[13px] transition-colors",
+              "inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-[13px] transition-colors",
               "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50",
               active
                 ? "bg-[#047857] font-bold text-white shadow-[0_6px_14px_rgba(4,120,87,0.22)]"
@@ -51,8 +51,8 @@ export function FilterChips<T extends string>({
             {option.count !== undefined && option.count !== null ? (
               <span
                 className={cn(
-                  "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold",
-                  active ? "bg-white/25 text-white" : "bg-well text-ink-soft",
+                  "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-extrabold",
+                  active ? "bg-black/25 text-white" : "bg-well text-ink-soft",
                 )}
               >
                 {option.count}
@@ -114,7 +114,7 @@ export function SegTabs<T extends string>({
             {option.count !== undefined && option.count !== null ? (
               <span
                 className={cn(
-                  "inline-flex h-5 min-w-[22px] items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold",
+                  "inline-flex h-5 min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-extrabold",
                   active ? "bg-mint text-brand-dark" : "bg-[#dbe3ec] text-ink-soft dark:bg-white/10",
                 )}
               >

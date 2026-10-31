@@ -334,9 +334,9 @@ export function AtAGlanceSurface({
 // ── Patient snapshot ───────────────────────────────────────────────────────
 
 const ALLERGY_CHIP =
-  "inline-flex items-center rounded-[8px] bg-rose-50 px-[9px] py-1 text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-rose-800 dark:bg-rose-500/15 dark:text-rose-300";
+  "inline-flex items-center rounded-[8px] bg-rose-50 px-[9px] py-1 text-xs font-extrabold uppercase leading-none tracking-[0.4px] text-rose-800 dark:bg-rose-500/15 dark:text-rose-300";
 const MEDICATION_CHIP =
-  "inline-flex items-center rounded-[8px] bg-[#d1fae5] px-[9px] py-1 text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-[#065f46] dark:bg-emerald-500/15 dark:text-emerald-300";
+  "inline-flex items-center rounded-[8px] bg-[#d1fae5] px-[9px] py-1 text-xs font-extrabold uppercase leading-none tracking-[0.4px] text-[#065f46] dark:bg-emerald-500/15 dark:text-emerald-300";
 
 /** One labelled content row of the snapshot: chips when there is content, one muted line when not. */
 function SnapshotContentRow({
@@ -352,7 +352,7 @@ function SnapshotContentRow({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <dt className="text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">{label}</dt>
+      <dt className="text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted">{label}</dt>
       <dd className="m-0">
         {hasContent ? (
           <div className="flex flex-wrap items-center gap-1.5">{chips}</div>

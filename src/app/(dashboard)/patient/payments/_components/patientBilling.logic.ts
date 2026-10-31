@@ -1,6 +1,6 @@
 import { isPaidPayment, paymentKind, type PaymentKind } from "@/components/billing/PaymentHistory";
 import { paymentDateValue, sortPaymentsNewestFirst } from "@/components/billing/staff/billing.logic";
-import { EMPTY_DATE_LABEL, formatDateInIST, formatDateLabel, formatMonthShortInIST } from "@/lib/utils/date-time";
+import { EMPTY_DATE_LABEL, formatDateInIST, formatDateKeyInIST, formatDateLabel, formatMonthShortInIST } from "@/lib/utils/date-time";
 import type { Invoice, Payment, Subscription } from "@/types/billing.types";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
@@ -264,6 +264,28 @@ export function pendingInvoices(invoices: Invoice[]): Invoice[] {
     return Number.isFinite(value) ? value : 0;
   };
   return invoices.filter((invoice) => isPayableInvoice(invoice)).toSorted((left, right) => time(left) - time(right));
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Whole days an unpaid invoice is past its due date (0 when it is not payable, has no due date,
+ * or is due today or later). Calendar days in IST, so "due 5 Oct" is overdue from 6 Oct.
+ */
+export function invoiceDaysOverdue(invoice: Invoice, now: number = Date.now()): number {
+  if (!isPayableInvoice(invoice) || !invoice.dueDate) return 0;
+  const due = new Date(invoice.dueDate).getTime();
+  if (!Number.isFinite(due)) return 0;
+  const dayKey = (value: number) => new Date(`${formatDateKeyInIST(new Date(value))}T00:00:00Z`).getTime();
+  const days = Math.floor((dayKey(now) - dayKey(due)) / DAY_MS);
+  return days > 0 ? days : 0;
+}
+
+/** "Overdue · 26 days ago", or "" when the invoice is not overdue. */
+export function overdueLabel(invoice: Invoice, now: number = Date.now()): string {
+  const days = invoiceDaysOverdue(invoice, now);
+  if (days === 0) return "";
+  return `Overdue · ${days === 1 ? "1 day" : `${days} days`} ago`;
 }
 
 export interface DueSummary {

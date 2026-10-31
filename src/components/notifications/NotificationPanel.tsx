@@ -24,6 +24,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/query/useNotifications";
+import { useUndoableRemove } from "./useUndoableRemove";
 
 interface NotificationPanelProps {
   className?: string | undefined;
@@ -44,16 +45,17 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
     removeNotification,
   } = useNotifications(isNotificationPanelOpen);
 
+  const { hiddenIds, requestRemove } = useUndoableRemove(removeNotification);
   const [filter, setFilter] = useState<FilterType>("all");
   const [isMarkingAll, setIsMarkingAll] = useState(false);
 
   // Filter notifications
   const filteredNotifications = useMemo(() => {
-    if (filter === "all") return notifications;
-    if (filter === "unread")
-      return notifications.filter((n) => !n.isRead);
-    return notifications.filter((n) => n.type === filter);
-  }, [notifications, filter]);
+    const shown = notifications.filter((n) => !hiddenIds.has(n.id));
+    if (filter === "all") return shown;
+    if (filter === "unread") return shown.filter((n) => !n.isRead);
+    return shown.filter((n) => n.type === filter);
+  }, [notifications, filter, hiddenIds]);
 
   const handleMarkAsRead = async (id: string) => {
     await markAsRead(id);
@@ -69,7 +71,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
   };
 
   const handleRemove = (id: string) => {
-    removeNotification(id);
+    requestRemove(id);
   };
 
   const filterOptions: { value: FilterType; label: string }[] = [
@@ -98,7 +100,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-[#e11d48] px-1 py-0 text-[10px] font-extrabold text-white"
+              className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-card bg-[#e11d48] px-1 py-0 text-xs font-extrabold text-white"
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>
@@ -117,7 +119,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                   size="sm"
                   onClick={handleMarkAllAsRead}
                   disabled={isMarkingAll}
-                  className="h-8 text-xs"
+                  className="min-h-11 text-xs"
                 >
                   {isMarkingAll ? (
                     <Loader2 className="size-3 animate-spin mr-1" />
@@ -136,7 +138,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                   key={option.value}
                   variant={filter === option.value ? "default" : "outline"}
                   size="sm"
-                  className="h-7 text-xs whitespace-nowrap"
+                  className="min-h-11 text-xs whitespace-nowrap"
                   onClick={() => setFilter(option.value)}
                 >
                   {option.label}

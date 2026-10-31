@@ -63,7 +63,7 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
     >
       <div className="rounded-t-[26px] border-t border-hair bg-card/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,27,45,0.08)]">
         <div
-          className="grid items-stretch gap-1 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+          className="grid items-stretch gap-1 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] [@media(max-height:600px)]:py-1 [@media(max-height:600px)]:pb-[calc(env(safe-area-inset-bottom)+0.25rem)]"
           style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
         >
           {visibleLinks.map((link) => {
@@ -82,7 +82,7 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
                 scroll={false}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-semibold transition-colors",
+                  "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-xs font-semibold [@media(max-height:600px)]:py-1 transition-colors",
                   isActive ? "text-brand font-bold" : "text-ink-muted hover:text-ink"
                 )}
               >
@@ -96,7 +96,7 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
                 >
                   <Icon className={cn("size-4.5 shrink-0", isActive ? "text-white" : "text-ink-muted")} />
                 </span>
-                <span className="whitespace-nowrap text-center leading-none">
+                <span className="whitespace-nowrap text-center leading-none [@media(max-height:600px)]:sr-only">
                   {link.title}
                 </span>
               </Link>
@@ -107,10 +107,10 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
             <button
               type="button"
               onClick={() => setOpenMobile(true)}
-              className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-xs font-medium [@media(max-height:600px)]:py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Menu className="size-4.5 shrink-0" />
-              <span className="whitespace-nowrap text-center leading-none">More</span>
+              <span className="whitespace-nowrap text-center leading-none [@media(max-height:600px)]:sr-only">More</span>
             </button>
           ) : null}
         </div>

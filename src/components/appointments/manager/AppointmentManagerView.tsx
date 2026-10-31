@@ -13,6 +13,7 @@ import {
   Stethoscope,
   Zap,
 } from "lucide-react";
+import { LoadErrorAlert } from "@/components/patient/LoadErrorAlert";
 import { EmptyBlock, Kpi, LiveTag, Note, Pill, SegTabs, Surface } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,13 +73,13 @@ function Pager({ page, pageCount, onChange }: { page: number; pageCount: number;
   if (pageCount <= 1) return null;
   return (
     <nav aria-label="Pages" className="flex items-center justify-between gap-3 pt-3 text-[13px] text-ink-muted sm:justify-end">
-      <Button variant="outline" className="h-[34px]" onClick={() => onChange(page - 1)} disabled={page <= 1}>
+      <Button variant="outline" size="md" onClick={() => onChange(page - 1)} disabled={page <= 1}>
         Previous
       </Button>
       <span className="whitespace-nowrap" aria-live="polite">
         Page {page} of {pageCount}
       </span>
-      <Button variant="outline" className="h-[34px]" onClick={() => onChange(page + 1)} disabled={page >= pageCount}>
+      <Button variant="outline" size="md" onClick={() => onChange(page + 1)} disabled={page >= pageCount}>
         Next
       </Button>
     </nav>
@@ -93,7 +94,10 @@ function pageOf<T>(list: T[], page: number, size: number): { rows: T[]; page: nu
 
 function LoadingState() {
   return (
-    <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading appointments">
+    <div className="flex flex-col gap-5" aria-busy="true">
+      <span className="sr-only" role="status">
+        Loading your appointments
+      </span>
       <Skeleton className="h-[46px] w-[260px] rounded-[13px]" />
       <div className="grid gap-5 @3xl:grid-cols-2">
         {[0, 1].map((index) => (
@@ -262,7 +266,11 @@ export function AppointmentManagerView({
           ]}
         />
         <div className="flex items-center gap-2">
-          {live ? (
+          {errorMessage ? (
+            <Pill tone="slate" dot>
+              Offline
+            </Pill>
+          ) : live ? (
             live === "on" ? (
               <LiveTag>Live</LiveTag>
             ) : (
@@ -274,7 +282,7 @@ export function AppointmentManagerView({
           <Button
             variant="outline"
             size="icon"
-            className={cn("size-[38px]", (filtersOpen || hasActiveFilters) && "border-brand text-brand")}
+            className={cn("size-11", (filtersOpen || hasActiveFilters) && "border-brand text-brand")}
             aria-label={filtersOpen ? "Hide search and filters" : "Search and filter"}
             aria-expanded={filtersOpen}
             aria-controls={filtersId}
@@ -285,7 +293,7 @@ export function AppointmentManagerView({
           <Button
             variant="outline"
             size="icon"
-            className="size-[38px]"
+            className="size-11"
             aria-label="Refresh appointments"
             onClick={onRefresh}
             disabled={isRefreshing}
@@ -321,9 +329,12 @@ export function AppointmentManagerView({
       ) : null}
 
       {errorMessage ? (
-        <Note tone="rose" icon={AlertTriangle}>
-          {errorMessage} Showing the last list we loaded.
-        </Note>
+        <LoadErrorAlert
+          title={staffView ? "We could not refresh the appointments." : "We could not refresh your visits."}
+          detail={`${errorMessage} Showing the last list we loaded.`}
+          onRetry={onRefresh}
+          retrying={isRefreshing}
+        />
       ) : null}
 
       {shown.length === 0 ? (

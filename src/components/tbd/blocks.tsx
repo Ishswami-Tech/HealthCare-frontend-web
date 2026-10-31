@@ -193,7 +193,7 @@ export function FactTile({
         className,
       )}
     >
-      <span className="text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">{label}</span>
+      <span className="text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted">{label}</span>
       {children !== undefined ? (
         <span className="flex min-w-0 text-sm font-bold text-ink">{children}</span>
       ) : (

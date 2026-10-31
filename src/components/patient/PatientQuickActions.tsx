@@ -52,7 +52,7 @@ export function PatientQuickActions({ className }: { className?: string }) {
             key={label}
             href={href}
             className={cn(
-              "flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-[18px] border border-white px-1 py-3 text-center text-[11px] font-bold leading-tight text-ink shadow-[0_1px_3px_rgba(15,27,45,0.04)] transition-transform hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0 @lg:text-xs dark:border-white/10 dark:shadow-none",
+              "flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-[18px] border border-white px-1 py-3 text-center text-xs font-bold leading-tight text-ink shadow-[0_1px_3px_rgba(15,27,45,0.04)] transition-transform hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0 @lg:text-xs dark:border-white/10 dark:shadow-none",
               tile,
             )}
           >

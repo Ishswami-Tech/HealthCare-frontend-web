@@ -22,6 +22,7 @@ import {
   invoiceTotal,
   isPaidInvoice,
   isPayableInvoice,
+  overdueLabel,
   type InvoicePaymentInfo,
 } from "./patientBilling.logic";
 import { formatRupees } from "@/lib/utils/currency";
@@ -75,7 +76,7 @@ export function PatientInvoiceView({
   if (state === "loading") {
     return (
       <Shell>
-        <Surface flush className="rounded-[24px]" aria-busy="true" aria-label="Loading invoice">
+        <Surface flush className="rounded-[24px]" aria-busy="true" role="status" aria-label="Loading invoice">
           <div className="flex flex-col gap-4 bg-mint-soft px-6 py-7 sm:px-8">
             <Skeleton className="h-9 w-44 rounded-xl" />
             <Skeleton className="h-9 w-40 rounded-lg" />
@@ -184,7 +185,9 @@ export function PatientInvoiceView({
                   ? formatDateTimeLabel(paidWhen, EMPTY_DATE_LABEL)
                   : "Paid"
                 : payable
-                  ? `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}`
+                  ? `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}${
+                      overdueLabel(invoice) ? ` · ${overdueLabel(invoice)}` : ""
+                    }`
                   : `Issued ${formatDateLabel(invoiceIssuedAt(invoice), EMPTY_DATE_LABEL)}`}
             </span>
           </div>

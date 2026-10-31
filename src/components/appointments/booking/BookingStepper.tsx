@@ -45,11 +45,11 @@ export function BookingStepper<T extends BookingStepperStep>({
               onClick={() => onStepClick?.(item.id)}
               aria-current={active ? "step" : undefined}
               aria-label={`Step ${number}: ${item.label}${done ? ", done" : ""}`}
-              className="relative z-10 flex max-w-full flex-col items-center gap-1 rounded-md px-1 outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+              className="relative z-10 flex min-h-11 max-w-full flex-col items-center gap-1 rounded-md px-1 outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
             >
               <span
                 className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold transition-colors",
+                  "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold transition-colors",
                   done || active ? "bg-primary text-white" : "bg-well text-ink-muted",
                   active && "ring-[3px] ring-[#d1fae5] dark:ring-emerald-500/25",
                 )}
@@ -58,7 +58,7 @@ export function BookingStepper<T extends BookingStepperStep>({
               </span>
               <span
                 className={cn(
-                  "max-w-full truncate text-center text-[11px] leading-tight sm:text-xs",
+                  "max-w-full truncate text-center text-xs leading-tight sm:text-xs",
                   done || active ? "font-bold text-ink" : "font-medium text-ink-muted",
                 )}
               >
@@ -83,7 +83,7 @@ export function BookingHelpLine({ className }: { className?: string | undefined 
   return (
     <p
       className={cn(
-        "m-0 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-center text-[11px] text-ink-muted",
+        "m-0 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-center text-xs text-ink-muted",
         className,
       )}
     >

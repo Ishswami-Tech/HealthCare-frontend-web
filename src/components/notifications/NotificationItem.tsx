@@ -52,9 +52,20 @@ const typeColors = {
   APPOINTMENT: "bg-blue-100 text-blue-700 border-blue-200 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300",
   PRESCRIPTION: "bg-green-100 text-green-700 border-green-200 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300",
   REMINDER: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:border-yellow-900/60 dark:bg-yellow-950/40 dark:text-yellow-300",
-  SYSTEM: "bg-red-100 text-red-700 border-red-200 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300",
+  SYSTEM: "bg-slate-100 text-slate-700 border-slate-200 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
   MARKETING: "bg-purple-100 text-purple-700 border-purple-200 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300",
 };
+
+/**
+ * Sign-in is OTP-only, so the backend's "change your password" advice on login alerts has no
+ * action behind it. Show a usable next step instead (the stored text is not changed).
+ */
+function displayMessage(message: string): string {
+  return message.replace(
+    /If this was not you, please change your password immediately\.?/i,
+    "Not you? Call the clinic.",
+  );
+}
 
 export function NotificationItem({
   notification,
@@ -145,20 +156,23 @@ export function NotificationItem({
           <div className="flex-1 min-w-0">
             <h4
               className={cn(
-                "text-sm font-medium truncate",
+                "text-sm font-medium break-words",
                 !notification.isRead && "font-semibold"
               )}
             >
               {notification.title}
             </h4>
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-              {notification.message}
+            <p className="text-xs text-muted-foreground mt-1 break-words">
+              {displayMessage(notification.message)}
             </p>
           </div>
 
-          {/* Unread indicator */}
+          {/* Unread indicator: a text label as well as the dot (colour alone is not enough) */}
           {!notification.isRead && (
-            <div className="shrink-0 size-2 rounded-full bg-primary" />
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-primary">
+              <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
+              New
+            </span>
           )}
         </div>
 
@@ -180,12 +194,12 @@ export function NotificationItem({
           colored circles (green = confirm/read, red = destructive) rather than plain ghost
           icons, matching this app's "every button has a background color for its purpose"
           convention — the same soft-tint pattern typeColors above already uses. */}
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
         {!notification.isRead && (
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 rounded-full bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-950/40 dark:text-green-300 dark:hover:bg-green-900/60"
+            className="size-11 rounded-full bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-950/40 dark:text-green-300 dark:hover:bg-green-900/60"
             onClick={handleMarkAsRead}
             title="Mark as read"
             aria-label="Mark as read"
@@ -197,7 +211,7 @@ export function NotificationItem({
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 rounded-full bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/60"
+            className="size-11 rounded-full bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/60"
             onClick={handleRemove}
             title="Remove"
             aria-label="Remove notification"

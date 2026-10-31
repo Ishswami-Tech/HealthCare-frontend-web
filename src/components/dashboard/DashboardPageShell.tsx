@@ -135,7 +135,7 @@ export function DashboardPageHeader({
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className="text-[11px] font-extrabold uppercase tracking-[1.2px] text-brand">
+          <span className="text-xs font-extrabold uppercase tracking-[1.2px] text-brand">
             {eyebrow}
           </span>
           <h1 className="max-w-2xl text-[26px] font-extrabold leading-tight tracking-[-0.5px] text-ink text-balance">

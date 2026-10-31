@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 export const FIELD_LABEL = "text-xs font-bold text-ink-soft";
 
 /** Small 11 px label over a control inside a dense row (medicine lines). */
-export const FIELD_LABEL_SMALL = "text-[11px] font-bold text-ink-muted";
+export const FIELD_LABEL_SMALL = "text-xs font-bold text-ink-muted";
 
 const FIELD_ERROR = "text-xs font-semibold text-[#be123c] dark:text-rose-300";
 

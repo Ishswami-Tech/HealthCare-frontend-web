@@ -72,7 +72,7 @@ export function PatientHomeLibrary({ tab, onTabChange, items, isLoading = false 
       <SegTabs options={TABS} value={tab} onChange={onTabChange} ariaLabel="Health library sections" />
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4" aria-busy="true" aria-label="Loading the health library">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4" aria-busy="true" role="status" aria-label="Loading the health library">
           {[0, 1, 2].map((index) => (
             <div key={index} className={CARD}>
               <Skeleton className="h-16 w-[84px] shrink-0 rounded-xl" />

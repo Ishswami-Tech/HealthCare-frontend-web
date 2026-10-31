@@ -9,6 +9,7 @@ import { EmptyBlock, FilterChips, PageHero, Surface } from "@/components/tbd";
 import { useNotifications } from "@/hooks/query/useNotifications";
 import type { Notification } from "@/stores/notifications.store";
 import { NotificationItem } from "./NotificationItem";
+import { useUndoableRemove } from "./useUndoableRemove";
 
 type Filter = "all" | "unread" | Notification["type"];
 
@@ -44,12 +45,16 @@ export function NotificationsPage({
 }) {
   const { notifications, unreadCount, isPending, error, markAsRead, markAllAsRead, removeNotification, refetch } =
     useNotifications(true);
+  const { hiddenIds, requestRemove } = useUndoableRemove(removeNotification);
   const [filter, setFilter] = useState<Filter>("all");
   const [markingAll, setMarkingAll] = useState(false);
 
   const visible = useMemo(
-    () => notifications.filter((notification) => matchesFilter(notification, filter)),
-    [notifications, filter],
+    () =>
+      notifications.filter(
+        (notification) => !hiddenIds.has(notification.id) && matchesFilter(notification, filter),
+      ),
+    [notifications, filter, hiddenIds],
   );
   const options = useMemo(
     () =>
@@ -94,7 +99,12 @@ export function NotificationsPage({
                 </Link>
               </Button>
             ) : null}
-            <Button size="md" onClick={() => void handleMarkAll()} disabled={unreadCount === 0 || markingAll}>
+            <Button
+              size="md"
+              className="h-auto min-h-11 whitespace-normal py-2"
+              onClick={() => void handleMarkAll()}
+              disabled={unreadCount === 0 || markingAll}
+            >
               {markingAll ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CheckCheck aria-hidden="true" />}
               Mark all as read
             </Button>
@@ -106,6 +116,18 @@ export function NotificationsPage({
 
       <Surface as="section" aria-label="Notifications list">
         <FilterChips options={options} value={filter} onChange={setFilter} ariaLabel="Filter notifications" />
+        {error && notifications.length > 0 ? (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          >
+            <span>We could not refresh your notifications. Showing your last saved list.</span>
+            <Button size="md" variant="outline" onClick={() => void refetch()}>
+              <RefreshCw aria-hidden="true" />
+              Retry
+            </Button>
+          </div>
+        ) : null}
         {isPending && notifications.length === 0 ? (
           <div className="flex flex-col gap-2.5" aria-hidden="true">
             <span className="sr-only" role="status">
@@ -145,7 +167,7 @@ export function NotificationsPage({
                 key={notification.id}
                 notification={notification}
                 onMarkAsRead={(id) => void markAsRead(id)}
-                onRemove={(id) => void removeNotification(id)}
+                onRemove={requestRemove}
               />
             ))}
           </div>

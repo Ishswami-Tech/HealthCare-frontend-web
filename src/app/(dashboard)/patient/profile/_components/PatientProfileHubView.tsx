@@ -96,7 +96,7 @@ export function PatientProfileHubView({
       <Surface as="section" className="p-6" aria-label="Your account">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-5">
           {loading ? (
-            <div className="flex min-w-0 flex-1 items-center gap-4 sm:min-w-[280px]" aria-busy="true" aria-label="Loading profile">
+            <div className="flex min-w-0 flex-1 items-center gap-4 sm:min-w-[280px]" aria-busy="true" role="status" aria-label="Loading profile">
               <Skeleton className="size-[72px] shrink-0 rounded-full" />
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-6 w-44 rounded" />

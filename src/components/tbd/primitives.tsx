@@ -57,7 +57,7 @@ export function Pill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] px-[9px] py-1 text-[11px] font-extrabold uppercase leading-none tracking-[0.4px]",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] px-[9px] py-1 text-xs font-extrabold uppercase leading-none tracking-[0.4px]",
         PILL_TONES[tone],
         className,
       )}
@@ -106,7 +106,7 @@ export function LiveTag({ children, className }: { children: ReactNode; classNam
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] bg-[#d1fae5] px-[9px] py-1 text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-[#065f46] dark:bg-emerald-500/15 dark:text-emerald-300",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] bg-[#d1fae5] px-[9px] py-1 text-xs font-extrabold uppercase leading-none tracking-[0.4px] text-[#065f46] dark:bg-emerald-500/15 dark:text-emerald-300",
         className,
       )}
     >
@@ -271,7 +271,7 @@ export function PageHero({
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-col gap-1.5">
           {eyebrow ? (
-            <span className="text-[11px] font-extrabold uppercase tracking-[1.2px] text-brand">{eyebrow}</span>
+            <span className="text-xs font-extrabold uppercase tracking-[1.2px] text-brand">{eyebrow}</span>
           ) : null}
           <h1 className="m-0 text-[26px] font-extrabold leading-tight tracking-[-0.5px] text-ink">{title}</h1>
           {description ? (
@@ -653,7 +653,7 @@ export function GridHead({
     <div
       role="row"
       className={cn(
-        "hidden items-center gap-4 border-b border-hair px-5 py-3 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:grid",
+        "hidden items-center gap-4 border-b border-hair px-5 py-3 text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:grid",
         className,
       )}
       style={{ gridTemplateColumns: columns }}

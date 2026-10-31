@@ -549,7 +549,7 @@ export function TodayVisitsView({
 
 export function CheckInLoadingView() {
   return (
-    <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading your visit">
+    <div className="flex flex-col gap-5" aria-busy="true" role="status" aria-label="Loading your visit">
       <PageHead title="Check in at clinic" backHref={BACK_HREF} />
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <Skeleton className="h-[380px] w-full rounded-[20px]" />

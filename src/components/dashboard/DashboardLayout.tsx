@@ -364,6 +364,12 @@ export function DashboardLayout({
   return (
     <DashboardShellContext.Provider value={true}>
       <div className="relative min-h-screen bg-background">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:min-h-11 focus:rounded-xl focus:bg-card focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-ink focus:shadow-lg focus:ring-2 focus:ring-brand"
+        >
+          Skip to main content
+        </a>
         <Sidebar
           links={sidebarLinks}
           user={{
@@ -378,7 +384,7 @@ export function DashboardLayout({
             data-tone={washToneForPath(pathname)}
           >
             <Header className="bg-transparent transition-none" />
-            <main className="flex-1 overflow-auto">
+            <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto focus:outline-none">
               <div className="mx-auto w-full max-w-[1160px] px-4 pt-1 pb-24 sm:px-6 md:px-8 lg:pb-10">
                 {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
                   <Alert className="mb-4 bg-yellow-50 border-yellow-200">

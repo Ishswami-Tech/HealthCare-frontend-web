@@ -144,7 +144,7 @@ export function PatientHealthHubView({ failed = false, onRetry, cards, library, 
         </div>
 
         {library.isLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4" aria-busy="true" aria-label="Loading the health library">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4" aria-busy="true" role="status" aria-label="Loading the health library">
             {[0, 1, 2].map((index) => (
               <div key={index} className="flex min-w-0 items-center gap-3.5 rounded-[18px] bg-card p-3 shadow-card dark:border dark:border-border/70">
                 <Skeleton className="h-[68px] w-[92px] shrink-0 rounded-xl" />

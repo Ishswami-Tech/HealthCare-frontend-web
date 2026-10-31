@@ -252,7 +252,7 @@ export function PatientAppointmentHistory(props: PatientAppointmentHistoryProps)
 
   if (query.isPending) {
     return (
-      <Surface flush aria-busy="true" aria-label="Loading appointment history">
+      <Surface flush aria-busy="true" role="status" aria-label="Loading appointment history">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="flex flex-col gap-2 border-b border-hair px-5 py-3.5 last:border-b-0">
             <Skeleton className="h-4 w-56 rounded" />

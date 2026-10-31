@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useMyInPersonToday } from "@/hooks/query/useInPerson";
 import { toHomeVisit } from "@/components/patient/home/homeData";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useLanguage } from "@/lib/i18n/context";
 import {
   PatientQueueEmptyView,
@@ -51,6 +52,7 @@ export function PatientQueueContent({ appointmentId }: { appointmentId?: string 
         }}
         onRefresh={() => void refetch()}
         isRefreshing={isFetching}
+        loadError={error ? sanitizeErrorMessage(error) || "Please check your connection and try again." : null}
       />
     );
   }

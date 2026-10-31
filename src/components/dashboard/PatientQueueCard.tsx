@@ -64,7 +64,7 @@ export function PatientQueueCard({
 
   if (isAppointmentsPending || (checkedInVisit && isQueuePending)) {
     return (
-      <Surface aria-busy="true" aria-label="Loading queue status">
+      <Surface aria-busy="true" role="status" aria-label="Loading queue status">
         <Skeleton className="h-5 w-40 rounded-md" />
         <Skeleton className="h-[68px] w-full rounded-[14px]" />
       </Surface>
@@ -122,7 +122,7 @@ export function PatientQueueCard({
           {STEPS.map((step, index) => (
             <li key={step} className="flex items-center gap-2.5 rounded-[14px] bg-well px-3 py-2.5">
               <span
-                className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint text-[11px] font-extrabold text-brand-dark"
+                className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint text-xs font-extrabold text-brand-dark"
                 aria-hidden="true"
               >
                 {index + 1}

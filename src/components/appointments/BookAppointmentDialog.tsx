@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { logger } from "@/lib/utils/logger";
+import { clipSlotsToWindows, readClinicWindows } from "./booking/clinicHours";
 import {
   useState,
   useEffect,
   useMemo,
   useCallback,
   useRef,
+  useLayoutEffect,
   useReducer,
   type SetStateAction,
 } from "react";
@@ -1606,7 +1608,7 @@ function BookingServiceList({
                     <Check className="size-4 shrink-0 text-brand" />
                   )}
                 </div>
-                <p className="m-0 text-xs text-ink-muted line-clamp-2">
+                <p className="m-0 text-xs text-ink-muted">
                   {t.description || ""}
                 </p>
               </div>
@@ -4028,8 +4030,26 @@ export function BookAppointmentDialog({
     const baseSlots = slots as string[];
 
     // The server already filters video slots by the clinic video window and its own visit length.
-    return baseSlots;
-  }, [consultationBlocked, slots]);
+    if (consultationMode === "VIDEO" || !selectedDate || !clinicOperatingDays) {
+      return baseSlots;
+    }
+    // In-clinic: never offer a time outside the clinic's own opening windows for that weekday
+    // (a doctor or location schedule wider than the clinic's would otherwise list midnight
+    // slots). Windows come from the clinic settings; no hours are hardcoded here.
+    const dayKey = WEEKDAY_KEYS[selectedDate.getDay()];
+    const windows = dayKey ? readClinicWindows(clinicOperatingDays[dayKey]) : [];
+    const duration = serverSlotDurationMinutes(availability);
+    const clinicClipped = clipSlotsToWindows(baseSlots, windows, duration);
+    // The doctor's own weekly hours (the "Clinic timings" card) bound the grid as well.
+    const doctorWindows = dayKey
+      ? readClinicWindows(
+          (
+            (selectedDoctor as { workingHours?: Record<string, unknown> } | undefined)?.workingHours ?? {}
+          )[dayKey],
+        )
+      : [];
+    return clipSlotsToWindows(clinicClipped, doctorWindows, duration);
+  }, [availability, clinicOperatingDays, consultationBlocked, consultationMode, selectedDate, selectedDoctor, slots]);
   const validateLatestAvailability = useCallback(async (selectedSlot?: string) => {
     const cachedAvailability = queryClient.getQueryData(availabilityQueryKey);
     const cachedSlots = extractAvailabilitySlots(cachedAvailability);
@@ -4831,6 +4851,35 @@ export function BookAppointmentDialog({
     isPatientProfilePending,
   ]);
 
+  // Plain-words reason the footer Continue is disabled (shown above the footer and linked to the button).
+  const nextBlockedReason = useMemo(() => {
+    if (canNext) return "";
+    if (currentStepId === "mode") {
+      return selectedService ? "Choose a clinic location to continue." : "Choose a service to continue.";
+    }
+    if (currentStepId === "service") {
+      return selectedServiceId ? "Choose who the visit is for to continue." : "Choose a service to continue.";
+    }
+    if (currentStepId === "patient") return "Choose who the visit is for to continue.";
+    if (currentStepId === "doctor") return "Choose a doctor to continue.";
+    if (currentStepId === "date") return "Choose an open date to continue.";
+    if (currentStepId === "slot") {
+      const hasDate = !!selectedDate && !isBookingDateDisabled(selectedDate);
+      if (!hasDate) return "Choose an open date to continue.";
+      return activeSelectedSlot ? "Loading your profile, one moment." : "Choose a time to continue.";
+    }
+    return "";
+  }, [canNext, currentStepId, selectedService, selectedServiceId, selectedDate, isBookingDateDisabled, activeSelectedSlot]);
+
+  // Remember what had focus when the dialog opened and give it back on close (WCAG 2.4.3).
+  const openerRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (dialogOpen && typeof document !== "undefined") {
+      const active = document.activeElement;
+      openerRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
+  }, [dialogOpen]);
+
   const goNext = useCallback(() => {
     const nextStepId = activeSteps[currentStepIndex + 1];
     if (nextStepId) {
@@ -5358,6 +5407,13 @@ export function BookAppointmentDialog({
             ? "sm:h-[min(88dvh,720px)] sm:w-[min(94vw,640px)] sm:max-w-none lg:w-[min(94vw,980px)]"
             : "sm:h-auto sm:max-h-[92dvh] sm:min-h-[min(92dvh,560px)] sm:w-[min(94vw,560px)] sm:max-w-none",
         )}
+        onCloseAutoFocus={(event) => {
+          const opener = openerRef.current;
+          if (opener && opener.isConnected) {
+            event.preventDefault();
+            opener.focus();
+          }
+        }}
       >
         {/* Header */}
         <div
@@ -5425,6 +5481,14 @@ export function BookAppointmentDialog({
         </div>
 
         {/* Footer hide on success screen */}
+        {!isSuccessStep && nextBlockedReason ? (
+          <p
+            id="booking-continue-hint"
+            className="m-0 shrink-0 border-t border-hair bg-[#f8fafc] px-3.5 pt-2 text-xs font-medium text-ink-muted dark:bg-well/40 sm:px-5"
+          >
+            {nextBlockedReason}
+          </p>
+        ) : null}
         {!isSuccessStep && (
           <div className="flex shrink-0 flex-row items-center gap-2 border-t border-hair bg-[#f8fafc] px-3.5 py-2.5 dark:bg-well/40 sm:px-5">
             <Button
@@ -5448,6 +5512,7 @@ export function BookAppointmentDialog({
                 size="md"
                 onClick={goNext}
                 disabled={!canNext}
+                aria-describedby={nextBlockedReason ? "booking-continue-hint" : undefined}
                 className="max-sm:flex-auto"
               >
                 {pendingStepNavigation === "forward" ? (

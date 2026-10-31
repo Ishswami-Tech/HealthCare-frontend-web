@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Activity, Home, RefreshCw, ScanLine, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadErrorAlert } from "@/components/patient/LoadErrorAlert";
 import { EmptyBlock, IconBox, PageHead, Surface, LoadError } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { QueueClinicCard, QueueTokenCard } from "./QueueParts";
@@ -26,7 +27,7 @@ const BACK_HREF = "/patient/dashboard";
 
 function LiveBadge() {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-2.5 py-[5px] text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-white">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-2.5 py-[5px] text-xs font-extrabold uppercase leading-none tracking-[0.4px] text-white">
       <span className="tbd-pulse size-1.5 rounded-full bg-[#a7f3d0]" aria-hidden="true" />
       Live
     </span>
@@ -175,12 +176,38 @@ export interface PatientQueueViewProps {
   /** Reads the place again now. */
   onRefresh: () => void;
   isRefreshing: boolean;
+  /** Set when the last refresh failed: the place shown may be out of date, so no Live badge. */
+  loadError?: string | null | undefined;
 }
 
-export function PatientQueueView({ appointmentId, ticket, info, onRefresh, isRefreshing }: PatientQueueViewProps) {
+function OfflineBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-200 px-2.5 py-[5px] text-xs font-extrabold uppercase leading-none tracking-[0.4px] text-slate-800">
+      Offline
+    </span>
+  );
+}
+
+export function PatientQueueView({
+  appointmentId,
+  ticket,
+  info,
+  onRefresh,
+  isRefreshing,
+  loadError,
+}: PatientQueueViewProps) {
   return (
     <div className="flex flex-col gap-5">
-      <PageHead title="Live Queue" backHref={BACK_HREF} actions={<LiveBadge />} />
+      <PageHead title="Live Queue" backHref={BACK_HREF} actions={loadError ? <OfflineBadge /> : <LiveBadge />} />
+
+      {loadError ? (
+        <LoadErrorAlert
+          title="We could not refresh your place in the queue."
+          detail={`${loadError} Showing the last place we loaded.`}
+          onRetry={onRefresh}
+          retrying={isRefreshing}
+        />
+      ) : null}
 
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-5">
@@ -200,7 +227,7 @@ export function PatientQueueView({ appointmentId, ticket, info, onRefresh, isRef
                 <span className="text-sm font-bold text-ink">Updates by itself</span>
                 <span className="text-xs text-ink-muted">Every 20 seconds</span>
               </span>
-              <Button variant="outline" onClick={onRefresh} disabled={isRefreshing} aria-busy={isRefreshing}>
+              <Button variant="outline" size="md" onClick={onRefresh} disabled={isRefreshing} aria-busy={isRefreshing}>
                 <RefreshCw className={cn(isRefreshing && "animate-spin")} aria-hidden="true" />
                 Refresh
               </Button>
@@ -283,7 +310,7 @@ export function PatientQueueErrorView({ onRetry, isRetrying }: { onRetry: () => 
 
 export function PatientQueueLoadingView() {
   return (
-    <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading your queue">
+    <div className="flex flex-col gap-5" aria-busy="true" role="status" aria-label="Loading your queue">
       <PageHead title="Live Queue" backHref={BACK_HREF} />
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-5">

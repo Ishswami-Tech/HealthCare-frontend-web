@@ -230,7 +230,7 @@ function RecordTable({
             <GridRow key={firstText(row.id) || `${currentPage}-${index}`} columns={grid}>
               {columns.map((column) => (
                 <div key={column.label} role="cell">
-                  <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:hidden">
+                  <span className="mb-1 block text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:hidden">
                     {column.label}
                   </span>
                   {column.cell(row)}
@@ -340,7 +340,7 @@ const MEDICATION_COLUMNS: RecordColumn[] = [
 // ── Small blocks of the overview ───────────────────────────────────────────
 
 const TILE = "rounded-[14px] border border-line bg-[#fbfdfc] dark:bg-white/[0.03]";
-const TILE_LABEL = "text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted";
+const TILE_LABEL = "text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted";
 
 const numberSkeleton = <Skeleton className="my-1 h-6 w-10 rounded" />;
 

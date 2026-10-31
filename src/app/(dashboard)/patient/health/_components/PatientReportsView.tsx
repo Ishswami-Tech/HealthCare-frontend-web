@@ -120,7 +120,7 @@ export function PatientReportsView({
             }
           />
         ) : isLoading ? (
-          <div className="flex flex-col pb-3" aria-busy="true" aria-label="Loading your reports">
+          <div className="flex flex-col pb-3" aria-busy="true" role="status" aria-label="Loading your reports">
             {[0, 1, 2, 3].map((index) => (
               <div key={index} className="flex items-center gap-3.5 border-b border-hair py-3 last:border-b-0">
                 <Skeleton className="size-11 shrink-0 rounded-xl" />

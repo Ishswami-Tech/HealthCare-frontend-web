@@ -81,7 +81,7 @@ export function FamilyMemberView({ state, member, onEdit, onRemove, onRetry }: F
     return (
       <>
         {head}
-        <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading this family member">
+        <div className="flex flex-col gap-5" aria-busy="true" role="status" aria-label="Loading this family member">
           <Skeleton className="h-[122px] rounded-3xl" />
           <div className="grid gap-5 lg:grid-cols-2">
             <Skeleton className="h-[220px] rounded-[20px]" />

@@ -91,7 +91,6 @@ export function PatientHomeHero({
         {showDoctor ? (
           <Link
             href={doctorHref as string}
-            aria-label={`Book a visit with ${doctorName}`}
             className="relative flex h-[148px] w-full shrink-0 overflow-hidden rounded-[22px] border border-[#fde68a] bg-[linear-gradient(135deg,#ffffff_0%,#fffbeb_100%)] text-ink shadow-[0_14px_30px_rgba(6,78,59,0.16)] transition-transform hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500/60 motion-reduce:transition-none motion-reduce:hover:translate-y-0 @3xl:w-[380px] dark:border-amber-200/20 dark:bg-[linear-gradient(135deg,#131c2e_0%,#1a2438_100%)] dark:shadow-none"
           >
             {/* Two amber rings behind the portrait. */}
@@ -115,7 +114,7 @@ export function PatientHomeHero({
               />
             )}
             <span className="relative flex w-[min(220px,calc(100%-120px))] flex-col gap-1 pl-5 pt-[18px]">
-              <span className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase text-brand">
+              <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase text-brand">
                 <span aria-hidden="true" className="size-2 rounded-full bg-[#10b981]" />
                 Your doctor
               </span>

@@ -192,7 +192,7 @@ function BookingStatTile({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex flex-col items-center rounded-xl bg-[#f5f8fc] px-1.5 py-2 dark:bg-well">
       <span className="text-lg font-extrabold leading-tight text-ink sm:text-[20px]">{value}</span>
-      <span className="text-[11px] text-ink-muted">{label}</span>
+      <span className="text-xs text-ink-muted">{label}</span>
     </div>
   );
 }
@@ -226,7 +226,7 @@ export function BookingDoctorPage({
         {doctor ? (
           <BookingDoctorProfile doctor={doctor} className="gap-3 p-3.5 max-lg:order-1" compact />
         ) : doctorLoading ? (
-          <Surface className="gap-3 p-3.5 max-lg:order-1" aria-busy="true" aria-label="Loading doctor">
+          <Surface className="gap-3 p-3.5 max-lg:order-1" aria-busy="true" role="status" aria-label="Loading doctor">
             <div className="flex items-center gap-3">
               <Skeleton className="size-14 shrink-0 rounded-full" />
               <div className="flex min-w-0 flex-1 flex-col gap-2">

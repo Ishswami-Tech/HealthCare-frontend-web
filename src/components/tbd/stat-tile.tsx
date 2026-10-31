@@ -36,7 +36,7 @@ export function StatTile({
     <>
       <span className={cn("text-[22px] font-extrabold leading-[1.15]", VALUE_TONES[tone])}>{value}</span>
       <span className="text-xs font-bold text-ink-muted">{label}</span>
-      {hint ? <span className="text-[11px] text-ink-muted">{hint}</span> : null}
+      {hint ? <span className="text-xs text-ink-muted">{hint}</span> : null}
     </>
   );
   const shell = cn(

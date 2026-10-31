@@ -84,7 +84,7 @@ export function PatientHomeWorkspace({
       <SegTabs options={TABS} value={tab} onChange={setTab} ariaLabel="Filter visits by type" />
 
       {isLoading ? (
-        <div className="flex flex-col gap-4 rounded-[18px] border border-line p-5" aria-busy="true" aria-label="Loading your visits">
+        <div className="flex flex-col gap-4 rounded-[18px] border border-line p-5" aria-busy="true" role="status" aria-label="Loading your visits">
           <Skeleton className="h-5 w-44 rounded-md" />
           <div className="flex items-center gap-3.5">
             <Skeleton className="size-[60px] rounded-[14px]" />

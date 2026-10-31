@@ -23,8 +23,9 @@ function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** A midnight-to-midnight window is a placeholder default, not real opening hours: no label. */
 function windowLabel(start: string, end: string): string {
-  if (start === "00:00" && (end === "23:59" || end === "24:00")) return "Open 24 hours";
+  if (start === "00:00" && (end === "23:59" || end === "24:00")) return "";
   return `${formatSlotLabel(start, "12h")} – ${formatSlotLabel(end, "12h")}`;
 }
 
@@ -34,14 +35,25 @@ export function workingHoursText(workingHours: unknown): string {
   if (!record) return "";
   const start = text(record.start);
   const end = text(record.end);
-  if (start && end) return `Every day ${windowLabel(start, end)}`;
+  if (start && end) {
+    const label = windowLabel(start, end);
+    return label ? `Every day ${label}` : "";
+  }
   return summarizeWorkingHours(record)
+    .filter((row) => !/^00:00|12:00 am/i.test(row.value))
     .map((row) => `${row.label} ${row.value}`)
     .join(" · ");
 }
 
 /** One line per active location that has hours ("Main Clinic: Every day …"); the name is left out for one. */
 export function clinicHoursLines(clinic: unknown): string[] {
+  // The clinic's own opening windows are what booking enforces, so they win over location rows.
+  const settings = asRecord(asRecord(clinic)?.settings);
+  const appointmentSettings = asRecord(settings?.appointmentSettings);
+  const clinicWindows = summarizeWorkingHours(asRecord(appointmentSettings?.operatingWindowsByDay));
+  if (clinicWindows.length > 0) {
+    return [clinicWindows.map((row) => `${row.label} ${row.value}`).join(" · ")];
+  }
   const locations = Array.isArray(asRecord(clinic)?.locations) ? (asRecord(clinic)?.locations as unknown[]) : [];
   const rows = locations
     .map(asRecord)

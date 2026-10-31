@@ -175,7 +175,7 @@ function VideoPaymentPolicy({
           <p className="m-0 text-xs leading-relaxed text-ink-muted">
             Video appointment payments are non-refundable. If you miss the appointment, you must rebook a new slot.
           </p>
-          <p className="m-0 text-[11px] leading-relaxed text-ink-muted">
+          <p className="m-0 text-xs leading-relaxed text-ink-muted">
             Read our{" "}
             <Link href="/terms" prefetch={false} className="font-bold text-brand underline underline-offset-4">
               Terms
@@ -449,7 +449,7 @@ function ReviewCompact({
             key={row.label}
             className="flex items-center justify-between gap-3 border-b border-hair px-3.5 py-[11px] last:border-b-0"
           >
-            <dt className="shrink-0 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted">
+            <dt className="shrink-0 text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted">
               {row.label}
             </dt>
             <dd className="m-0 flex min-w-0 flex-col text-right">

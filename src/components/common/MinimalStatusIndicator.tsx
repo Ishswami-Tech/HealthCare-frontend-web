@@ -27,11 +27,11 @@ export function MinimalStatusIndicator({ className }: { className?: string }) {
      label = "System Outage";
   } else if (status === 'checking') {
      statusColor = "bg-amber-500";
-     textColor = "text-amber-500";
+     textColor = "text-amber-700 dark:text-amber-400";
      label = "Checking status…";
   } else if (status === 'degraded') {
      statusColor = "bg-amber-500";
-     textColor = "text-amber-500";
+     textColor = "text-amber-700 dark:text-amber-400";
      label = "Systems Degraded";
   } else {
      // Operational

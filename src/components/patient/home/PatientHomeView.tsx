@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Loader2, ScanLine, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { LoadErrorAlert } from "@/components/patient/LoadErrorAlert";
 import { PatientHomeHero } from "@/components/patient/PatientHomeHero";
 import { PatientQuickActions } from "@/components/patient/PatientQuickActions";
 import type { HomeVisitActions } from "./HomeVisitCard";
@@ -42,6 +43,11 @@ export interface PatientHomeViewProps {
   initialWorkspaceTab?: HomeWorkspaceTab;
 
   library: PatientHomeLibraryProps;
+
+  /** Set when the Home data could not be loaded or refreshed; shows an alert with Retry. */
+  loadError?: string | null;
+  onRetry?: () => void;
+  isRetrying?: boolean;
 }
 
 /**
@@ -69,6 +75,9 @@ export function PatientHomeView({
   visitActions,
   initialWorkspaceTab,
   library,
+  loadError,
+  onRetry,
+  isRetrying = false,
 }: PatientHomeViewProps) {
   const showDoctor = !isVisitsLoading && visits.length === 0 && Boolean(doctor?.name);
 
@@ -86,6 +95,15 @@ export function PatientHomeView({
             Complete now
           </Button>
         </div>
+      ) : null}
+
+      {loadError && onRetry ? (
+        <LoadErrorAlert
+          title="We could not refresh your home screen."
+          detail={`${loadError} What you see may be out of date.`}
+          onRetry={onRetry}
+          retrying={isRetrying}
+        />
       ) : null}
 
       {notice}

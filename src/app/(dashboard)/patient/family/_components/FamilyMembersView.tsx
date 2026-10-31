@@ -122,7 +122,7 @@ export function FamilyMembersView({ state, you, members, onAdd, onRetry }: Famil
       />
 
       {state === "loading" ? (
-        <div className={GRID} aria-busy="true" aria-label="Loading your family members">
+        <div className={GRID} aria-busy="true" role="status" aria-label="Loading your family members">
           {[0, 1, 2].map((index) => (
             <div key={index} className={CARD}>
               <div className="flex items-center gap-3.5">

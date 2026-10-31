@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, InitialsAvatar, PageHead, Pill, SearchBox, SoftCard, Surface } from "@/components/tbd";
 import { cn } from "@/lib/utils";
+import { LoadErrorAlert } from "@/components/patient/LoadErrorAlert";
 import { HandoverCodePanel } from "./HandoverCodePanel";
 import { PrescriptionDetailsDialog } from "./PrescriptionDetailsDialog";
 import {
@@ -35,6 +36,8 @@ export interface PatientMedicinesViewProps {
   prescriptions: PatientPrescription[];
   isLoading?: boolean;
   failed?: boolean;
+  /** A refresh failed while an earlier list is still on screen. */
+  refreshFailed?: boolean;
   onRetry: () => void;
   /** The amber Pay button of the existing payment flow. */
   renderPay: (prescription: PatientPrescription, placement: "card" | "dialog") => ReactNode;
@@ -102,6 +105,7 @@ export function PatientMedicinesView({
   prescriptions,
   isLoading = false,
   failed = false,
+  refreshFailed = false,
   onRetry,
   renderPay,
   onDownloadBill,
@@ -145,6 +149,14 @@ export function PatientMedicinesView({
           />
         </Surface>
       ) : (
+        <>
+        {refreshFailed ? (
+          <LoadErrorAlert
+            title="We could not refresh your prescriptions."
+            detail="Please check your connection. Showing the last list we loaded."
+            onRetry={onRetry}
+          />
+        ) : null}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-col gap-5">
             <SoftCard as="section" aria-label="Medicines you take now">
@@ -160,7 +172,7 @@ export function PatientMedicinesView({
                       </span>
                     )}
                     {!isLoading && sourceCount > 0 ? (
-                      <span className="whitespace-nowrap rounded-[8px] bg-[#facc15] px-[9px] py-[5px] text-[11px] font-extrabold text-[#422006]">
+                      <span className="whitespace-nowrap rounded-[8px] bg-[#facc15] px-[9px] py-[5px] text-xs font-extrabold text-[#422006]">
                         From {sourceCount} {sourceCount === 1 ? "prescription" : "prescriptions"}
                       </span>
                     ) : null}
@@ -179,7 +191,7 @@ export function PatientMedicinesView({
                 Current medicines
               </h2>
               {isLoading ? (
-                <div className="flex flex-col" aria-busy="true" aria-label="Loading your medicines">
+                <div className="flex flex-col" aria-busy="true" role="status" aria-label="Loading your medicines">
                   {[0, 1, 2].map((index) => (
                     <div key={index} className="flex items-center gap-3.5 border-b border-hair py-3.5 last:border-b-0">
                       <Skeleton className="size-11 shrink-0 rounded-[14px]" />
@@ -258,7 +270,7 @@ export function PatientMedicinesView({
                 />
               ) : null}
               {isLoading ? (
-                <div className="flex flex-col" aria-busy="true" aria-label="Loading your prescriptions">
+                <div className="flex flex-col" aria-busy="true" role="status" aria-label="Loading your prescriptions">
                   {[0, 1].map((index) => (
                     <div key={index} className="flex items-center gap-3.5 border-b border-hair py-3.5 last:border-b-0">
                       <Skeleton className="size-11 shrink-0 rounded-xl" />
@@ -331,6 +343,7 @@ export function PatientMedicinesView({
             </Surface>
           </div>
         </div>
+        </>
       )}
 
       <PrescriptionDetailsDialog

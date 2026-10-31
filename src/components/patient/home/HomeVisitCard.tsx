@@ -322,7 +322,7 @@ function QueuePanel({ visit, queue }: { visit: HomeVisit; queue?: HomeQueue | nu
 
   if (queue?.isLoading && position === null && !tokenLabel) {
     return (
-      <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading your queue position">
+      <div className="flex flex-col gap-3" aria-busy="true" role="status" aria-label="Loading your queue position">
         <Skeleton className="h-[74px] w-full rounded-[14px]" />
         <Skeleton className="h-4 w-48 rounded-md" />
       </div>
@@ -399,7 +399,7 @@ function ClinicChip({
 
 function ProximityBadge({ meters, atClinic }: { meters: number; atClinic: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[11px] font-bold text-[#065f46] shadow-sm dark:bg-black/60 dark:text-emerald-300">
+    <span className="inline-flex items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-xs font-bold text-[#065f46] shadow-sm dark:bg-black/60 dark:text-emerald-300">
       <MapPin className="size-3" strokeWidth={2.4} aria-hidden="true" />
       {atClinic ? `You're at the clinic · ${formatDistance(meters)}` : `${formatDistance(meters)} away`}
     </span>

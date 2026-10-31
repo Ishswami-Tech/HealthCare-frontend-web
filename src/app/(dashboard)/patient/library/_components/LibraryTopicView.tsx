@@ -81,7 +81,7 @@ function TopCard({ top }: { top: LibraryTopicTop }) {
 
 function TopicSkeleton() {
   return (
-    <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading this topic">
+    <div className="flex flex-col gap-5" aria-busy="true" role="status" aria-label="Loading this topic">
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Skeleton className="h-[188px] rounded-3xl" />
         <Skeleton className="h-[188px] rounded-[20px]" />

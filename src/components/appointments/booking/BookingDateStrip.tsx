@@ -32,7 +32,7 @@ export function BookingDateStrip({
             type="button"
             disabled={day.disabled}
             aria-pressed={active}
-            aria-label={`${format(day.date, "EEEE, d MMMM")}${day.disabled ? ", closed" : ""}`}
+            aria-label={`${format(day.date, "EEE d")}, ${format(day.date, "EEEE, d MMMM")}${day.disabled ? ", closed" : ""}`}
             onClick={() => onSelect(day.date)}
             className={cn(
               "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl border p-0 transition-colors",
@@ -44,8 +44,9 @@ export function BookingDateStrip({
                   : "border-line bg-card text-ink hover:border-brand/50 hover:bg-mint-soft",
             )}
           >
-            <span className="text-[10px] font-semibold">{format(day.date, "EEE")}</span>
+            <span className="text-xs font-semibold">{format(day.date, "EEE")}</span>
             <span className="text-sm font-extrabold">{format(day.date, "d")}</span>
+            {day.disabled ? <span className="text-xs font-semibold no-underline">Closed</span> : null}
           </button>
         );
       })}
