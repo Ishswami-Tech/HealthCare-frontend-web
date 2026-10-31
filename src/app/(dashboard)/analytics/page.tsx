@@ -14,7 +14,7 @@ import {
 
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
-  useDashboardAnalytics,
+  usePatientAnalytics,
   useAppointmentAnalytics,
   useRevenueAnalytics,
   useQueueAnalytics,
@@ -40,14 +40,16 @@ const PERIOD_BY_RANGE: Record<string, Period> = {
 
 const RUPEE = "₹";
 
-interface DashboardStats {
+/** GET /analytics/patients: `{ totalPatients, newPatients, returningPatients }`. */
+interface PatientStats {
   totalPatients?: number;
-  activePatients?: number;
+  newPatients?: number;
 }
 
+/** GET /analytics/appointments: totals plus a status breakdown (no separate completed field). */
 interface AppointmentStats {
   totalAppointments?: number;
-  completedAppointments?: number;
+  appointmentsByStatus?: Record<string, unknown>;
 }
 
 interface RevenueStats {
@@ -115,7 +117,7 @@ export default function AnalyticsDashboard() {
   const { clinicId } = useClinicContext();
   const period = PERIOD_BY_RANGE[timeRange] ?? "month";
 
-  const dashboard = useDashboardAnalytics(period, clinicId || "");
+  const patients = usePatientAnalytics({ clinicId: clinicId || "", period });
   const appointments = useAppointmentAnalytics(
     { clinicId: clinicId || "", period },
     { enabled: Boolean(clinicId) },
@@ -123,21 +125,23 @@ export default function AnalyticsDashboard() {
   const revenue = useRevenueAnalytics({ clinicId: clinicId || "", period });
   const queue = useQueueAnalytics(clinicId || "", { period });
 
-  const dashboardData = dashboard.data as DashboardStats | undefined;
+  const patientData = patients.data as PatientStats | undefined;
   const appointmentData = appointments.data as AppointmentStats | undefined;
   const revenueData = revenue.data as RevenueStats | undefined;
   const queueData = queue.data as QueueStats | undefined;
 
   const totalAppointments = asNumber(appointmentData?.totalAppointments);
-  const completedAppointments = asNumber(appointmentData?.completedAppointments);
+  const completedAppointments = asNumber(appointmentData?.appointmentsByStatus?.COMPLETED);
+  const totalPatients = asNumber(patientData?.totalPatients);
+  const newPatients = asNumber(patientData?.newPatients);
   const waitMinutes = asNumber(queueData?.averageWaitTime);
 
   const anyFetching =
-    dashboard.isFetching || appointments.isFetching || revenue.isFetching || queue.isFetching;
+    patients.isFetching || appointments.isFetching || revenue.isFetching || queue.isFetching;
 
   const refreshAll = () => {
     void Promise.all([
-      dashboard.refetch(),
+      patients.refetch(),
       appointments.refetch(),
       revenue.refetch(),
       queue.refetch(),
@@ -191,14 +195,12 @@ export default function AnalyticsDashboard() {
           <StatCard
             title="Total patients"
             icon={Users}
-            value={formatCount(asNumber(dashboardData?.totalPatients))}
+            value={formatCount(totalPatients)}
             caption={
-              asNumber(dashboardData?.activePatients) !== undefined
-                ? `${formatCount(asNumber(dashboardData?.activePatients))} active`
-                : undefined
+              newPatients !== undefined ? `${formatCount(newPatients)} new this month` : undefined
             }
-            loading={dashboard.isPending}
-            unavailable={Boolean(dashboard.error)}
+            loading={patients.isPending}
+            unavailable={Boolean(patients.error)}
           />
           <StatCard
             title="Appointments"

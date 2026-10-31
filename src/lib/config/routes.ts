@@ -231,9 +231,11 @@ export function getProtectedRouteRoles(path: string): Role[] {
   if (matchesPrefix(path, '/ehr')) return [
     Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
     Role.DOCTOR, Role.ASSISTANT_DOCTOR,
-    Role.NURSE, Role.RECEPTIONIST,
+    Role.NURSE,
     Role.LAB_TECHNICIAN, Role.THERAPIST, Role.COUNSELOR,
   ];
+  // Note: RECEPTIONIST is deliberately absent from /ehr. The controllers list it in @Roles for a few
+  // routes, but the RBAC matrix has no 'ehr:read' for it, so every call is a 403.
   if (
     matchesPrefix(path, '/ayurveda') ||
     matchesPrefix(path, '/diet') ||

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { logger } from "@/lib/utils/logger";
-import { clipSlotsToWindows, readClinicWindows } from "./booking/clinicHours";
+import { clipInClinicSlots, readClinicWindows, readWeeklyWindows } from "./booking/clinicHours";
 import {
   useState,
   useEffect,
@@ -4030,26 +4030,31 @@ export function BookAppointmentDialog({
     const baseSlots = slots as string[];
 
     // The server already filters video slots by the clinic video window and its own visit length.
-    if (consultationMode === "VIDEO" || !selectedDate || !clinicOperatingDays) {
+    if (consultationMode === "VIDEO" || !selectedDate) {
       return baseSlots;
     }
-    // In-clinic: never offer a time outside the clinic's own opening windows for that weekday
-    // (a doctor or location schedule wider than the clinic's would otherwise list midnight
-    // slots). Windows come from the clinic settings; no hours are hardcoded here.
+    // In-clinic: never offer a time outside the known opening hours for that weekday. Clinic
+    // windows and the doctor's weekly hours both apply; the location's hours stand in when
+    // neither is configured. Nothing is hardcoded, and with no hours known the API list stands.
     const dayKey = WEEKDAY_KEYS[selectedDate.getDay()];
-    const windows = dayKey ? readClinicWindows(clinicOperatingDays[dayKey]) : [];
-    const duration = serverSlotDurationMinutes(availability);
-    const clinicClipped = clipSlotsToWindows(baseSlots, windows, duration);
-    // The doctor's own weekly hours (the "Clinic timings" card) bound the grid as well.
-    const doctorWindows = dayKey
-      ? readClinicWindows(
-          (
-            (selectedDoctor as { workingHours?: Record<string, unknown> } | undefined)?.workingHours ?? {}
-          )[dayKey],
-        )
-      : [];
-    return clipSlotsToWindows(clinicClipped, doctorWindows, duration);
-  }, [availability, clinicOperatingDays, consultationBlocked, consultationMode, selectedDate, selectedDoctor, slots]);
+    return clipInClinicSlots(
+      baseSlots,
+      {
+        clinicWindows: readClinicWindows(dayKey ? clinicOperatingDays?.[dayKey] : undefined),
+        doctorWindows: readWeeklyWindows(
+          (selectedDoctor as { workingHours?: unknown } | undefined)?.workingHours,
+          dayKey,
+        ),
+        locationWindows: readWeeklyWindows(
+          (locations as Array<{ id?: string; workingHours?: unknown }>).find(
+            (loc) => loc.id === resolvedLocationId,
+          )?.workingHours,
+          dayKey,
+        ),
+      },
+      serverSlotDurationMinutes(availability),
+    );
+  }, [availability, clinicOperatingDays, consultationBlocked, consultationMode, selectedDate, selectedDoctor, locations, resolvedLocationId, slots]);
   const validateLatestAvailability = useCallback(async (selectedSlot?: string) => {
     const cachedAvailability = queryClient.getQueryData(availabilityQueryKey);
     const cachedSlots = extractAvailabilitySlots(cachedAvailability);

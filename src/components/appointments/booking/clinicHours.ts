@@ -35,6 +35,56 @@ export function readClinicWindows(dayWindows: unknown): ClinicWindow[] {
   return windows;
 }
 
+function parseJsonish(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One weekday of a weekly-hours object (`{ monday: [{start,end}] }`, as on a doctor). A flat
+ * `{ start, end }` (a location with one daily window) applies to every weekday. Values stored as
+ * a JSON string are parsed first.
+ */
+export function readWeeklyWindows(weekly: unknown, dayKey: string | undefined): ClinicWindow[] {
+  const parsed = parseJsonish(weekly);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+  const record = parsed as Record<string, unknown>;
+  if (dayKey && dayKey in record) return readClinicWindows(parseJsonish(record[dayKey]));
+  if ("start" in record && "end" in record) return readClinicWindows(record);
+  return [];
+}
+
+export interface InClinicHoursInput {
+  /** The clinic's windows for the selected weekday (operatingWindowsByDay), when configured. */
+  clinicWindows: readonly ClinicWindow[];
+  /** The doctor's weekly hours for that weekday. */
+  doctorWindows: readonly ClinicWindow[];
+  /** The selected location's hours, used only when neither of the above is known. */
+  locationWindows: readonly ClinicWindow[];
+}
+
+/**
+ * In-clinic slots bounded by the known hours: clinic windows and the doctor's weekly hours both
+ * apply; when neither is configured the location's hours stand in. With no hours known anywhere
+ * the availability API's own list is returned untouched (no window is invented).
+ */
+export function clipInClinicSlots(
+  slots: readonly string[],
+  hours: InClinicHoursInput,
+  durationMinutes: number,
+): string[] {
+  const layers = [hours.clinicWindows, hours.doctorWindows].filter((layer) => layer.length > 0);
+  if (layers.length === 0 && hours.locationWindows.length > 0) layers.push(hours.locationWindows);
+  return layers.reduce<string[]>(
+    (current, layer) => clipSlotsToWindows(current, layer, durationMinutes),
+    [...slots],
+  );
+}
+
 /**
  * Keeps the slots that start and finish inside one of the clinic windows. With no readable
  * windows the list is returned unchanged (the API alone decides).
@@ -49,7 +99,11 @@ export function clipSlotsToWindows(
   return slots.filter((slot) => {
     const minutes = slotToMinutes(slot);
     if (minutes === null) return false;
-    return windows.some((window) => minutes >= window.startMinutes && minutes + length <= window.endMinutes);
+    // A slot starting exactly at closing time is out even when the visit length is unknown (0).
+    return windows.some(
+      (window) =>
+        minutes >= window.startMinutes && minutes < window.endMinutes && minutes + length <= window.endMinutes,
+    );
   });
 }
 
