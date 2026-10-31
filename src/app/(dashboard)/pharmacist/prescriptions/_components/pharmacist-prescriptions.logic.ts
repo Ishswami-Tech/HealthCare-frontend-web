@@ -79,6 +79,8 @@ export type PrescriptionRow = {
   id: string;
   /** Number shown to people ("RX-1A2B3C4D"). */
   reference: string;
+  /** Patient profile id; "" when the API did not send one. */
+  patientId?: string;
   patientName: string;
   patientPhone: string;
   /** Clinic-issued health ID (UHID); empty when none has been issued. */
@@ -216,6 +218,7 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
   return {
     id,
     reference: prescriptionReference(raw, id),
+    patientId: text(raw.patientId) || text(patient.id),
     patientName:
       text(patientUser.name) ||
       text(patient.name) ||

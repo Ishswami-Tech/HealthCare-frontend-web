@@ -38,6 +38,7 @@ import {
   handoverPayment,
   handoverRows,
   isLongWait,
+  normalizedPatientName,
   patientIdentity,
   repeatedNames,
   waitingLabel,
@@ -141,7 +142,7 @@ export function HandoverListContent() {
             <GridHead columns={COLUMNS} labels={["Patient", "Medicines", "Waiting", "Action"]} />
             {rows.map((row, position) => {
               const identity = patientIdentity(row);
-              const repeated = sameName.has(row.patientName.trim().toLowerCase());
+              const repeated = sameName.has(normalizedPatientName(row.patientName));
               const payment = handoverPayment(row, formatRupees);
               const waiting = waitingLabel(row.dispensedAt, now, dateLabel(row.dispensedAt));
               const long = filter === "waiting" && isLongWait(row.dispensedAt, now);

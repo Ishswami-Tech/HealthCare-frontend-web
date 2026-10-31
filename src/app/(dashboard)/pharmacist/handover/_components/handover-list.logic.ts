@@ -69,14 +69,39 @@ export function patientIdentity(row: PrescriptionRow): string {
   return row.patientUhid || maskPhone(row.patientPhone);
 }
 
-/** Lower-cased names that appear on more than one row (shown with extra detail). */
+/** Name key used to group rows: trimmed, lower-cased, inner whitespace collapsed. */
+export function normalizedPatientName(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/**
+ * Who a row belongs to: the patient id, else the UHID / phone, else the row itself (so a row
+ * with no identity at all is still treated as a separate person and keeps the extra detail).
+ */
+function patientKey(row: PrescriptionRow): string {
+  const id = row.patientId?.trim();
+  if (id) return `id:${id}`;
+  const identity = row.patientUhid.trim() || row.patientPhone.replace(/\D/g, "");
+  return identity ? `who:${identity}` : `row:${row.id}`;
+}
+
+/**
+ * Normalised names shared by more than one DISTINCT patient (shown with extra detail). One
+ * patient with several prescriptions is not flagged against themself.
+ */
 export function repeatedNames(rows: readonly PrescriptionRow[]): Set<string> {
-  const counts = new Map<string, number>();
+  const patientsByName = new Map<string, Set<string>>();
   for (const row of rows) {
-    const key = row.patientName.trim().toLowerCase();
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const name = normalizedPatientName(row.patientName);
+    const patients = patientsByName.get(name) ?? new Set<string>();
+    patients.add(patientKey(row));
+    patientsByName.set(name, patients);
   }
-  return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key));
+  return new Set(
+    Array.from(patientsByName.entries())
+      .filter(([, patients]) => patients.size > 1)
+      .map(([name]) => name),
+  );
 }
 
 /** Payment state for the row tag. */
