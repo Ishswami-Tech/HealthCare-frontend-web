@@ -106,7 +106,7 @@ const PatientRow = memo(function PatientRow({
               <Link
                 href={ehrHref}
                 className="text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
-                aria-label={`Open EHR for ${row.name}`}
+                aria-label={`${row.name}, open EHR`}
                 title="Open patient EHR"
               >
                 {row.name}

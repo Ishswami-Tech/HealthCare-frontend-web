@@ -32,8 +32,8 @@ import {
   prefetchAppointments,
   prefetchMyAppointments,
 } from "@/hooks/query/useAppointments";
-import { useCurrentClinicId, useMyClinic } from "@/hooks/query/useClinics";
-import { NEUTRAL_CLINIC_NAME } from "@/hooks/query/useClinicBrandName";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useClinicBrandName } from "@/hooks/query/useClinicBrandName";
 import {
   Dialog,
   DialogContent,
@@ -185,13 +185,12 @@ function portalLabel(role?: string): string {
 
 const Logo = memo(function Logo({ role }: { role?: string }) {
   const portal = portalLabel(role);
-  const { data: myClinic } = useMyClinic();
-  const clinicName = myClinic?.name?.trim() || "";
-  // The clinic's own name from the backend; a neutral label while it loads (no product brand).
-  const brandName = clinicName || NEUTRAL_CLINIC_NAME;
-  const logoUrl = (myClinic as { logo?: string | null } | undefined)?.logo?.trim() || null;
+  // The clinic's own name (backend, else session, else last seen on this device). While none is
+  // known yet a text placeholder ("Your clinic") is not shown; a skeleton bar holds the place.
+  const { name: brandName, isKnown, logoUrl } = useClinicBrandName();
+  const clinicName = isKnown ? brandName : "";
   return (
-    <Link href="/" prefetch={false} title={brandName} className="flex min-w-0 items-center gap-2.5">
+    <Link href="/" prefetch={false} title={clinicName || undefined} aria-label={clinicName ? undefined : "Home"} className="flex min-w-0 items-center gap-2.5">
       <BrandMark logoUrl={logoUrl} name={clinicName} />
       <m.div
         initial={{ opacity: 0 }}
@@ -200,9 +199,13 @@ const Logo = memo(function Logo({ role }: { role?: string }) {
         transition={{ duration: 0.2, ease: "linear" }}
         className="flex min-w-0 flex-col justify-center leading-[1.15]"
       >
-        <span className="line-clamp-2 break-words text-[15px] font-extrabold leading-[1.15] tracking-[-0.3px] text-sidebar-foreground">
-          {brandName}
-        </span>
+        {clinicName ? (
+          <span className="line-clamp-2 break-words text-[15px] font-extrabold leading-[1.15] tracking-[-0.3px] text-sidebar-foreground">
+            {clinicName}
+          </span>
+        ) : (
+          <span className="block h-3.5 w-28 animate-pulse rounded bg-sidebar-accent" aria-hidden="true" />
+        )}
         {portal ? (
           <span className="truncate text-[10.5px] font-bold tracking-[0.4px] text-brand">{portal}</span>
         ) : null}

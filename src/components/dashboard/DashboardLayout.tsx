@@ -32,6 +32,9 @@ import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSk
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { washToneForPath } from "@/components/tbd/wash";
 import { titleForRegisteredPath } from "@/lib/config/tbdRoutes";
+import { buildStaffDocumentTitle } from "@/lib/utils/document-title";
+import { useDocumentTitle } from "@/hooks/utils/useDocumentTitle";
+import { useClinicBrandName } from "@/hooks/query/useClinicBrandName";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
@@ -170,10 +173,24 @@ export function DashboardLayout({
 
   // Get current path for route-based protection
   const pathname = usePathname();
-  const resolvedPageTitle =
-    title !== "Dashboard"
-      ? title
-      : DASHBOARD_ROUTE_TITLES[pathname] || titleForRegisteredPath(pathname) || titleForPath(pathname) || title;
+  const routePageTitle =
+    DASHBOARD_ROUTE_TITLES[pathname] || titleForRegisteredPath(pathname) || titleForPath(pathname);
+  const resolvedPageTitle = title !== "Dashboard" ? title : routePageTitle || title;
+
+  // Browser-tab title for staff routes ("Queue - Reception - Clinic"); patient routes set their
+  // own through segment metadata. Only the outer shell sets it.
+  const clinicBrand = useClinicBrandName();
+  const isPatientRoute = Boolean(pathname?.startsWith("/patient"));
+  const staffDocumentTitle =
+    !isInsideShell && user && !isPatientRoute && pathname
+      ? buildStaffDocumentTitle({
+          pathname,
+          pageName: title !== "Dashboard" ? title : routePageTitle,
+          role: normalizedUserRole,
+          clinicName: clinicBrand.isKnown ? clinicBrand.name : null,
+        })
+      : null;
+  useDocumentTitle(staffDocumentTitle);
 
   // Check role access (Component Props)
   const hasRoleAccess = useMemo(() => {
@@ -271,7 +288,9 @@ export function DashboardLayout({
   // Previously this layout also called `usePrefetchMyAppointments()` (no
   // clinicId), which used the no-filter key and produced a duplicate fetch
   // with a different cache slot.
-  usePrefetchAppointmentsForRole();
+  // Staff dashboards fetch their own day-bounded appointment list; skip the unbounded warm-up
+  // there so the dashboard's first paint does not wait behind a duplicate request.
+  usePrefetchAppointmentsForRole({ skip: /^\/[a-z-]+\/dashboard\/?$/.test(pathname ?? "") });
 
   // Prefetch the composed dashboard summary so the first paint of
   // /patient/dashboard reads from cache. Patient-only; the hook itself

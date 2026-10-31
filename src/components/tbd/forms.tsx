@@ -114,7 +114,8 @@ export type DateFieldProps =
   | (DateFieldBase & {
       /** A calendar button on the left opens the browser's date picker. Label it with a `Field`. */
       variant?: "icon";
-      label?: undefined;
+      /** Accessible name when no visible `Field` label points at the input (WCAG 1.3.1). */
+      label?: string | undefined;
     })
   | (DateFieldBase & {
       /** `inline`: the label sits inside the box ("From 12/05/2026"). `placeholder`: it shows while the field is empty. */
@@ -214,6 +215,7 @@ export function DateField({ id, value, onChange, min, max, disabled, className, 
         ref={ref}
         id={id}
         type="date"
+        aria-label={label}
         value={value}
         min={min}
         max={max}

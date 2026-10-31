@@ -2317,7 +2317,8 @@ export async function prefetchAppointments(
  * and rely on realtime cache updates after that, so this intentionally
  * no-ops for patients.
  */
-export function usePrefetchAppointmentsForRole() {
+export function usePrefetchAppointmentsForRole(options?: { skip?: boolean }) {
+  const skip = options?.skip === true;
   const queryClient = useQueryClient();
   const session = useAuthStore((state) => state.session);
   const userId = session?.user?.id;
@@ -2326,7 +2327,10 @@ export function usePrefetchAppointmentsForRole() {
   const { hasPermission } = useRBAC();
 
   useEffect(() => {
-    if (!userId || !hasPermission(Permission.VIEW_APPOINTMENTS)) {
+    // `skip`: the current screen loads its own (bounded) appointment list, e.g. a staff dashboard;
+    // warming the unbounded list there only doubles the first-paint requests. It runs once the
+    // user moves on to another screen.
+    if (skip || !userId || !hasPermission(Permission.VIEW_APPOINTMENTS)) {
       return;
     }
 
@@ -2379,6 +2383,6 @@ export function usePrefetchAppointmentsForRole() {
         doctorId: role === 'DOCTOR' || role === 'ASSISTANT_DOCTOR' ? userId : undefined,
       });
     }
-  }, [queryClient, userId, userRole, clinicId, hasPermission]);
+  }, [queryClient, userId, userRole, clinicId, hasPermission, skip]);
 }
 

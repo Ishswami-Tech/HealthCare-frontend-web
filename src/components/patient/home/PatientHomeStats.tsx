@@ -44,7 +44,7 @@ export function PatientHomeStats({ stats, isLoading = false }: { stats: HomeStat
       {stats.map((stat) => {
         const { icon: Icon, well } = LOOK[stat.key];
         return (
-          <Link
+          <Link prefetch={false}
             key={stat.key}
             href={stat.href}
             className={cn(

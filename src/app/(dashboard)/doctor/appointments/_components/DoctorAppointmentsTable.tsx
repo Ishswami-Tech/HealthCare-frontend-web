@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { CellTitle, EmptyBlock, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
+import { CellTitle, EmptyBlock, InitialsAvatar, Pill, Surface, appointmentStatusLabel, statusTone } from "@/components/tbd";
 import { VIDEO_JOIN_EARLY_WINDOW_MINUTES, isTerminalAppointmentStatus } from "@/lib/utils/appointmentUtils";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { cn } from "@/lib/utils";
@@ -520,7 +520,7 @@ export function DoctorAppointmentsTable({
                         <button
                           type="button"
                           className="text-left text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
-                          aria-label={`Open case sheet for ${app.patientName}`}
+                          aria-label={`${app.patientName}, open case sheet`}
                           title="Open case sheet"
                           onClick={() => setCaseSheetPatientId(app.patientId)}
                         >
@@ -545,7 +545,7 @@ export function DoctorAppointmentsTable({
                   <CellTitle title={app.appointmentDate} description={`${app.time} · ${app.duration}`} />
                 </div>
                 <div role="cell" className="col-[2] row-[1] min-w-0 @5xl:col-auto @5xl:row-auto">
-                  <Pill tone={statusTone(app.status)}>{statusLabel(app.status)}</Pill>
+                  <Pill tone={statusTone(app.status)}>{appointmentStatusLabel(app.status, app.type)}</Pill>
                 </div>
                 <div role="cell" className={cn(CELL_BELOW, "row-[4] min-w-0")}>
                   <PatientRemarkCell remark={app.chiefComplaint} urgency={app.urgency} />

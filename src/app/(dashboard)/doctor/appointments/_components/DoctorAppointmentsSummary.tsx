@@ -24,6 +24,7 @@ import {
   PageHero,
   SearchBox,
   Surface,
+  appointmentStatusLabel,
   type IconTone,
   type TbdIcon,
 } from "@/components/tbd";
@@ -100,7 +101,7 @@ const DATE_OPTIONS: { value: DoctorAppointmentDateFilter; label: string }[] = [
   { value: "CUSTOM", label: "Custom range" },
 ];
 
-function statusLabel(
+function statusFilterLabel(
   value: DoctorAppointmentViewFilter,
   counts: {
     all: number;
@@ -119,17 +120,17 @@ function statusLabel(
     case "ACTIVE":
       return `Active (${counts.active})`;
     case "IN_PROGRESS":
-      return `In progress (${counts.inProgress})`;
+      return `${appointmentStatusLabel("IN_PROGRESS")} (${counts.inProgress})`;
     case "CONFIRMED":
-      return `Confirmed (${counts.confirmed})`;
+      return `${appointmentStatusLabel("CONFIRMED")} (${counts.confirmed})`;
     case "COMPLETED":
-      return `Completed (${counts.completed})`;
+      return `${appointmentStatusLabel("COMPLETED")} (${counts.completed})`;
     case "CANCELLED":
-      return `Cancelled (${counts.cancelled})`;
+      return `${appointmentStatusLabel("CANCELLED")} (${counts.cancelled})`;
     case "EXPIRED":
-      return `Expired (${counts.expired})`;
+      return `${appointmentStatusLabel("EXPIRED")} (${counts.expired})`;
     case "NO_SHOW":
-      return `No show (${counts.noShow})`;
+      return `${appointmentStatusLabel("NO_SHOW")} (${counts.noShow})`;
     default:
       return value;
   }
@@ -200,9 +201,9 @@ export function DoctorAppointmentsSummary({
           still one click away in the status dropdown below (same as "Confirmed" already was);
           they're audit information, not what a doctor needs to see on every page load. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="group" aria-label="Appointment counts">
-        <StatTile label="Not started" value={activeAppointmentsCount} icon={Clock} tone="slate" loading={loading} />
-        <StatTile label="In Progress" value={inProgressAppointmentsCount} icon={Play} tone="blue" loading={loading} />
-        <StatTile label="Completed" value={completedAppointmentsCount} icon={CheckCircle} tone="mint" loading={loading} />
+        <StatTile label="Still to see" value={activeAppointmentsCount} icon={Clock} tone="slate" loading={loading} />
+        <StatTile label={appointmentStatusLabel("IN_PROGRESS")} value={inProgressAppointmentsCount} icon={Play} tone="blue" loading={loading} />
+        <StatTile label={appointmentStatusLabel("COMPLETED")} value={completedAppointmentsCount} icon={CheckCircle} tone="mint" loading={loading} />
         <StatTile label="Total" value={totalAppointmentsCount} icon={CalendarIcon} tone="video" loading={loading} />
       </div>
 
@@ -265,7 +266,7 @@ export function DoctorAppointmentsSummary({
             <SelectContent>
               {statusValues.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {statusLabel(value, counts)}
+                  {statusFilterLabel(value, counts)}
                 </SelectItem>
               ))}
             </SelectContent>

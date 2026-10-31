@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Divider, Note, Pill, statusLabel, statusTone } from "@/components/tbd";
+import { Divider, Note, Pill, appointmentStatusLabel, statusTone } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import type { TransformedAppointment } from "../page";
 import { getPatientContact, getVisitTypeLabel, joinRecordList } from "./appointmentLabels";
@@ -98,7 +98,7 @@ export function DoctorAppointmentsDetailsDialog({
             <div className="flex flex-col gap-4 overflow-y-auto px-6 pb-5 pt-1">
               <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
                 <FactTile label="Status">
-                  <Pill tone={statusTone(selectedAppointment.status)}>{statusLabel(selectedAppointment.status)}</Pill>
+                  <Pill tone={statusTone(selectedAppointment.status)}>{appointmentStatusLabel(selectedAppointment.status, selectedAppointment.type)}</Pill>
                 </FactTile>
                 <FactTile label="Visit type">{getVisitTypeLabel(selectedAppointment.type)}</FactTile>
                 <FactTile label="Contact">

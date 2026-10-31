@@ -71,7 +71,7 @@ export function PatientHomeWorkspace({
           <span className="text-[13px] text-ink-muted">Your consultations at a glance</span>
         </div>
         {visits.length > 0 ? (
-          <Link
+          <Link prefetch={false}
             href="/patient/appointments"
             className="inline-flex shrink-0 items-center gap-1 rounded-md text-[13px] font-bold text-brand hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
           >
@@ -109,7 +109,7 @@ export function PatientHomeWorkspace({
             </div>
           ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair pt-3.5">
-            <Link
+            <Link prefetch={false}
               href="/patient/appointments?tab=past"
               className="inline-flex min-h-11 items-center gap-1 rounded-md text-[13px] font-bold text-ink-soft hover:text-ink focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
             >
@@ -143,7 +143,7 @@ export function PatientHomeWorkspace({
           <p className="m-0 text-[13px] text-ink-muted">Book a consultation with your doctor in under a minute.</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2.5">
             <Button variant="outline" size="md" asChild>
-              <Link href="/patient/appointments?tab=past">Past visits</Link>
+              <Link prefetch={false} href="/patient/appointments?tab=past">Past visits</Link>
             </Button>
             <Button variant="action" size="md" disabled={isBookingOpening} onClick={onBook}>
               {isBookingOpening ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}

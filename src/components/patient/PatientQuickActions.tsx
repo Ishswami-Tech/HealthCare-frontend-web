@@ -48,7 +48,7 @@ export function PatientQuickActions({ className }: { className?: string }) {
       </h2>
       <div className="grid grid-cols-4 gap-2 @lg:gap-3 @4xl:grid-cols-8">
         {ACTIONS.map(({ label, href, icon: Icon, tile, well }) => (
-          <Link
+          <Link prefetch={false}
             key={label}
             href={href}
             className={cn(

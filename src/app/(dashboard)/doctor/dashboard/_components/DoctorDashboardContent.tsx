@@ -1,8 +1,7 @@
 "use client";
 
-import { CircleAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { EmptyBlock, Surface } from "@/components/tbd";
+import { LoadErrorAlert } from "@/components/patient/LoadErrorAlert";
+import { SlowLoadNotice } from "@/components/common/SlowLoadNotice";
 import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
 import { DoctorDashboardView } from "./DoctorDashboardView";
 import { useDoctorDashboardData } from "./useDoctorDashboardData";
@@ -12,18 +11,12 @@ export default function DoctorDashboardContent() {
 
   if (data.appointmentsError && data.appointmentsArray.length === 0) {
     return (
-      <Surface flush className="mx-auto mt-10 w-full max-w-xl" role="alert">
-        <EmptyBlock
-          icon={CircleAlert}
-          title="We could not load your appointments"
-          description="Please check your connection and try again."
-          action={
-            <Button size="md" variant="outline" onClick={() => window.location.reload()}>
-              Refresh
-            </Button>
-          }
-        />
-      </Surface>
+      <LoadErrorAlert
+        className="mx-auto mt-10 w-full max-w-xl"
+        title="We could not load your appointments"
+        detail="Please check your connection and try again."
+        onRetry={() => void data.refetchAppointments()}
+      />
     );
   }
 
@@ -34,6 +27,11 @@ export default function DoctorDashboardContent() {
 
   return (
     <>
+      <SlowLoadNotice
+        loading={isLoadingAppointments}
+        onRetry={() => void data.refetchAppointments()}
+        className="mb-4"
+      />
       <DoctorDashboardView
         dateLabel={data.dashboardTodayLabel}
         doctorName={data.displayDoctorName}

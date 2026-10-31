@@ -3736,24 +3736,33 @@ export function BookAppointmentDialog({
       ((rawProfile as any)?.user as Record<string, unknown>)?.patientId ||
       (((rawProfile as any)?.user as Record<string, unknown>)?.patient as Record<string, unknown>)?.id;
 
-    if (!patientRecordId) {
-      logger.warn(
-        "[BookAppointmentDialog] Patient profile not found or missing patient.id",
-        {
-          hasProfile: !!currentPatientProfile,
-          userId: session?.user?.id || 'unknown',
-          profileKeys: currentPatientProfile && typeof currentPatientProfile === 'object'
-            ? Object.keys(currentPatientProfile as Record<string, unknown>)
-            : [],
-        },
-      );
-    }
-
     return (patientRecordId as string) || "";
+  }, [currentPatientProfile, isPrivilegedScheduler, selectedPatientId]);
+
+  // Warn once per account, and only after the profile has actually loaded: the memo above runs
+  // while the profile is still in flight (and again on every re-render), which logged a false
+  // "missing patient.id" twice on each open.
+  const warnedMissingPatientIdFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!dialogOpen || isPrivilegedScheduler || isPatientProfilePending || !currentPatientProfile) return;
+    if (resolvedBookingPatientId) return;
+    const userId = session?.user?.id || "unknown";
+    if (warnedMissingPatientIdFor.current === userId) return;
+    warnedMissingPatientIdFor.current = userId;
+    logger.warn("[BookAppointmentDialog] Patient profile not found or missing patient.id", {
+      hasProfile: true,
+      userId,
+      profileKeys:
+        typeof currentPatientProfile === "object"
+          ? Object.keys(currentPatientProfile as Record<string, unknown>)
+          : [],
+    });
   }, [
-    currentPatientProfile,
+    dialogOpen,
     isPrivilegedScheduler,
-    selectedPatientId,
+    isPatientProfilePending,
+    currentPatientProfile,
+    resolvedBookingPatientId,
     session?.user?.id,
   ]);
 

@@ -161,7 +161,9 @@
   --card-foreground: oklch(0.95 0 0);
   --popover: oklch(0.15 0 0); /* Slightly elevated slate */
   --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.62 0.16 150); /* Emerald Green — consistent branding */
+  /* Emerald Green, one step darker than the 0.62 brand tint so white button text reaches
+     4.7:1 (WCAG AA 4.5); same hue, so the brand look is unchanged. */
+  --primary: oklch(0.54 0.15 150);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.2 0 0);
   --secondary-foreground: oklch(0.95 0 0);

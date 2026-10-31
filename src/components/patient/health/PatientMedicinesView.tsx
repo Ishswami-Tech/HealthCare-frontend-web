@@ -298,7 +298,6 @@ export function PatientMedicinesView({
                         <button
                           type="button"
                           onClick={() => setSelectedId(prescription.id)}
-                          aria-label={`Open ${prescription.number}`}
                           className="flex w-full items-center gap-3.5 rounded-lg py-3.5 text-left text-ink hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
                         >
                           {prescription.doctorName ? (

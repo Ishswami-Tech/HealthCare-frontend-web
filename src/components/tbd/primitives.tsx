@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import { Children, isValidElement, type ComponentType, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft, Info, type LucideProps } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -667,6 +667,26 @@ export function GridHead({
   );
 }
 
+const CELL_ROLES = new Set(["cell", "gridcell", "columnheader", "rowheader"]);
+
+/**
+ * A `row` must own cells (axe `aria-required-children`). Each child that is not already a cell
+ * gets a `display: contents` cell wrapper, so the grid / flex layout of the row is unchanged.
+ */
+function asRowCells(children: ReactNode): ReactNode {
+  return Children.map(children, (child) => {
+    if (child === null || child === undefined || typeof child === "boolean") return null;
+    if (isValidElement<{ role?: string }>(child) && CELL_ROLES.has(String(child.props.role ?? ""))) {
+      return child;
+    }
+    return (
+      <div role="cell" className="contents">
+        {child}
+      </div>
+    );
+  });
+}
+
 /** One row of a grid table (stacks on small screens). */
 export function GridRow({
   columns,
@@ -681,12 +701,12 @@ export function GridRow({
     <div
       role="row"
       className={cn(
-        "flex flex-col gap-3 border-b border-hair px-5 py-3 text-sm last:border-b-0 lg:grid lg:min-h-[60px] lg:items-center lg:gap-4 lg:py-2 [&>*]:min-w-0",
+        "flex flex-col gap-3 border-b border-hair px-5 py-3 text-sm last:border-b-0 lg:grid lg:min-h-[60px] lg:items-center lg:gap-4 lg:py-2 [&>*]:min-w-0 [&>[role=cell].contents>*]:min-w-0",
         className,
       )}
       style={{ gridTemplateColumns: columns }}
     >
-      {children}
+      {asRowCells(children)}
     </div>
   );
 }

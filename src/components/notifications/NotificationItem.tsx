@@ -202,7 +202,7 @@ export function NotificationItem({
             className="size-11 rounded-full bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-950/40 dark:text-green-300 dark:hover:bg-green-900/60"
             onClick={handleMarkAsRead}
             title="Mark as read"
-            aria-label="Mark as read"
+            aria-label={notification.title ? `Mark as read: ${notification.title}` : "Mark as read"}
           >
             <CheckCircle2 className="size-4" aria-hidden="true" />
           </Button>
@@ -214,7 +214,7 @@ export function NotificationItem({
             className="size-11 rounded-full bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/60"
             onClick={handleRemove}
             title="Remove"
-            aria-label="Remove notification"
+            aria-label={notification.title ? `Remove notification: ${notification.title}` : "Remove notification"}
           >
             <X className="size-4" aria-hidden="true" />
           </Button>

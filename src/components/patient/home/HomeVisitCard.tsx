@@ -494,7 +494,7 @@ function ClinicVisitCard({
         </div>
         {inQueue ? (
           <Button size="md" className="h-12 w-full sm:w-auto" asChild>
-            <Link href="/patient/queue">
+            <Link prefetch={false} href="/patient/queue">
               <Activity aria-hidden="true" />
               View live queue
               <ArrowRight aria-hidden="true" />
@@ -575,7 +575,7 @@ export function HomeVisitRow({ visit, actions }: { visit: HomeVisit; actions: Ho
         </Button>
       ) : (
         <Button variant="outline" asChild>
-          <Link
+          <Link prefetch={false}
             href={`/patient/appointments?id=${encodeURIComponent(visit.id)}`}
             aria-label={`Details of the visit on ${when}`}
           >

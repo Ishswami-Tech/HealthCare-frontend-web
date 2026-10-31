@@ -90,7 +90,7 @@ export default function ReceptionAppointmentsPage() {
             <Button variant="outline" size="icon" aria-label="Earlier" onClick={() => setDay(shiftDayKey(day, -step))}>
               <ChevronLeft aria-hidden="true" />
             </Button>
-            <DateField id="reception-appointments-day" value={day} onChange={(value) => setDay(value || today)} className="w-[180px]" />
+            <DateField id="reception-appointments-day" label="Appointments day" value={day} onChange={(value) => setDay(value || today)} className="w-[180px]" />
             <Button variant="outline" size="icon" aria-label="Later" onClick={() => setDay(shiftDayKey(day, step))}>
               <ChevronRight aria-hidden="true" />
             </Button>

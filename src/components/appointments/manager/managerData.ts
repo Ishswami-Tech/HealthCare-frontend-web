@@ -1,4 +1,4 @@
-import { statusLabel, statusTone, type PillTone } from "@/components/tbd";
+import { appointmentStatusLabel, statusLabel, statusTone, type PillTone } from "@/components/tbd";
 import { localizedDoctorName, localizedDoctorSubtitle } from "@/lib/utils/localized-profile";
 import { asRow, firstText, isCheckedInClinicVisit, text, type Row } from "@/components/patient/home/homeData";
 import {
@@ -337,7 +337,14 @@ export function toManagerVisit(appointment: Row, options: ManagerVisitOptions): 
   const checkInOpen =
     viewerIsPatient && !isVideo && !terminal && clinicStage === "upcoming" && isToday && checkInWindowOpen;
   const tone: PillTone = missedVisit ? statusTone("NO_SHOW") : checkInOpen ? "amber" : statusTone(statusCode);
-  const label = missedVisit ? "Missed" : checkInOpen ? "Check-in open" : statusLabel(statusCode);
+  // Staff screens share one status vocabulary (see appointmentStatusLabel); patients keep theirs.
+  const label = missedVisit
+    ? "Missed"
+    : checkInOpen
+      ? "Check-in open"
+      : !viewerIsPatient
+        ? appointmentStatusLabel(statusCode, isVideo ? "video" : "clinic")
+        : statusLabel(statusCode);
   const filterStatus = missedVisit ? "NO_SHOW" : unpaid ? "SCHEDULED" : normalizeAppointmentStatus(status);
 
   // ── video ──

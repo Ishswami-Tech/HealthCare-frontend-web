@@ -393,7 +393,7 @@ export function isVideoQueueEntry(item: QueueDisplayItem): boolean {
     .some((token) => token.includes("VIDEO"));
 }
 
-/** Status tag text. Keeps the queue wording (WAITING reads "Queued"); other codes are made readable. */
+/** Status tag text: the shared staff vocabulary (WAITING reads "Waiting"); other codes are made readable. */
 export function getQueueStatusText(item: QueueDisplayItem): string {
   const label = getQueueStatusLabel(item);
   return label && label !== item.status ? label : statusLabel(item.status);

@@ -7,6 +7,8 @@ import { nextHealthFailureStreak } from '@/lib/utils/health-status';
 
 /** HTTP /health poll interval for visitors without the admin health socket. */
 const HEALTH_HTTP_POLL_INTERVAL_MS = 60_000;
+/** How long one /health result is reused by every badge before it is fetched again. */
+const HEALTH_STALE_TIME_MS = 60_000;
 /** Re-check sooner after a failing poll, so a blip clears (or an outage is confirmed) quickly. */
 const HEALTH_HTTP_RECHECK_INTERVAL_MS = 15_000;
 
@@ -168,6 +170,9 @@ export const useDetailedHealthStatus = () => {
               : HEALTH_HTTP_POLL_INTERVAL_MS
         : false,
       refetchIntervalInBackground: false,
+      // One shared result for a minute: pages that mount the status badge reuse it instead of
+      // probing /health again (focus and remounts refetch only once it is stale).
+      staleTime: HEALTH_STALE_TIME_MS,
       refetchOnWindowFocus: shouldUseRestFallback,
       refetchOnReconnect: true,
       enabled: shouldUseRestFallback,

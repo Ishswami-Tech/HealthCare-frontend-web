@@ -9,6 +9,7 @@ import { MinimalStatusIndicator } from "@/components/common/MinimalStatusIndicat
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHydrated } from "@/hooks/utils/useHydrated";
+import { useMinWidth } from "@/hooks/utils/useMinWidth";
 import { useRouter, usePathname } from "next/navigation";
 import { LogOut, User, Settings, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,8 @@ function getAvatarGradient(initials?: string) {
 
 export function Header({ className, children, showSidebarTrigger = true }: HeaderProps) {
   const mounted = useHydrated();
+  // Tailwind `lg` breakpoint: the system-status badge is only shown from here up.
+  const showStatusBadge = useMinWidth(1024);
   const { logoutAsync } = useAuth();
   const { push } = useRouter();
   const pathname = usePathname();
@@ -112,9 +115,13 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-2.5">
             {mounted ? (
               <>
-                <div className="hidden items-center lg:flex">
-                  <MinimalStatusIndicator />
-                </div>
+                {/* Mounted only where it is visible (lg and up): below that the badge was
+                    CSS-hidden but still polled /health on every page. */}
+                {showStatusBadge ? (
+                  <div className="hidden items-center lg:flex">
+                    <MinimalStatusIndicator />
+                  </div>
+                ) : null}
 
                 <NotificationBell className="size-11 rounded-xl border border-line bg-card text-ink shadow-none transition-colors hover:bg-mint-soft hover:text-ink dark:bg-card dark:hover:bg-accent" />
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { SlowLoadNotice } from "@/components/common/SlowLoadNotice";
 import { useMemo } from "react";
 import Link from "next/link";
 import { ClipboardCheck, ListOrdered, MapPin, UserPlus, Users, Wallet, type LucideIcon } from "lucide-react";
@@ -93,6 +94,7 @@ export default function ReceptionDashboardPage() {
         </Pill>
       }
     >
+      <SlowLoadNotice loading={isLoading && visits.length === 0} onRetry={() => void refetch()} />
       {error && visits.length > 0 ? (
         <LoadErrorNote title="The list may be out of date." message={error.message} onRetry={() => void refetch()} />
       ) : null}

@@ -20,7 +20,7 @@ import {
   InitialsAvatar,
   Pill,
   Surface,
-  statusLabel,
+  appointmentStatusLabel,
   statusTone,
 } from "@/components/tbd";
 import type {
@@ -142,11 +142,11 @@ export function DoctorDashboardNextPatientCard({
           statusPill={
             checkedIn ? (
               <Pill tone="green" dot>
-                Checked in
+                {appointmentStatusLabel("CHECKED_IN")}
               </Pill>
             ) : (
               <Pill tone={statusTone(appointment.statusEnum)} dot>
-                {statusLabel(appointment.statusEnum)}
+                {appointmentStatusLabel(appointment.statusEnum, appointment.type)}
               </Pill>
             )
           }

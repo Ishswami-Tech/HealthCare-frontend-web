@@ -26,7 +26,6 @@ import {
   CellTitle,
   Chip,
   EmptyBlock,
-  FilterChips,
   InitialsAvatar,
   Pill,
   SectionTitle,
@@ -41,6 +40,7 @@ import { routeFor } from "@/lib/config/tbdRoutes";
 import { getQueuePatientDisplayName, getQueuePositionLabel } from "@/lib/queue/queue-adapter";
 import { cn } from "@/lib/utils";
 import { QUEUE_AVATAR_CLASS } from "./QueuePatientSummary";
+import { QueueCompactChips } from "./QueueCompactChips";
 import {
   QUEUE_PAGE_SIZE,
   getQueueDisplayLabel,
@@ -290,9 +290,12 @@ export function QueueLaneCard({
 
   return (
     <Surface flush as="section" className="@container" aria-label={title}>
-      <div className="flex flex-col gap-3.5 border-b border-hair px-5 pb-4 pt-5">
-        <SectionTitle icon={icon} title={title} count={total} description={description} />
-        <FilterChips
+      {/* Compact header: title and lane chips on one line, empty lanes behind "More (n)" (UD-06).
+          The longer description stays available to screen readers and as a tooltip. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 border-b border-hair px-5 py-3">
+        <SectionTitle icon={icon} title={title} count={total} className="shrink-0" />
+        <span className="sr-only">{description}</span>
+        <QueueCompactChips
           ariaLabel={`${title}: choose a lane`}
           options={lanes.map((lane) => ({ value: lane.key, label: lane.title, count: lane.count }))}
           value={activeLane}

@@ -84,6 +84,9 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
     { value: "MARKETING", label: "Marketing" },
   ];
 
+  // The badge text starts the accessible name, so the visible label and the name agree (WCAG 2.5.3).
+  const unreadCountLabel = unreadCount > 99 ? "99+" : String(unreadCount);
+
   return (
     <Popover
       open={isNotificationPanelOpen}
@@ -94,15 +97,16 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           variant="ghost"
           size="icon"
           className={cn("relative", className)}
-          aria-label="Notifications"
+          aria-label={unreadCount > 0 ? `${unreadCountLabel} Notifications, unread` : "Notifications"}
         >
-          <Bell className="size-[18px]" />
+          <Bell className="size-[18px]" aria-hidden="true" />
           {unreadCount > 0 && (
             <Badge
+              aria-hidden="true"
               variant="destructive"
               className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-card bg-[#e11d48] px-1 py-0 text-xs font-extrabold text-white"
             >
-              {unreadCount > 99 ? "99+" : unreadCount}
+              {unreadCountLabel}
             </Badge>
           )}
         </Button>

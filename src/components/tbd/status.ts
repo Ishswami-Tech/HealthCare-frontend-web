@@ -97,6 +97,60 @@ export function statusLabel(status?: string | null): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/**
+ * The one appointment-status vocabulary for staff screens (doctor dashboard and list, reception
+ * desk, shared queue, clinic admin), so the same visit reads the same word everywhere:
+ * Not checked in -> Waiting (checked in) -> With doctor -> Done (or Missed / Cancelled / Expired).
+ * Video visits have no check-in, so their pre-visit words differ ("Booked", "Ready to join").
+ */
+const APPOINTMENT_STATUS_GROUPS: Record<string, string> = {
+  SCHEDULED: "BOOKED",
+  RESCHEDULED: "BOOKED",
+  FOLLOW_UP_SCHEDULED: "BOOKED",
+  PROPOSED: "BOOKED",
+  PENDING: "PAYMENT_PENDING",
+  AWAITING_PAYMENT: "PAYMENT_PENDING",
+  PENDING_PAYMENT: "PAYMENT_PENDING",
+  WAITING_FOR_PAYMENT: "PAYMENT_PENDING",
+  CONFIRMED: "CHECKED_IN",
+  CHECKED_IN: "CHECKED_IN",
+  WAITING: "CHECKED_IN",
+  QUEUED: "CHECKED_IN",
+  CALLED: "CALLED",
+  IN_PROGRESS: "WITH_DOCTOR",
+  STARTED: "WITH_DOCTOR",
+  COMPLETED: "DONE",
+  ENDED: "DONE",
+  NO_SHOW: "MISSED",
+  CANCELLED: "CANCELLED",
+  CANCELED: "CANCELLED",
+  EXPIRED: "EXPIRED",
+};
+
+const APPOINTMENT_GROUP_LABELS: Record<string, { clinic: string; video: string }> = {
+  BOOKED: { clinic: "Not checked in", video: "Booked" },
+  PAYMENT_PENDING: { clinic: "Payment pending", video: "Payment pending" },
+  CHECKED_IN: { clinic: "Waiting", video: "Ready to join" },
+  CALLED: { clinic: "Called", video: "Called" },
+  WITH_DOCTOR: { clinic: "With doctor", video: "With doctor" },
+  DONE: { clinic: "Done", video: "Done" },
+  MISSED: { clinic: "Missed", video: "Missed" },
+  CANCELLED: { clinic: "Cancelled", video: "Cancelled" },
+  EXPIRED: { clinic: "Expired", video: "Expired" },
+};
+
+/**
+ * Staff-facing label for an appointment status code. `visitType` is the appointment type
+ * ("VIDEO_CALL", "IN_PERSON", ...) or the kind ("video" / "clinic"); unknown means in-clinic.
+ * Statuses outside the appointment lifecycle fall back to `statusLabel`.
+ */
+export function appointmentStatusLabel(status?: string | null, visitType?: string | null): string {
+  const group = APPOINTMENT_STATUS_GROUPS[normalizeStatus(status)];
+  const labels = group ? APPOINTMENT_GROUP_LABELS[group] : undefined;
+  if (!labels) return statusLabel(status);
+  return visitTypeKind(visitType) === "video" ? labels.video : labels.clinic;
+}
+
 /** "video" for a video visit, "clinic" for one at the clinic, null for anything else. */
 export function visitTypeKind(type?: string | null): "video" | "clinic" | null {
   const key = normalizeStatus(type);

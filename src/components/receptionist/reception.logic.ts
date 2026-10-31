@@ -1,4 +1,4 @@
-import { statusLabel, statusTone, type PillTone } from "@/components/tbd";
+import { appointmentStatusLabel, statusTone, type PillTone } from "@/components/tbd";
 import { toManagerVisit } from "@/components/appointments/manager/managerData";
 import type { ManagerVisit } from "@/components/appointments/manager/types";
 import { checkInMethodLabel } from "@/components/clinic/check-in-labels";
@@ -126,10 +126,10 @@ function stageOf(appointment: Row, visit: ManagerVisit): ReceptionStage {
 
 const STAGE_LABEL: Record<ReceptionStage, string> = {
   booked: "",
-  checked_in: "Checked in",
-  with_doctor: "With doctor",
-  completed: statusLabel("COMPLETED"),
-  missed: statusLabel("NO_SHOW"),
+  checked_in: appointmentStatusLabel("CHECKED_IN"),
+  with_doctor: appointmentStatusLabel("IN_PROGRESS"),
+  completed: appointmentStatusLabel("COMPLETED"),
+  missed: appointmentStatusLabel("NO_SHOW"),
   cancelled: "",
 };
 

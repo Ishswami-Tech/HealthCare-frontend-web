@@ -1,13 +1,15 @@
 "use client";
 
-import { Activity, CheckCircle, Loader2, Stethoscope, Timer, TriangleAlert, Users } from "lucide-react";
+import { Activity, Filter, Loader2, Stethoscope, TriangleAlert } from "lucide-react";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FilterChips, Kpi, LiveTag, LoadError, Note, PageHero, Pill, SectionTitle, Surface, type TbdOption } from "@/components/tbd";
+import { LiveTag, LoadError, Note, PageHero, Pill, Surface, type TbdOption } from "@/components/tbd";
 import { QueueOfflineBanner } from "@/components/queue/QueueOfflineBanner";
 import { QueueLocationOverview } from "./QueueLocationOverview";
+import { QueueCompactChips } from "./QueueCompactChips";
+import { SlowLoadNotice } from "@/components/common/SlowLoadNotice";
 import type { QueueOverview } from "./queue-roles.logic";
 import { QueueLaneCard, type QueueLaneCardProps, type QueueRowActions } from "./QueueLaneCard";
 import type { QueueStatsSummary, QueueTabKey } from "./queue.logic";
@@ -68,7 +70,28 @@ function QueueBanner({
       title="Queue Management"
       description={description}
       badge={liveSync ? <LiveTag>Live sync</LiveTag> : <Pill tone="slate">Refreshes every 30 seconds</Pill>}
+      className="!p-4 sm:!p-5"
     />
+  );
+}
+
+/** Queue numbers as one line instead of four tiles (keeps the table in the first screen). */
+function QueueStatsLine({ stats }: { stats: QueueStatsSummary }) {
+  const parts = [
+    { label: "In queue", value: stats.totalInQueue },
+    { label: "Average wait", value: `${stats.averageWaitTime} min` },
+    { label: "With doctor", value: stats.inProgress },
+    { label: "Done today", value: stats.completedToday },
+  ];
+  return (
+    <dl aria-label="Queue numbers" className="m-0 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-ink-muted">
+      {parts.map((part) => (
+        <div key={part.label} className="flex items-baseline gap-1.5">
+          <dt>{part.label}</dt>
+          <dd className="m-0 font-extrabold text-ink">{part.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -82,6 +105,7 @@ export function QueueLoadingView({ scopeLabel }: { scopeLabel: string }) {
         description="Syncing the live queue…"
         badge={<LiveTag>Live sync</LiveTag>}
       />
+      <SlowLoadNotice loading />
       <div aria-busy="true" aria-label="Loading the queue" className="flex flex-col gap-5">
         <Surface>
           <Skeleton className="h-4 w-44 rounded" />
@@ -200,38 +224,31 @@ export function QueueView({
         </Note>
       ) : null}
 
-      <Surface as="section" aria-label="Treatment type filter">
-        <SectionTitle
-          icon={Activity}
-          title="Treatment Type Filter"
-          description="Narrow the shared queue by treatment type, then continue with the consultation and procedure lanes below."
-        />
-        <FilterChips
-          ariaLabel="Treatment type"
-          options={treatmentFilters}
-          value={activeTreatmentFilter}
-          onChange={onTreatmentFilterChange}
-        />
-      </Surface>
-
-      {stats ? (
-        <section aria-label="Queue numbers" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-          <Kpi label="Total in queue" value={stats.totalInQueue} icon={Users} tone="blue" />
-          <Kpi label="Average wait" value={`${stats.averageWaitTime} min`} icon={Timer} tone="amber" />
-          <Kpi label="In progress" value={stats.inProgress} icon={Activity} tone="mint" />
-          <Kpi label="Completed today" value={stats.completedToday} icon={CheckCircle} tone="slate" />
-        </section>
-      ) : null}
-
-      <Tabs value={activeTab} onValueChange={onTabChange} className="gap-5">
-        <TabsList aria-label="Queue type">
-          {tabs.map((tab) => (
-            <TabsTrigger key={tab.key} value={tab.key}>
-              <span>{tab.label}</span>
-              <TabsCount>{tab.count}</TabsCount>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {/* UD-06: one compact bar (queue type, treatment filter, numbers) so the first patient row
+          is on screen at 1366x900; empty treatment types fold behind "More (n)". */}
+      <Tabs value={activeTab} onValueChange={onTabChange} className="gap-3">
+        <Surface as="section" aria-label="Queue filters" className="!gap-2.5 !p-3 sm:!p-3.5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+            <TabsList aria-label="Queue type">
+              {tabs.map((tab) => (
+                <TabsTrigger key={tab.key} value={tab.key}>
+                  <span>{tab.label}</span>
+                  <TabsCount>{tab.count}</TabsCount>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <Filter className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+              <QueueCompactChips
+                ariaLabel="Treatment type"
+                options={treatmentFilters}
+                value={activeTreatmentFilter}
+                onChange={onTreatmentFilterChange}
+              />
+            </div>
+          </div>
+          {stats ? <QueueStatsLine stats={stats} /> : null}
+        </Surface>
 
         <TabsContent value="consultations">
           <QueueLaneCard

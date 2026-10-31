@@ -32,7 +32,6 @@ export function BookingDateStrip({
             type="button"
             disabled={day.disabled}
             aria-pressed={active}
-            aria-label={`${format(day.date, "EEE d")}, ${format(day.date, "EEEE, d MMMM")}${day.disabled ? ", closed" : ""}`}
             onClick={() => onSelect(day.date)}
             className={cn(
               "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl border p-0 transition-colors",
@@ -46,6 +45,8 @@ export function BookingDateStrip({
           >
             <span className="text-xs font-semibold">{format(day.date, "EEE")}</span>
             <span className="text-sm font-extrabold">{format(day.date, "d")}</span>
+            {/* The name is the visible text plus the full date, so it starts with what is shown (WCAG 2.5.3). */}
+            <span className="sr-only">{`, ${format(day.date, "EEEE, d MMMM")}`}</span>
             {day.disabled ? <span className="text-xs font-semibold no-underline">Closed</span> : null}
           </button>
         );

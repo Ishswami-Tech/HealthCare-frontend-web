@@ -25,7 +25,7 @@ import { useAppointments, useUpdateAppointmentStatus } from "@/hooks/query/useAp
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { cn } from "@/lib/utils";
 import { formatDateKeyInIST } from "@/lib/utils/date-time";
-import { statusLabel, visitTypeLabel } from "@/components/tbd";
+import { appointmentStatusLabel, visitTypeLabel } from "@/components/tbd";
 
 type ClinicAppointment = {
   id: string;
@@ -193,11 +193,11 @@ export default function ClinicAdminAppointmentsPage() {
               {/* Always include the current status even if it isn't one an admin can pick,
                   so the select has a valid value to display. */}
               {!ASSIGNABLE_STATUSES.includes(currentStatus) && (
-                <SelectItem value={currentStatus}>{statusLabel(currentStatus)}</SelectItem>
+                <SelectItem value={currentStatus}>{appointmentStatusLabel(currentStatus)}</SelectItem>
               )}
               {ASSIGNABLE_STATUSES.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {statusLabel(status)}
+                  {appointmentStatusLabel(status)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -299,7 +299,7 @@ export default function ClinicAdminAppointmentsPage() {
             <SelectContent>
               {STATUS_FILTER_OPTIONS.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {status === "all" ? "All statuses" : statusLabel(status)}
+                  {status === "all" ? "All statuses" : appointmentStatusLabel(status)}
                 </SelectItem>
               ))}
             </SelectContent>

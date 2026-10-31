@@ -608,6 +608,7 @@ export function useDoctorDashboardData() {
   return {
     appointmentsArray,
     appointmentsError,
+    refetchAppointments,
     appointmentTimeline,
     openVideoVisits,
     nowMs: consultTick,

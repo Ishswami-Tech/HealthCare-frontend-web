@@ -13,7 +13,7 @@ import {
   GridRow,
   Pill,
   Surface,
-  statusLabel,
+  appointmentStatusLabel,
   statusTone,
 } from "@/components/tbd";
 import { DoctorCaseSheetDialog } from "./DoctorCaseSheetDialog";
@@ -82,9 +82,9 @@ export function DoctorDashboardScheduleCard({
           onChange={onFilterChange}
           options={[
             { value: "ALL", label: "All", count: counts.all },
-            { value: "CONFIRMED", label: "Confirmed", count: counts.confirmed },
-            { value: "IN_PROGRESS", label: "In progress", count: counts.inProgress },
-            { value: "COMPLETED", label: "Completed", count: counts.completed },
+            { value: "CONFIRMED", label: appointmentStatusLabel("CONFIRMED"), count: counts.confirmed },
+            { value: "IN_PROGRESS", label: appointmentStatusLabel("IN_PROGRESS"), count: counts.inProgress },
+            { value: "COMPLETED", label: appointmentStatusLabel("COMPLETED"), count: counts.completed },
             { value: "CANCELLED", label: "Cancelled", count: counts.cancelled },
           ]}
         />
@@ -124,7 +124,7 @@ export function DoctorDashboardScheduleCard({
                   <button
                     type="button"
                     className="text-left text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
-                    aria-label={`Open case sheet for ${appointment.patientName}`}
+                    aria-label={`${appointment.patientName}, open case sheet`}
                     title="Open case sheet"
                     onClick={() => setCaseSheetPatientId(appointment.patientId)}
                   >
@@ -165,7 +165,7 @@ export function DoctorDashboardScheduleCard({
               </div>
 
               <div className="flex flex-row flex-wrap items-start gap-1 lg:flex-col">
-                <Pill tone={statusTone(appointment.statusEnum)}>{statusLabel(appointment.statusEnum)}</Pill>
+                <Pill tone={statusTone(appointment.statusEnum)}>{appointmentStatusLabel(appointment.statusEnum, appointment.type)}</Pill>
                 {appointment.priority === "URGENT" ? <Pill tone="rose">Urgent</Pill> : null}
               </div>
 
@@ -210,7 +210,7 @@ export function DoctorDashboardScheduleCard({
                 ) : null}
                 <Button
                   variant="outline"
-                  aria-label={`Open health record of ${appointment.patientName}`}
+                  aria-label={`EHR for ${appointment.patientName}`}
                   onClick={() => setCaseSheetPatientId(appointment.patientId)}
                 >
                   EHR

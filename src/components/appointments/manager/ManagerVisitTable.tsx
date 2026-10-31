@@ -101,7 +101,7 @@ export function ManagerPastTable({
                     Rate visit
                   </Button>
                   {visit.summaryHref ? (
-                    <Link href={visit.summaryHref} className="inline-flex items-center gap-1 text-[13px] font-bold text-brand hover:text-brand-dark">
+                    <Link prefetch={false} href={visit.summaryHref} className="inline-flex items-center gap-1 text-[13px] font-bold text-brand hover:text-brand-dark">
                       {visit.summaryLabel}
                       <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
                     </Link>
@@ -112,7 +112,7 @@ export function ManagerPastTable({
           );
         }
         return visit.summaryHref ? (
-          <Link
+          <Link prefetch={false}
             key={visit.id}
             href={visit.summaryHref}
             className={cn(

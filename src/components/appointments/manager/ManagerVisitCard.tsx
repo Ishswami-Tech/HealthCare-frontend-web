@@ -96,14 +96,14 @@ export function ManagerVisitCard({
     </Button>
   ) : visit.canTrackQueue ? (
     <Button size="md" className="max-sm:flex-1" asChild>
-      <Link href={`/patient/queue?appointmentId=${encodeURIComponent(visit.id)}`}>
+      <Link prefetch={false} href={`/patient/queue?appointmentId=${encodeURIComponent(visit.id)}`}>
         <Activity aria-hidden="true" />
         Track live queue
       </Link>
     </Button>
   ) : visit.canCheckIn ? (
     <Button size="md" className="max-sm:flex-1" asChild>
-      <Link href={checkInHref}>
+      <Link prefetch={false} href={checkInHref}>
         <ScanLine aria-hidden="true" />
         Check in
       </Link>
