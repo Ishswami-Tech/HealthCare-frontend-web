@@ -4037,18 +4037,17 @@ export function BookAppointmentDialog({
     if (consultationMode === "VIDEO" || !selectedDate) {
       return baseSlots;
     }
-    // In-clinic: never offer a time outside the known opening hours for that weekday. Clinic
-    // windows and the doctor's weekly hours both apply; the location's hours stand in when
-    // neither is configured. Nothing is hardcoded, and with no hours known the API list stands.
+    // In-clinic: never offer a time outside the known opening hours for that weekday. The
+    // server already intersects location, clinic and doctor hours (including a dated
+    // day-availability override the web does not see), so the doctor's WEEKLY hours are not
+    // re-applied here: that would hide an override's extra hours. Clinic windows still apply;
+    // the location's hours stand in when they are not configured.
     const dayKey = WEEKDAY_KEYS[selectedDate.getDay()];
     return clipInClinicSlots(
       baseSlots,
       {
         clinicWindows: readClinicWindows(dayKey ? clinicOperatingDays?.[dayKey] : undefined),
-        doctorWindows: readWeeklyWindows(
-          (selectedDoctor as { workingHours?: unknown } | undefined)?.workingHours,
-          dayKey,
-        ),
+        doctorWindows: [],
         locationWindows: readWeeklyWindows(
           (locations as Array<{ id?: string; workingHours?: unknown }>).find(
             (loc) => loc.id === resolvedLocationId,
