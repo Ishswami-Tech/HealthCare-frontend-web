@@ -57,6 +57,8 @@ export interface BookingReviewStepViewProps {
     | undefined;
   /** In-clinic plan check for patients. */
   plan?: { loading: boolean; required: boolean; activeTill?: string | null } | undefined;
+  /** Staff, in-clinic: the patient's plan and the clinic's plan-less visit rule. */
+  staffPlanNotice?: ReactNode;
   /** Page layout: the amber book / pay button, shown inside the summary card on wide screens. */
   confirmAction?: ReactNode;
 }
@@ -431,6 +433,7 @@ function ReviewCompact({
   onUrgencyChange,
   payment,
   plan,
+  staffPlanNotice,
 }: BookingReviewStepViewProps) {
   const rows: Array<{ label: string; value: ReactNode; sub?: ReactNode }> = [
     ...(patientName !== undefined ? [{ label: "Patient", value: patientName }] : []),
@@ -468,7 +471,9 @@ function ReviewCompact({
         />
       ) : plan ? (
         <PlanNotice plan={plan} />
-      ) : null}
+      ) : (
+        staffPlanNotice ?? null
+      )}
       <ReasonFields
         chiefComplaint={chiefComplaint}
         onChiefComplaintChange={onChiefComplaintChange}

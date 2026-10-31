@@ -16,7 +16,7 @@
  * Pure: no React, no dates beyond the weekday.
  */
 
-import { readClinicWindows, readWeeklyWindows } from "./clinicHours";
+import { readClinicWindows, readWeeklyWindows, type ClinicWindow } from "./clinicHours";
 
 export const BOOKING_WEEK_DAYS = [
   "sunday",
@@ -123,4 +123,52 @@ export function isBookingDayClosed(input: BookingDayInput): boolean {
   // Hours are configured somewhere but none cover this weekday: the server says "closed".
   const hoursConfigured = Boolean(locationHours) || Boolean(input.doctorWorkingHours) || isRecord(clinicWindows);
   return hoursConfigured;
+}
+
+/** What the "Clinic timings" card needs: the weekly rule of `isBookingDayClosed`, without dates. */
+export type BookingWeekInput = Omit<BookingDayInput, "weekDayIndex" | "dateKeys" | "closedDateKeys">;
+
+/** `{ start, end }` windows for one day, as `HH:MM` strings. */
+export type BookingDayWindows = Array<{ start: string; end: string }>;
+
+function minutesToClock(total: number): string {
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/** Hours of one open weekday, by the server cascade: location, else the doctor, else the clinic windows. */
+function cascadeWindows(input: BookingWeekInput, weekDay: BookingWeekDay): ClinicWindow[] {
+  const location = readWeeklyWindows(parseJsonish(input.locationWorkingHours), weekDay);
+  if (location.length > 0) return location;
+  const doctor = readWeeklyWindows(input.doctorWorkingHours, weekDay);
+  if (doctor.length > 0) return doctor;
+  const clinicWindows = input.appointmentSettings?.operatingWindowsByDay;
+  return isRecord(clinicWindows) ? readClinicWindows(parseJsonish(clinicWindows[weekDay])) : [];
+}
+
+/**
+ * The week the booking calendar offers, day by day (Monday first): `[]` for a closed day, the
+ * hours of the day otherwise. Closed days come from the same rule as the calendar
+ * (`isBookingDayClosed`), so the card can never list a day the calendar refuses or call a
+ * bookable day closed. Returns null when no hours are stored anywhere (the server then uses its
+ * defaults and there is nothing truthful to print).
+ */
+export function resolveBookingWeekHours(input: BookingWeekInput): Partial<Record<BookingWeekDay, BookingDayWindows>> | null {
+  const week: Partial<Record<BookingWeekDay, BookingDayWindows>> = {};
+  let anyHours = false;
+  const mondayFirst = [...BOOKING_WEEK_DAYS.slice(1), BOOKING_WEEK_DAYS[0]];
+  for (const weekDay of mondayFirst) {
+    const closed = isBookingDayClosed({
+      ...input,
+      weekDayIndex: BOOKING_WEEK_DAYS.indexOf(weekDay),
+      dateKeys: [],
+      closedDateKeys: new Set<string>(),
+    });
+    const windows = closed ? [] : cascadeWindows(input, weekDay);
+    if (windows.length > 0) anyHours = true;
+    week[weekDay] = windows.map((window) => ({
+      start: minutesToClock(window.startMinutes),
+      end: minutesToClock(window.endMinutes),
+    }));
+  }
+  return anyHours ? week : null;
 }

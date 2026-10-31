@@ -18,6 +18,7 @@ import { formatDateInIST } from "@/lib/utils/date-time";
 import { ReceptionVisitList } from "@/components/receptionist/ReceptionVisitList";
 import { ReceptionRowActions } from "@/components/receptionist/ReceptionRowActions";
 import { NoClinicalRecordsNote } from "@/components/receptionist/ReceptionNotes";
+import { ReceptionBookAppointment } from "@/components/receptionist/ReceptionBookAppointment";
 import { ageGenderLabel, readPatientContact, shiftDayKey } from "@/components/receptionist/reception.logic";
 import {
   RECEPTION_ROUTES,
@@ -75,11 +76,25 @@ export default function ReceptionPatientDetailPage() {
       backHref={RECEPTION_ROUTES.patients}
       backLabel="Patients"
       actions={
-        <Button asChild size="md">
-          <Link href={RECEPTION_ROUTES.walkIn(patientUserId)}>
-            <UserPlus aria-hidden="true" /> Walk-in
-          </Link>
-        </Button>
+        <>
+          {contact ? (
+            <ReceptionBookAppointment
+              patient={{
+                userId: contact.userId || patientUserId,
+                patientId: contact.patientId,
+                name: contact.name,
+                phone: contact.phone,
+                uhid: contact.uhid,
+              }}
+              onBooked={() => void refetch()}
+            />
+          ) : null}
+          <Button asChild size="md">
+            <Link href={RECEPTION_ROUTES.walkIn(patientUserId)}>
+              <UserPlus aria-hidden="true" /> Walk-in
+            </Link>
+          </Button>
+        </>
       }
     >
       {patient.isPending ? (
@@ -110,7 +125,7 @@ export default function ReceptionPatientDetailPage() {
                 checkingInId={pendingId}
                 renderMore={(visit) => <ReceptionRowActions visit={visit} />}
                 emptyTitle="No upcoming visits"
-                emptyDescription="Add a walk-in for today. Video visits are booked by the patient in the app."
+                emptyDescription="Book an in-clinic visit or add a walk-in for today. Video visits are booked by the patient in the app."
               />
             </Surface>
             <Surface flush as="section" aria-label="Past visits" className="gap-0">

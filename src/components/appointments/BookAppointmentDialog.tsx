@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { logger } from "@/lib/utils/logger";
 import { clipInClinicSlots, readClinicWindows, readWeeklyWindows } from "./booking/clinicHours";
-import { isBookingDayClosed } from "./booking/bookingDays";
+import { isBookingDayClosed, resolveBookingWeekHours } from "./booking/bookingDays";
 import {
   useState,
   useEffect,
@@ -139,6 +139,7 @@ import {
   type BookingVisitForProps,
 } from "@/components/appointments/booking";
 import { IconBox, Note, Pill, SectionTitle } from "@/components/tbd";
+import { PatientPlanStatus } from "@/components/billing/PatientPlanStatus";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
   Activity,
@@ -213,6 +214,12 @@ interface BookAppointmentDialogProps {
   initialServiceId?: string;
   initialDoctorId?: string;
   initialPatientId?: string;
+  /**
+   * Staff only: the patient the dialog opens for (reception patient detail). Shown as the chosen
+   * patient even when they are not in the picker's first page of results. `userId` must equal
+   * `initialPatientId`.
+   */
+  initialPatient?: { userId: string; patientId?: string; displayName: string; phone?: string; uhid?: string };
   /** Patients only: open with this family member chosen under "Who is this visit for?". */
   initialFamilyMemberId?: string;
   /** When true, forces VIDEO mode and skips mode selection step */
@@ -2072,6 +2079,11 @@ interface BookAppointmentStep5Props {
   locationName: string;
   /** The amber book / pay button, also shown in the footer on small screens. */
   confirmAction: React.ReactNode;
+  /**
+   * Staff, in-clinic: the patient's user id, to show their plan and the clinic's plan-less visit
+   * rule (walkInWithoutPlan / walkInDeskFee settings) before confirming. Empty for patients.
+   */
+  staffPlanPatientUserId?: string;
 }
 
 function BookAppointmentStep5({
@@ -2107,6 +2119,7 @@ function BookAppointmentStep5({
   visitForName,
   locationName,
   confirmAction,
+  staffPlanPatientUserId = "",
 }: BookAppointmentStep5Props) {
   const { language } = useLanguage();
   const isPageLayout = layout === "page";
@@ -2205,6 +2218,11 @@ function BookAppointmentStep5({
               activeTill: planActiveTill ?? null,
             }
           : undefined
+      }
+      staffPlanNotice={
+        !isPatientInPerson && consultationMode === "IN_PERSON" && staffPlanPatientUserId ? (
+          <PatientPlanStatus clinicId={activeClinicId} patientUserId={staffPlanPatientUserId} />
+        ) : undefined
       }
       confirmAction={isPageLayout ? confirmAction : undefined}
     />
@@ -2527,6 +2545,7 @@ export function BookAppointmentDialog({
   initialServiceId,
   initialDoctorId,
   initialPatientId,
+  initialPatient,
   initialFamilyMemberId,
   videoOnly = true,
 }: BookAppointmentDialogProps) {
@@ -2662,7 +2681,8 @@ export function BookAppointmentDialog({
       videoPaymentCompleted: false,
       acceptedVideoPaymentPolicy: false,
       selectedPatientId: initialPatientId || "",
-      patientSearch: "",
+      // A pre-chosen patient is searched for, so the picker lists (and ticks) them.
+      patientSearch: initialPatient?.displayName || "",
       showQuickCreatePatient: false,
       showQuickCreateAdditionalDetails: false,
       recentlyCreatedPatient: null,
@@ -2670,6 +2690,7 @@ export function BookAppointmentDialog({
     [
       initialConsultationMode,
       initialDoctorId,
+      initialPatient?.displayName,
       initialPatientId,
       initialServiceId,
       initialMode,
@@ -3665,8 +3686,18 @@ export function BookAppointmentDialog({
       knownPatientsRef.current.get(selectedPatientId) ||
       (recentlyCreatedPatient?.id === selectedPatientId
         ? recentlyCreatedPatient
+        : null) ||
+      (initialPatient && initialPatient.userId === selectedPatientId
+        ? {
+            id: initialPatient.patientId || initialPatient.userId,
+            userId: initialPatient.userId,
+            displayName: initialPatient.displayName,
+            phone: initialPatient.phone ?? "",
+            email: "",
+            uhid: initialPatient.uhid ?? "",
+          }
         : null),
-    [patientsList, selectedPatientId, recentlyCreatedPatient],
+    [patientsList, selectedPatientId, recentlyCreatedPatient, initialPatient],
   );
   const resolvedBookingPatientId = useMemo(() => {
     if (isPrivilegedScheduler) {
@@ -4941,8 +4972,17 @@ export function BookAppointmentDialog({
         ],
       }
     : null;
+  // The card prints the week the calendar offers (booking/bookingDays): clinic working days and
+  // location days decide which days are open, the hours come from the location, else the
+  // doctor, else the clinic windows. The doctor's weekly hours alone never close a day here.
+  const bookingWeekHours = resolveBookingWeekHours({
+    appointmentSettings: resolvedAppointmentSettings,
+    locationWorkingHours: bookingLocationHours,
+    doctorWorkingHours: (selectedDoctor as { workingHours?: unknown } | undefined)?.workingHours,
+    inClinic: consultationMode !== "VIDEO",
+  });
   const doctorHours: BookingHoursRow[] = [
-    ...summarizeWorkingHours(selectedDoctor?.workingHours),
+    ...summarizeWorkingHours(bookingWeekHours),
     ...(consultationMode === "VIDEO" && clinicVideoCallWindow
       ? [
           {
@@ -5309,6 +5349,11 @@ export function BookAppointmentDialog({
               visitForName={visitForMemberLabel}
               locationName={bookingLocationName}
               confirmAction={renderConfirmButton("md", "w-full lg:min-w-[240px]")}
+              staffPlanPatientUserId={
+                isPrivilegedScheduler
+                  ? String((selectedPatient as { userId?: unknown } | null)?.userId || selectedPatientId || "")
+                  : ""
+              }
             />
           </AppointmentStepWrapper>
         );

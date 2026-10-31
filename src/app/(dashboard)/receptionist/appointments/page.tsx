@@ -17,6 +17,7 @@ import {
 } from "@/components/tbd";
 import { ReceptionVisitList } from "@/components/receptionist/ReceptionVisitList";
 import { ReceptionRowActions } from "@/components/receptionist/ReceptionRowActions";
+import { ReceptionBookAppointment } from "@/components/receptionist/ReceptionBookAppointment";
 import {
   countByStage,
   dayHeading,
@@ -36,8 +37,8 @@ type RangeKind = "day" | "week";
 
 /**
  * RecAppointments: all appointments of the reception location (in-clinic and video), by day or
- * week. Check in, reschedule or mark a no-show. Reception does not book video
- * visits: patients book those in the app.
+ * week. Book an in-clinic visit for a patient, check in, reschedule or mark a no-show. Reception
+ * does not book video visits: patients book those in the app.
  */
 export default function ReceptionAppointmentsPage() {
   const today = todayKey();
@@ -70,12 +71,13 @@ export default function ReceptionAppointmentsPage() {
   return (
     <TbdPage
       title="Appointments"
-      description="Everything booked at your location. Check patients in, reschedule or mark a no-show."
+      description="Everything booked at your location. Book in-clinic visits, check patients in, reschedule or mark a no-show."
       actions={
         <>
           <Pill tone="clinic">
             <MapPin className="size-3" aria-hidden="true" /> {locationName}
           </Pill>
+          <ReceptionBookAppointment onBooked={() => void refetch()} />
           <Button asChild size="md">
             <Link href={RECEPTION_ROUTES.walkIn()}>
               <UserPlus aria-hidden="true" /> Walk-in
