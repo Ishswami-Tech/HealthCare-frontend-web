@@ -24,6 +24,7 @@ import { RecordInvoicePaymentDialog } from "@/components/billing/RecordInvoicePa
 import { formatRupees } from "@/components/appointments/booking/format";
 import { usePatientBills } from "@/hooks/query/usePatientBilling";
 import { PatientPlanStatus } from "@/components/billing/PatientPlanStatus";
+import { SellPlanAtDesk } from "@/components/billing/SellPlanAtDesk";
 import { usePatient } from "@/hooks/query/usePatients";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import type { PatientBillRow } from "@/types/billing.types";
@@ -99,16 +100,25 @@ function BillCard({ bill, onCollect }: { bill: PatientBillRow; onCollect: (bill:
   );
 }
 
+/** The bill the Collect dialog is open for (a listed bill, or a plan bill just opened at the desk). */
+interface CollectTarget {
+  id: string;
+  invoiceNumber?: string | null;
+  balance: number;
+}
+
 /** `patientUserId` is the patient's User.id (the `GET /patients/:id` key); bills use the Patient-record id. */
 function PatientCollect({ patientUserId }: { patientUserId: string }) {
   const { clinicId } = useReceptionLocation();
   const patient = usePatient(clinicId, patientUserId);
   const contact = useMemo(() => readPatientContact(patient.data), [patient.data]);
   const bills = usePatientBills(clinicId, contact?.patientId ?? "", { limit: 50 });
-  const [collecting, setCollecting] = useState<PatientBillRow | null>(null);
+  const [collecting, setCollecting] = useState<CollectTarget | null>(null);
   // Open invoices only (plan renewals, pharmacy, lab ...). No consultation bill is raised here: the
-  // in-person visit is covered by the patient's monthly plan.
-  const due = (bills.data?.rows ?? []).filter((bill) => bill.source === "INVOICE" && bill.balance > 0);
+  // in-person visit is covered by the patient's monthly plan. A VOID / PAID bill is never offered.
+  const due = (bills.data?.rows ?? []).filter(
+    (bill) => bill.source === "INVOICE" && bill.balance > 0 && (bill.status === "PENDING" || bill.status === "PARTIAL"),
+  );
   const total = due.reduce((sum, bill) => sum + bill.balance, 0);
 
   return (
@@ -130,6 +140,20 @@ function PatientCollect({ patientUserId }: { patientUserId: string }) {
         </div>
 
         <PatientPlanStatus clinicId={clinicId} patientUserId={contact?.userId || patientUserId} />
+        {/* Desk fallback: no plan yet -> sell one here and collect cash / UPI at the counter. */}
+        <SellPlanAtDesk
+          clinicId={clinicId}
+          patientUserId={contact?.userId || patientUserId}
+          onInvoiceReady={(invoice) => {
+            const paid = due.find((bill) => bill.id === invoice.id)?.paidAmount ?? 0;
+            setCollecting({
+              id: invoice.id,
+              invoiceNumber: invoice.invoiceNumber ?? null,
+              balance: Math.max(0, invoice.totalAmount - paid),
+            });
+            void bills.refetch();
+          }}
+        />
 
         {patient.isPending || bills.isPending ? (
           <SkeletonRows rows={3} />
@@ -146,7 +170,13 @@ function PatientCollect({ patientUserId }: { patientUserId: string }) {
             description="This patient has no open bill. The in-clinic consultation is covered by the monthly plan."
           />
         ) : (
-          due.map((bill) => <BillCard key={bill.id} bill={bill} onCollect={setCollecting} />)
+          due.map((bill) => (
+            <BillCard
+              key={bill.id}
+              bill={bill}
+              onCollect={(row) => setCollecting({ id: row.id, invoiceNumber: row.invoiceNumber, balance: row.balance })}
+            />
+          ))
         )}
         <p className="m-0 text-xs text-ink-muted">Only billing lines are shown. Diagnosis and prescription stay with the doctor.</p>
       </Surface>

@@ -773,6 +773,8 @@ export const API_ENDPOINTS = {
       BOOK_INPERSON: (subscriptionId: string) =>
         `/billing/subscriptions/${subscriptionId}/book-inperson`,
       PROCESS_PAYMENT: (id: string) => `/billing/subscriptions/${id}/process-payment`,
+      /** Staff: the plan bill to collect cash / UPI-at-desk against (no gateway order). */
+      DESK_INVOICE: (id: string) => `/billing/subscriptions/${id}/desk-invoice`,
     },
     INVOICES: {
       BASE: '/billing/invoices',

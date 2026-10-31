@@ -76,6 +76,9 @@ export const useRecordInvoicePayment = () =>
         ...BILLING_INVALIDATE_KEYS,
         ["prescriptions"],
         ["medicineDeskQueue"],
+        // A desk payment on a plan bill starts the plan.
+        ["active-subscription"],
+        ["subscriptions"],
       ],
     },
   );

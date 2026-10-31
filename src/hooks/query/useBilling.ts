@@ -392,6 +392,43 @@ export function useCreateSubscription() {
   );
 }
 
+/** Plan bill returned by POST /billing/subscriptions/:id/desk-invoice (amounts are the server's). */
+export interface DeskPlanInvoice {
+  id: string;
+  invoiceNumber?: string | null;
+  totalAmount: number;
+  status: string;
+}
+
+/**
+ * Desk fallback for a plan purchase (reception / clinic admin): opens the plan bill the desk
+ * collects cash / UPI-at-desk against. It is never voided by the online payment window; the
+ * payment is then recorded with record-payment, which starts the plan.
+ */
+export function useOpenDeskPlanInvoice() {
+  return useMutationOperation<DeskPlanInvoice, string>(
+    async (subscriptionId: string) => {
+      const result = await clinicApiClient.post(
+        API_ENDPOINTS.BILLING.SUBSCRIPTIONS.DESK_INVOICE(subscriptionId),
+        NO_BODY,
+      );
+      const invoice =
+        unwrapObject<DeskPlanInvoice>(result.data, ['invoice']) ??
+        unwrapObject<DeskPlanInvoice>(unwrapObject<Record<string, unknown>>(result.data, ['data']), ['invoice']);
+      if (!invoice?.id) {
+        throw new Error('The plan bill could not be opened. Please try again.');
+      }
+      return { ...invoice, totalAmount: Number(invoice.totalAmount) || 0 };
+    },
+    {
+      toastId: 'subscription-desk-invoice',
+      loadingMessage: 'Opening the plan bill...',
+      successMessage: 'Plan bill ready to collect',
+      invalidateQueries: [['patient-bills'], ['invoices'], ['clinic-invoices'], ['subscriptions'], ['active-subscription']],
+    }
+  );
+}
+
 export function useCancelSubscription() {
   return useMutationOperation<Subscription, { id: string; immediate?: boolean }>(
     async ({ id, immediate }: { id: string; immediate?: boolean }) => {
