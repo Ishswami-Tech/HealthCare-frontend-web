@@ -60,6 +60,10 @@ export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
  */
 const PHARMACY_QUERY_FAMILIES: readonly (readonly string[])[] = [
   ['prescriptions'],
+  ['prescription'],
+  ['prescriptionHandover'],
+  ['patientPrescriptions'],
+  ['rx-drafts'],
   ['medicineDeskQueue'],
   ['pharmacyStats'],
   ['pharmacySales'],
@@ -765,6 +769,13 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
     if (!resolvedUserId) return;
 
+    // Server pushes are ids-only (`notification` with notificationId/category, no title or body):
+    // re-read the inbox, which owns the text, instead of adding an empty placeholder entry.
+    if (typeof data.title !== 'string' || data.title.length === 0) {
+      void queryClient.invalidateQueries({ queryKey: ['notifications', resolvedUserId] });
+      return;
+    }
+
     const notificationType = (data.type || data.category || 'SYSTEM') as Notification['type'];
     const notification: Notification = {
       id: (data.id as string) || `ws-${Date.now()}-${Math.random()}`,
@@ -789,7 +800,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     }
 
     addNotification(notification);
-  }, [addNotification, resolvedUserId]);
+  }, [addNotification, queryClient, resolvedUserId]);
 
   const handleSystemUpdateEvent = useCallback((rawData: unknown) => {
     const data = rawData as Record<string, unknown>;
@@ -1409,12 +1420,29 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         }
       );
 
+      // Counter hand-over (code issued / verified / handed over / undone) and the assistant's Rx
+      // drafts change the same pharmacy and prescription lists. Patients get the hand-over and
+      // desk events on their own user room only; drafts are staff-only on the server.
+      const unsubscribePharmacyFollowUps = [
+        'pharmacy.handover.updated',
+        'clinic-ops.rx-draft.submitted',
+        'clinic-ops.rx-draft.approved',
+        'clinic-ops.rx-draft.returned',
+      ].map((eventName) =>
+        subscribe(eventName, () => {
+          coalesceRealtimeInvalidation(queryClient, 'medicine-desk', (qc) => {
+            invalidateMedicineDeskQueries(qc);
+          });
+        })
+      );
+
       unsubscribeCallbacks.push(
         ...queueEventUnsubscribers,
         unsubscribeQueueMetrics,
         unsubscribeQueueMetricsEnterprise,
         unsubscribeQueueHealthChanged,
-        unsubscribeMedicineDeskUpdated
+        unsubscribeMedicineDeskUpdated,
+        ...unsubscribePharmacyFollowUps
       );
     }
 

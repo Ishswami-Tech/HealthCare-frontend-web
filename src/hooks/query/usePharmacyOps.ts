@@ -1,5 +1,6 @@
 import { useQueryData } from "../core/useQueryData";
 import { useMutationOperation } from "../core/useMutationOperation";
+import { useRealtimeFallbackInterval } from "@/hooks/realtime/useRealtimeFallbackInterval";
 import { TOAST_IDS } from "../utils/use-toast";
 import { STOCK_QUERIES } from "./usePharmacy";
 import { dataOrThrow } from "@/lib/utils/action-result";
@@ -61,6 +62,8 @@ const HANDOVER_QUERIES = [["prescriptionHandover"], ["prescriptions"], ["prescri
 
 /** The hand-over of one prescription (null until the patient's code is checked). */
 export const usePrescriptionHandover = (clinicId: string, prescriptionId: string) => {
+  // Live via `pharmacy.handover.updated`; the poll covers a dropped socket.
+  const refetchInterval = useRealtimeFallbackInterval();
   return useQueryData(
     ["prescriptionHandover", clinicId, prescriptionId],
     async () => {
@@ -68,6 +71,7 @@ export const usePrescriptionHandover = (clinicId: string, prescriptionId: string
     },
     {
       enabled: !!clinicId && !!prescriptionId,
+      refetchInterval,
     },
   );
 };

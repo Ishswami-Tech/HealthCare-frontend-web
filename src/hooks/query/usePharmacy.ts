@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useQueryData } from "../core/useQueryData";
+import { useRealtimeFallbackInterval } from "@/hooks/realtime/useRealtimeFallbackInterval";
 import { useMutationOperation } from "../core/useMutationOperation";
 import { TOAST_IDS } from "../utils/use-toast";
 import { dataOrThrow } from "@/lib/utils/action-result";
@@ -178,6 +179,9 @@ export const usePrescriptions = (
 ) => {
   // `enabled` is a React Query option, never a request parameter (the route rejects unknown keys).
   const { enabled, ...requestFilters } = filters ?? {};
+  // Live via `pharmacy.medicine_desk.updated` / `pharmacy.handover.updated`; the poll covers a
+  // dropped socket (pharmacist board, patient medicines screen).
+  const refetchInterval = useRealtimeFallbackInterval();
   return useQueryData(
     ["prescriptions", clinicId, requestFilters],
     async () => {
@@ -185,6 +189,7 @@ export const usePrescriptions = (
     },
     {
       enabled: !!clinicId && enabled !== false,
+      refetchInterval,
     },
   );
 };
@@ -193,6 +198,7 @@ export const useMedicineDeskQueue = (
   clinicId: string,
   enabled: boolean = true,
 ) => {
+  const refetchInterval = useRealtimeFallbackInterval();
   return useQueryData(
     ["medicineDeskQueue", clinicId],
     async () => {
@@ -200,6 +206,7 @@ export const useMedicineDeskQueue = (
     },
     {
       enabled: !!clinicId && enabled,
+      refetchInterval,
     },
   );
 };
