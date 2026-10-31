@@ -71,7 +71,6 @@ import {
   useCheckSubscriptionCoverage,
   useCreateInPersonAppointmentWithSubscription,
 } from "@/hooks/query/useBilling";
-import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
 import { NearestLocationButton } from "@/components/appointments/booking/NearestLocationButton";
 import {
   useActiveLocations,
@@ -83,7 +82,6 @@ import {
 } from "@/hooks/query/useClinics";
 import { useClinicBrandName } from "@/hooks/query/useClinicBrandName";
 import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
-import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
 import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
 import { clinicApiClient } from "@/lib/api/client";
@@ -93,7 +91,6 @@ import {
   showInfoToast,
   showSuccessToast,
 } from "@/hooks/utils/use-toast";
-import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 import { ROUTES } from "@/lib/config/routes";
@@ -1808,6 +1805,16 @@ function BookAppointmentStep3({
   doctorHours,
   doctorHoursTag,
 }: BookAppointmentStep3Props) {
+  // Open on the month of the selected day, else the first bookable day. Without this the
+  // calendar opened on the current month even when staff had already been moved to a day in
+  // the next one (and at month end every remaining day of the current month can be closed).
+  // Lazy state: computed once per mount (each visit to this step); the calendar drives later moves.
+  const [initialMonth] = useState<Date>(
+    () =>
+      selectedDate && !isClinicClosedDate(selectedDate)
+        ? selectedDate
+        : getNextBookableDateIST(isClinicClosedDate),
+  );
   const calendar = (
     <>
       <div className="book-dialog-calendar-container flex w-full max-w-full justify-center">
@@ -1827,6 +1834,7 @@ function BookAppointmentStep3({
         <Calendar
           mode="single"
           selected={selectedDate}
+          defaultMonth={initialMonth}
           onSelect={(d) => {
             if (d && isClinicClosedDate(d)) {
               return;
@@ -2327,6 +2335,7 @@ function BookAppointmentStep6({
       ]
     : [
         { label: "When", value: when },
+        ...(!isPatientUser && patientName ? [{ label: "Patient", value: patientName }] : []),
         ...(locationName ? [{ label: "Where", value: locationName }] : []),
         { label: "Service", value: selectedService?.label || "Appointment" },
       ];
@@ -2353,6 +2362,7 @@ function BookAppointmentStep6({
           : `In-clinic${bookingRef ? ` · Booking ${bookingRef}` : ""}`
       }
       details={details}
+      bookedForName={isPatientUser ? undefined : patientName || "the patient"}
       cardAction={
         paid && isPatientUser ? (
           <Button variant="soft" size="lg" asChild>
@@ -2555,7 +2565,6 @@ export function BookAppointmentDialog({
   const queryClient = useQueryClient();
   const { isConnected, connectionStatus, subscribe } = useWebSocketContext();
   const { session } = useAuth();
-  const { hasPermission } = useRBAC();
   const userRole = (session?.user?.role || "").toUpperCase();
   // Product rules: video visits are booked by the patient only; staff (doctor, reception, clinic
   // admin) can only book in-person visits. Patients choose the mode unless the caller asks for
@@ -3389,7 +3398,6 @@ export function BookAppointmentDialog({
     isBooking ||
     isCheckingSubscriptionCoverage ||
     isCreatingSubscriptionAppointment;
-  const { mutate: sendReminder } = useSendAppointmentReminder();
   const shouldLoadSubscriptions =
     dialogOpen && !!targetPatientId && consultationMode === "IN_PERSON";
   const { data: subscriptionsData = [] } = useSubscriptions(
@@ -4666,10 +4674,9 @@ export function BookAppointmentDialog({
       }
 
       setBookedAppointmentId(apptId);
-      // Send appointment reminder via push + email + WhatsApp
-      if (hasPermission(Permission.SEND_NOTIFICATIONS)) {
-        sendReminder({ appointmentId: apptId, reminderType: "all" });
-      }
+      // Booking notifications are server-driven: AppointmentsService.createAppointment schedules
+      // the reminder job and the `appointment.created` event fans out the booking notification.
+      // A client-side reminder call here was redundant (and its 400 leaked validation text).
       onBooked?.();
       showSuccessToast(
         `Appointment booked${selectedDoctor?.name ? ` with ${formatDoctorDisplayName(selectedDoctor.name)}` : ""}` +
@@ -4766,8 +4773,6 @@ export function BookAppointmentDialog({
     createAppointment,
     checkSubscriptionCoverage,
     createSubscriptionAppointment,
-    hasPermission,
-    sendReminder,
     onBooked,
     userRole,
     activeSubscription,

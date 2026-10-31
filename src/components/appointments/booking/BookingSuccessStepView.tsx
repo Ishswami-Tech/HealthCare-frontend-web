@@ -36,6 +36,34 @@ export interface BookingSuccessStepViewProps {
   checkInAction?: BookingSuccessAction | undefined;
   /** The closing button ("Go to Home", "Go to appointments", "Done"). */
   primaryAction?: BookingSuccessAction | undefined;
+  /**
+   * Set when staff booked on a patient's behalf: the copy then names the patient
+   * ("Slot reserved for Asha Patil") instead of addressing the reader as the patient.
+   */
+  bookedForName?: string | undefined;
+}
+
+function describeBooking(
+  isVideo: boolean,
+  paymentPending: boolean,
+  paid: boolean,
+  bookedForName: string | undefined,
+): string {
+  if (bookedForName) {
+    if (isVideo) {
+      return paymentPending
+        ? `The selected time is saved for ${bookedForName}. The video appointment is booked once the fee is paid.`
+        : `The video appointment for ${bookedForName} is booked.`;
+    }
+    return `Slot reserved for ${bookedForName}. Ask them to check in with the QR at the clinic — that confirms the visit and puts them in the queue.`;
+  }
+  if (isVideo) {
+    if (paymentPending) return "Your selected time is saved. Pay below to book the video appointment.";
+    return paid
+      ? "Your payment is complete and the appointment is confirmed."
+      : "Your video appointment is booked. You can track the status from your appointments page.";
+  }
+  return "Your slot is reserved. Remember to check in with the QR at the clinic — that confirms your visit and puts you in the queue.";
 }
 
 const VISIT_DAY_STEPS = [
@@ -65,16 +93,12 @@ export function BookingSuccessStepView({
   directionsHref,
   checkInAction,
   primaryAction,
+  bookedForName,
 }: BookingSuccessStepViewProps) {
   const isVideo = mode === "VIDEO";
+  const isStaffBooking = Boolean(bookedForName);
   const title = isVideo ? (paymentPending ? "Complete Payment" : "Appointment Confirmed") : "Clinic visit booked";
-  const description = isVideo
-    ? paymentPending
-      ? "Your selected time is saved. Pay below to book the video appointment."
-      : paid
-        ? "Your payment is complete and the appointment is confirmed."
-        : "Your video appointment is booked. You can track the status from your appointments page."
-    : "Your slot is reserved. Remember to check in with the QR at the clinic — that confirms your visit and puts you in the queue.";
+  const description = describeBooking(isVideo, paymentPending, paid, bookedForName);
 
   const secondary: ReactNode[] = [];
   if (isVideo && !paymentPending && onAddToCalendar) {
@@ -169,7 +193,9 @@ export function BookingSuccessStepView({
       {isVideo && paymentPending ? (
         <BookingNotice tone="amber" icon={Video} title="Payment required">
           <p className="m-0 text-xs">
-            Your appointment is created. Complete payment from the confirm screen to finish booking.
+            {isStaffBooking
+              ? "The appointment is created. The fee must be paid to finish booking."
+              : "Your appointment is created. Complete payment from the confirm screen to finish booking."}
           </p>
           {countdown}
         </BookingNotice>
@@ -179,7 +205,13 @@ export function BookingSuccessStepView({
         <SoftCard tone="sun" className="p-[22px]">
           <div className="flex flex-col gap-4">
             <span className="text-base font-extrabold text-ink">
-              {isVideo ? "Before your video call" : "On the day of your visit"}
+              {isStaffBooking
+                ? isVideo
+                  ? "Before the video call"
+                  : "On the day of the visit"
+                : isVideo
+                  ? "Before your video call"
+                  : "On the day of your visit"}
             </span>
             <ol className="m-0 grid list-none grid-cols-3 gap-3 p-0">
               {(isVideo ? VIDEO_DAY_STEPS : VISIT_DAY_STEPS).map((step) => (

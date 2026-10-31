@@ -418,6 +418,21 @@ function ReviewPage({
 
 // ── Staff layout (board DocAppointmentDialogs3, "Confirm") ─────────────────
 
+/**
+ * Line under the service name: the category in words ("CONSULTATION" -> "Consultation"),
+ * or nothing when it is empty or the service name already says it ("General Consultation").
+ * The raw enum used to show under the name and read like an empty "CONSULTATION" field.
+ */
+function serviceCategorySub(
+  serviceLabel: string | undefined,
+  category: string | undefined,
+): string | undefined {
+  const words = (category ?? "").replace(/[_-]+/g, " ").trim().toLowerCase();
+  if (!words) return undefined;
+  if ((serviceLabel ?? "").toLowerCase().includes(words)) return undefined;
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function ReviewCompact({
   mode,
   doctor,
@@ -437,7 +452,7 @@ function ReviewCompact({
 }: BookingReviewStepViewProps) {
   const rows: Array<{ label: string; value: ReactNode; sub?: ReactNode }> = [
     ...(patientName !== undefined ? [{ label: "Patient", value: patientName }] : []),
-    { label: "Service", value: serviceLabel, sub: serviceCategory },
+    { label: "Service", value: serviceLabel, sub: serviceCategorySub(serviceLabel, serviceCategory) },
     { label: "Doctor", value: doctor?.name, sub: doctor?.subtitle },
     { label: "Date", value: dateLabel },
     { label: "Time", value: timeLabel },

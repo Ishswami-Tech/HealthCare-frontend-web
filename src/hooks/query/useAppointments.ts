@@ -1,5 +1,5 @@
 "use client";
-import { nowIso, formatDateKeyInIST, parseIstDateTime } from '@/lib/utils/date-time';
+import { nowIso, formatDateInIST, formatDateKeyInIST, parseIstDateTime } from '@/lib/utils/date-time';
 
 // ✅ Appointments Hooks - Backend Integration
 // This file provides hooks that integrate with the backend appointments system
@@ -641,9 +641,22 @@ export const useCreateAppointment = (clinicId?: string) => {
         }
         void queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(), exact: false });
         if (appointment) {
+          // `date` is an IST-midnight day key serialised in UTC (e.g. 2026-11-02T18:30:00.000Z
+          // for 3 Nov), so render it as the IST calendar date, never the raw ISO string.
+          const istDateLabel = appointment.date
+            ? formatDateInIST(appointment.date, {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '';
+          const timeLabel = appointment.time ? ` at ${appointment.time}` : '';
           toast({
             title: 'Success',
-            description: `Appointment scheduled for ${appointment.date ?? ''} at ${appointment.time ?? ''}`,
+            description: istDateLabel
+              ? `Appointment scheduled for ${istDateLabel}${timeLabel}`
+              : 'Appointment scheduled',
             id: TOAST_IDS.APPOINTMENT.CREATE, // ✅ Prevent duplicates
           });
         }
