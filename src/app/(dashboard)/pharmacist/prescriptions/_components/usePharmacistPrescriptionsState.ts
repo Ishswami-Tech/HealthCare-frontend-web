@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useReducer } from "react";
+import { allocateFefoRows, type BatchOptionsByMedicine } from "./dispense-batches.logic";
 import {
   createBatchRow,
   createDispenseLine,
+  getRemainingQuantity,
   type DispenseBatchRow,
   type DispenseLineState,
   type PrescriptionRow,
@@ -32,6 +34,7 @@ type PharmacistPrescriptionsAction =
   | { type: "setAuditSearchTerm"; value: string }
   | { type: "openDispenseDialog"; value: PrescriptionRow }
   | { type: "updateDispenseLines"; value: (current: DispenseLineState[]) => DispenseLineState[] }
+  | { type: "prefillBatches"; value: BatchOptionsByMedicine }
   | { type: "setDispenseNotes"; value: string }
   | { type: "setDispenseFormError"; value: string | null }
   | { type: "openReverseDialog"; value: PrescriptionRow }
@@ -80,6 +83,15 @@ function reducer(
       };
     case "updateDispenseLines":
       return { ...state, dispenseLines: action.value(state.dispenseLines), dispenseFormError: null };
+    case "prefillBatches": {
+      let changed = false;
+      const dispenseLines = state.dispenseLines.map((line) => {
+        const next = prefillLine(line, action.value);
+        if (next !== line) changed = true;
+        return next;
+      });
+      return changed ? { ...state, dispenseLines } : state;
+    }
     case "setDispenseNotes":
       return { ...state, dispenseNotes: action.value };
     case "setDispenseFormError":
@@ -116,6 +128,39 @@ function reducer(
 }
 
 export type LineField = "substituteMedicineId" | "substitutionReason";
+
+/**
+ * Pre-fills a line with the server's earliest-expiry lots of the medicine really given, once
+ * per medicine (a pharmacist's own batch choice is never overwritten). Lots not loaded yet:
+ * the line is left as it is.
+ */
+function prefillLine(line: DispenseLineState, options: BatchOptionsByMedicine): DispenseLineState {
+  const sourceId = line.substituteMedicineId || line.medicineId;
+  const lots = options.get(sourceId);
+  if (!lots || line.batchesPrefilledFor === sourceId || getRemainingQuantity(line) <= 0) return line;
+  const quantity = line.batches.reduce((total, batch) => total + (Number(batch.quantity) || 0), 0);
+  const rows = lots.length > 0 ? allocateFefoRows(quantity, lots) : null;
+  return {
+    ...line,
+    batchesPrefilledFor: sourceId,
+    ...(rows
+      ? { batches: rows.map((row) => createBatchRow(row.quantity, row.batchNumber, row.expiryDate)) }
+      : {}),
+  };
+}
+
+/** Changing the medicine given drops the old lots: the substitute's own lots are pre-filled. */
+function withLineField(line: DispenseLineState, field: LineField, value: string): DispenseLineState {
+  if (field !== "substituteMedicineId" || value === line.substituteMedicineId) {
+    return { ...line, [field]: value };
+  }
+  return resetLots({ ...line, substituteMedicineId: value });
+}
+
+function resetLots(line: DispenseLineState): DispenseLineState {
+  const quantity = line.batches.reduce((total, batch) => total + (Number(batch.quantity) || 0), 0);
+  return { ...line, batches: [createBatchRow(String(quantity))], batchesPrefilledFor: "" };
+}
 
 /**
  * Client state of the prescriptions screen: the filters and the two dialogs (the dispense
@@ -168,10 +213,16 @@ export function usePharmacistPrescriptionsState() {
               },
         ),
       updateLineField: (medicineIndex: number, field: LineField, value: string) =>
-        updateLine(medicineIndex, (line) => ({ ...line, [field]: value })),
-      /** Back to the prescribed medicine: the substitute and its reason are dropped. */
+        updateLine(medicineIndex, (line) => withLineField(line, field, value)),
+      /** Back to the prescribed medicine: the substitute, its reason and its lots are dropped. */
       clearSubstitute: (medicineIndex: number) =>
-        updateLine(medicineIndex, (line) => ({ ...line, substituteMedicineId: "", substitutionReason: "" })),
+        updateLine(medicineIndex, (line) =>
+          line.substituteMedicineId
+            ? resetLots({ ...line, substituteMedicineId: "", substitutionReason: "" })
+            : { ...line, substitutionReason: "" },
+        ),
+      /** Pre-fill every line with the server's FEFO lots once they are loaded. */
+      prefillBatches: (options: BatchOptionsByMedicine) => dispatch({ type: "prefillBatches", value: options }),
 
       setReversalReason: (value: string) => dispatch({ type: "setReversalReason", value }),
       setReversalError: (value: string | null) => dispatch({ type: "setReversalError", value }),

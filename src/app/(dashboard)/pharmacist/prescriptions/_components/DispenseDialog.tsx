@@ -16,6 +16,7 @@ import {
   type PrescriptionRow,
 } from "./pharmacist-prescriptions.logic";
 import type { LineField } from "./usePharmacistPrescriptionsState";
+import type { BatchOptionsByMedicine } from "./dispense-batches.logic";
 import { formatDateTimeLabel } from "@/lib/utils/date-time";
 
 export interface DispenseDialogProps {
@@ -28,6 +29,10 @@ export interface DispenseDialogProps {
   isDispensing?: boolean;
   /** Clinic inventory, for substitutes and their stock. */
   catalog: CatalogMedicine[];
+  /** Usable lots per medicine id, earliest expiry first (absent: not loaded yet). */
+  batchOptions: BatchOptionsByMedicine;
+  /** Medicines whose lots could not be loaded. */
+  batchLookupFailed: ReadonlySet<string>;
   onBatchChange: (
     medicineIndex: number,
     batchIndex: number,
@@ -64,6 +69,8 @@ export function DispenseDialog({
   errorMessage = null,
   isDispensing = false,
   catalog,
+  batchOptions,
+  batchLookupFailed,
   onBatchChange,
   onAddBatch,
   onRemoveBatch,
@@ -140,9 +147,10 @@ export function DispenseDialog({
             ) : null}
 
             <Note tone="blue" icon={CircleAlert}>
-              Batch number and expiry date are required for every line you dispense. Copy them from the
-              pack in your hand: they are saved on the dispense record so the batch can be traced. (The
-              Dispense from stock page fills them in itself, earliest expiry first.)
+              The earliest-expiry batch in stock is filled in for you, with its expiry from the stock
+              record. Check it against the pack in your hand and use Change batch if you give a different
+              one: the batch you confirm is the one taken from stock and saved on the dispense record. Only a
+              medicine with no batch in stock asks you to type the batch and expiry.
             </Note>
 
             {lines.map((line, medicineIndex) => (
@@ -153,6 +161,8 @@ export function DispenseDialog({
                 showGiven={givenEarlier > 0}
                 catalog={catalog}
                 catalogById={catalogById}
+                batchOptions={batchOptions.get(line.substituteMedicineId || line.medicineId)}
+                batchLookupFailed={batchLookupFailed.has(line.substituteMedicineId || line.medicineId)}
                 disabled={isDispensing}
                 onBatchChange={(batchIndex, field, value) => onBatchChange(medicineIndex, batchIndex, field, value)}
                 onAddBatch={() => onAddBatch(medicineIndex)}

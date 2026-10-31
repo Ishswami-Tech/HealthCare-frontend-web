@@ -2,7 +2,7 @@
 
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHero, SearchBox, SegTabs, Surface, DateField } from "@/components/tbd";
+import { PageHero, SearchBox, SegTabs, Surface, DateField, Freshness } from "@/components/tbd";
 import type { PharmacyBatchAuditEntry } from "@/types/pharmacy.types";
 import { PharmacistCashPaymentDialog } from "../../dashboard/_components/PharmacistCashPaymentDialog";
 import type { DeskQueueItem } from "../../dashboard/_components/pharmacist-dashboard.logic";
@@ -27,6 +27,9 @@ export interface PharmacistPrescriptionsViewProps {
   listLoading?: boolean;
   listError?: string | null;
   onRetryList?: (() => void) | undefined;
+  /** When the list last came from the server (ms since epoch; 0 = not yet). */
+  listUpdatedAt?: number;
+  listRefreshing?: boolean;
 
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
@@ -73,6 +76,8 @@ export function PharmacistPrescriptionsView({
   listLoading = false,
   listError = null,
   onRetryList,
+  listUpdatedAt = 0,
+  listRefreshing = false,
   searchTerm,
   onSearchTermChange,
   statusFilter,
@@ -111,7 +116,11 @@ export function PharmacistPrescriptionsView({
         eyebrow="Pharmacy"
         title="Prescription Management"
         description="Medicines are handed over once the prescription is paid for."
-      />
+      >
+        {onRetryList ? (
+          <Freshness updatedAt={listUpdatedAt} refreshing={listRefreshing} onRefresh={onRetryList} />
+        ) : null}
+      </PageHero>
 
       <Surface flush as="section" className="@container" aria-label="Prescriptions">
         <div className="flex flex-col gap-3 border-b border-hair px-5 py-4 @4xl:flex-row @4xl:items-center">

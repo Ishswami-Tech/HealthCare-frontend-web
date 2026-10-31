@@ -53,6 +53,8 @@ export default function PharmacistDashboardContent() {
     isPending: queuePending,
     error: queueError,
     refetch: refetchQueue,
+    dataUpdatedAt: queueUpdatedAt,
+    isFetching: queueFetching,
   } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
   const queue = useMemo(() => buildDeskQueue(medicineDeskQueue), [medicineDeskQueue]);
@@ -111,6 +113,8 @@ export default function PharmacistDashboardContent() {
       queueLoading={queuePending && queue.length === 0}
       queueError={errorText(queueError)}
       onRetryQueue={() => void refetchQueue()}
+      queueUpdatedAt={queueUpdatedAt}
+      queueRefreshing={queueFetching}
       searchTerm={searchTerm}
       onSearchTermChange={setSearchTerm}
       inventory={inventory}

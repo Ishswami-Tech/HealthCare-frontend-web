@@ -43,6 +43,9 @@ export interface PharmacistDashboardViewProps {
   queueLoading?: boolean;
   queueError?: string | null;
   onRetryQueue?: () => void;
+  /** When the queue last came from the server (ms since epoch). */
+  queueUpdatedAt?: number;
+  queueRefreshing?: boolean;
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
 
@@ -75,6 +78,8 @@ export function PharmacistDashboardView({
   queueLoading = false,
   queueError = null,
   onRetryQueue,
+  queueUpdatedAt = 0,
+  queueRefreshing = false,
   searchTerm,
   onSearchTermChange,
   inventory,
@@ -124,6 +129,8 @@ export function PharmacistDashboardView({
             loading={queueLoading}
             errorMessage={queue.length === 0 ? queueError : null}
             onRetry={onRetryQueue}
+            updatedAt={queueUpdatedAt}
+            refreshing={queueRefreshing}
           />
         </div>
 

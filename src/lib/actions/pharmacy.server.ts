@@ -812,8 +812,8 @@ export async function dispensePrescription(
                     ? { prescriptionItemId: item.prescriptionItemId }
                     : {}),
                   quantity: item.quantityDispensed,
-                  batchNumber: item.batchNumber,
-                  expiryDate: item.expiryDate,
+                  ...(item.batchNumber ? { batchNumber: item.batchNumber } : {}),
+                  ...(item.expiryDate ? { expiryDate: item.expiryDate } : {}),
                   // A substitute and its reason travel with the line (the API accepts both).
                   ...(item.substituteMedicineId
                     ? { substituteMedicineId: item.substituteMedicineId }

@@ -8,6 +8,7 @@ import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useRecordCashPrescriptionPayment } from "@/hooks/query/usePatientVisits";
 import {
+  useDispenseBatches,
   useDispensePrescription,
   useMedicines,
   usePharmacyBatchAudit,
@@ -33,6 +34,7 @@ import {
   type PrescriptionsTab,
 } from "./pharmacist-prescriptions.logic";
 import { usePharmacistPrescriptionsState } from "./usePharmacistPrescriptionsState";
+import { usableBatchOptions, type BatchOption } from "./dispense-batches.logic";
 
 function errorText(error: unknown): string | null {
   if (!error) return null;
@@ -79,6 +81,8 @@ export default function PharmacistPrescriptionsContent() {
     isPending: prescriptionsPending,
     error: prescriptionsError,
     refetch: refetchPrescriptions,
+    dataUpdatedAt: prescriptionsUpdatedAt,
+    isFetching: prescriptionsFetching,
   } = usePrescriptions(clinicId || "", { limit: 100 });
   const { data: medicinesData = [] } = useMedicines(clinicId || "", { limit: 200 });
   // The date inputs give a day ("2026-10-03"). The API compares instants, so the range is
@@ -112,6 +116,31 @@ export default function PharmacistPrescriptionsContent() {
     () => new Map(medicineCatalog.map((medicine) => [medicine.id, medicine] as const)),
     [medicineCatalog],
   );
+
+  // Lots of every medicine in the open dispense form (the substitute when one is chosen): the
+  // form pre-fills the server's earliest-expiry lots and offers the others.
+  const dispenseMedicineIds = useMemo(
+    () => dispenseLines.map((line) => line.substituteMedicineId || line.medicineId),
+    [dispenseLines],
+  );
+  const { data: dispenseBatchLookups } = useDispenseBatches(
+    selectedPrescription ? clinicId || "" : "",
+    dispenseMedicineIds,
+  );
+  const batchOptions = useMemo(() => {
+    const now = Date.now();
+    return new Map<string, readonly BatchOption[]>(
+      (dispenseBatchLookups ?? []).map((lookup) => [lookup.medicineId, usableBatchOptions(lookup.batches, now)]),
+    );
+  }, [dispenseBatchLookups]);
+  const batchLookupFailed = useMemo(
+    () => new Set((dispenseBatchLookups ?? []).filter((lookup) => lookup.failed).map((lookup) => lookup.medicineId)),
+    [dispenseBatchLookups],
+  );
+  const { prefillBatches } = actions;
+  useEffect(() => {
+    if (batchOptions.size > 0) prefillBatches(batchOptions);
+  }, [batchOptions, prefillBatches]);
 
   const allActive = useMemo(
     () => prescriptions.filter((prescription) => !isHistoryPrescription(prescription)),
@@ -172,7 +201,7 @@ export default function PharmacistPrescriptionsContent() {
   const handleDispense = async () => {
     if (!selectedPrescription) return;
 
-    const payload = buildDispensePayload(dispenseLines, catalogById);
+    const payload = buildDispensePayload(dispenseLines, catalogById, batchOptions);
     if (!payload.medications) {
       actions.setDispenseFormError(payload.error);
       return;
@@ -259,6 +288,8 @@ export default function PharmacistPrescriptionsContent() {
       listLoading={Boolean(clinicId) && prescriptionsPending && prescriptions.length === 0}
       listError={errorText(prescriptionsError)}
       onRetryList={() => void refetchPrescriptions()}
+      listUpdatedAt={prescriptionsUpdatedAt}
+      listRefreshing={prescriptionsFetching}
       searchTerm={searchTerm}
       onSearchTermChange={actions.setSearchTerm}
       statusFilter={effectiveStatusFilter}
@@ -284,6 +315,8 @@ export default function PharmacistPrescriptionsContent() {
         errorMessage: dispenseFormError,
         isDispensing: dispensePrescription.isPending,
         catalog: medicineCatalog,
+        batchOptions,
+        batchLookupFailed,
         onBatchChange: actions.updateBatchRow,
         onAddBatch: actions.addBatchRow,
         onRemoveBatch: actions.removeBatchRow,

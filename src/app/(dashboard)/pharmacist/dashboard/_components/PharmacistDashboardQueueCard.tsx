@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Check, CircleAlert, Eye, Pill as PillIcon, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SkeletonList } from "@/components/ui/loading";
-import { CellTitle, EmptyBlock, GridHead, GridRow, Pill, SearchBox, Surface } from "@/components/tbd";
+import { CellTitle, EmptyBlock, Freshness, GridHead, GridRow, Pill, SearchBox, Surface } from "@/components/tbd";
 import {
   canDispense,
   isUrgent,
@@ -35,6 +35,10 @@ interface PharmacistDashboardQueueCardProps {
   loading?: boolean;
   errorMessage?: string | null;
   onRetry?: () => void;
+  /** When the queue last came from the server (ms since epoch; 0 = not yet). */
+  updatedAt?: number;
+  /** The queue is being fetched again. */
+  refreshing?: boolean;
 }
 
 const COLUMNS = "1.2fr 0.8fr 156px 206px";
@@ -54,6 +58,8 @@ export function PharmacistDashboardQueueCard({
   loading = false,
   errorMessage = null,
   onRetry,
+  updatedAt = 0,
+  refreshing = false,
 }: PharmacistDashboardQueueCardProps) {
   const [showAll, setShowAll] = useState(false);
   const searching = searchTerm.trim().length > 0;
@@ -66,6 +72,7 @@ export function PharmacistDashboardQueueCard({
         <h2 id="pharmacy-queue-title" className="m-0 flex-1 whitespace-nowrap text-base font-bold text-ink">
           Prescription Queue
         </h2>
+        {onRetry ? <Freshness updatedAt={updatedAt} refreshing={refreshing} onRefresh={onRetry} /> : null}
         <SearchBox
           value={searchTerm}
           onChange={onSearchTermChange}

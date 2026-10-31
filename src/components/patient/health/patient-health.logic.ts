@@ -322,7 +322,8 @@ function pharmacyState(raw: Raw, lines: PrescriptionLine[]): PharmacyState {
 }
 
 /**
- * Hand-over fields. `readyForHandover` (medicine desk) or paid + dispensed, which is the same
+ * Hand-over fields. `readyForHandover` here means "may ask for a collection code": the API's
+ * `canCollect` (or paid + dispensed on older payloads), which is the same
  * check the API makes before it issues a code. `handover` is optional on older payloads.
  */
 function handoverOf(
@@ -335,10 +336,15 @@ function handoverOf(
   const handoverStatus = normalizeStatus(firstMeaningfulText(handover.status, raw.handoverStatus)) || null;
   const paid = pendingAmount <= 0 && (normalizeStatus(firstMeaningfulText(raw.paymentStatus)) === "PAID" || numberOrZero(raw.totalAmount) <= 0);
   const dispensed = state === "dispensed" || state === "partially_dispensed";
-  const queueReady = raw.readyForHandover === true || asRecordOrEmpty(raw.activeQueueEntry).readyForHandover === true;
+  // `canCollect` is the server's hand-over readiness (approved, paid AND dispensed). The desk's
+  // `readyForHandover` only means "paid": trusting it showed "Collect medicines" before the
+  // pharmacy had dispensed, and the counter then refused the code. Older payloads without
+  // `canCollect` fall back to the same rule read from the state.
+  const serverSays = typeof raw.canCollect === "boolean" ? raw.canCollect : null;
   return {
     // An advice-only prescription (no medicine lines) has nothing to collect at the desk.
-    readyForHandover: lineCount > 0 && state !== "cancelled" && (queueReady || (paid && dispensed)),
+    readyForHandover:
+      lineCount > 0 && state !== "cancelled" && (serverSays ?? (paid && dispensed)),
     handoverStatus,
     handedOverAt: firstIsoDate(handover.handedOverAt, raw.handedOverAt),
   };

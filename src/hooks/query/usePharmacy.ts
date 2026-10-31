@@ -50,6 +50,7 @@ import type {
   ReceiveOrderBatch,
   ReceiveStockBatchInput,
   ReversePrescriptionDispenseData,
+  StockBatchRecord,
   SupplierInput,
 } from "@/types/pharmacy.types";
 
@@ -414,6 +415,38 @@ export const useStockBatches = (
   );
 };
 
+/** Batches of one medicine for the dispense form; `failed` when the lookup did not answer. */
+export type DispenseBatchLookup = {
+  medicineId: string;
+  batches: StockBatchRecord[];
+  failed: boolean;
+};
+
+/**
+ * Hook to load the batches (lots) of the medicines in the dispense form, so the form can
+ * pre-fill the earliest-expiry lot and offer the others. One lookup per medicine; a failed
+ * lookup is reported (the form then asks for the batch from the pack) instead of failing all.
+ */
+export const useDispenseBatches = (clinicId: string, medicineIds: readonly string[]) => {
+  const ids = Array.from(new Set(medicineIds.filter(Boolean))).sort();
+  return useQueryData(
+    ["stockBatches", clinicId, "dispense", ids.join(",")],
+    async (): Promise<DispenseBatchLookup[]> =>
+      Promise.all(
+        ids.map(async (medicineId) => {
+          try {
+            return { medicineId, batches: await getStockBatches(clinicId, { productId: medicineId }), failed: false };
+          } catch {
+            return { medicineId, batches: [], failed: true };
+          }
+        }),
+      ),
+    {
+      enabled: !!clinicId && ids.length > 0,
+    },
+  );
+};
+
 /**
  * Hook to get the open stock alerts (expiry, low stock) of a clinic
  */
@@ -589,6 +622,9 @@ export const useUpdatePrescriptionStatus = () => {
         ["pharmacyStats"],
         ["pharmacyBatchAudit"],
         ["medicalRecords"],
+        // Stock and lots moved: the dispense form must not offer the old quantities.
+        ["stockBatches"],
+        ["medicines"],
       ],
     },
   );
@@ -618,6 +654,9 @@ export const useDispensePrescription = () => {
         ["pharmacyStats"],
         ["pharmacyBatchAudit"],
         ["medicalRecords"],
+        // Stock and lots moved: the dispense form must not offer the old quantities.
+        ["stockBatches"],
+        ["medicines"],
       ],
     },
   );
@@ -647,6 +686,9 @@ export const useReversePrescriptionDispense = () => {
         ["pharmacyStats"],
         ["pharmacyBatchAudit"],
         ["medicalRecords"],
+        // Stock and lots moved: the dispense form must not offer the old quantities.
+        ["stockBatches"],
+        ["medicines"],
       ],
     },
   );

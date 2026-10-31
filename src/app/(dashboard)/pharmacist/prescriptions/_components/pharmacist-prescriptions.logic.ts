@@ -4,6 +4,7 @@ import { normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST, formatDateKeyInIST, formatTimeInIST, nowIso } from "@/lib/utils/date-time";
 import type { DispensePrescriptionMedication, PharmacyBatchAuditEntry } from "@/types/pharmacy.types";
+import { checkBatchRow, findBatchOption, type BatchOptionsByMedicine } from "./dispense-batches.logic";
 import {
   DESK_STATE_LABEL,
   DESK_STATE_TONE,
@@ -463,6 +464,8 @@ export type DispenseLineState = {
   substituteMedicineId: string;
   substitutionReason: string;
   batches: DispenseBatchRow[];
+  /** Medicine id whose server lots pre-filled `batches` ("" until pre-filled). */
+  batchesPrefilledFor: string;
   dispenseBatchHistory?: DispenseHistoryEntry[];
 };
 
@@ -514,6 +517,7 @@ export function createDispenseLine(medicine: PrescriptionMedicine): DispenseLine
     substituteMedicineId: "",
     substitutionReason: "",
     batches: [createBatchRow(String(remaining))],
+    batchesPrefilledFor: "",
     ...(medicine.dispenseBatchHistory ? { dispenseBatchHistory: medicine.dispenseBatchHistory } : {}),
   };
 }
@@ -547,6 +551,7 @@ export type DispensePayloadResult =
 export function buildDispensePayload(
   lines: DispenseLineState[],
   catalogById: Map<string, CatalogMedicine>,
+  batchOptions: BatchOptionsByMedicine = new Map(),
 ): DispensePayloadResult {
   const medications: DispensePrescriptionMedication[] = [];
 
@@ -575,6 +580,10 @@ export function buildDispensePayload(
       return { error: `Add a substitution reason for ${line.name}.` };
     }
 
+    // Lots of the medicine really given (the substitute when one is chosen). Not loaded (or the
+    // lookup failed) counts as "no tracked batch": typed batch and expiry, checked by the server.
+    const options = batchOptions.get(line.substituteMedicineId || line.medicineId) ?? [];
+
     for (const batch of line.batches) {
       const batchQuantity = Number(batch.quantity);
       const hasBatchDetails =
@@ -586,20 +595,24 @@ export function buildDispensePayload(
         return { error: `Enter a valid batch quantity for ${line.name}.` };
       }
 
-      if (!batch.batchNumber.trim()) {
-        return { error: `Enter a batch number for ${line.name}.` };
-      }
+      const rowCheck = checkBatchRow(
+        line.name,
+        { quantity: batchQuantity, batchNumber: batch.batchNumber, expiryDate: batch.expiryDate },
+        options,
+      );
+      if (rowCheck.error) return { error: rowCheck.error };
 
-      if (!batch.expiryDate.trim()) {
-        return { error: `Enter an expiry date for ${line.name}.` };
-      }
+      const batchNumber = batch.batchNumber.trim();
+      // A tracked lot carries its own expiry from the stock record; only an untracked medicine
+      // sends the typed one.
+      const expiryDate = options.length > 0 ? findBatchOption(options, batchNumber)?.expiryDate : batch.expiryDate;
 
       medications.push({
         medicineId: line.medicineId,
         prescriptionItemId: line.prescriptionItemId,
         quantityDispensed: batchQuantity,
-        batchNumber: batch.batchNumber.trim(),
-        expiryDate: batch.expiryDate,
+        ...(batchNumber ? { batchNumber } : {}),
+        ...(batchNumber && expiryDate ? { expiryDate } : {}),
         ...(line.substituteMedicineId ? { substituteMedicineId: line.substituteMedicineId } : {}),
         ...(line.substitutionReason.trim() ? { substitutionReason: line.substitutionReason.trim() } : {}),
       });
