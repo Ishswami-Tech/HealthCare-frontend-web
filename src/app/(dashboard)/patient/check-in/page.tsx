@@ -39,7 +39,6 @@ import {
 import { checkInErrorCopy, locationFailureCopy } from "@/components/patient/queue/checkInErrors";
 import {
   isTypedDeskCode,
-  readFixIfGranted,
   requestDeviceFix,
   type DeviceFix,
   type LocationFailure,
@@ -158,11 +157,13 @@ export default function PatientCheckInPage() {
     }
   };
 
-  /** The position this code needs: required for a typed desk code, best effort for a poster. */
+  /** The position this code needs: a typed desk code stops without it, a poster scan sends what it has. */
   const resolvePosition = async (qrCode: string): Promise<{ ok: true; fix: Coordinates | null } | { ok: false }> => {
-    if (!isTypedDeskCode(qrCode)) return { ok: true, fix: await readFixIfGranted() };
     setState({ kind: "locating" });
     const result = await requestDeviceFix();
+    // Scanned poster: the clinic may require the position, so it is requested too. When it is
+    // unavailable the scan is still sent and the server decides (LOCATION_REQUIRED -> reception).
+    if (!isTypedDeskCode(qrCode)) return { ok: true, fix: result.ok ? result.fix : null };
     if (result.ok) return { ok: true, fix: result.fix };
     setIsCodeDrawerOpen(false);
     setState({ kind: "location", failure: result.failure });
