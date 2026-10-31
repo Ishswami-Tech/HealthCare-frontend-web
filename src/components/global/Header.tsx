@@ -139,6 +139,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
+                        aria-label={`Account menu for ${displayUser.name}`}
                         className="flex min-h-11 items-center gap-2.5 rounded-[14px] border border-line bg-card py-1 pl-1.5 pr-2 text-left transition-colors hover:bg-mint-soft sm:pr-3"
                       >
                         <span
