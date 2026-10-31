@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
-import { Loader2, ShieldCheck, UserPlus } from "lucide-react";
+import { Loader2, ShieldCheck, UserCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChoiceChip, Field, fieldAria, Note, SkeletonRows, Surface, TbdPage } from "@/components/tbd";
@@ -12,7 +12,40 @@ import useZodForm from "@/hooks/utils/useZodForm";
 import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
 import { asRow, firstText } from "@/components/patient/home/homeData";
 import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
-import { RECEPTION_ROUTES } from "@/components/receptionist/useReceptionDesk";
+import { RECEPTION_ROUTES, useReceptionLocation } from "@/components/receptionist/useReceptionDesk";
+import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
+
+/**
+ * After a failed registration: patients of this clinic already on that mobile number (the server
+ * refuses a second account for one number). Clinic-scoped directory search, so a patient of another
+ * clinic is never shown. Offers the existing record instead of a dead end or a duplicate.
+ */
+function ExistingPatientsForPhone({ phone, toWalkIn }: { phone: string; toWalkIn: boolean }) {
+  const { clinicId } = useReceptionLocation();
+  const directory = usePatientDirectory(clinicId, { search: phone, pageSize: 10 }, { enabled: phone.length >= 10 });
+  const rows = directory.data?.rows ?? [];
+  if (rows.length === 0) return null;
+  return (
+    <Note tone="amber" icon={UserCheck}>
+      <span className="flex flex-col gap-2">
+        <span className="font-bold">This mobile number is already registered at this clinic.</span>
+        {rows.map((row) => (
+          <span key={row.patientId} className="flex flex-wrap items-center gap-2">
+            <span>
+              {row.name}
+              {row.uhid ? ` · ${row.uhid}` : ""}
+            </span>
+            <Button asChild size="sm" variant="outline">
+              <Link href={toWalkIn ? RECEPTION_ROUTES.walkIn(row.userId) : RECEPTION_ROUTES.patient(row.userId)}>
+                {toWalkIn ? "Add this patient as a walk-in" : "Open this patient"}
+              </Link>
+            </Button>
+          </span>
+        ))}
+      </span>
+    </Note>
+  );
+}
 
 /** Contact details only (RecRegister): no medical history or allergies at the desk. */
 const registerSchema = z.object({
@@ -40,8 +73,10 @@ function RegisterForm() {
   const router = useRouter();
   const next = useSearchParams().get("next");
   const register = useQuickRegisterPatient();
+  const [failedPhone, setFailedPhone] = useState("");
 
   const submit = async (values: RegisterValues) => {
+    setFailedPhone("");
     try {
       const result = await register.mutateAsync({
         // Patients sign in with a one-time code; the password is random and never shown.
@@ -63,7 +98,9 @@ function RegisterForm() {
       }
       router.push(patientUserId ? RECEPTION_ROUTES.patient(patientUserId) : RECEPTION_ROUTES.patients);
     } catch {
-      // The mutation hook shows the error toast; the form keeps what was typed.
+      // The mutation hook shows the error toast; the form keeps what was typed. When the number
+      // already belongs to a patient of this clinic, offer that record below.
+      setFailedPhone(values.phone.replace(/\D/g, ""));
     }
   };
 
@@ -120,6 +157,7 @@ function RegisterForm() {
             <Input id="address" autoComplete="street-address" placeholder="House / street, area, city" {...form.register("address")} />
           </Field>
         </div>
+        {failedPhone ? <ExistingPatientsForPhone phone={failedPhone} toWalkIn={next === "walk-in"} /> : null}
         <Note tone="green" icon={ShieldCheck}>
           The patient signs in with an OTP sent to this mobile number. There is no password to set or share.
         </Note>

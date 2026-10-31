@@ -456,3 +456,39 @@ export function nextSlotLabel(dateKey: string, time: string): string {
   const clockLabel = `${hours % 12 || 12}:${clock[2]} ${hours >= 12 ? "PM" : "AM"}`;
   return `${WEEKDAY_SHORT[calendar.getUTCDay()]} ${calendar.getUTCDate()} ${MONTH_SHORT[calendar.getUTCMonth()]}, ${clockLabel}`;
 }
+
+// ── Walk-in patient search ─────────────────────────────────────────────────
+
+/** What the walk-in patient search shows. */
+export type WalkInSearchView = "short" | "searching" | "error" | "empty" | "results";
+
+export interface WalkInSearchState {
+  /** What is in the box now (trimmed). */
+  typed: string;
+  /** The term the last request was made for (debounced). */
+  term: string;
+  rowCount: number;
+  isPending: boolean;
+  isFetching: boolean;
+  hasError: boolean;
+}
+
+/**
+ * "No patient matches" only once the server answered for exactly what is typed. While typing
+ * settles, or while a slower answer for a new term is on its way (the previous page is kept on
+ * screen), the list shows a loading state; a failed or timed-out request says so, so the desk is
+ * never told a registered patient does not exist and pushed into a duplicate registration.
+ */
+export function walkInSearchView(state: WalkInSearchState): WalkInSearchView {
+  if (state.typed.length < 2) return "short";
+  if (state.typed !== state.term || state.isPending) return "searching";
+  if (state.hasError) return "error";
+  if (state.rowCount === 0) return state.isFetching ? "searching" : "empty";
+  return "results";
+}
+
+/** True when the text is a phone number (digits, spaces, +, -, brackets), as the server reads it. */
+export function isPhoneLikeSearch(term: string): boolean {
+  const digits = term.replace(/[\s\-().+]/g, "");
+  return /^\d{4,13}$/.test(digits);
+}

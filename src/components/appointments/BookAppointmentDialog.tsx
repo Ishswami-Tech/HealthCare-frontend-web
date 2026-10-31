@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { logger } from "@/lib/utils/logger";
 import { clipInClinicSlots, readClinicWindows, readWeeklyWindows } from "./booking/clinicHours";
+import { isBookingDayClosed } from "./booking/bookingDays";
 import {
   useState,
   useEffect,
@@ -2448,29 +2449,6 @@ const WEEKDAY_KEYS = [
   "saturday",
 ] as const;
 
-const hasOpenSessionWindows = (dayWindows: unknown): boolean => {
-  if (Array.isArray(dayWindows)) {
-    return dayWindows.some((window) => {
-      if (!window || typeof window !== "object" || Array.isArray(window)) {
-        return false;
-      }
-      const record = window as Record<string, unknown>;
-      const start = typeof record.start === "string" ? record.start.trim() : "";
-      const end = typeof record.end === "string" ? record.end.trim() : "";
-      return !!start && !!end && start < end;
-    });
-  }
-
-  if (dayWindows && typeof dayWindows === "object") {
-    const record = dayWindows as Record<string, unknown>;
-    const start = typeof record.start === "string" ? record.start.trim() : "";
-    const end = typeof record.end === "string" ? record.end.trim() : "";
-    return !!start && !!end && start < end;
-  }
-
-  return false;
-};
-
 const isSubscriptionCurrent = (
   subscription?: {
     status?: string;
@@ -3376,29 +3354,6 @@ export function BookAppointmentDialog({
 
     return operatingWindows as Record<string, unknown>;
   }, [resolvedAppointmentSettings]);
-  const isClinicClosedDate = useCallback(
-    (date: Date) => {
-      const dayKey = WEEKDAY_KEYS[date.getDay()];
-      if (!dayKey) {
-        return false;
-      }
-
-      // Match backend availability: clinic operatingWindowsByDay empty = closed.
-      if (clinicOperatingDays) {
-        if (!hasOpenSessionWindows(clinicOperatingDays[dayKey])) {
-          return true;
-        }
-      }
-
-      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      return (
-        clinicHolidayClosures.has(dateKey) ||
-        clinicHolidayClosures.has(formatISODateInIST(date))
-      );
-    },
-    [clinicHolidayClosures, clinicOperatingDays],
-  );
-
   const { mutateAsync: createAppointment, isPending: isBooking } =
     useCreateAppointment(activeClinicId);
   const {
@@ -3556,28 +3511,29 @@ export function BookAppointmentDialog({
   // is not known yet: show a "Loading doctor…" skeleton instead of flashing "No doctor selected".
   const doctorResolving = !selectedDoctor && (doctorsRefreshing || (shouldLoadDoctors && !doctorsFetched));
 
-  // Mirror backend availability day resolution: doctor workingHours → clinic windows → holidays.
+  // The location whose hours bound the day: the chosen one, or the clinic's only location.
+  const bookingLocationHours = useMemo(() => {
+    const list = locations as Array<{ id?: string; workingHours?: unknown }>;
+    const chosen = resolvedLocationId ? list.find((loc) => loc.id === resolvedLocationId) : undefined;
+    return (chosen ?? (list.length === 1 ? list[0] : undefined))?.workingHours;
+  }, [locations, resolvedLocationId]);
+  // Same day rule as the server (clinic working days, location days, holidays, then the hours
+  // cascade location -> doctor -> clinic windows): see booking/bookingDays.
   const isBookingDateDisabled = useCallback(
-    (date: Date) => {
-      const dayKey = WEEKDAY_KEYS[date.getDay()];
-      const workingHours = (selectedDoctor as { workingHours?: unknown } | undefined)
-        ?.workingHours;
-
-      if (
-        dayKey &&
-        workingHours &&
-        typeof workingHours === "object" &&
-        !Array.isArray(workingHours) &&
-        Object.prototype.hasOwnProperty.call(workingHours, dayKey)
-      ) {
-        if (!hasOpenSessionWindows((workingHours as Record<string, unknown>)[dayKey])) {
-          return true;
-        }
-      }
-
-      return isClinicClosedDate(date);
-    },
-    [isClinicClosedDate, selectedDoctor],
+    (date: Date) =>
+      isBookingDayClosed({
+        weekDayIndex: date.getDay(),
+        dateKeys: [
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+          formatISODateInIST(date),
+        ],
+        closedDateKeys: clinicHolidayClosures,
+        appointmentSettings: resolvedAppointmentSettings,
+        locationWorkingHours: bookingLocationHours,
+        doctorWorkingHours: (selectedDoctor as { workingHours?: unknown } | undefined)?.workingHours,
+        inClinic: consultationMode !== "VIDEO",
+      }),
+    [bookingLocationHours, clinicHolidayClosures, consultationMode, resolvedAppointmentSettings, selectedDoctor],
   );
 
   useEffect(() => {

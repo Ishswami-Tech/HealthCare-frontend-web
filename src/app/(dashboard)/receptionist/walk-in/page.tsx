@@ -27,16 +27,21 @@ import { useCreateAppointment } from "@/hooks/query/useAppointments";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { usePatient } from "@/hooks/query/usePatients";
 import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
+import { useDebouncedValue } from "@/hooks/core/useDebouncedValue";
 import { showErrorToast, showSuccessToast, showWarningToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   ageGenderLabel,
+  isPhoneLikeSearch,
   nextSlotLabel,
   readPatientContact,
   type PatientContact,
+  walkInSearchView,
 } from "@/components/receptionist/reception.logic";
 import type { WalkInNextAvailable } from "@/types/in-person.types";
 import { RECEPTION_ROUTES, useReceptionLocation } from "@/components/receptionist/useReceptionDesk";
 import { PatientPlanStatus } from "@/components/billing/PatientPlanStatus";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 /** "HH:mm" (IST, as the visit stores it) -> "02:35 pm"; "" when it is not a time. */
 function slotTimeLabel(time: string | null | undefined): string {
@@ -58,9 +63,19 @@ function PatientPicker({
   onSelect: (patient: PatientContact | null) => void;
 }) {
   const [search, setSearch] = useState("");
-  const term = search.trim();
+  const typed = search.trim();
+  // One request once typing pauses, not one per key (each search is a clinic-wide query).
+  const term = useDebouncedValue(typed, SEARCH_DEBOUNCE_MS);
   const directory = usePatientDirectory(clinicId, { search: term, pageSize: 10 }, { enabled: term.length >= 2 });
-  const rows = term.length >= 2 ? (directory.data?.rows ?? []) : [];
+  const view = walkInSearchView({
+    typed,
+    term,
+    rowCount: directory.data?.rows?.length ?? 0,
+    isPending: directory.isPending,
+    isFetching: directory.isFetching,
+    hasError: Boolean(directory.error),
+  });
+  const rows = view === "results" ? (directory.data?.rows ?? []) : [];
 
   if (selected) {
     return (
@@ -82,12 +97,25 @@ function PatientPicker({
   return (
     <div className="flex flex-col gap-2.5">
       <SearchBox value={search} onChange={setSearch} placeholder="Find patient by name or phone" />
-      {term.length >= 2 ? (
-        directory.isPending ? (
-          <SkeletonRows rows={2} />
-        ) : rows.length === 0 ? (
-          <p className="m-0 text-[13px] text-ink-muted">No patient matches “{term}”.</p>
-        ) : (
+      {view === "short" ? (
+        <p className="m-0 text-xs text-ink-muted">Type at least 2 letters or digits.</p>
+      ) : view === "searching" ? (
+        <SkeletonRows rows={2} />
+      ) : view === "error" ? (
+        <p className="m-0 flex flex-wrap items-center gap-2 text-[13px] text-ink-muted" role="alert">
+          The search did not answer. Your connection or the server may be slow.
+          <Button variant="outline" size="sm" onClick={() => void directory.refetch()}>
+            Try again
+          </Button>
+        </p>
+      ) : view === "empty" ? (
+        <p className="m-0 text-[13px] text-ink-muted">
+          No patient matches “{term}”.{" "}
+          {isPhoneLikeSearch(term)
+            ? "Check the number, or register the patient."
+            : "A patient who signed up in the app but has not added a name yet is found by mobile number."}
+        </p>
+      ) : (
           <ul className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label="Matching patients">
             {rows.map((row) => {
               const contact = readPatientContact(row, row.patientId);
@@ -111,9 +139,6 @@ function PatientPicker({
               );
             })}
           </ul>
-        )
-      ) : (
-        <p className="m-0 text-xs text-ink-muted">Type at least 2 letters or digits.</p>
       )}
       <p className="m-0 text-[13px] text-ink-muted">
         Not in the list?{" "}
