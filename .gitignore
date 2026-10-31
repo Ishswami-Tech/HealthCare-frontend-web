@@ -57,3 +57,4 @@ graphify-out/
 .env.sentry-build-plugin
 
 .claude/settings.local.json
+.ccm/
