@@ -22,6 +22,13 @@ import {
 } from "@/hooks/query/useClinicPaymentConfig";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { formatAmountFromMinorUnits } from "@/lib/utils";
+import {
+  buildPaymentBridgeLaunchUrl as buildBridgeLaunchUrl,
+  readIntentCashfreeMode,
+  resolvePaymentBridgeBaseUrl,
+  sanitizeBridgePayload,
+  type CashfreeMode,
+} from "@/lib/payments/payment-bridge";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
   createPaymentIntent as createPaymentIntentServerAction,
@@ -156,6 +163,8 @@ type PaymentBridgePayload = {
   paymentIntentId?: string;
   handoffToken?: string;
   handoffCallbackUrl?: string;
+  /** Cashfree mode the backend minted this order in, so the bridge opens the matching SDK. */
+  environment?: CashfreeMode;
 };
 
 function isPaymentBridgePayload(
@@ -186,23 +195,6 @@ function encodeBridgePayload(payload: PaymentBridgePayload): string {
     .replace(/=+$/u, "")
     .replace(/\+/gu, "-")
     .replace(/\//gu, "_");
-}
-
-function decodeBridgeUrl(baseUrl: string): URL | null {
-  const trimmed = baseUrl.trim().replace(/\/+$/u, "");
-  if (!trimmed) {
-    return null;
-  }
-
-  try {
-    return new URL(trimmed);
-  } catch {
-    try {
-      return new URL(`https://${trimmed}`);
-    } catch {
-      return null;
-    }
-  }
 }
 
 function ensureBridgePreconnect(targetUrl: string): void {
@@ -314,13 +306,13 @@ export function PaymentButton({
           : "sandbox";
   const resolveCashfreeMode = (
     paymentIntent?: Record<string, unknown>,
-  ): "sandbox" | "production" => {
-    const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
-    return metadata.environment === "production" || metadata.environment === "sandbox"
-      ? (metadata.environment as "sandbox" | "production")
-      : defaultCashfreeMode;
-  };
-  const paymentBridgeUrl = APP_CONFIG.PAYMENT.BRIDGE_URL.trim();
+  ): CashfreeMode => readIntentCashfreeMode(paymentIntent) ?? defaultCashfreeMode;
+  // Bridge only when NEXT_PUBLIC_PAYMENT_BRIDGE_URL is set explicitly, and never from a build
+  // that talks to a local backend while the bridge is a public host (PG-01).
+  const paymentBridgeUrl = resolvePaymentBridgeBaseUrl(
+    APP_CONFIG.PAYMENT.BRIDGE_URL,
+    APP_CONFIG.API.BASE_URL,
+  );
 
   const invalidateSuccessfulPaymentQueries = () => {
     BILLING_QUERY_KEYS.forEach((queryKey) => {
@@ -417,26 +409,16 @@ export function PaymentButton({
     return loadPromise;
   };
 
+  // PG-02: the payload travels in the URL fragment only (never sent to a server or in Referer),
+  // with empty fields and any customer contact data stripped.
   const buildPaymentBridgeLaunchUrl = (
     payload: PaymentBridgePayload,
   ): string => {
-    const bridgeBase = decodeBridgeUrl(paymentBridgeUrl);
-
-    if (!bridgeBase) {
-      return "";
-    }
-
-    bridgeBase.pathname = bridgeBase.pathname.replace(/\/+$/u, "");
-    if (!bridgeBase.pathname || bridgeBase.pathname === "/") {
-      bridgeBase.pathname = "/payments/start";
-    }
     if (!isPaymentBridgePayload(payload)) {
       return "";
     }
-    const encodedPayload = encodeBridgePayload(payload);
-    bridgeBase.searchParams.set("payload", encodedPayload);
-    bridgeBase.hash = `payload=${encodedPayload}`;
-    return bridgeBase.toString();
+    const minimalPayload = sanitizeBridgePayload(payload) as PaymentBridgePayload;
+    return buildBridgeLaunchUrl(paymentBridgeUrl, encodeBridgePayload(minimalPayload));
   };
 
   const launchPaymentBridge = (payload: PaymentBridgePayload): boolean => {
@@ -578,6 +560,7 @@ export function PaymentButton({
         (paymentIntent?.handoffCallbackUrl as string) ||
         (metadata.handoffCallbackUrl as string) ||
         callbackUrl,
+      environment: readIntentCashfreeMode(paymentIntent),
     };
   };
 

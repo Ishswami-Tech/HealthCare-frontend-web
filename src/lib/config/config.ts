@@ -304,9 +304,9 @@ export const APP_CONFIG = {
   // PAYMENT BRIDGE CONFIGURATION
   // ============================================
   PAYMENT: {
-    BRIDGE_URL:
-      env.NEXT_PUBLIC_PAYMENT_BRIDGE_URL ||
-      (isProduction ? 'https://ishswami.in/payments/start' : ''),
+    // Opt-in only: no implicit production default. Without an explicit value the in-app
+    // checkout runs (a local `next build && next start` used to jump to the live bridge).
+    BRIDGE_URL: env.NEXT_PUBLIC_PAYMENT_BRIDGE_URL?.trim() || '',
   },
   
   // ============================================
