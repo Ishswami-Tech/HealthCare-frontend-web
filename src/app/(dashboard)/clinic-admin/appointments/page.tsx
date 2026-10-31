@@ -24,6 +24,8 @@ import { useCurrentClinic } from "@/hooks/query/useClinics";
 import { useAppointments, useUpdateAppointmentStatus } from "@/hooks/query/useAppointments";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { cn } from "@/lib/utils";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
+import { statusLabel, visitTypeLabel } from "@/components/tbd";
 
 type ClinicAppointment = {
   id: string;
@@ -41,6 +43,32 @@ type ClinicAppointment = {
   paymentCompleted?: boolean;
   paymentAmount?: number | null;
 };
+
+/** Date presets sent to the server as startDate/endDate (IST day keys). */
+const DATE_FILTER_OPTIONS = [
+  { value: "all", label: "All dates" },
+  { value: "today", label: "Today" },
+  { value: "next7", label: "Today and next 7 days" },
+  { value: "past7", label: "Last 7 days" },
+] as const;
+type DateFilter = (typeof DATE_FILTER_OPTIONS)[number]["value"];
+
+function dayKeyFromNow(offsetDays: number): string {
+  return formatDateKeyInIST(new Date(Date.now() + offsetDays * 86_400_000));
+}
+
+function dateRangeFor(filter: DateFilter): { startDate?: string; endDate?: string } {
+  switch (filter) {
+    case "today":
+      return { startDate: dayKeyFromNow(0), endDate: dayKeyFromNow(0) };
+    case "next7":
+      return { startDate: dayKeyFromNow(0), endDate: dayKeyFromNow(7) };
+    case "past7":
+      return { startDate: dayKeyFromNow(-7), endDate: dayKeyFromNow(0) };
+    default:
+      return {};
+  }
+}
 
 const STATUS_FILTER_OPTIONS = [
   "all",
@@ -74,7 +102,10 @@ export default function ClinicAdminAppointmentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const { data, isPending, refetch } = useAppointments({ limit: 100 });
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const dateRange = useMemo(() => dateRangeFor(dateFilter), [dateFilter]);
+
+  const { data, isPending, refetch } = useAppointments({ limit: 100, ...dateRange });
   const appointments: ClinicAppointment[] = useMemo(
     () => ((data as { appointments?: unknown[] } | undefined)?.appointments ?? []) as ClinicAppointment[],
     [data]
@@ -135,7 +166,7 @@ export default function ClinicAdminAppointmentsPage() {
     {
       accessorKey: "type",
       header: "Type",
-      cell: ({ row }) => row.original.type || "—",
+      cell: ({ row }) => (row.original.type ? visitTypeLabel(row.original.type) : "—"),
     },
     {
       accessorKey: "status",
@@ -162,11 +193,11 @@ export default function ClinicAdminAppointmentsPage() {
               {/* Always include the current status even if it isn't one an admin can pick,
                   so the select has a valid value to display. */}
               {!ASSIGNABLE_STATUSES.includes(currentStatus) && (
-                <SelectItem value={currentStatus}>{currentStatus}</SelectItem>
+                <SelectItem value={currentStatus}>{statusLabel(currentStatus)}</SelectItem>
               )}
               {ASSIGNABLE_STATUSES.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {status}
+                  {statusLabel(status)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -208,21 +239,21 @@ export default function ClinicAdminAppointmentsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           {
-            label: "Total",
+            label: "Shown",
             value: appointments.length,
             icon: Calendar,
             color: "text-blue-600 dark:text-blue-400",
             bg: "bg-blue-50 dark:bg-blue-500/10",
           },
           {
-            label: "Confirmed",
+            label: "Confirmed (shown)",
             value: appointments.filter((a) => String(a.status).toUpperCase() === "CONFIRMED").length,
             icon: Users,
             color: "text-emerald-600 dark:text-emerald-400",
             bg: "bg-emerald-50 dark:bg-emerald-500/10",
           },
           {
-            label: "Payment Pending",
+            label: "Payment pending (shown)",
             value: appointments.filter((a) => !a.paymentCompleted).length,
             icon: Stethoscope,
             color: "text-amber-600 dark:text-amber-400",
@@ -268,7 +299,19 @@ export default function ClinicAdminAppointmentsPage() {
             <SelectContent>
               {STATUS_FILTER_OPTIONS.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {status === "all" ? "All statuses" : status}
+                  {status === "all" ? "All statuses" : statusLabel(status)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={dateFilter} onValueChange={(value) => setDateFilter(value as DateFilter)}>
+            <SelectTrigger className="w-full sm:w-[220px]" aria-label="Date range">
+              <SelectValue placeholder="Dates" />
+            </SelectTrigger>
+            <SelectContent>
+              {DATE_FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>

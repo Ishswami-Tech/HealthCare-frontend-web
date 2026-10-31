@@ -78,7 +78,7 @@ export default function ReceptionAppointmentDetailPage() {
   const appointmentId = String(params?.id ?? "");
   const { locationName } = useReceptionLocation();
   const { data, isPending, error, refetch } = useAppointment(appointmentId);
-  const { checkIn, pendingId } = useReceptionCheckIn({ openSuccess: true });
+  const { checkIn, pendingId } = useReceptionCheckIn();
   const visit = useMemo(() => {
     const row = asRow(data);
     return row ? toReceptionVisit(row, Date.now()) : null;

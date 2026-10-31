@@ -197,6 +197,14 @@ export function DoctorScheduleCalendar({
             <Calendar
               mode="single"
               weekStartsOn={WEEK_STARTS_ON}
+              // The shared Calendar's root is `sm:w-fit`, which collapses this grid to ~160px at
+              // tablet widths (cells 19px). Fill the wrapper (max 440px) so each day is >= 44px, and
+              // use short weekday names so the headers never run together.
+              classNames={{ root: "mx-auto w-full max-w-full" }}
+              formatters={{
+                formatWeekdayName: (date) =>
+                  ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][date.getDay()] ?? "",
+              }}
               selected={dateOfDayKey(selected)}
               onSelect={(date) => {
                 if (!date) return;

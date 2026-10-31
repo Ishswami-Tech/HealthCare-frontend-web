@@ -122,7 +122,7 @@ export function PharmacistDashboardNextCard({
             <Button asChild size="md" className="w-full sm:w-auto">
               <Link href={href}>
                 <CircleCheck aria-hidden="true" />
-                {item.state === "partially_dispensed" ? "Finish dispensing" : "Dispense"}
+                {item.state === "partially_dispensed" ? "Finish dispensing" : "Review dispense"}
               </Link>
             </Button>
           ) : awaitingPayment && onRecordCashPayment ? (
@@ -134,7 +134,7 @@ export function PharmacistDashboardNextCard({
               onClick={() => onRecordCashPayment(item)}
             >
               <IndianRupee aria-hidden="true" />
-              Mark paid — cash
+              Collect payment
             </Button>
           ) : null}
         </div>

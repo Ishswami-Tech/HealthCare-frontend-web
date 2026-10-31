@@ -75,6 +75,7 @@ export function ReceptionVisitList({
   error = null,
   onRetry,
   showType = true,
+  showPatient = true,
   showDate = false,
   emptyTitle = "No appointments",
   emptyDescription,
@@ -89,6 +90,8 @@ export function ReceptionVisitList({
   error?: Error | null;
   onRetry?: () => void;
   showType?: boolean;
+  /** false on a single patient's page, where the patient column would repeat the page owner on every row. */
+  showPatient?: boolean;
   /** Shows the day with the time (lists that span more than today). */
   showDate?: boolean;
   emptyTitle?: string;
@@ -96,10 +99,17 @@ export function ReceptionVisitList({
   emptyIcon?: TbdIcon;
   emptyAction?: ReactNode;
 } & ReceptionVisitActions) {
-  const columns = showType
-    ? "110px minmax(0,1.4fr) minmax(0,1fr) 110px minmax(0,1fr) auto"
-    : "110px minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) auto";
-  const labels = ["Time", "Patient", "Doctor", ...(showType ? ["Type"] : []), "Status", ""];
+  // The status column keeps a floor wide enough for its longest tag, so it is never clipped
+  // beside the row action.
+  const columns = [
+    "110px",
+    ...(showPatient ? ["minmax(0,1.4fr)"] : []),
+    "minmax(0,1fr)",
+    ...(showType ? ["110px"] : []),
+    "minmax(130px,1fr)",
+    "auto",
+  ].join(" ");
+  const labels = ["Time", ...(showPatient ? ["Patient"] : []), "Doctor", ...(showType ? ["Type"] : []), "Status", ""];
 
   if (isLoading) return <SkeletonRows rows={5} />;
   if (error && visits.length === 0) {
@@ -118,16 +128,18 @@ export function ReceptionVisitList({
             {visit.timeLabel || "No time"}
             {showDate ? <span className="text-xs font-medium text-ink-muted">{visit.whenLabel.split(" · ")[0]}</span> : null}
           </span>
-          <CellTitle
-            left={<InitialsAvatar name={visit.patientName} size={36} />}
-            title={
-              <Link href={RECEPTION_ROUTES.appointment(visit.id)} className="hover:text-brand-dark hover:underline">
-                {visit.patientName}
-              </Link>
-            }
-            description={visit.patientPhone || "No phone"}
-          />
-          <span className="truncate text-[13px] text-ink-soft">{visit.doctorName}</span>
+          {showPatient ? (
+            <CellTitle
+              left={<InitialsAvatar name={visit.patientName} size={36} />}
+              title={
+                <Link href={RECEPTION_ROUTES.appointment(visit.id)} className="hover:text-brand-dark hover:underline">
+                  {visit.patientName}
+                </Link>
+              }
+              description={visit.patientPhone || "No phone"}
+            />
+          ) : null}
+          <span className="text-[13px] text-ink-soft [overflow-wrap:anywhere]">{visit.doctorName}</span>
           {showType ? <VisitTypeChip type={visit.kind === "video" ? "VIDEO_CALL" : "IN_PERSON"} /> : null}
           <ReceptionStatus visit={visit} />
           <span className="flex flex-wrap items-center justify-end gap-2">

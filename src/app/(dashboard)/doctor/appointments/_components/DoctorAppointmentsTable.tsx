@@ -229,10 +229,20 @@ function RowActions({
       ) : null}
 
       {app.status === "CONFIRMED" && !app.isVideo ? (
-        <Button onClick={() => onStart(app)} disabled={startAppointmentPending}>
-          {startAppointmentPending ? <Loader2 className="animate-spin" /> : <Play />}
-          Start
-        </Button>
+        app.checkedInAt ? (
+          <Button onClick={() => onStart(app)} disabled={startAppointmentPending}>
+            {startAppointmentPending ? <Loader2 className="animate-spin" /> : <Play />}
+            Start
+          </Button>
+        ) : (
+          // The visit page only opens for a checked-in patient, so Start would be a dead end.
+          <span
+            className="whitespace-nowrap text-xs font-medium text-ink-muted"
+            title="You consult only patients who have checked in at the desk."
+          >
+            Waiting for check-in
+          </span>
+        )
       ) : null}
 
       {canCompleteConfirmedVideoVisit(app) ? (

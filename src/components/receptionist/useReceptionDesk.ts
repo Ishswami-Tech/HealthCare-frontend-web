@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   useAppointments,
   useCancelAppointment,
@@ -11,7 +12,7 @@ import {
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { CheckInRefusedError, useInPersonCheckIn, useInPersonDesk } from "@/hooks/query/useInPerson";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { showUndoToast } from "@/components/tbd";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { APPOINTMENT_LIST_MAX_PAGE_SIZE, APPOINTMENT_LIST_MAX_PAGES } from "@/lib/api/client";
@@ -181,10 +182,12 @@ export function useReceptionVisits(
 /**
  * One click check-in at the desk: the shared in-person check-in (`POST /in-person/check-in
  * { appointmentId }`), the same backend service as the patient's QR scan. Idempotent; the server
- * enforces the receptionist's location. `openSuccess` shows the success screen after the call.
- * No Undo is offered: the backend has no undo check-in route (only undo-no-show under /in-person).
+ * enforces the receptionist's location. The desk stays on the list: a toast shows the token with an
+ * "Open queue" shortcut (the full success screen at /receptionist/check-in/success is still reachable
+ * by link). No Undo is offered: the backend has no undo check-in route (only undo-no-show under
+ * /in-person), and reversing a check-in through the status route would orphan the queue entry.
  */
-export function useReceptionCheckIn({ openSuccess = false }: { openSuccess?: boolean } = {}) {
+export function useReceptionCheckIn() {
   const router = useRouter();
   const mutation = useInPersonCheckIn();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -195,8 +198,11 @@ export function useReceptionCheckIn({ openSuccess = false }: { openSuccess?: boo
       try {
         const result = await mutation.mutateAsync({ appointmentId: visit.id });
         const token = result.result === "CHECKED_IN" ? result.visit?.token : null;
-        showSuccessToast(token ? `Checked in · token ${token}` : "Checked in", { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
-        if (openSuccess) router.push(RECEPTION_ROUTES.checkInSuccess(visit.id));
+        toast.success(token ? `Checked in · token ${token}` : "Checked in", {
+          id: TOAST_IDS.APPOINTMENT.CHECK_IN,
+          duration: 8000,
+          action: { label: "Open queue", onClick: () => router.push(RECEPTION_ROUTES.queue) },
+        });
         return true;
       } catch (error) {
         const message =
@@ -211,7 +217,7 @@ export function useReceptionCheckIn({ openSuccess = false }: { openSuccess?: boo
         setPendingId(null);
       }
     },
-    [mutation, openSuccess, router],
+    [mutation, router],
   );
 
   return { checkIn, pendingId, isPending: mutation.isPending };

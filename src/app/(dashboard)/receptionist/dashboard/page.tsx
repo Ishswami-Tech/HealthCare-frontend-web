@@ -48,7 +48,7 @@ export default function ReceptionDashboardPage() {
   const today = todayKey();
   const { visits, locationName, isLoading, error, refetch, truncated } = useReceptionVisits({ from: today });
   const { desk } = useReceptionLocation();
-  const { checkIn, pendingId } = useReceptionCheckIn({ openSuccess: true });
+  const { checkIn, pendingId } = useReceptionCheckIn();
   const now = Date.now();
 
   const loadedCounts = useMemo(() => countByStage(visits), [visits]);

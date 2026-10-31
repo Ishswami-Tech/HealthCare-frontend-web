@@ -56,7 +56,7 @@ export default function ReceptionAppointmentsPage() {
     to,
     page: batchPage,
   });
-  const { checkIn, pendingId } = useReceptionCheckIn({ openSuccess: true });
+  const { checkIn, pendingId } = useReceptionCheckIn();
 
   const counts = useMemo(() => {
     const loaded = countByStage(visits);

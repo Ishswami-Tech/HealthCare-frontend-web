@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -14,6 +15,7 @@ import {
   useReversePrescriptionDispense,
 } from "@/hooks/query/usePharmacy";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { PharmacyBatchAuditEntry } from "@/types/pharmacy.types";
 import { buildDeskQueue, type DeskQueueItem } from "../../dashboard/_components/pharmacist-dashboard.logic";
 import { PharmacistPrescriptionsView } from "./PharmacistPrescriptionsView";
@@ -50,6 +52,7 @@ export default function PharmacistPrescriptionsContent() {
   useAuth();
   useWebSocketQuerySync();
 
+  const router = useRouter();
   const { clinicId } = useClinicContext();
   const { tab, setTab } = useHashTab<PrescriptionsTab>({ tabs: PRESCRIPTION_TABS, defaultValue: "active" });
   const { state, actions, openDispenseDialog, openReverseDialog } = usePharmacistPrescriptionsState();
@@ -183,7 +186,18 @@ export default function PharmacistPrescriptionsContent() {
           notes: dispenseNotes.trim() || undefined,
         },
       });
+      const dispensedId = selectedPrescription.id;
       actions.closeDispenseDialog();
+      // Shortcut to the hand-over of this prescription. The hand-over page still requires the
+      // patient's 6-digit code (or QR) before any item can be confirmed.
+      toast.success("Prescription dispensed", {
+        id: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
+        duration: 10_000,
+        action: {
+          label: "Hand over now",
+          onClick: () => router.push(`/pharmacist/handover/${encodeURIComponent(dispensedId)}`),
+        },
+      });
     } catch (error) {
       actions.setDispenseFormError(errorText(error));
     }

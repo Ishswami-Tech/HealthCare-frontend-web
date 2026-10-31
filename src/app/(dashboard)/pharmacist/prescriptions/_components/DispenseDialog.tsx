@@ -139,6 +139,12 @@ export function DispenseDialog({
               </Note>
             ) : null}
 
+            <Note tone="blue" icon={CircleAlert}>
+              Batch number and expiry date are required for every line you dispense. Copy them from the
+              pack in your hand: they are saved on the dispense record so the batch can be traced. (The
+              Dispense from stock page fills them in itself, earliest expiry first.)
+            </Note>
+
             {lines.map((line, medicineIndex) => (
               <DispenseLineCard
                 key={`${line.prescriptionItemId}-${medicineIndex}`}

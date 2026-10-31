@@ -86,13 +86,13 @@ export default function CaCheckInLogPage() {
         <StatTile label="Check-ins" value={s ? s.succeeded : "…"} hint={s ? `${s.total} attempts` : undefined} />
         <StatTile tone="brand" label="By QR scan" value={s?.byMethod.QR ?? (s ? 0 : "…")} hint={s && s.succeeded ? `${Math.round(((s.byMethod.QR ?? 0) / Math.max(1, s.total)) * 100)}% of attempts` : undefined} />
         <StatTile label="Manual + walk-in" value={s ? (s.byMethod.MANUAL ?? 0) + (s.byMethod.WALK_IN ?? 0) : "…"} />
-        <StatTile tone="rose" label="Failed, need a look" value={s ? s.unresolvedFailures : "…"} hint={s ? `${s.failed} failed in all` : undefined} href="/clinic-admin/check-ins/failed" />
+        <StatTile tone="rose" label={isToday ? "Failed today, need a look" : "Failed that day, need a look"} value={s ? s.unresolvedFailures : "…"} hint={s ? `${s.failed} failed ${isToday ? "today" : "on this day"} in total, including handled` : undefined} href="/clinic-admin/check-ins/failed" />
       </div>
 
       {s && s.unresolvedFailures > 0 ? (
         <Surface className="flex flex-wrap items-center justify-between gap-3">
           <span className="flex items-center gap-2 text-sm font-bold text-ink">
-            <TriangleAlert className="size-4 text-[#be123c]" aria-hidden="true" /> {s.unresolvedFailures} failed scans are waiting for a decision.
+            <TriangleAlert className="size-4 text-[#be123c]" aria-hidden="true" /> {s.unresolvedFailures} failed {isToday ? "scans today are" : "scans on this day are"} waiting for a decision.
           </span>
           <Button asChild size="sm">
             <Link href="/clinic-admin/check-ins/failed">Review failed check-ins</Link>

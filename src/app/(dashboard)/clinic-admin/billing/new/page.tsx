@@ -77,6 +77,16 @@ export default function CaNewInvoicePage() {
   const totals = useMemo(() => draftTotals(lines, Number(discount) || 0), [lines, discount]);
   const paid = paymentLines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
   const balance = Math.round((totals.total - paid) * 100) / 100;
+  // The buttons stay off until the invoice can be valid; the server still validates everything.
+  const readyToSave = Boolean(patient) && lines.length > 0;
+  const readyToCollect = readyToSave && paid > 0;
+  const saveHint = !patient
+    ? "Choose the patient to continue."
+    : lines.length === 0
+      ? "Add at least one service or item to continue."
+      : paid <= 0
+        ? "Enter the amount received to collect now, or save as pending."
+        : null;
 
   const toggleFee = (code: string) => {
     const fee = fees.value.find((item) => item.code === code);
@@ -302,10 +312,11 @@ export default function CaNewInvoicePage() {
             Send on WhatsApp{patient?.phone ? ` to ${patient.phone}` : ""}
           </label>
           <DialogError message={error} />
-          <Button disabled={busy} onClick={() => void submit(true)}>
-            {busy ? "Saving…" : `Collect ${formatRupees(Math.min(paid, totals.total))} & save`}
+          {saveHint ? <p className="text-xs text-ink-muted">{saveHint}</p> : null}
+          <Button disabled={busy || !readyToCollect} onClick={() => void submit(true)}>
+            {busy ? "Saving…" : readyToCollect ? `Collect ${formatRupees(Math.min(paid, totals.total))} & save` : "Collect & save"}
           </Button>
-          <Button variant="outline" disabled={busy} onClick={() => void submit(false)}>
+          <Button variant="outline" disabled={busy || !readyToSave} onClick={() => void submit(false)}>
             Save as pending
           </Button>
           <Button variant="ghost" disabled={busy} onClick={() => router.push("/clinic-admin/billing")}>

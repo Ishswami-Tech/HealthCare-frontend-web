@@ -124,10 +124,10 @@ export function PharmacistDashboardQueueCard({
                     <Button asChild>
                       <Link
                         href={href}
-                        title={item.state === "partially_dispensed" ? "Finish dispensing" : "Dispense prescription"}
+                        title={item.state === "partially_dispensed" ? "Finish dispensing" : "Review and dispense"}
                       >
                         <Check aria-hidden="true" />
-                        Dispense
+                        Review dispense
                       </Link>
                     </Button>
                   ) : null}
@@ -138,7 +138,7 @@ export function PharmacistDashboardQueueCard({
                       onClick={() => onRecordCashPayment(item)}
                       title="Record cash payment received at the counter"
                     >
-                      Mark paid — cash
+                      Collect payment
                     </Button>
                   ) : null}
                   {canDispense(item) && item.invoiceId && onPrintInvoice ? (

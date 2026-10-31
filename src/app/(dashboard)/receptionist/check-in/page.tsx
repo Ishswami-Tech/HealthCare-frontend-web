@@ -75,7 +75,7 @@ function CheckInHistory() {
 export default function ReceptionCheckInPage() {
   const today = todayKey();
   const { visits, locationName, isLoading, error, refetch } = useReceptionVisits({ from: today });
-  const { checkIn, pendingId } = useReceptionCheckIn({ openSuccess: true });
+  const { checkIn, pendingId } = useReceptionCheckIn();
   const [filter, setFilter] = useState<CheckInFilter>("waiting");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"today" | "history">("today");

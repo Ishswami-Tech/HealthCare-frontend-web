@@ -8,6 +8,7 @@ import {
   getAppointmentPaymentDisplayState,
   getAppointmentPatientName,
   getAppointmentPatientRemarks,
+  getAppointmentViewState,
   getDisplayAppointmentDuration,
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
@@ -332,8 +333,11 @@ export function mapDoctorAppointmentToTimelineItem(
         ? "TODAY"
         : "UPCOMING";
 
-  let displayStatus = apt.status as string;
-  if (apt.status === "IN_PROGRESS") displayStatus = "IN PROGRESS";
+  // Same status the appointments list shows (`getAppointmentViewState`), so one visit never reads
+  // SCHEDULED here and CONFIRMED there.
+  const viewStatus = getAppointmentViewState(apt).normalizedStatus as AppointmentStatus;
+  let displayStatus = viewStatus as string;
+  if (viewStatus === "IN_PROGRESS") displayStatus = "IN PROGRESS";
 
   return {
     id: apt.id,
@@ -344,7 +348,7 @@ export function mapDoctorAppointmentToTimelineItem(
     time: `${dateLabel} - ${timeLabel}`,
     scheduleState,
     status: displayStatus.replace(/_/g, " "),
-    statusEnum: apt.status,
+    statusEnum: viewStatus,
     type: apt.type || "Consultation",
     duration: displayDuration ? `${displayDuration} min` : "",
     notes: apt.notes || "",
@@ -637,7 +641,7 @@ export function buildDoctorDashboardStats(
 
   return {
     todayAppointments: todayApts.length,
-    confirmedToday: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "CONFIRMED").length,
+    confirmedToday: todayApts.filter((apt: AppointmentWithRelations) => getAppointmentViewState(apt).normalizedStatus === "CONFIRMED").length,
     inPersonToday: todayApts.filter((apt: AppointmentWithRelations) => String(apt.type || "").toUpperCase() === "IN_PERSON").length,
     liveQueueCount: liveQueueEntries.length,
     checkedInPatients: todayApts.filter((apt: AppointmentWithRelations) => Boolean(apt.checkedInAt)).length,

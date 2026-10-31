@@ -61,7 +61,7 @@ export default function ReceptionPatientDetailPage() {
     },
     { enabled: Boolean(patientRecordId) },
   );
-  const { checkIn, pendingId } = useReceptionCheckIn({ openSuccess: true });
+  const { checkIn, pendingId } = useReceptionCheckIn();
   const now = Date.now();
   const upcoming = visits.filter(
     (visit) => (visit.stage === "booked" || visit.stage === "checked_in" || visit.stage === "with_doctor") && (visit.startsAtMs ?? now) >= now - 6 * 60 * 60 * 1000,
@@ -105,6 +105,7 @@ export default function ReceptionPatientDetailPage() {
                 error={error}
                 onRetry={() => void refetch()}
                 showDate
+                showPatient={false}
                 onCheckIn={(visit) => void checkIn(visit)}
                 checkingInId={pendingId}
                 renderMore={(visit) => <ReceptionRowActions visit={visit} />}
@@ -124,6 +125,7 @@ export default function ReceptionPatientDetailPage() {
                 visits={past.slice(0, 10)}
                 isLoading={isLoading}
                 showDate
+                showPatient={false}
                 emptyTitle="No past visits"
               />
             </Surface>
