@@ -539,69 +539,6 @@ export default function EHRSystem() {
                     </CardContent>
                   </Card>
 
-                  {/* System Health */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Shield className="size-5" />
-                        System Health & Performance
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="gap-y-4">
-                        <div className="flex items-center justify-between">
-                          <span>Database Connection</span>
-                          <div className="flex items-center gap-2">
-                            <div className="size-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm text-green-600">
-                              Online
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span>Backup Status</span>
-                          <div className="flex items-center gap-2">
-                            <div className="size-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm text-green-600">
-                              Up to date
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span>System Load</span>
-                          <div className="flex items-center gap-2">
-                            <div className="size-2 bg-yellow-500 rounded-full"></div>
-                            <span className="text-sm text-yellow-600">
-                              Moderate (65%)
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span>Security Status</span>
-                          <div className="flex items-center gap-2">
-                            <div className="size-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm text-green-600">
-                              Secure
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="pt-4 border-t">
-                          <p className="text-sm text-gray-600">
-                            <strong>Last System Update:</strong> January 10,
-                            2024
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            <strong>Data Integrity Check:</strong> Passed
-                            (January 15, 2024)
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
                 </div>
 
                 {/* Quick Actions */}
@@ -807,151 +744,17 @@ export default function EHRSystem() {
               </TabsContent>
 
               <TabsContent value="analytics">
-                <div className="gap-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="size-5" />
-                        EHR Analytics Dashboard
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div className="p-4 bg-blue-50 rounded-lg">
-                          <h4 className="font-semibold text-blue-800 mb-2">
-                            Patient Growth
-                          </h4>
-                          <div className="text-2xl font-bold text-blue-600">
-                            +15%
-                          </div>
-                          <p className="text-sm text-blue-600">
-                            This month vs last month
-                          </p>
-                        </div>
-
-                        <div className="p-4 bg-green-50 rounded-lg">
-                          <h4 className="font-semibold text-green-800 mb-2">
-                            Record Completeness
-                          </h4>
-                          <div className="text-2xl font-bold text-green-600">
-                            94.2%
-                          </div>
-                          <p className="text-sm text-green-600">
-                            Complete patient records
-                          </p>
-                        </div>
-
-                        <div className="p-4 bg-purple-50 rounded-lg">
-                          <h4 className="font-semibold text-purple-800 mb-2">
-                            System Uptime
-                          </h4>
-                          <div className="text-2xl font-bold text-purple-600">
-                            99.9%
-                          </div>
-                          <p className="text-sm text-purple-600">
-                            Last 30 days
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Usage Analytics</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-center p-8 text-gray-500">
-                        <TrendingUp className="size-16 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium mb-2">
-                          Advanced Analytics Coming Soon
-                        </h3>
-                        <p>
-                          Detailed usage statistics, patient trends, and
-                          performance metrics will be available here.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    EHR usage analytics are not available yet. Clinic figures are on the Analytics page.
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="settings">
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="size-5" />
-                      EHR System Settings
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="gap-y-6">
-                      <div>
-                        <h4 className="font-semibold mb-4">Data Management</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Button
-                            variant="outline"
-                            className="h-16 flex flex-col items-center justify-center gap-2"
-                          >
-                            <Database className="size-6" />
-                            <span className="text-sm">Backup Settings</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="h-16 flex flex-col items-center justify-center gap-2"
-                          >
-                            <Shield className="size-6" />
-                            <span className="text-sm">Security Settings</span>
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="font-semibold mb-4">
-                          System Configuration
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Button
-                            variant="outline"
-                            className="h-16 flex flex-col items-center justify-center gap-2"
-                          >
-                            <Zap className="size-6" />
-                            <span className="text-sm">Performance</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="h-16 flex flex-col items-center justify-center gap-2"
-                          >
-                            <Bell className="size-6" />
-                            <span className="text-sm">Alert Settings</span>
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-semibold mb-2">
-                          System Information
-                        </h4>
-                        <div className="gap-y-2 text-sm text-gray-600">
-                          <div className="flex justify-between">
-                            <span>EHR System Version:</span>
-                            <span>v2.4.1</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Database Version:</span>
-                            <span>PostgreSQL 15.2</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Last System Update:</span>
-                            <span>January 10, 2024</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>HIPAA Compliance:</span>
-                            <span className="text-green-600">â“ Certified</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    EHR system settings are managed by the clinic administrator in Settings. Nothing is configurable from this screen.
                   </CardContent>
                 </Card>
               </TabsContent>

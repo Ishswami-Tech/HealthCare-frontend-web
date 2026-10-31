@@ -217,7 +217,30 @@ export function getProtectedRouteRoles(path: string): Role[] {
     Role.DOCTOR, Role.ASSISTANT_DOCTOR,
     Role.RECEPTIONIST, Role.CLINIC_LOCATION_HEAD,
     Role.THERAPIST, Role.NURSE, Role.COUNSELOR,
-    Role.PATIENT,
+  ];
+
+  // Staff clinical / analytics shells. Role lists mirror the backend @Roles of the matching
+  // controllers (analytics, ehr, ayurveda, diet, ipd). The backend stays the real boundary; this
+  // only stops roles that can never load the data from opening an empty staff screen.
+  // Patients read their own record through /patient/*, never through these shells.
+  if (matchesPrefix(path, '/analytics')) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.RECEPTIONIST, Role.NURSE, Role.FINANCE_BILLING,
+  ];
+  if (matchesPrefix(path, '/ehr')) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.NURSE, Role.RECEPTIONIST,
+    Role.LAB_TECHNICIAN, Role.THERAPIST, Role.COUNSELOR,
+  ];
+  if (
+    matchesPrefix(path, '/ayurveda') ||
+    matchesPrefix(path, '/diet') ||
+    matchesPrefix(path, '/ipd')
+  ) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.NURSE,
   ];
 
   // API route exception for invoice PDF streaming

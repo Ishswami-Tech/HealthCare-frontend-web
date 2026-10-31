@@ -144,7 +144,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Dashboard", href: "/pharmacist/dashboard", icon: LayoutDashboard },
     { title: "Prescriptions", href: "/pharmacist/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
     { title: "Hand-over", href: "/pharmacist/handover", icon: HandHeart, permission: Permission.HANDOVER_MEDICINES },
-    { title: "Dispense", href: "/pharmacist/dispense", icon: PackageCheck, permission: Permission.DISPENSE_FROM_CLINIC_STOCK },
+    { title: "Dispense from stock", href: "/pharmacist/dispense", icon: PackageCheck, permission: Permission.DISPENSE_FROM_CLINIC_STOCK },
     { title: "Inventory", href: "/pharmacy", icon: ClipboardList, permission: Permission.MANAGE_INVENTORY },
     { title: "Billing", href: "/pharmacist/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
     { title: "Notifications", href: "/pharmacist/notifications", icon: Bell },
