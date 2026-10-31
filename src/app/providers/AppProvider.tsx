@@ -6,6 +6,9 @@
  * NO loading overlay - uses inline loading states
  */
 
+// Keep first: zod reads `jitless` when schemas are constructed (see zod-config). Client
+// bundles also get it from instrumentation-client; this covers any chunk evaluated earlier.
+import "@/lib/zod-config";
 import { ThemeProvider } from "next-themes";
 import QueryProvider from "@/app/providers/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";

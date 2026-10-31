@@ -4,6 +4,8 @@
  * Follows DRY, SOLID, KISS principles
  */
 
+// Must stay the first import: zod reads `jitless` when schemas are constructed (see zod-config).
+import "@/lib/zod-config";
 import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
 import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
