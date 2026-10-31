@@ -2,7 +2,7 @@
 
 import { ROUTES } from "@/lib/config/routes";
 import { clearTokens } from "@/lib/utils/token-manager";
-import { refreshToken } from "@/lib/actions/auth.server";
+import { clearSession, refreshToken } from "@/lib/actions/auth.server";
 import { useAuthStore } from "@/stores/auth.store";
 import type { Session } from "@/types/auth.types";
 import { resetAllStores } from "@/stores";
@@ -187,6 +187,8 @@ export function refreshClientSessionOnce(
 // A request that was in flight when the user pressed "Log out" comes back 401 once the session is
 // gone; its recovery must not race the logout and land on `?reason=session-expired`.
 const VOLUNTARY_LOGOUT_GUARD_MS = 15_000;
+// Redirect even if clearing the server cookies hangs.
+const AUTH_RECOVERY_REDIRECT_FALLBACK_MS = 3_000;
 type LogoutAwareWindow = Window & { __voluntaryLogoutAt?: number; __authRecoveryInProgress?: boolean };
 
 /** Call at the very start of a user-initiated logout. */
@@ -217,12 +219,21 @@ export function triggerClientAuthRecovery(): void {
 
   (window as Window & { __authRecoveryInProgress?: boolean }).__authRecoveryInProgress = true;
 
+  let redirected = false;
+  const redirectToLogin = () => {
+    if (redirected) return;
+    redirected = true;
+    window.location.replace(`${ROUTES.LOGIN}?reason=session-expired`);
+  };
+
   try {
     clearTokens();
     resetAllStores();
   } finally {
-    window.setTimeout(() => {
-      window.location.replace(`${ROUTES.LOGIN}?reason=session-expired`);
-    }, 150);
+    // The auth cookies are httpOnly, so only the server can drop them. Without this the proxy
+    // still sees access_token + user_role and bounces /auth/login straight back to the
+    // dashboard, which kept rendering the shell for a revoked session.
+    clearSession().then(redirectToLogin, redirectToLogin);
+    window.setTimeout(redirectToLogin, AUTH_RECOVERY_REDIRECT_FALLBACK_MS);
   }
 }

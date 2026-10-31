@@ -7,6 +7,7 @@ import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 import { logger } from '@/lib/utils/logger';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
+import { writeIdentityCookies } from '@/lib/utils/identity-cookies';
 
 // Extract structured validation errors from an error object.
 // Must be called BEFORE sanitizeErrorMessage() which converts to a plain string.
@@ -175,16 +176,9 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
               : undefined;
       const firstName = typeof responseUser.firstName === 'string' ? responseUser.firstName.trim() : '';
       const lastName = typeof responseUser.lastName === 'string' ? responseUser.lastName.trim() : '';
-      const userName =
-        typeof responseUser.name === 'string' && responseUser.name.trim()
-          ? responseUser.name.trim()
-          : [firstName, lastName].filter(Boolean).join(' ').trim();
-      const verifiedPhone = typeof responseUser.phone === 'string' ? responseUser.phone.trim() : '';
 
-      if (firstName) cookieStore.set({ name: 'first_name', value: firstName, ...cookieOptions });
-      if (lastName) cookieStore.set({ name: 'last_name', value: lastName, ...cookieOptions });
-      if (userName) cookieStore.set({ name: 'user_name', value: userName, ...cookieOptions });
-      if (verifiedPhone) cookieStore.set({ name: 'verified_phone', value: verifiedPhone, ...cookieOptions });
+      // Name/phone are not copied into cookies (PII); a non-PII flag covers the stale-JWT window.
+      writeIdentityCookies(cookieStore, firstName && lastName ? true : undefined);
       if (explicitProfileComplete !== undefined) {
         cookieStore.set({
           name: 'profile_complete',

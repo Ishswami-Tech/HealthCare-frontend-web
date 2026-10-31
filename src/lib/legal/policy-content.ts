@@ -45,31 +45,105 @@ export const termsSections = [
   },
 ] as const;
 
+/**
+ * Placeholders the owner must fill before publishing. Shown verbatim on the
+ * page so a missing decision is visible instead of silently invented.
+ */
+export const legalPlaceholders = {
+  grievanceOfficerName: "[Grievance Officer name - to be confirmed by the owner]",
+  grievanceOfficerContact:
+    "[Grievance Officer email / postal address - to be confirmed by the owner]",
+  deactivatedAccountPurgePeriod: "[period - to be decided by the owner]",
+  clinicalRecordRetentionPeriod:
+    "[period required by applicable medical-records rules - to be confirmed by the owner/legal]",
+  billingRecordRetentionPeriod:
+    "[period required by tax/accounting law - to be confirmed by the owner/legal]",
+  logRetentionPeriod: "[period - to be decided by the owner]",
+} as const;
+
+/*
+ * DRAFT - FOR OWNER / LEGAL REVIEW BEFORE PUBLISHING (REL-03).
+ * The data categories and processors below describe what the web portal and the
+ * mobile app actually collect and which third-party services the code uses
+ * (Firebase, Daily.co, Cashfree, PhonePe, Razorpay/Zoho where a clinic enables
+ * them, Sentry when a DSN is configured, email/WhatsApp delivery providers).
+ * Retention periods, the grievance officer and the rights wording are drafts or
+ * placeholders (legalPlaceholders) and must be confirmed by the owner/legal
+ * counsel under India's Digital Personal Data Protection Act, 2023 (DPDP Act).
+ */
 export const privacySections = [
   {
     title: "1. Information We Collect",
-    body: "We collect information you provide directly to us, such as when you create or modify your account, request appointments, contact support, or otherwise communicate with us. This may include name, email, verified phone number, address, date of birth, gender, medical history information you choose to provide, appointment details, billing records, and payment status.",
-  },
-  {
-    title: "2. How We Use Your Information",
-    body: "We use the information we collect to provide, maintain, and improve our services, including facilitating medical appointments and consultations, sending important notices and security alerts, responding to support requests, and monitoring usage and service trends.",
+    body: "We collect the information you give us when you create or update your account, book or attend appointments, upload documents, pay, or contact support, plus a limited set of device data needed to run the service.",
     bullets: [
-      "Facilitate medical appointments and consultations.",
-      "Send technically important notices, updates, security alerts, and support messages.",
-      "Respond to comments, questions, and requests.",
-      "Monitor and analyze trends, usage, and activities in connection with our services.",
+      "Account and profile: name, verified phone number and/or email, date of birth, gender, address, city/state, and family members you add.",
+      "Health information you or your clinic record: medical history, symptoms, case sheets, prescriptions, reports and documents you upload, and appointment and visit details.",
+      "Billing: invoices, payment status, refund records and transaction references. Card, UPI and bank details are entered in the payment provider's own checkout; the app and website never see or store card numbers.",
+      "Location: only when you check in for an in-clinic appointment, your device location is read once to confirm you are at the clinic. Location is not tracked in the background.",
+      "Camera: used to scan the clinic's check-in QR code, and to take photos of documents you choose to upload.",
+      "Camera and microphone: used during video consultations, only while a call is active and after you grant permission.",
+      "Device identifiers: a push-notification token and Firebase installation ID, stored against your account so we can send appointment and queue notifications.",
+      "Crash and diagnostic data: error reports and basic performance data (device model, OS and app version, the error) used to fix problems. These reports are configured to leave out health details.",
+      "Support and messages: messages you send to the clinic or support team.",
     ],
   },
   {
-    title: "3. Data Security",
-    body: "We take reasonable measures to help protect information about you from loss, theft, misuse, unauthorized access, disclosure, alteration, and destruction. Sensitive health and billing data is handled using appropriate security controls.",
+    title: "2. How We Use Your Information",
+    body: "We use your information only to provide and secure the clinic service you asked for.",
+    bullets: [
+      "Book, manage and remind you about appointments, queues and video consultations.",
+      "Let your doctor and authorised clinic staff see the records they need to treat you.",
+      "Process payments, invoices and refunds.",
+      "Send service messages (OTP, booking confirmations, reminders, security alerts) by SMS, WhatsApp, email or push notification.",
+      "Detect fraud and abuse, keep the service secure, and fix errors.",
+    ],
   },
   {
-    title: "4. Your Rights",
-    body: "You have the right to access, update, or delete your personal information by logging into your account or contacting support. You may also request a copy of your medical data in a portable format where applicable.",
+    title: "3. Service Providers We Share Data With",
+    body: "We do not sell your personal data and do not use it for advertising. Each provider receives only the data it needs to perform its service for us:",
+    bullets: [
+      "Google Firebase: push notifications (device token, installation ID).",
+      "Daily.co: real-time audio and video for video consultations (your display name and the call media while the call is live).",
+      "Cashfree Payments and PhonePe, and Razorpay or Zoho Payments where your clinic has enabled them: payment processing (amount, order reference, and the name and phone/email needed for the transaction).",
+      "Sentry: crash and error diagnostics, when enabled.",
+      "Email, SMS and WhatsApp delivery providers configured for the clinic: delivery of OTPs and service messages.",
+      "Cloud hosting and storage providers that run our servers, database and uploaded files.",
+      "Government or law-enforcement authorities, where disclosure is required by law.",
+    ],
   },
   {
-    title: "5. Appointment and Billing Notices",
+    title: "4. Data Retention",
+    body: "We keep personal data only as long as needed for the purposes above or as required by law.",
+    bullets: [
+      "Active accounts: for as long as the account is in use.",
+      `Deactivated accounts: sign-in is disabled immediately; remaining eligible account data is deleted or anonymised after ${legalPlaceholders.deactivatedAccountPurgePeriod}.`,
+      `Clinical records (case sheets, prescriptions, reports): ${legalPlaceholders.clinicalRecordRetentionPeriod}.`,
+      `Invoices and payment records: ${legalPlaceholders.billingRecordRetentionPeriod}.`,
+      `Security and diagnostic logs: ${legalPlaceholders.logRetentionPeriod}.`,
+    ],
+  },
+  {
+    title: "5. Data Security",
+    body: "Data is encrypted in transit (HTTPS/TLS), access to health records is limited to your treating doctor and authorised clinic staff, and sign-in sessions can be revoked. No method of storage or transmission is completely secure, but we take reasonable measures to protect your information.",
+  },
+  {
+    title: "6. Your Rights",
+    body: "Subject to the Digital Personal Data Protection Act, 2023 and other applicable law, you may:",
+    bullets: [
+      "Ask for a summary of the personal data we hold about you and how it is processed.",
+      "Correct or update inaccurate or incomplete data (most profile fields can be edited in the app or website).",
+      "Withdraw consent and ask for erasure of your data, including by deactivating your account (see the Data Deletion page). Records we must keep by law are retained for the required period.",
+      "Nominate another person to exercise these rights on your behalf in case of death or incapacity.",
+      "Raise a grievance with our Grievance Officer and, if it is not resolved, with the Data Protection Board of India.",
+      "Turn off location, camera, microphone or notification permissions at any time in your device settings; the related feature will then not work.",
+    ],
+  },
+  {
+    title: "7. Grievance Officer",
+    body: `${legalPlaceholders.grievanceOfficerName}. Contact: ${legalPlaceholders.grievanceOfficerContact}.`,
+  },
+  {
+    title: "8. Appointment and Billing Notices",
     body: `${patientDataDisclosure} ${paymentCollectionDisclosure} Payment processors receive only the information required to create, process, verify, refund, or reconcile the transaction.`,
   },
 ] as const;

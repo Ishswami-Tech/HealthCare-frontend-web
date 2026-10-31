@@ -1,8 +1,7 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import {
-  buildConnectSrcSources,
-  buildOriginConnectSrc,
+  buildContentSecurityPolicy,
   PERMISSIONS_POLICY_VALUE,
 } from "./src/lib/config/csp";
 
@@ -27,16 +26,16 @@ const configuredServerActionOrigins = (
 const serverActionOrigins = [
   ...new Set([appOrigin, "localhost:3000", ...configuredServerActionOrigins]),
 ];
-const connectSrc = Array.from(
-  new Set([
-    ...buildConnectSrcSources(undefined),
-    ...buildOriginConnectSrc(process.env.NEXT_PUBLIC_APP_URL),
-    ...buildOriginConnectSrc(
-      process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
-    ),
-    ...buildOriginConnectSrc(process.env.NEXT_PUBLIC_WEBSOCKET_URL),
-  ]),
-).join(" ");
+// Same policy the proxy sends; this copy covers paths the proxy matcher skips
+// (service worker, static assets). upgrade-insecure-requests is left to the
+// proxy, which knows whether the request arrived over HTTPS.
+const contentSecurityPolicy = buildContentSecurityPolicy({
+  appUrl: process.env.NEXT_PUBLIC_APP_URL,
+  apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
+  websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL,
+  isDevelopment: !isProduction,
+  enforceHttps: false,
+});
 
 const nextConfig: NextConfig = {
   /* =====================================================
@@ -44,6 +43,8 @@ const nextConfig: NextConfig = {
    * ===================================================== */
   reactStrictMode: true,
   compress: true,
+  // Do not advertise the framework (X-Powered-By: Next.js).
+  poweredByHeader: false,
   ...(process.env.VERCEL ? {} : { output: "standalone" }),
 
   /* =====================================================
@@ -126,7 +127,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: `connect-src ${connectSrc}; form-action 'self' https://*.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;`,
+            value: contentSecurityPolicy,
           },
         ].filter(
           (header) =>

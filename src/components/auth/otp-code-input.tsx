@@ -13,6 +13,8 @@ interface OtpCodeInputProps {
   invalid?: boolean;
   /** Move the keyboard focus to the code field when it appears. */
   autoFocus?: boolean;
+  /** Ref to the underlying input, e.g. to refocus the first box after a wrong code. */
+  inputRef?: React.Ref<HTMLInputElement>;
   maxLength?: number;
   className?: string;
   containerClassName?: string;
@@ -71,6 +73,7 @@ export function OtpCodeInput({
   disabled,
   invalid = false,
   autoFocus = false,
+  inputRef,
   maxLength = 6,
   className,
   containerClassName,
@@ -86,6 +89,7 @@ export function OtpCodeInput({
 
   return (
     <InputOTP
+      ref={inputRef}
       maxLength={maxLength}
       value={value}
       onChange={onChange}

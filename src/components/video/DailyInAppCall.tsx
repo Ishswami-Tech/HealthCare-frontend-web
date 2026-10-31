@@ -239,6 +239,9 @@ function acquireCallObject(): DailyCall {
         startVideoOff: false,
         startAudioOff: false,
         allowMultipleCallInstances: true,
+        // Load the call-machine bundle without Function()/eval so the CSP
+        // can omit 'unsafe-eval' in production (see src/lib/config/csp.ts).
+        dailyConfig: { avoidEval: true },
       }),
     );
   }

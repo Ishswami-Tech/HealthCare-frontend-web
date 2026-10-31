@@ -30,6 +30,21 @@ type ClinicRequestInit = RequestInit & {
 };
 
 // ✅ Custom Error Classes
+/**
+ * True when a 401 says the session/token itself is no longer valid (revoked,
+ * expired, invalid) - as opposed to a 401 from a credential check such as a
+ * wrong current password, which must not log the user out.
+ */
+async function isDeadSessionResponse(response: Response): Promise<boolean> {
+  try {
+    const body = (await response.clone().json()) as { message?: unknown; error?: unknown };
+    const text = `${String(body?.message ?? '')} ${String(body?.error ?? '')}`.toLowerCase();
+    return ['revoked', 'session', 'token', 'jwt'].some((pattern) => text.includes(pattern));
+  } catch {
+    return false;
+  }
+}
+
 export class ApiError extends Error {
   public statusCode: number;
   public code: string;
@@ -822,7 +837,20 @@ export class ApiClient {
                ) as HeadersInit,
                timeout: this.timeout
            };
-           return fetchWithAbort(url, newConfig);
+           const retried = await fetchWithAbort(url, newConfig);
+           // Refresh "worked" but the API still rejects the session (e.g. it was
+           // revoked by a logout on another device): the session is dead, so
+           // clear auth and send the user to login instead of leaving the
+           // dashboard shell rendered with a stale name.
+           if (
+             retried.status === HTTP_STATUS.UNAUTHORIZED &&
+             typeof window !== 'undefined' &&
+             (await isDeadSessionResponse(retried))
+           ) {
+             await this.clearAuthSession();
+             triggerClientAuthRecovery();
+           }
+           return retried;
         }
 
         return res;

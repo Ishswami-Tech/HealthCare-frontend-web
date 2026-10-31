@@ -24,6 +24,11 @@ import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
 import { revalidatePath } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
+import {
+  clearIdentityCookies,
+  readIdentityComplete,
+  writeIdentityCookies,
+} from '@/lib/utils/identity-cookies';
 
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
 
@@ -360,17 +365,9 @@ function hasMeaningfulPatientIdentity(userData: Record<string, unknown> | undefi
 
 function hasMeaningfulPatientIdentityFromCandidates(
   userData: Record<string, unknown> | undefined,
-  firstNameCookie?: string,
-  lastNameCookie?: string
+  identityCompleteCookie: boolean
 ): boolean {
-  if (hasMeaningfulPatientIdentity(userData)) {
-    return true;
-  }
-
-  return (
-    isMeaningfulIdentityValue(firstNameCookie) &&
-    isMeaningfulIdentityValue(lastNameCookie)
-  );
+  return hasMeaningfulPatientIdentity(userData) || identityCompleteCookie;
 }
 
 function resolveProfileCompleteFromPayload(
@@ -653,10 +650,8 @@ export async function getServerSession(): Promise<Session | null> {
     const sessionId = cookieStore.get('session_id')?.value;
     const userRole = cookieStore.get('user_role')?.value;
     const profileCompleteCookie = cookieStore.get('profile_complete')?.value;
-    const firstNameCookie = cookieStore.get('first_name')?.value?.trim() || '';
-    const lastNameCookie = cookieStore.get('last_name')?.value?.trim() || '';
-    const nameCookie = cookieStore.get('user_name')?.value?.trim() || '';
-    const verifiedPhoneCookie = cookieStore.get('verified_phone')?.value?.trim() || '';
+    // Non-PII flag that replaces the old first_name/last_name cookies (stale-JWT fallback).
+    const identityCompleteCookie = readIdentityComplete(cookieStore);
     const profileComplete = profileCompleteCookie === 'true';
     const cookieClinicId = normalizeClinicId(cookieStore.get('clinic_id')?.value);
 
@@ -735,7 +730,7 @@ export async function getServerSession(): Promise<Session | null> {
             ? payload.phone
             : typeof payload?.mobile === 'string'
               ? payload.mobile
-              : verifiedPhoneCookie,
+              : '',
         profileComplete: profileComplete,
         clinicId: resolvedClinicId,
         ...(extractClinicNameFromPayload(payload) ? { clinicName: extractClinicNameFromPayload(payload) } : {}),
@@ -759,7 +754,7 @@ export async function getServerSession(): Promise<Session | null> {
             ? tokenPayload['phone']
             : typeof tokenPayload['mobile'] === 'string'
               ? tokenPayload['mobile']
-              : session.user.phone || verifiedPhoneCookie || '';
+              : session.user.phone || '';
         session.user.role = (tokenPayload['role'] as Role) || (userRole as Role);
         if (!session.user.loginMethod && typeof tokenPayload['loginMethod'] === 'string') {
           session.user.loginMethod = tokenPayload['loginMethod'] as User['loginMethod'];
@@ -768,17 +763,18 @@ export async function getServerSession(): Promise<Session | null> {
           session.user.emailVerified = true;
         }
         const tokenNameParts = extractNamePartsFromPayload(tokenPayload);
-        session.user.firstName = session.user.firstName || tokenNameParts.firstName || firstNameCookie;
-        session.user.lastName = session.user.lastName || tokenNameParts.lastName || lastNameCookie;
-        session.user.name = session.user.name || tokenNameParts.name || nameCookie;
+        session.user.firstName = session.user.firstName || tokenNameParts.firstName || '';
+        session.user.lastName = session.user.lastName || tokenNameParts.lastName || '';
+        session.user.name = session.user.name || tokenNameParts.name || '';
         if (!session.user.clinicId) {
           session.user.clinicId =
             payloadClinicId || cookieClinicId;
         }
 
         const hasMeaningfulName =
-          String(session.user.firstName || '').trim().length > 0 &&
-          String(session.user.lastName || '').trim().length > 0;
+          (String(session.user.firstName || '').trim().length > 0 &&
+            String(session.user.lastName || '').trim().length > 0) ||
+          identityCompleteCookie;
         if (String(session.user.role || '').toUpperCase() === String(Role.PATIENT) && !hasMeaningfulName) {
           authoritativeProfileComplete = false;
         }
@@ -837,8 +833,7 @@ export async function getServerSession(): Promise<Session | null> {
       // and the user can never be redirected to profile completion even when the actual data is empty.
       const hasIdentity = hasMeaningfulPatientIdentityFromCandidates(
         userData as Record<string, unknown>,
-        firstNameCookie,
-        lastNameCookie,
+        identityCompleteCookie,
       );
       const finalProfileComplete =
         ((authoritativeProfileComplete ?? resolvedFromUserData ?? profileComplete) === true) &&
@@ -849,8 +844,8 @@ export async function getServerSession(): Promise<Session | null> {
           id: userData.id,
           ...(userData.email ? { email: userData.email } : {}),
           role: userData.role || userRole as Role,
-          firstName: userData.firstName || userData.first_name || firstNameCookie || '',
-          lastName: userData.lastName || userData.last_name || lastNameCookie || '',
+          firstName: userData.firstName || userData.first_name || '',
+          lastName: userData.lastName || userData.last_name || '',
           name: userData.name || `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
           phone: userData.phone || '',
           dateOfBirth: userData.dateOfBirth || userData.date_of_birth || null,
@@ -962,7 +957,6 @@ export async function setSession(data: {
     const currentSessionId = cookieStore.get('session_id')?.value;
     const currentUserRole = cookieStore.get('user_role')?.value as Role;
     const currentProfileComplete = cookieStore.get('profile_complete')?.value === 'true';
-    const verifiedPhoneCookie = cookieStore.get('verified_phone')?.value?.trim() || '';
     const newSessionId = sessionIdValue || currentSessionId;
 
     // Recover user claims from JWT when refresh response does not include user payload.
@@ -1047,7 +1041,7 @@ export async function setSession(data: {
           role: resolvedUserRole,
           firstName: '',
           lastName: '',
-          phone: verifiedPhoneCookie,
+          phone: '',
           dateOfBirth: null,
           gender: '',
           address: '',
@@ -1065,7 +1059,6 @@ export async function setSession(data: {
 
   // Always prefer JWT-derived clinic ID over user payload or cookie value
   const jwtClinicId = extractClinicIdFromTokenValue(accessTokenValue);
-  const verifiedPhoneCookie = cookieStore.get('verified_phone')?.value?.trim() || '';
   const resolvedClinicId = normalizeClinicId(jwtClinicId || data.user?.clinicId || (data.user as any).primaryClinicId);
 
   const session: Session = {
@@ -1078,7 +1071,7 @@ export async function setSession(data: {
       firstName: data.user.firstName || '',
       lastName: data.user.lastName || '',
       ...(data.user.firstName || data.user.lastName ? { name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() } : {}),
-      phone: data.user.phone || verifiedPhoneCookie || '',
+      phone: data.user.phone || '',
       dateOfBirth: data.user.dateOfBirth || null,
       gender: data.user.gender || '',
       address: data.user.address || '',
@@ -1180,29 +1173,7 @@ export async function clearSession() {
     ...expiredOptions,
   });
 
-  cookieStore.set({
-    name: 'first_name',
-    value: '',
-    ...expiredOptions,
-  });
-
-  cookieStore.set({
-    name: 'last_name',
-    value: '',
-    ...expiredOptions,
-  });
-
-  cookieStore.set({
-    name: 'user_name',
-    value: '',
-    ...expiredOptions,
-  });
-
-  cookieStore.set({
-    name: 'verified_phone',
-    value: '',
-    ...expiredOptions,
-  });
+  clearIdentityCookies(cookieStore);
 
   cookieStore.set({
     name: 'login_method',
@@ -1797,15 +1768,6 @@ async function setAuthCookies(data: {
     });
   }
 
-  const verifiedPhone = typeof data.user?.phone === 'string' ? data.user.phone.trim() : '';
-  if (verifiedPhone) {
-    cookieStore.set({
-      name: 'verified_phone',
-      value: verifiedPhone,
-      ...cookieOptions(),
-    });
-  }
-
   // Always prefer JWT-derived clinic ID over user payload or cookie value
   const normalizedClinicId = normalizeClinicId(
     extractClinicIdFromTokenValue(accessTokenValue) ||
@@ -1830,33 +1792,13 @@ async function setAuthCookies(data: {
     });
   }
 
+  // No name/phone cookies (PII); only a non-PII "has a real name" flag.
   const firstName = typeof data.user?.firstName === 'string' ? data.user.firstName.trim() : '';
   const lastName = typeof data.user?.lastName === 'string' ? data.user.lastName.trim() : '';
-  const name = typeof data.user?.name === 'string' ? data.user.name.trim() : '';
-
-  if (firstName) {
-    cookieStore.set({
-      name: 'first_name',
-      value: firstName,
-      ...cookieOptions(),
-    });
-  }
-
-  if (lastName) {
-    cookieStore.set({
-      name: 'last_name',
-      value: lastName,
-      ...cookieOptions(),
-    });
-  }
-
-  if (name) {
-    cookieStore.set({
-      name: 'user_name',
-      value: name,
-      ...cookieOptions(),
-    });
-  }
+  writeIdentityCookies(
+    cookieStore,
+    isMeaningfulIdentityValue(firstName) && isMeaningfulIdentityValue(lastName) ? true : undefined,
+  );
 
   // Set profile completion status
   let profileComplete: string | undefined;
@@ -2159,12 +2101,7 @@ export async function setProfileComplete(complete: boolean) {
   const secure = process.env.NODE_ENV === 'production';
   const firstName = typeof session.user.firstName === 'string' ? session.user.firstName.trim() : '';
   const lastName = typeof session.user.lastName === 'string' ? session.user.lastName.trim() : '';
-  const userName =
-    typeof session.user.name === 'string' && session.user.name.trim()
-      ? session.user.name.trim()
-      : [firstName, lastName].filter(Boolean).join(' ').trim();
-  const verifiedPhone = typeof session.user.phone === 'string' ? session.user.phone.trim() : '';
-  
+
   cookieStore.set({
     name: 'profile_complete',
     value: complete.toString(),
@@ -2175,53 +2112,10 @@ export async function setProfileComplete(complete: boolean) {
     maxAge: 60 * 60 * 24 * 7,
   });
 
-  if (isMeaningfulIdentityValue(firstName)) {
-    cookieStore.set({
-      name: 'first_name',
-      value: firstName,
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
-    });
-  }
-
-  if (isMeaningfulIdentityValue(lastName)) {
-    cookieStore.set({
-      name: 'last_name',
-      value: lastName,
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
-    });
-  }
-
-  if (isMeaningfulIdentityValue(userName)) {
-    cookieStore.set({
-      name: 'user_name',
-      value: userName,
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
-    });
-  }
-
-  if (verifiedPhone) {
-    cookieStore.set({
-      name: 'verified_phone',
-      value: verifiedPhone,
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
-    });
-  }
+  writeIdentityCookies(
+    cookieStore,
+    isMeaningfulIdentityValue(firstName) && isMeaningfulIdentityValue(lastName) ? true : undefined,
+  );
 
   revalidatePath('/', 'layout');
 }

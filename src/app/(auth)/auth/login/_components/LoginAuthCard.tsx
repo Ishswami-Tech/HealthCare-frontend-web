@@ -144,6 +144,26 @@ export function LoginAuthCard({
     void submitOtpOnce();
   }, [isFormDisabled, isVerifyingOTP, otpValue, showOTPInput, submitOtpOnce]);
 
+  // D6: after a rejected code the six wrong digits stayed in the boxes and, with every box full,
+  // typing could not replace them. Clear the code and put the caret back in the first box.
+  const otpInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!authError || !showOTPInput || isVerifyingOTP || isFormDisabled) {
+      return;
+    }
+    if (!otpValue) {
+      return;
+    }
+    otpForm.setValue("otp", "");
+    lastAutoSubmittedOtpRef.current = "";
+    const input = otpInputRef.current;
+    if (input) {
+      input.focus();
+      input.setSelectionRange(0, 0);
+    }
+    // Typing a new digit clears authError (onOtpChange), so this never wipes a code being retyped.
+  }, [authError, isFormDisabled, isVerifyingOTP, otpForm, otpValue, showOTPInput]);
+
   const identifierValue =
     typeof otpForm.watch === "function" ? ((otpForm.watch("identifier") as string) ?? "") : "";
   const identifierError = otpForm.formState?.errors?.identifier?.message as string | undefined;
@@ -299,6 +319,7 @@ export function LoginAuthCard({
                     <FormControl>
                       <OtpCodeInput
                         autoFocus
+                        inputRef={otpInputRef}
                         value={field.value}
                         onChange={(value) => {
                           field.onChange(value);
