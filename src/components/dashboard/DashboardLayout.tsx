@@ -26,6 +26,7 @@ import { useLayoutStore } from "@/stores/layout.store";
 import { useAuthStore } from "@/stores";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 import { useUserProfile } from "@/hooks/query/useUsers";
+import { useOwnDoctorName } from "@/hooks/query/useDoctors";
 import { usePrefetchAppointmentsForRole } from "@/hooks/query/useAppointments";
 import { usePrefetchPatientDashboardSummary } from "@/hooks/query/usePatientDashboardSummary";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
@@ -260,12 +261,19 @@ export function DashboardLayout({
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
+  // A doctor's profile may have only `users.name` (no first/last name); the profile endpoint does
+  // not return it, the clinic doctor list does.
+  const ownDoctorName = useOwnDoctorName(
+    normalizedUserRole === Role.DOCTOR || normalizedUserRole === Role.ASSISTANT_DOCTOR
+  );
   const userDisplayData = useMemo(() => {
     if (!user) return null;
-    const mergedUser = {
+    const merged: Record<string, unknown> = {
       ...(user as unknown as Record<string, unknown>),
       ...(currentUserProfile as unknown as Record<string, unknown> | undefined),
     };
+    const hasOwnName = typeof merged.name === "string" && merged.name.trim().length > 0;
+    const mergedUser = !hasOwnName && ownDoctorName ? { ...merged, name: ownDoctorName } : merged;
     const { displayName, initials } = resolveDisplayNameAndInitials(mergedUser);
 
     const avatar = user.profilePicture || "";
@@ -277,7 +285,7 @@ export function DashboardLayout({
       avatar,
       email: user.email || "",
     };
-  }, [user, currentUserProfile, normalizedUserRole]);
+  }, [user, currentUserProfile, normalizedUserRole, ownDoctorName]);
 
   // ─── Role-aware prefetch for every dashboard scope ───────────────────────
   // Warms staff appointment lists as soon as the dashboard mounts. Patients

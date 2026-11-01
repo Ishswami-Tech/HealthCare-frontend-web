@@ -49,7 +49,9 @@ function isPhoneOrEmailLike(value: string): boolean {
 }
 
 function deriveInitials(name: string): string {
-  const tokens = name.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  // "Dr Chandrakumar Deshmukh" -> "CD": the title is not part of the initials.
+  const all = name.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  const tokens = all.length > 1 && all[0]?.toLowerCase() === "dr" ? all.slice(1) : all;
   if (tokens.length >= 2) {
     return `${tokens[0]?.[0] || ""}${tokens[1]?.[0] || ""}`.toUpperCase();
   }
@@ -57,9 +59,36 @@ function deriveInitials(name: string): string {
 }
 
 function normalizeDisplayCandidate(value: string | null | undefined): string {
-  return String(value || "").trim().replace(/[._-]+/g, " ");
+  return String(value || "").replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
+/** Last fallback when a user has no usable name or email: what they are, not "User". */
+const ROLE_DISPLAY_LABELS: Readonly<Record<string, string>> = {
+  PATIENT: "Patient",
+  DOCTOR: "Doctor",
+  ASSISTANT_DOCTOR: "Doctor",
+  RECEPTIONIST: "Receptionist",
+  PHARMACIST: "Pharmacist",
+  CLINIC_ADMIN: "Clinic admin",
+  SUPER_ADMIN: "Super admin",
+  THERAPIST: "Therapist",
+  LAB_TECHNICIAN: "Lab technician",
+  SUPPORT_STAFF: "Support staff",
+  NURSE: "Nurse",
+  FINANCE_BILLING: "Billing",
+  CLINIC_LOCATION_HEAD: "Location head",
+  COUNSELOR: "Counselor",
+};
+
+function roleDisplayLabel(role: string | null | undefined): string {
+  return ROLE_DISPLAY_LABELS[String(role || "").toUpperCase().replace(/\s+/g, "_")] ?? "User";
+}
+
+/**
+ * The one display-name rule for a person: first + last name, then `name`, then the email local
+ * part, then the role label ("Doctor", "Receptionist"; "User" when the role is unknown). Header,
+ * account menu, greetings and sidebar all use it.
+ */
 export function resolveDisplayNameAndInitials(user: {
   firstName?: string | null | undefined;
   lastName?: string | null | undefined;
@@ -103,11 +132,26 @@ export function resolveDisplayNameAndInitials(user: {
     }
   }
 
-  const roleLabel = String(user.role || "").toUpperCase().replace(/\s+/g, "_") === "PATIENT" ? "Patient" : "User";
+  const roleLabel = roleDisplayLabel(user.role);
   return {
     displayName: roleLabel,
-    initials: roleLabel === "Patient" ? "P" : "U",
+    initials: roleLabel[0]?.toUpperCase() || "U",
   };
+}
+
+/** The name without a leading "Dr"/"Dr." title ("Dr. Chandrakumar Deshmukh" -> "Chandrakumar Deshmukh"). */
+export function withoutDoctorTitle(name: string): string {
+  return name.replace(/^\s*dr(?![a-z])\.?\s*/i, "").trim();
+}
+
+/**
+ * How to address a doctor: "Dr. Chandrakumar Deshmukh", or "Doctor" when only a placeholder or the
+ * role fallback is known (never "Dr. Doctor" / "Dr. User" / "Dr. Dr. ...").
+ */
+export function doctorTitleName(displayName: string): string {
+  const bare = withoutDoctorTitle(displayName);
+  if (!bare || isPlaceholderProfileName(bare)) return "Doctor";
+  return `Dr. ${bare}`;
 }
 
 export function resolvePatientDisplayName(user: {

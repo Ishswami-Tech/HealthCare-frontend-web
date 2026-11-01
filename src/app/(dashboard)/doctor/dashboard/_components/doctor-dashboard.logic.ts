@@ -15,7 +15,7 @@ import {
   VIDEO_JOIN_EARLY_WINDOW_MINUTES,
   VIDEO_JOIN_LATE_WINDOW_MINUTES,
 } from "@/lib/utils/appointmentUtils";
-import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
+import { doctorTitleName, resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { ageInYears } from "@/lib/utils/date-time";
 import { genderLabel } from "@/lib/utils/labels";
 
@@ -230,17 +230,9 @@ export function doctorDashboardReducer(
   }
 }
 
-export const getDisplayDoctorName = (name?: string | null) => {
-  const resolvedName = resolveDisplayNameAndInitials({
-    name: name || undefined,
-    role: "DOCTOR",
-  }).displayName;
-  const cleaned = String(resolvedName || "")
-    .replace(/^dr\.?\s+/i, "")
-    .trim();
-
-  return cleaned === "User" ? "Doctor" : cleaned || "Doctor";
-};
+/** "Dr. Chandrakumar Deshmukh", or "Doctor" when no real name is known (never "Dr. Doctor"). */
+export const getDisplayDoctorName = (name?: string | null): string =>
+  doctorTitleName(resolveDisplayNameAndInitials({ name: name || undefined, role: "DOCTOR" }).displayName);
 
 export function normalizeQueueToken(value?: string | null): string {
   return String(value || "")

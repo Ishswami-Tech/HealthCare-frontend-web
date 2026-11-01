@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useDisplayUser } from "@/stores/layout.store";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
 import { useAppointments, useCompleteAppointment, useStartAppointment, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
@@ -49,9 +50,11 @@ export function useDoctorDashboardData() {
   const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
+  // The shell's resolved name (first + last, then `users.name`, ...) so the greeting matches the header.
+  const shellName = useDisplayUser()?.name;
   const displayDoctorName = useMemo(
-    () => getDisplayDoctorName(user?.name || user?.firstName || null),
-    [user?.firstName, user?.name]
+    () => getDisplayDoctorName(shellName || user?.name || user?.firstName || null),
+    [shellName, user?.firstName, user?.name]
   );
   const clinicId = useCurrentClinicId();
   const doctorId = user?.id;

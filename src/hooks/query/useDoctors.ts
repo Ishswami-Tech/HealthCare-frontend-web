@@ -609,3 +609,33 @@ export const useCurrentDoctorEntityId = (clinicId?: string) => {
   };
 };
 
+/**
+ * The signed-in doctor's own full name from this clinic's doctor list ("" when `enabled` is false
+ * or no row matches). GET /user/profile and the session carry only firstName/lastName, which can
+ * be empty while `users.name` is set; the doctor list carries `user.name`. Same query key as
+ * useCurrentDoctorEntityId, so on doctor pages it costs no extra request.
+ */
+export const useOwnDoctorName = (enabled: boolean): string => {
+  const clinicId = useCurrentClinicId();
+  const { session } = useAuth() as { session?: { user?: { id?: string } } };
+  const userId = session?.user?.id || '';
+  const clinicDoctors = useClinicDoctorRows(enabled && userId ? clinicId || undefined : undefined);
+
+  return useMemo(() => {
+    if (!enabled || !userId) return '';
+    const rows: Array<Record<string, unknown>> = Array.isArray(clinicDoctors.data)
+      ? (clinicDoctors.data as Array<Record<string, unknown>>)
+      : [];
+    const own = rows.find((row) => row.userId === userId);
+    const user = (own?.user ?? {}) as { firstName?: string; lastName?: string; name?: string; email?: string };
+    if (!own) return '';
+    const { displayName } = resolveDisplayNameAndInitials({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      name: user.name,
+      email: user.email,
+    });
+    return displayName === 'User' ? '' : displayName;
+  }, [clinicDoctors.data, enabled, userId]);
+};
+
