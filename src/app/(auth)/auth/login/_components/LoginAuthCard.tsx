@@ -181,7 +181,7 @@ export function LoginAuthCard({
       />
 
       {sessionExpired && !isRestoringSession && (
-        <AuthNote tone="blue">Session expired. Please sign in again.</AuthNote>
+        <AuthNote tone="blue">Your session ended. Please sign in again.</AuthNote>
       )}
 
       {/* Success Notification Alert */}

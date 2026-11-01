@@ -1,6 +1,6 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 import { queryClientConfig } from "@/hooks/query/config";
@@ -33,11 +33,25 @@ export default function QueryProvider({
     () =>
       new QueryClient({
         ...queryClientConfig,
+        // A query that finds the session ended (user deleted, removed from the clinic, token
+        // dead) sends the user to login once; any other query failure stays with its screen.
+        queryCache: new QueryCache({
+          onError: (error) => {
+            if (isSessionInvalidError(error)) {
+              triggerClientAuthRecovery();
+            }
+          },
+        }),
         defaultOptions: {
           queries: {
             ...queryClientConfig.defaultOptions?.queries,
             retry: (failureCount, error) => {
               const apiError = error as ApiError;
+
+              // Retrying cannot revive an ended session.
+              if (isSessionInvalidError(error)) {
+                return false;
+              }
 
               // Don't retry on client errors (4xx)
               if (

@@ -10,7 +10,8 @@ import {
   getUserProfile,
   updateUserProfile,
 } from '@/lib/actions/users.server';
-import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
+import { isSessionInvalidError, triggerClientAuthRecovery } from '@/lib/utils/auth-recovery';
+import { isSessionEndedMessage } from '@/lib/utils/session-failure';
 import { useQueryClient } from '@tanstack/react-query';
 
 // ===== USER PROFILE HOOKS =====
@@ -52,6 +53,12 @@ export const useUserProfile = (
       return await getUserProfile();
     } catch (error) {
       if (isSessionInvalidError(error)) {
+        // The server already cleared the auth cookies for a definitive failure
+        // (user deleted / removed from the clinic): follow it to login. Other
+        // session-ish failures keep the old behaviour (no profile, no logout).
+        if (error instanceof Error && isSessionEndedMessage(error.message)) {
+          triggerClientAuthRecovery();
+        }
         return null;
       }
       throw error;

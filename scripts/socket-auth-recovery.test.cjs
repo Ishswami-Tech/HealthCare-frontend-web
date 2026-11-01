@@ -22,6 +22,7 @@ function load(source, imports = {}, globals = {}) {
 }
 
 const { createSocketAuthRecovery } = load('src/lib/utils/socket-auth-recovery.ts');
+const sessionFailure = load('src/lib/utils/session-failure.ts');
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
 function setup(refresh) {
@@ -111,6 +112,7 @@ test('shared refresh reports transient errors and cannot restore a logged-out se
     '@/lib/actions/auth.server': { refreshToken: () => refresh() },
     '@/stores/auth.store': { useAuthStore: { getState: () => state } },
     '@/stores': { resetAllStores: () => {} },
+    '@/lib/utils/session-failure': sessionFailure,
   });
   assert.equal(isSessionInvalidError(new Error('Failed to fetch')), false);
   assert.equal(isSessionInvalidError({ message: 'Network error', statusCode: 503 }), false);
@@ -149,6 +151,7 @@ test('HTTP refresh preserves the session on a temporary failure and clears inval
     '@/stores/auth.store': { useAuthStore: { getState: () => state } },
     '@/lib/utils/auth-recovery': { refreshClientSessionOnce: () => refresh(), triggerClientAuthRecovery: () => { recovered++; } },
     '@/hooks/core/requestDeduper': {},
+    '@/lib/utils/session-failure': sessionFailure,
   };
   const { clinicApiClient } = load('src/lib/api/client.ts', imports, {
     window: {}, Headers, setInterval: () => 0,

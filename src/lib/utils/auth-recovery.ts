@@ -6,6 +6,11 @@ import { clearSession, refreshToken } from "@/lib/actions/auth.server";
 import { useAuthStore } from "@/stores/auth.store";
 import type { Session } from "@/types/auth.types";
 import { resetAllStores } from "@/stores";
+import {
+  classifySessionFailure,
+  isSessionEndedMessage,
+  toSessionFailureInput,
+} from "@/lib/utils/session-failure";
 
 export const JWT_REFRESH_LEAD_MS = 2 * 60 * 1000;
 
@@ -75,7 +80,23 @@ export function isSessionInvalidError(error: unknown): boolean {
     return true;
   }
 
-  const message = extractAuthErrorMessage(error).toLowerCase();
+  const rawMessage = extractAuthErrorMessage(error);
+  // Server actions hand the browser only the message, so `authenticatedApi`
+  // marks a session it has already ended with this sentinel.
+  if (isSessionEndedMessage(rawMessage)) {
+    return true;
+  }
+
+  // Direct browser API errors keep status + backend code: a 403 for a user who
+  // lost access to the session's clinic (or was deleted) ends the session too.
+  if (status === 403) {
+    const sessionClinicId = useAuthStore.getState().session?.user?.clinicId || undefined;
+    if (classifySessionFailure(toSessionFailureInput(error, { sessionClinicId })) === "session-ended") {
+      return true;
+    }
+  }
+
+  const message = rawMessage.toLowerCase();
   if (!message) {
     return false;
   }
@@ -84,6 +105,7 @@ export function isSessionInvalidError(error: unknown): boolean {
     "no token provided",
     "authentication required",
     "session expired",
+    "session has expired",
     "invalid token",
     "invalid session",
     "unauthorized",

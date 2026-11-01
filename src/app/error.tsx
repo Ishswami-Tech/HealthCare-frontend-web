@@ -6,6 +6,8 @@ import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import Link from "next/link";
 import { ERROR_MESSAGES } from "@/lib/config/config";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
+import { isSessionInvalidError, triggerClientAuthRecovery } from "@/lib/utils/auth-recovery";
+import { SESSION_ENDED_MESSAGE } from "@/lib/utils/session-failure";
 
 export default function Error({
   error,
@@ -14,10 +16,26 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // A render that crashed because the session ended (user deleted / removed from the
+  // clinic) is not an app error: clear the session and go to login instead.
+  const sessionEnded = isSessionInvalidError(error);
+
   useEffect(() => {
+    if (sessionEnded) {
+      triggerClientAuthRecovery();
+      return;
+    }
     // Log the error to an error reporting service
     console.error("Application error:", error);
-  }, [error]);
+  }, [error, sessionEnded]);
+
+  if (sessionEnded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" role="status" aria-live="polite">
+        <p className="text-muted-foreground">{SESSION_ENDED_MESSAGE}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-br from-red-50 via-background to-orange-50 dark:from-background dark:via-background dark:to-background flex items-center justify-center px-4">

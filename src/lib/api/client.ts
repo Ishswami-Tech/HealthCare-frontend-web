@@ -21,6 +21,7 @@ import { normalizeClinicId } from '@/lib/utils/clinic-id';
 import { useAuthStore } from '@/stores/auth.store';
 import { triggerClientAuthRecovery, refreshClientSessionOnce } from '@/lib/utils/auth-recovery';
 import { dedupeRequest } from '@/hooks/core/requestDeduper';
+import { classifySessionFailure } from '@/lib/utils/session-failure';
 import type { Session } from '@/types/auth.types';
 
 type ClinicRequestInit = RequestInit & {
@@ -40,6 +41,23 @@ async function isDeadSessionResponse(response: Response): Promise<boolean> {
     const body = (await response.clone().json()) as { message?: unknown; error?: unknown };
     const text = `${String(body?.message ?? '')} ${String(body?.error ?? '')}`.toLowerCase();
     return ['revoked', 'session', 'token', 'jwt'].some((pattern) => text.includes(pattern));
+  } catch {
+    return false;
+  }
+}
+
+/** True when a non-401 failure still means the session is over (see session-failure.ts). */
+async function isSessionEndedResponse(response: Response, url: string): Promise<boolean> {
+  try {
+    const body = (await response.clone().json()) as { message?: unknown; error?: unknown; code?: unknown };
+    const message = typeof body?.message === 'string' ? body.message : undefined;
+    const code =
+      typeof body?.code === 'string' ? body.code : typeof body?.error === 'string' ? body.error : undefined;
+    const sessionClinicId = useAuthStore.getState().session?.user?.clinicId || undefined;
+    return (
+      classifySessionFailure({ status: response.status, code, message, endpoint: url, sessionClinicId }) ===
+      'session-ended'
+    );
   } catch {
     return false;
   }
@@ -853,6 +871,18 @@ export class ApiClient {
            return retried;
         }
 
+        // A browser request whose user was deleted or removed from the session's
+        // clinic gets a 403 (or 404 on its own profile) that no refresh can fix.
+        if (
+          shouldRequireAuth &&
+          typeof window !== 'undefined' &&
+          (res.status === HTTP_STATUS.FORBIDDEN || res.status === HTTP_STATUS.NOT_FOUND) &&
+          (await isSessionEndedResponse(res, url))
+        ) {
+          await this.clearAuthSession();
+          triggerClientAuthRecovery();
+        }
+
         return res;
       };
 
@@ -983,17 +1013,28 @@ export class ApiClient {
               return refreshedSession;
             })()
           : await (async () => {
-              const response = await fetchWithAbort(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(sessionId ? { 'X-Session-ID': sessionId } : {})
-                },
-                credentials: this.withCredentials ? 'include' : 'omit',
-                timeout: this.timeout,
-                body: JSON.stringify(refreshToken ? { refreshToken } : {})
-              });
+              const transientRefreshError = () =>
+                new ApiError('Session refresh is temporarily unavailable', 503, ERROR_CODES.SYSTEM_ERROR);
+              let response: Response;
+              try {
+                response = await fetchWithAbort(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(sessionId ? { 'X-Session-ID': sessionId } : {})
+                  },
+                  credentials: this.withCredentials ? 'include' : 'omit',
+                  timeout: this.timeout,
+                  body: JSON.stringify(refreshToken ? { refreshToken } : {})
+                });
+              } catch {
+                // Network failure / timeout: the session may be fine, keep the cookies.
+                throw transientRefreshError();
+              }
 
+              if (classifySessionFailure({ status: response.status }) === 'transient') {
+                throw transientRefreshError();
+              }
               if (!response.ok) {
                 throw new Error('Token refresh failed');
               }
@@ -1013,6 +1054,10 @@ export class ApiClient {
               503,
               ERROR_CODES.SYSTEM_ERROR
             );
+          }
+          // Server side: a transient refresh failure must not log the user out either.
+          if (!isClient && error instanceof ApiError && error.statusCode >= 500) {
+            throw error;
           }
           // If refresh fails, clear session and throw
           await this.clearAuthSession();

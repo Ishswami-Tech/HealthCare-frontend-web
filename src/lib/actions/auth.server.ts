@@ -22,7 +22,13 @@ import { logger } from '@/lib/utils/logger';
 import { isApiError, sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
 import { revalidatePath } from 'next/cache';
-import { clinicApiClient } from '@/lib/api/client';
+import { ApiError, clinicApiClient } from '@/lib/api/client';
+import {
+  classifySessionFailure,
+  SESSION_ENDED_CODE,
+  SESSION_ENDED_MESSAGE,
+  toSessionFailureInput,
+} from '@/lib/utils/session-failure';
 import { normalizeClinicId } from '@/lib/utils/clinic-id';
 import {
   clearIdentityCookies,
@@ -1887,11 +1893,51 @@ export async function authenticatedApi<T = unknown>(
       }
       return { status: 403, data: null as unknown as T };
     }
-    if (error instanceof Error && 'statusCode' in error) {
-       throw error;
-    }
+    await endSessionIfDefinitive(error, endpoint, options.clinicId);
     throw error;
   }
+}
+
+/**
+ * A definitive auth failure (dead token, deleted user, user removed from the
+ * session's clinic) clears the auth cookies and is re-thrown as one 401 with the
+ * shared "session ended" message, which the client recognises and turns into a
+ * redirect to login. Anything else - transient 5xx / network, RBAC 403s, a 403
+ * for a clinic other than the session's - returns untouched so callers keep the
+ * session and show their normal error state.
+ */
+async function endSessionIfDefinitive(
+  error: unknown,
+  endpoint: string,
+  explicitClinicId: string | undefined
+): Promise<void> {
+  let sessionClinicId: string | undefined;
+  try {
+    sessionClinicId = normalizeClinicId((await cookies()).get('clinic_id')?.value) || undefined;
+  } catch {
+    sessionClinicId = undefined;
+  }
+
+  const kind = classifySessionFailure(
+    toSessionFailureInput(error, {
+      endpoint,
+      // Without a clinic cookie the backend checked the clinic named in the request (if any).
+      sessionClinicId: sessionClinicId || normalizeClinicId(explicitClinicId) || undefined,
+    })
+  );
+  if (kind !== 'session-ended') return;
+
+  logger.warn('authenticatedApi - session ended by backend, clearing auth cookies', {
+    endpoint,
+    status: isApiError(error) ? error.statusCode : undefined,
+  });
+  try {
+    await clearSession();
+  } catch {
+    // Server Component render: cookies are read-only here. The client clears them
+    // through triggerClientAuthRecovery -> clearSession() when it sees the error.
+  }
+  throw new ApiError(SESSION_ENDED_MESSAGE, 401, SESSION_ENDED_CODE, SESSION_ENDED_CODE);
 }
 
 export async function publicApi<T = unknown>(
