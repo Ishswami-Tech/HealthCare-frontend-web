@@ -41,14 +41,14 @@ export function isTodayRow(row: PrescriptionRow, nowMs: number): boolean {
 export interface WaitingGroups {
   /** Dispensed today: the patients who are at the counter now, longest wait first. */
   today: PrescriptionRow[];
-  /** Dispensed on an earlier day and never collected: backlog, newest first. */
+  /** Dispensed on an earlier day and never collected: backlog, longest wait first (like today). */
   older: PrescriptionRow[];
 }
 
 /**
  * The waiting list in the order the counter works it: today's patients first (who has waited
- * longest today is served first), then the older backlog, so a stale prior-day row never sits
- * above a patient standing at the counter now.
+ * longest today is served first), then the older backlog (also longest wait first), so a stale
+ * prior-day row never sits above a patient standing at the counter now.
  */
 export function waitingGroups(rows: readonly PrescriptionRow[], nowMs: number): WaitingGroups {
   const waiting = rows.filter(isAwaitingHandover);
@@ -58,7 +58,7 @@ export function waitingGroups(rows: readonly PrescriptionRow[], nowMs: number): 
       .sort((a, b) => timeOf(queuedAt(a)) - timeOf(queuedAt(b))),
     older: waiting
       .filter((row) => !isTodayRow(row, nowMs))
-      .sort((a, b) => timeOf(queuedAt(b)) - timeOf(queuedAt(a))),
+      .sort((a, b) => timeOf(queuedAt(a)) - timeOf(queuedAt(b))),
   };
 }
 
