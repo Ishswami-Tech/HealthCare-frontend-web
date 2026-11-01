@@ -3,6 +3,7 @@ import { useQueryData } from '../core/useQueryData';
 import { useMutationOperation } from '../core/useMutationOperation';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useCurrentClinicId } from './useClinics';
+import { useRealtimeFallbackInterval } from '@/hooks/realtime/useRealtimeFallbackInterval';
 import { ApiError, clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import type { Prescription } from '@/types/medical-records.types';
@@ -20,7 +21,13 @@ function toPrescriptionRows(payload: unknown): Prescription[] {
 // ── Server-paged list (GET /pharmacy/prescriptions?page=…) ──────────────────
 
 export type PrescriptionStatusParam = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'DRAFT' | 'RETURNED';
-export type PrescriptionPharmacyStageParam = 'PAYMENT_PENDING' | 'READY_TO_DISPENSE' | 'DISPENSED' | 'NOT_SENT';
+/** READY_TO_COLLECT: paid + dispensed + not handed over yet, at any age (the counter hand-over list). */
+export type PrescriptionPharmacyStageParam =
+  | 'PAYMENT_PENDING'
+  | 'READY_TO_DISPENSE'
+  | 'DISPENSED'
+  | 'NOT_SENT'
+  | 'READY_TO_COLLECT';
 export type PrescriptionSortParam = 'newest' | 'oldest' | 'patient';
 
 /**
@@ -75,6 +82,7 @@ export const prescriptionQueryKeys = {
     ['prescriptions', 'doctor-page', clinicId, doctorId, params] as const,
   doctorSummary: (clinicId: string, doctorId: string, range: PrescriptionSummaryRange) =>
     ['prescriptions', 'doctor-summary', clinicId, doctorId, range] as const,
+  readyToCollect: (clinicId: string) => ['prescriptions', 'ready-to-collect', clinicId] as const,
 };
 
 /** Drops unset and empty values, so `URLSearchParams` never sends `undefined` or `''`. */
@@ -181,6 +189,63 @@ export const usePrescriptionSummary = (
     },
     {
       enabled: (options?.enabled ?? true) && !!doctorId,
+      placeholderData: keepPreviousData,
+    },
+  );
+};
+
+/** Largest page the paged list accepts (`PRESCRIPTION_LIST_PAGE_SIZES` on the backend). */
+const READY_TO_COLLECT_PAGE_SIZE = 100;
+/** Most rows the hand-over list loads (5 pages); `total` still reports the whole backlog. */
+export const READY_TO_COLLECT_MAX_ROWS = 500;
+
+export interface ReadyToCollectResult {
+  rows: Prescription[];
+  /** Every uncollected prescription the server counts; `rows.length` is below it when capped. */
+  total: number;
+  mode: PrescriptionPageResult['mode'];
+}
+
+/**
+ * Every paid + dispensed + not-yet-handed-over prescription of the clinic, at any age
+ * (`pharmacyStage=READY_TO_COLLECT`), loaded page by page up to READY_TO_COLLECT_MAX_ROWS.
+ * Keyed under `prescriptions`, so the hand-over, dispense and payment invalidations reach it.
+ */
+export const useReadyToCollectPrescriptions = (options?: { enabled?: boolean }) => {
+  const clinicId = useCurrentClinicId() || '';
+  const refetchInterval = useRealtimeFallbackInterval();
+  return useQueryData(
+    prescriptionQueryKeys.readyToCollect(clinicId),
+    async (): Promise<ReadyToCollectResult> => {
+      const fetchPage = async (page: number): Promise<PrescriptionPageResult> => {
+        const params: PrescriptionListParams = {
+          page,
+          limit: READY_TO_COLLECT_PAGE_SIZE,
+          pharmacyStage: 'READY_TO_COLLECT',
+        };
+        const result = await clinicApiClient.get(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.LIST, definedParams(params));
+        return toPrescriptionPage(result, params);
+      };
+      const first = await fetchPage(1);
+      // An older backend answers the whole legacy list: the hand-over rules filter it on the client.
+      if (first.mode === 'legacy') return { rows: first.rows, total: first.total, mode: 'legacy' };
+      const reachable = Math.min(first.total, READY_TO_COLLECT_MAX_ROWS);
+      const pageCount = Math.ceil(reachable / READY_TO_COLLECT_PAGE_SIZE);
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) => fetchPage(index + 2)),
+      );
+      // A row that moved between page reads (newest first) can appear twice: keep its first copy.
+      const byId = new Map<string, Prescription>();
+      for (const row of [first, ...rest].flatMap((page) => page.rows)) {
+        const id = String((row as { id?: unknown }).id ?? '');
+        if (id && !byId.has(id)) byId.set(id, row);
+      }
+      const rows = [...byId.values()].slice(0, READY_TO_COLLECT_MAX_ROWS);
+      return { rows, total: Math.max(first.total, rows.length), mode: 'server' };
+    },
+    {
+      enabled: (options?.enabled ?? true) && !!clinicId,
+      refetchInterval,
       placeholderData: keepPreviousData,
     },
   );

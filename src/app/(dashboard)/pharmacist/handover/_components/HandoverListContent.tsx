@@ -21,6 +21,7 @@ import {
 } from "@/components/tbd";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePrescriptions } from "@/hooks/query/usePharmacy";
+import { useReadyToCollectPrescriptions } from "@/hooks/query/usePrescriptions";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { routeFor } from "@/lib/config/tbdRoutes";
 import { asList } from "@/lib/utils/coerce";
@@ -73,17 +74,30 @@ export function HandoverListContent() {
   const { clinicId } = useClinicContext();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<HandoverListFilter>("waiting");
-  const query = usePrescriptions(clinicId || "", { limit: 100 });
+  // Waiting: every paid + dispensed + uncollected prescription at any age (server stage filter,
+  // paged up to a cap). Collected: the recent list, as before.
+  const waitingQuery = useReadyToCollectPrescriptions();
+  const collectedQuery = usePrescriptions(clinicId || "", { limit: 100, enabled: filter === "collected" });
+  const query = filter === "waiting" ? waitingQuery : collectedQuery;
   const now = useNow();
 
-  const all = useMemo(() => asList(query.data).map(normalizePrescription), [query.data]);
-  const groups = useMemo(() => waitingGroups(all, now), [all, now]);
+  const waitingAll = useMemo(
+    () => (waitingQuery.data?.rows ?? []).map(normalizePrescription),
+    [waitingQuery.data],
+  );
+  const collectedAll = useMemo(() => asList(collectedQuery.data).map(normalizePrescription), [collectedQuery.data]);
+  const groups = useMemo(() => waitingGroups(waitingAll, now), [waitingAll, now]);
   const waitingCount = groups.today.length + groups.older.length;
+  // Shown against the server count only when the cap cut the list (a legacy answer is complete).
+  const waitingTotal =
+    waitingQuery.data?.mode === "server" && waitingQuery.data.rows.length < waitingQuery.data.total
+      ? waitingQuery.data.total
+      : undefined;
   const rows = useMemo(() => {
-    const ordered = handoverRows(all, filter, now);
+    const ordered = handoverRows(filter === "waiting" ? waitingAll : collectedAll, filter, now);
     // filterPrescriptions keeps the order it is given.
     return filterPrescriptions(ordered, search, "all");
-  }, [all, filter, search, now]);
+  }, [waitingAll, collectedAll, filter, search, now]);
   // Waiting list: index of the first row from an earlier day (the "Older" group starts there).
   const firstOlder = filter === "waiting" ? rows.findIndex((row) => !isTodayRow(row, now)) : -1;
   const sameName = useMemo(() => repeatedNames(rows), [rows]);
@@ -113,7 +127,7 @@ export function HandoverListContent() {
             onChange={setFilter}
             className="shrink-0"
             options={[
-              { value: "waiting", label: "Waiting", count: query.data ? waitingCount : undefined },
+              { value: "waiting", label: "Waiting", count: waitingQuery.data ? (waitingTotal ?? waitingCount) : undefined },
               { value: "collected", label: "Collected" },
             ]}
           />
@@ -147,7 +161,7 @@ export function HandoverListContent() {
           <div role="table" aria-label={filter === "waiting" ? "Waiting for hand-over" : "Collected"}>
             {filter === "waiting" ? (
               <p className="m-0 px-5 pt-3 text-xs text-ink-muted" data-testid="handover-waiting-count">
-                {waitingCountLabel(groups)}
+                {waitingCountLabel(groups, waitingTotal)}
                 {search ? ` · ${rows.length} match the search` : ""}
               </p>
             ) : null}

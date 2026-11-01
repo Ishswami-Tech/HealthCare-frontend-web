@@ -80,12 +80,19 @@ export function handoverRows(
     .sort((a, b) => timeOf(b.handedOverAt ?? b.dispensedAt) - timeOf(a.handedOverAt ?? a.dispensedAt));
 }
 
-/** "Showing all 23 waiting: 19 today, 4 older" — the list is never silently cut. */
-export function waitingCountLabel(groups: WaitingGroups): string {
-  const total = groups.today.length + groups.older.length;
-  if (total === 0) return "";
+/**
+ * "Showing all 23 waiting: 19 today, 4 older", or "Showing 500 of 640 waiting: …" when the
+ * server counts more than were loaded (`serverTotal`) — the list is never silently cut.
+ */
+export function waitingCountLabel(groups: WaitingGroups, serverTotal?: number): string {
+  const shown = groups.today.length + groups.older.length;
+  if (shown === 0 && !serverTotal) return "";
   const parts = [`${groups.today.length} today`, ...(groups.older.length > 0 ? [`${groups.older.length} older`] : [])];
-  return `Showing all ${total} waiting: ${parts.join(", ")}`;
+  const head =
+    serverTotal !== undefined && serverTotal > shown
+      ? `Showing ${shown} of ${serverTotal} waiting`
+      : `Showing all ${shown} waiting`;
+  return `${head}: ${parts.join(", ")}`;
 }
 
 /** "Waiting 4 min", "Waiting 1 h 05 min", "Waiting since 25 Sep" (over a day); "" without a time. */
