@@ -16,28 +16,62 @@ import { RECEPTION_ROUTES, useReceptionLocation } from "@/components/receptionis
 import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
 
 /**
- * After a failed registration: patients of this clinic already on that mobile number (the server
- * refuses a second account for one number). Clinic-scoped directory search, so a patient of another
- * clinic is never shown. Offers the existing record instead of a dead end or a duplicate.
+ * The server refuses a second account for one mobile number with a 409 whose message says so
+ * (USER_PHONE_ALREADY_EXISTS). Server actions forward only the message, so match on it.
  */
-function ExistingPatientsForPhone({ phone, toWalkIn }: { phone: string; toWalkIn: boolean }) {
+const PHONE_TAKEN_PATTERN = /phone number (is already registered|already (belongs|exists))/i;
+
+function isPhoneAlreadyRegistered(message: string): boolean {
+  return PHONE_TAKEN_PATTERN.test(message);
+}
+
+/**
+ * After a failed registration: patients of this clinic already on that mobile number. Clinic-scoped
+ * directory search, so a patient of another clinic is never shown. Offers the existing record
+ * instead of a dead end or a duplicate; for a walk-in, "Use this patient" continues the walk-in.
+ */
+function ExistingPatientsForPhone({
+  phone,
+  toWalkIn,
+  phoneTaken,
+}: {
+  phone: string;
+  toWalkIn: boolean;
+  phoneTaken: boolean;
+}) {
   const { clinicId } = useReceptionLocation();
   const directory = usePatientDirectory(clinicId, { search: phone, pageSize: 10 }, { enabled: phone.length >= 10 });
   const rows = directory.data?.rows ?? [];
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {
+    if (!phoneTaken || !directory.isFetched) return null;
+    return (
+      <Note tone="amber" icon={UserCheck}>
+        <span className="flex flex-col gap-2">
+          <span className="font-bold">This mobile number is already registered.</span>
+          <span>
+            No patient of this clinic was found on it. Search the patient list by name or UHID, or ask the patient
+            which number they registered with.
+          </span>
+          <Button asChild size="sm" variant="outline" className="self-start">
+            <Link href={RECEPTION_ROUTES.patients}>Search patients</Link>
+          </Button>
+        </span>
+      </Note>
+    );
+  }
   return (
     <Note tone="amber" icon={UserCheck}>
       <span className="flex flex-col gap-2">
-        <span className="font-bold">This mobile number is already registered at this clinic.</span>
+        <span className="font-bold">Already registered — use this patient.</span>
         {rows.map((row) => (
           <span key={row.patientId} className="flex flex-wrap items-center gap-2">
             <span>
               {row.name}
               {row.uhid ? ` · ${row.uhid}` : ""}
             </span>
-            <Button asChild size="sm" variant="outline">
+            <Button asChild size="sm" variant={rows.length === 1 ? "default" : "outline"}>
               <Link href={toWalkIn ? RECEPTION_ROUTES.walkIn(row.userId) : RECEPTION_ROUTES.patient(row.userId)}>
-                {toWalkIn ? "Add this patient as a walk-in" : "Open this patient"}
+                {toWalkIn ? "Use this patient for the walk-in" : "Use this patient"}
               </Link>
             </Button>
           </span>
@@ -74,9 +108,11 @@ function RegisterForm() {
   const next = useSearchParams().get("next");
   const register = useQuickRegisterPatient();
   const [failedPhone, setFailedPhone] = useState("");
+  const [phoneTaken, setPhoneTaken] = useState(false);
 
   const submit = async (values: RegisterValues) => {
     setFailedPhone("");
+    setPhoneTaken(false);
     try {
       const result = await register.mutateAsync({
         // Patients sign in with a one-time code; the password is random and never shown.
@@ -97,9 +133,10 @@ function RegisterForm() {
         return;
       }
       router.push(patientUserId ? RECEPTION_ROUTES.patient(patientUserId) : RECEPTION_ROUTES.patients);
-    } catch {
+    } catch (error) {
       // The mutation hook shows the error toast; the form keeps what was typed. When the number
       // already belongs to a patient of this clinic, offer that record below.
+      setPhoneTaken(isPhoneAlreadyRegistered(error instanceof Error ? error.message : String(error)));
       setFailedPhone(values.phone.replace(/\D/g, ""));
     }
   };
@@ -157,7 +194,7 @@ function RegisterForm() {
             <Input id="address" autoComplete="street-address" placeholder="House / street, area, city" {...form.register("address")} />
           </Field>
         </div>
-        {failedPhone ? <ExistingPatientsForPhone phone={failedPhone} toWalkIn={next === "walk-in"} /> : null}
+        {failedPhone ? <ExistingPatientsForPhone phone={failedPhone} toWalkIn={next === "walk-in"} phoneTaken={phoneTaken} /> : null}
         <Note tone="green" icon={ShieldCheck}>
           The patient signs in with an OTP sent to this mobile number. There is no password to set or share.
         </Note>
