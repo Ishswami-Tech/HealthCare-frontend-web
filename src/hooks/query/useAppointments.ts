@@ -1123,13 +1123,17 @@ export const useMarkAppointmentNoShow = () => {
 export const useUpdateAppointmentStatus = () => {
   const { hasPermission } = useRBAC();
 
-  return useMutationOperation<{ success: boolean }, { appointmentId: string; status: string }>(
-    async ({ appointmentId, status }) => {
+  return useMutationOperation<
+    { success: boolean },
+    { appointmentId: string; status: string; reason?: string }
+  >(
+    async ({ appointmentId, status, reason }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error("Insufficient permissions to update appointment");
       }
 
-      const result = await updateAppointmentStatus(appointmentId, { status });
+      // The API requires a reason when cancelling.
+      const result = await updateAppointmentStatus(appointmentId, reason ? { status, reason } : { status });
       if (!result.success) {
         throw new Error(result.error);
       }

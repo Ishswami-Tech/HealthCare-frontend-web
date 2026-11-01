@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable } from "@/components/ui/data-table";
+import { CancelWithReasonDialog } from "./_components/CancelWithReasonDialog";
 import { useCurrentClinic } from "@/hooks/query/useClinics";
 import { useAppointments, useUpdateAppointmentStatus } from "@/hooks/query/useAppointments";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
@@ -112,6 +113,7 @@ export default function ClinicAdminAppointmentsPage() {
   );
 
   const updateStatusMutation = useUpdateAppointmentStatus();
+  const [cancelTarget, setCancelTarget] = useState<ClinicAppointment | null>(null);
 
   const filteredAppointments = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -179,6 +181,11 @@ export default function ClinicAdminAppointmentsPage() {
             value={currentStatus}
             onValueChange={(nextStatus) => {
               if (nextStatus === currentStatus) return;
+              // Cancelling needs a reason (the API refuses one without it).
+              if (nextStatus === "CANCELLED") {
+                setCancelTarget(appointment);
+                return;
+              }
               updateStatusMutation.mutate(
                 { appointmentId: appointment.id, status: nextStatus },
                 { onSuccess: () => refetch() }
@@ -330,6 +337,23 @@ export default function ClinicAdminAppointmentsPage() {
             Showing {filteredAppointments.length} of {appointments.length} appointments
           </div>
         }
+      />
+      <CancelWithReasonDialog
+        patientName={cancelTarget ? cancelTarget.patientName || "This patient" : null}
+        submitting={updateStatusMutation.isPending}
+        onCancel={() => setCancelTarget(null)}
+        onConfirm={(reason) => {
+          if (!cancelTarget) return;
+          updateStatusMutation.mutate(
+            { appointmentId: cancelTarget.id, status: "CANCELLED", reason },
+            {
+              onSuccess: () => {
+                setCancelTarget(null);
+                void refetch();
+              },
+            }
+          );
+        }}
       />
     </DashboardPageShell>
   );
