@@ -6,6 +6,7 @@
 import type { Medicine } from "@/types/pharmacy.types";
 import { prescriptionReference } from "@/lib/utils/labels";
 import { asList, asRecord, asRecordOrEmpty, textOf, trimmedString } from "@/lib/utils/coerce";
+import { defaultDoseForForm } from "./dose-units.logic";
 
 export interface PrescriptionMedicationRow {
   id: string;
@@ -171,6 +172,9 @@ const DOSE_BY_FORM: ReadonlyArray<readonly [RegExp, string]> = [
  */
 export function defaultDoseFor(medicine?: { dosageForm?: string | null; name?: string | null }): string {
   if (!medicine) return "";
+  // A recorded form decides the unit (dose-units.logic); only a medicine without one is guessed from its name.
+  const byForm = defaultDoseForForm(medicine.dosageForm);
+  if (byForm !== null) return byForm;
   const form = `${medicine.dosageForm ?? ""} ${medicine.name ?? ""}`.toUpperCase();
   return DOSE_BY_FORM.find(([pattern]) => pattern.test(form))?.[1] ?? "1 dose";
 }

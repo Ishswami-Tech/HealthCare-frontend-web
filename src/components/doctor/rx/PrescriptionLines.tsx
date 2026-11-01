@@ -16,13 +16,15 @@ import {
   type PrescriptionMedicationRow,
 } from "./rx-form.logic";
 import { STOCK_TONE_CLASS } from "./MedicineCatalogue";
+import { DoseField } from "./DoseField";
+import { doseConflictWarning } from "./dose-units.logic";
 
 const SMALL_FIELD = "h-[38px] rounded-[10px] px-2.5 text-[13px] font-semibold md:text-[13px]";
 
 type RowField = Extract<PrescriptionFormAction, { type: "updateMedication" }>["field"];
 
 /**
- * The medicine lines of a prescription: dose, one "How often" choice (how many times a day and
+ * The medicine lines of a prescription: dose (amount + a unit that fits the medicine's form), one "How often" choice (how many times a day and
  * when), days and quantity. Stock sits on the same line as the name; no prices are shown.
  */
 export function PrescriptionLines({
@@ -59,6 +61,7 @@ export function PrescriptionLines({
         const line = medication.medicineId && !medicine ? { label: "", tone: "none" as const } : stockLine(medicine, stockTracked);
         const rowId = `${fieldId}-${medication.id}`;
         const update = (field: RowField) => (value: string) => onUpdate(medication.id, field, value);
+        const doseWarning = medicine ? doseConflictWarning(medication.dosage, medicine.dosageForm) : null;
 
         return (
           <fieldset
@@ -100,17 +103,18 @@ export function PrescriptionLines({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[1fr_1.7fr_0.6fr_0.6fr]">
-              <div className="flex min-w-0 flex-col gap-1">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[1.5fr_1.5fr_0.55fr_0.55fr]">
+              <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
                 <label htmlFor={`${rowId}-dose`} className={FIELD_LABEL_SMALL}>
                   Dose
                 </label>
-                <Input
+                <DoseField
                   id={`${rowId}-dose`}
-                  className={SMALL_FIELD}
-                  placeholder="e.g. 1 tablet"
-                  value={medication.dosage}
-                  onChange={(event) => update("dosage")(event.target.value)}
+                  dosage={medication.dosage}
+                  dosageForm={medicine?.dosageForm}
+                  fieldClassName={SMALL_FIELD}
+                  warningId={`${rowId}-dose-warning`}
+                  onChange={update("dosage")}
                 />
               </div>
               <div className="flex min-w-0 flex-col gap-1">
@@ -163,6 +167,17 @@ export function PrescriptionLines({
                 />
               </div>
             </div>
+
+            {doseWarning ? (
+              <span
+                id={`${rowId}-dose-warning`}
+                role="status"
+                className="inline-flex items-start gap-[5px] rounded-[10px] bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-[#b45309] dark:bg-amber-500/10 dark:text-amber-300"
+              >
+                <CircleAlert className="mt-px size-3 shrink-0" strokeWidth={2.6} aria-hidden="true" />
+                {doseWarning}
+              </span>
+            ) : null}
 
             {medicine ? (
               !stockTracked ? (

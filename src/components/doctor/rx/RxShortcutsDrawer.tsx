@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Layers, Pencil, Plus, Star, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CircleAlert, Layers, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +17,8 @@ import {
   searchTerms,
   type MedicationPreset,
 } from "./rx-form.logic";
+import { DoseField } from "./DoseField";
+import { doseConflictWarning } from "./dose-units.logic";
 import { presetOf, type DoctorFavourite, type RxKit, type RxKitItem } from "./rx-shortcuts.logic";
 
 function presetSummary(preset: MedicationPreset): string {
@@ -24,13 +26,29 @@ function presetSummary(preset: MedicationPreset): string {
 }
 
 /** Dose, how often and days of one medicine (a favourite's usual dose, or a kit line). */
-function PresetFields({ value, onChange }: { value: MedicationPreset; onChange: (value: MedicationPreset) => void }) {
+function PresetFields({
+  value,
+  dosageForm,
+  onChange,
+}: {
+  value: MedicationPreset;
+  /** The medicine's dosage form, so the dose is an amount + a unit that fits it. */
+  dosageForm?: unknown;
+  onChange: (value: MedicationPreset) => void;
+}) {
   const id = useId();
   const frequency = value.frequency || DEFAULT_FREQUENCY;
+  const doseWarning = doseConflictWarning(value.dosage ?? "", dosageForm);
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1.6fr_0.7fr]">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1.4fr_1.4fr_0.6fr]">
       <Field label="Dose" htmlFor={`${id}-dose`}>
-        <Input id={`${id}-dose`} placeholder="e.g. 1 tablet" value={value.dosage ?? ""} onChange={(event) => onChange({ ...value, dosage: event.target.value })} />
+        <DoseField
+          id={`${id}-dose`}
+          dosage={value.dosage ?? ""}
+          dosageForm={dosageForm}
+          warningId={`${id}-dose-warning`}
+          onChange={(dosage) => onChange({ ...value, dosage })}
+        />
       </Field>
       <Field label="How often" htmlFor={`${id}-frequency`}>
         <Select value={frequency} onValueChange={(next) => onChange({ ...value, frequency: next })}>
@@ -56,6 +74,12 @@ function PresetFields({ value, onChange }: { value: MedicationPreset; onChange: 
           onChange={(event) => onChange({ ...value, days: event.target.value })}
         />
       </Field>
+      {doseWarning ? (
+        <span id={`${id}-dose-warning`} role="status" className="inline-flex items-start gap-[5px] text-xs font-semibold text-[#b45309] sm:col-span-3 dark:text-amber-300">
+          <CircleAlert className="mt-px size-3 shrink-0" strokeWidth={2.6} aria-hidden="true" />
+          {doseWarning}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -94,7 +118,7 @@ function FavouriteRow({
       </div>
       {editing ? (
         <div className="flex flex-col gap-2 rounded-[12px] bg-well p-3">
-          <PresetFields value={draft} onChange={setDraft} />
+          <PresetFields value={draft} dosageForm={medicine?.dosageForm} onChange={setDraft} />
           <span className="text-xs text-ink-muted">Used whenever you add this medicine from search, a kit or by voice. You can still change it per patient.</span>
           <div className="flex gap-2">
             <Button
@@ -198,6 +222,7 @@ function KitEditor({
               </div>
               <PresetFields
                 value={item}
+                dosageForm={medicines.find((medicine) => medicine.id === item.medicineId)?.dosageForm}
                 onChange={(preset) => setItems(draft.items.map((entry, at) => (at === index ? { ...entry, ...preset } : entry)))}
               />
             </li>
