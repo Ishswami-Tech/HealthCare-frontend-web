@@ -11,6 +11,11 @@
  *   billingSettings.opdConsultationFee      whole rupees: what the desk charges when walkInDeskFee is blank
  *                                           (backend BillingService.resolveConsultationFee)
  *
+ * and, next to `settings`, the backend-resolved `expectedWalkInFee` { basis, amount, minAmount,
+ * maxAmount }: the desk bill worked out with the desk's own rule (desk fee, else the consultation
+ * fee of the doctor the desk assigns — doctor fee first, clinic fee otherwise — as one amount or a
+ * range across the clinic's doctors). It wins over the settings guess; older backends omit it.
+ *
  * "Pay at the clinic" creates nothing: reception sells the plan at the desk (Collect payment ->
  * Sell plan) and the plan starts only once that payment is recorded.
  */
@@ -27,7 +32,20 @@ export interface WalkInPlanSettings {
    * rule built by hand (tests, older callers) still type-checks.
    */
   consultationFee?: number | null;
+  /** The backend-resolved desk bill (`expectedWalkInFee`); null / absent on older backends. */
+  expectedFee?: ExpectedWalkInFee | null;
 }
+
+export type ExpectedWalkInFeeBasis = "desk_fee" | "clinic_consultation_fee" | "doctor_fee" | "doctor_fee_range";
+
+export interface ExpectedWalkInFee {
+  basis: ExpectedWalkInFeeBasis;
+  amount: number | null;
+  minAmount: number | null;
+  maxAmount: number | null;
+}
+
+const BASES: readonly ExpectedWalkInFeeBasis[] = ["desk_fee", "clinic_consultation_fee", "doctor_fee", "doctor_fee_range"];
 
 const POLICIES: readonly WalkInPlanPolicy[] = ["REQUIRE_PLAN", "ALLOW_WITH_DESK_FEE", "ALLOW_FREE"];
 const MAX_DESK_FEE = 100_000;
@@ -43,8 +61,29 @@ function normalizeDeskFee(value: unknown): number | null {
   return rupees > 0 && rupees <= MAX_DESK_FEE ? rupees : null;
 }
 
-/** The rule from `Clinic.settings`, or null when the settings are not available (not loaded yet). */
-export function resolveWalkInPlanSettings(settings: unknown): WalkInPlanSettings | null {
+function positiveAmount(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** The clinic payload's `expectedWalkInFee`, or null when absent, unknown (null basis) or malformed. */
+export function resolveExpectedWalkInFee(value: unknown): ExpectedWalkInFee | null {
+  if (!isRecord(value)) return null;
+  const basis = (BASES as readonly unknown[]).includes(value.basis) ? (value.basis as ExpectedWalkInFeeBasis) : null;
+  if (!basis) return null;
+  const amount = positiveAmount(value.amount);
+  const minAmount = positiveAmount(value.minAmount) ?? amount;
+  const maxAmount = positiveAmount(value.maxAmount) ?? amount;
+  if (basis === "doctor_fee_range") {
+    return minAmount !== null && maxAmount !== null ? { basis, amount: null, minAmount, maxAmount } : null;
+  }
+  return amount !== null ? { basis, amount, minAmount: amount, maxAmount: amount } : null;
+}
+
+/**
+ * The rule from `Clinic.settings` (plus the payload's `expectedWalkInFee`), or null when the
+ * settings are not available (not loaded yet).
+ */
+export function resolveWalkInPlanSettings(settings: unknown, expectedWalkInFee?: unknown): WalkInPlanSettings | null {
   if (!isRecord(settings)) return null;
   const appointment = isRecord(settings.appointmentSettings) ? settings.appointmentSettings : settings;
   const raw = typeof appointment.walkInWithoutPlan === "string" ? appointment.walkInWithoutPlan.trim().toUpperCase() : "";
@@ -54,22 +93,38 @@ export function resolveWalkInPlanSettings(settings: unknown): WalkInPlanSettings
     policy,
     deskFee: normalizeDeskFee(appointment.walkInDeskFee),
     consultationFee: normalizeDeskFee(billing.opdConsultationFee),
+    expectedFee: resolveExpectedWalkInFee(expectedWalkInFee),
   };
 }
 
 const rupees = (amount: number): string => `₹${amount.toLocaleString("en-IN")}`;
+
+/**
+ * "desk fee ₹300" / "consultation fee ₹500" / "consultation fee ₹400–₹600 depending on the doctor",
+ * or null when no amount is known. Backend `expectedWalkInFee` first, the settings guess second.
+ */
+export function walkInFeePhrase(rule: WalkInPlanSettings | null): string | null {
+  if (rule?.policy !== "ALLOW_WITH_DESK_FEE") return null;
+  const expected = rule.expectedFee;
+  if (expected?.basis === "desk_fee" && expected.amount) return `desk fee ${rupees(expected.amount)}`;
+  if (expected?.basis === "doctor_fee_range" && expected.minAmount && expected.maxAmount) {
+    return `consultation fee ${rupees(expected.minAmount)}–${rupees(expected.maxAmount)} depending on the doctor`;
+  }
+  if (expected?.amount) return `consultation fee ${rupees(expected.amount)}`;
+  if (rule.deskFee) return `desk fee ${rupees(rule.deskFee)}`;
+  // No desk fee set: the desk bills the consultation fee (backend resolveConsultationFee).
+  if (rule.consultationFee) return `consultation fee ${rupees(rule.consultationFee)}`;
+  return null;
+}
 
 /** One plain sentence: what a patient without a plan can do at the clinic (same as mobile). */
 export function walkInFallbackText(rule: WalkInPlanSettings | null): string {
   if (rule?.policy === "ALLOW_FREE") {
     return "No plan? Walk in — the reception desk will check you in (no desk fee).";
   }
-  if (rule?.policy === "ALLOW_WITH_DESK_FEE" && rule.deskFee) {
-    return `No plan? Walk in — the reception desk will check you in (desk fee ${rupees(rule.deskFee)}, pay at the desk).`;
-  }
-  // No desk fee set: the desk bills the clinic's consultation fee (backend resolveConsultationFee).
-  if (rule?.policy === "ALLOW_WITH_DESK_FEE" && rule.consultationFee) {
-    return `No plan? Walk in — the reception desk will check you in (consultation fee ${rupees(rule.consultationFee)}, pay at the desk).`;
+  const fee = walkInFeePhrase(rule);
+  if (fee) {
+    return `No plan? Walk in — the reception desk will check you in (${fee}, pay at the desk).`;
   }
   if (rule?.policy === "REQUIRE_PLAN") {
     return "No plan? Walk in and ask at the reception desk — they can set up a plan and check you in.";

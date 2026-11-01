@@ -7,7 +7,7 @@ import { useActiveSubscription } from "@/hooks/query/useBilling";
 import { useCurrentClinic } from "@/hooks/query/useClinics";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { planStatusOf } from "./plan-status.logic";
-import { resolveWalkInPlanSettings } from "./plan-desk-path.logic";
+import { resolveWalkInPlanSettings, walkInFeePhrase } from "./plan-desk-path.logic";
 
 /**
  * The patient's monthly in-person plan, for staff screens (reception collect / walk-in, clinic
@@ -50,11 +50,10 @@ export function PatientPlanStatus({
     );
   }
   // Clinic settings rule; unknown settings read as the backend default (REQUIRE_PLAN).
-  const rule = resolveWalkInPlanSettings(clinic.data?.settings);
+  const rule = resolveWalkInPlanSettings(clinic.data?.settings, clinic.data?.expectedWalkInFee);
   const policy = rule?.policy ?? "REQUIRE_PLAN";
-  const deskFee = rule?.deskFee ?? null;
-  // A blank desk fee: the desk bills the clinic's consultation fee instead (backend rule).
-  const consultationFee = rule?.consultationFee ?? null;
+  // Backend-resolved bill (desk fee, else the doctor / clinic consultation fee); settings as fallback.
+  const feePhrase = walkInFeePhrase(rule);
   if (policy === "ALLOW_FREE") {
     return (
       <Note tone="blue" icon={CalendarClock} className={className}>
@@ -67,11 +66,7 @@ export function PatientPlanStatus({
     return (
       <Note tone="amber" icon={CalendarClock} className={className}>
         <strong>No active in-person plan.</strong> This clinic charges a desk fee
-        {deskFee
-          ? ` of ₹${deskFee.toLocaleString("en-IN")}`
-          : consultationFee
-            ? ` (the consultation fee, ₹${consultationFee.toLocaleString("en-IN")})`
-            : ""}{" "}
+        {feePhrase ? ` (${feePhrase})` : ""}{" "}
         for a plan-less visit instead of requiring one. Check the patient in and collect it at the desk.
       </Note>
     );

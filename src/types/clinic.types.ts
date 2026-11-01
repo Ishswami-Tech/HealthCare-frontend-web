@@ -30,6 +30,11 @@ export interface Clinic {
   supportPhone?: string;
   /** Clinic-set technical/app support email, shown on the patient Help page. */
   supportEmail?: string;
+  /**
+   * Backend-resolved desk bill of a plan-less walk-in (GET /clinics/my-clinic, /clinics/:id), parsed
+   * by `resolveExpectedWalkInFee` in components/billing/plan-desk-path.logic.ts. Older backends omit it.
+   */
+  expectedWalkInFee?: unknown;
 }
 
 export interface ClinicLocation {

@@ -2135,7 +2135,7 @@ function BookAppointmentStep5({
   const { language } = useLanguage();
   // Plan-less patient: the clinic's walk-in rule and desk fee (clinic settings), same words as mobile.
   const { data: stepClinic } = useCurrentClinic();
-  const patientWalkInNote = walkInFallbackText(resolveWalkInPlanSettings(stepClinic?.settings));
+  const patientWalkInNote = walkInFallbackText(resolveWalkInPlanSettings(stepClinic?.settings, stepClinic?.expectedWalkInFee));
   const isPageLayout = layout === "page";
   // The existing gateway button: same props and callbacks, only the look changed.
   const payButton =
