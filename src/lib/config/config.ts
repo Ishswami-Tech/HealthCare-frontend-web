@@ -1240,6 +1240,8 @@ export const API_ENDPOINTS = {
     HANDOVER_CODE: (prescriptionId: string) => `/pharmacy-ops/prescriptions/${prescriptionId}/handover/code`, // PATIENT: 6-digit code + QR
     HANDOVER_GET: (prescriptionId: string) => `/pharmacy-ops/prescriptions/${prescriptionId}/handover`,
     HANDOVER_VERIFY: (prescriptionId: string) => `/pharmacy-ops/prescriptions/${prescriptionId}/handover/verify`, // { code, method? }
+    HANDOVER_VERIFY_WITHOUT_CODE: (prescriptionId: string) =>
+      `/pharmacy-ops/prescriptions/${prescriptionId}/handover/verify-without-code`, // { identityCheck, identityValue, reason }
     HANDOVER_CONFIRM: (handoverId: string) => `/pharmacy-ops/handovers/${handoverId}/confirm`,
     HANDOVER_UNDO: (handoverId: string) => `/pharmacy-ops/handovers/${handoverId}/undo`,
   },

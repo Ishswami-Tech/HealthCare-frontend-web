@@ -356,6 +356,40 @@ export function sortNewestFirst(prescriptions: PrescriptionRow[]): PrescriptionR
   );
 }
 
+/**
+ * Order of the open (active) list at the counter: today's prescriptions first, the one waiting
+ * longest today at the top, then the backlog of earlier days (newest first). Newest-first over
+ * every day put a patient standing at the counter now below yesterday's rows.
+ */
+export function counterWorkOrder(prescriptions: readonly PrescriptionRow[], now: Date = new Date()): PrescriptionRow[] {
+  const today = formatDateKeyInIST(now);
+  const at = (row: PrescriptionRow): number => new Date(row.prescribedAt).getTime() || 0;
+  const isToday = (row: PrescriptionRow): boolean => formatDateKeyInIST(row.prescribedAt) === today;
+  return [
+    ...prescriptions.filter(isToday).sort((left, right) => at(left) - at(right)),
+    ...prescriptions.filter((row) => !isToday(row)).sort((left, right) => at(right) - at(left)),
+  ];
+}
+
+/**
+ * The stock a row shows, from the live medicine catalog when it has the medicine: the
+ * prescription list embeds each medicine's stock at the time the list was read, so a stock
+ * receipt elsewhere left the board saying "4 in stock" after the shelf held 304.
+ */
+export function withCatalogStock(
+  prescription: PrescriptionRow,
+  catalogById: ReadonlyMap<string, CatalogMedicine>,
+): PrescriptionRow {
+  let changed = false;
+  const medicines = prescription.medicines.map((medicine) => {
+    const stock = catalogById.get(medicine.medicineId)?.stock;
+    if (stock === null || stock === undefined || stock === medicine.availableStock) return medicine;
+    changed = true;
+    return { ...medicine, availableStock: stock, available: stock >= medicine.prescribedQuantity };
+  });
+  return changed ? { ...prescription, medicines } : prescription;
+}
+
 // ── Labels ─────────────────────────────────────────────────────────────────
 
 /** "3 Oct 2026, 12:14 pm" */

@@ -14,11 +14,13 @@ import {
   issuePrescriptionHandoverCode,
   undoPrescriptionHandover,
   verifyPrescriptionHandover,
+  verifyPrescriptionHandoverWithoutCode,
 } from "@/lib/actions/pharmacy-ops.server";
 import type {
   BatchAction,
   BatchActionInput,
   ConfirmHandoverInput,
+  VerifyHandoverWithoutCodeInput,
   ReorderRuleInput,
 } from "@/types/pharmacy-ops.types";
 
@@ -105,6 +107,22 @@ export const useVerifyPrescriptionHandover = () => {
       loadingMessage: "Checking the code...",
       successMessage: "Patient verified",
       // The verify step shows the failure inline and moves to the checklist on success.
+      showToast: false,
+      invalidateQueries: HANDOVER_QUERIES,
+    },
+  );
+};
+
+/** Counter fallback without a code (identity check + reason); the failure shows inline. */
+export const useVerifyPrescriptionHandoverWithoutCode = () => {
+  return useMutationOperation(
+    async (input: VerifyHandoverWithoutCodeInput) => {
+      return dataOrThrow(await verifyPrescriptionHandoverWithoutCode(input));
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
+      loadingMessage: "Checking the patient...",
+      successMessage: "Patient verified",
       showToast: false,
       invalidateQueries: HANDOVER_QUERIES,
     },

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { CheckCircle2, KeyRound, Loader2, QrCode, ShieldCheck, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,8 +30,11 @@ import {
 import { HANDOVER_INPUT_MAX_LENGTH, normalizeHandoverInput, parseHandoverCode } from "@/lib/pharmacy/pharmacy-ops.logic";
 import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
+import { routeFor } from "@/lib/config/tbdRoutes";
+import { prescriptionReference } from "@/lib/utils/labels";
 import type { PharmacyHandover } from "@/types/pharmacy-ops.types";
 import { dateTimeLabel, normalizePrescription } from "../../prescriptions/_components/pharmacist-prescriptions.logic";
+import { HandoverWithoutCode } from "./HandoverWithoutCode";
 
 // The camera scanner is browser-only and heavy; load it when the pharmacist opens it.
 const QRScanner = dynamic(() => import("@/components/qr/QRScanner").then((module) => module.QRScanner), { ssr: false });
@@ -50,6 +54,8 @@ export function HandoverContent({ prescriptionId }: { prescriptionId: string }) 
     [prescriptionQuery.data],
   );
   const handover = handoverQuery.data ?? null;
+  // Other prescriptions of the same patient the same code verified (one code per patient visit).
+  const [otherVerified, setOtherVerified] = useState<string[]>([]);
 
   const backProps = { backHref: "/pharmacist/handover", backLabel: "Hand-over" };
   if ((prescriptionQuery.isPending && !prescriptionQuery.data) || (handoverQuery.isPending && handoverQuery.data === undefined)) {
@@ -81,18 +87,55 @@ export function HandoverContent({ prescriptionId }: { prescriptionId: string }) 
       description={`${prescription.reference} · ${prescription.patientName} · verify, check, acknowledge`}
       {...backProps}
     >
+      {otherVerified.length > 0 ? <OtherVerifiedNote prescriptionIds={otherVerified} /> : null}
       {handover?.status === "HANDED_OVER" ? (
         <HandedOverCard handover={handover} />
       ) : handover?.verified && handover.status === "PENDING_VERIFICATION" ? (
         <ChecklistStep handover={handover} defaultReceiver={prescription.patientName} />
       ) : (
-        <VerifyStep prescriptionId={prescriptionId} undone={handover?.status === "UNDONE"} />
+        <VerifyStep
+          prescriptionId={prescriptionId}
+          undone={handover?.status === "UNDONE"}
+          onVerified={(verified) =>
+            setOtherVerified(
+              [verified.prescriptionId, ...verified.alsoVerified.map((entry) => entry.prescriptionId)].filter(
+                (id) => id && id !== prescriptionId,
+              ),
+            )
+          }
+        />
       )}
     </TbdPage>
   );
 }
 
-function VerifyStep({ prescriptionId, undone }: { prescriptionId: string; undone: boolean }) {
+/** The patient's code also verified their other ready prescriptions: hand those over next. */
+function OtherVerifiedNote({ prescriptionIds }: { prescriptionIds: string[] }) {
+  return (
+    <Note tone="green" icon={CheckCircle2}>
+      The same code also verified {prescriptionIds.length === 1 ? "another prescription" : `${prescriptionIds.length} other prescriptions`} of this
+      patient. Hand {prescriptionIds.length === 1 ? "it" : "them"} over too:{" "}
+      {prescriptionIds.map((id, index) => (
+        <span key={id}>
+          {index > 0 ? ", " : ""}
+          <Link className="font-bold underline" href={routeFor("/pharmacist/handover/[id]", { id })}>
+            {prescriptionReference(id)}
+          </Link>
+        </span>
+      ))}
+    </Note>
+  );
+}
+
+function VerifyStep({
+  prescriptionId,
+  undone,
+  onVerified,
+}: {
+  prescriptionId: string;
+  undone: boolean;
+  onVerified: (handover: PharmacyHandover) => void;
+}) {
   const verify = useVerifyPrescriptionHandover();
   const [code, setCode] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -110,6 +153,7 @@ function VerifyStep({ prescriptionId, undone }: { prescriptionId: string; undone
     setError(null);
     verify
       .mutateAsync({ prescriptionId, ...parsed })
+      .then(onVerified)
       .catch((failure: unknown) => setError(sanitizeErrorMessage(failure)));
   };
 
@@ -156,10 +200,14 @@ function VerifyStep({ prescriptionId, undone }: { prescriptionId: string; undone
               Scan the patient&apos;s QR
             </Button>
           )}
-          <p className="m-0 text-xs text-ink-muted">The code is valid for 15 minutes. Five wrong tries lock it; the patient can make a new one.</p>
+          <p className="m-0 text-xs text-ink-muted">
+            The code is valid for 15 minutes and collects every ready prescription of the patient. Five wrong tries lock
+            it; the patient can make a new one.
+          </p>
         </div>
       </div>
       <DialogError message={error} />
+      <HandoverWithoutCode prescriptionId={prescriptionId} onVerified={onVerified} />
     </Surface>
   );
 }
@@ -211,7 +259,10 @@ function ChecklistStep({
   return (
     <>
       <Note tone="green" icon={CheckCircle2}>
-        Patient verified{handover.method ? ` by ${handover.method === "QR" ? "QR" : "code"}` : ""}
+        Patient verified
+        {handover.method
+          ? ` by ${handover.method === "QR" ? "QR" : handover.method === "MANUAL" ? "identity check (no code)" : "code"}`
+          : ""}
         {handover.verifiedAt ? ` at ${dateTimeLabel(handover.verifiedAt)}` : ""}.
       </Note>
       <Surface as="section" aria-label="Check the items">

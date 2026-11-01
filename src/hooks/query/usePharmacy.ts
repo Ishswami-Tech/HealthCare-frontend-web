@@ -694,9 +694,15 @@ export const useReversePrescriptionDispense = () => {
   );
 };
 
-/** Every list that shows stock: it moves when a batch is received or corrected (also used by `usePharmacyOps`). */
+/**
+ * Every list that shows stock: it moves when a batch is received or corrected (also used by
+ * `usePharmacyOps`). The prescription lists carry each medicine's stock too (the board's
+ * "Paracetamol 500mg: 4 in stock" hint), so they are refreshed with the stock lists.
+ */
 export const STOCK_QUERIES = [
   ["inventory"],
+  ["prescriptions"],
+  ["prescription"],
   ["medicines"],
   ["medicine"],
   ["stockBatches"],

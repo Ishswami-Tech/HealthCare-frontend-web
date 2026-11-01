@@ -365,6 +365,45 @@ export function canCollect(prescription: Pick<PatientPrescription, "readyForHand
   return prescription.readyForHandover && !isCollected(prescription);
 }
 
+/**
+ * The status a medicine-desk card shows, read from THAT prescription only: something to pay,
+ * ready to collect with a code (the server's `canCollect`), collected, or its pharmacy state.
+ */
+export function deskCardStatus(
+  prescription: Pick<PatientPrescription, "pendingAmount" | "state" | "readyForHandover" | "handoverStatus">,
+): { label: string; tone: PillTone } {
+  if (canPay(prescription)) return PHARMACY_STATE.awaiting_payment;
+  if (isCollected(prescription)) return { label: "Collected", tone: "slate" };
+  if (canCollect(prescription)) return { label: "Ready to collect", tone: "green" };
+  return PHARMACY_STATE[prescription.state];
+}
+
+/** "RX-20261101-09948585 · 31 Oct 2026 · Dashmool Kwath, Ashwagandha +1": which prescription a card is. */
+export function deskCardMeta(
+  prescription: Pick<PatientPrescription, "number" | "dateLabel" | "lines" | "queueLabel">,
+): string {
+  const names = prescription.lines.map((line) => line.name);
+  const medicines =
+    names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", ") || medicinesLabel(0);
+  return [prescription.number, prescription.dateLabel, medicines, prescription.queueLabel].filter(Boolean).join(" · ");
+}
+
+/** One line per prescription a collection code collects: "RX-… · 31 Oct 2026" + its medicines. */
+export function codeCoverageLines(
+  prescriptions: ReadonlyArray<{ prescriptionId: string; prescriptionNumber: string | null; prescribedAt: string | null; medicines: string[] }>,
+): Array<{ prescriptionId: string; title: string; medicines: string }> {
+  return prescriptions.map((entry) => ({
+    prescriptionId: entry.prescriptionId,
+    title: [
+      prescriptionReference(entry.prescriptionId, { prescriptionNumber: entry.prescriptionNumber }),
+      entry.prescribedAt ? formatDateLabel(entry.prescribedAt) : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    medicines: entry.medicines.join(", "),
+  }));
+}
+
 /** The patient's prescriptions from `GET pharmacy/prescriptions/patient/:userId`, newest first. */
 export function buildPrescriptions(data: unknown): PatientPrescription[] {
   const prescriptions = unwrapRecords(data, "prescriptions").reduce<PatientPrescription[]>((list, raw) => {

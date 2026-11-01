@@ -11,11 +11,13 @@ import type {
   BatchMovementAuditEntry,
   ConfirmHandoverInput,
   HandoverCode,
+  HandoverCodePrescription,
   HandoverStatus,
   PharmacyHandover,
   ReorderRuleInput,
   ReorderStrategy,
   ReorderSuggestion,
+  VerifyHandoverWithoutCodeInput,
 } from "@/types/pharmacy-ops.types";
 
 /**
@@ -54,7 +56,7 @@ function normalizeHandover(raw: Record<string, unknown>): PharmacyHandover {
     id: String(raw.id ?? ""),
     prescriptionId: String(raw.prescriptionId ?? ""),
     status: (status === "HANDED_OVER" || status === "UNDONE" ? status : "PENDING_VERIFICATION") as HandoverStatus,
-    method: method === "QR" || method === "OTP" ? method : null,
+    method: method === "QR" || method === "OTP" || method === "MANUAL" ? method : null,
     verified: Boolean(raw.verified),
     verifiedAt: toIso(raw.verifiedAt),
     patientName: String(raw.patientName ?? ""),
@@ -71,7 +73,23 @@ function normalizeHandover(raw: Record<string, unknown>): PharmacyHandover {
     undoUntil: toIso(raw.undoUntil),
     canUndo: Boolean(raw.canUndo),
     undoneAt: toIso(raw.undoneAt),
+    alsoVerified: (Array.isArray(raw.alsoVerified) ? raw.alsoVerified : [])
+      .map(asRecord)
+      .map((entry) => ({ handoverId: String(entry.handoverId ?? ""), prescriptionId: String(entry.prescriptionId ?? "") }))
+      .filter((entry) => entry.handoverId && entry.prescriptionId),
   };
+}
+
+function normalizeCodePrescriptions(value: unknown): HandoverCodePrescription[] {
+  return (Array.isArray(value) ? value : [])
+    .map(asRecord)
+    .map((entry) => ({
+      prescriptionId: String(entry.prescriptionId ?? ""),
+      prescriptionNumber: entry.prescriptionNumber ? String(entry.prescriptionNumber) : null,
+      prescribedAt: toIso(entry.prescribedAt),
+      medicines: (Array.isArray(entry.medicines) ? entry.medicines : []).map(String).filter(Boolean),
+    }))
+    .filter((entry) => entry.prescriptionId);
 }
 
 /** The record of an answer that may come bare or wrapped in `data`. */
@@ -168,6 +186,7 @@ export async function issuePrescriptionHandoverCode(prescriptionId: string): Pro
       qrPayload: String(record.qrPayload ?? ""),
       qrImage,
       expiresAt: toIso(record.expiresAt),
+      prescriptions: normalizeCodePrescriptions(record.prescriptions),
     };
   });
 }
@@ -188,6 +207,37 @@ export async function verifyPrescriptionHandover(
     what: "Code check",
     body: { code: input.code, method: input.method },
   });
+  return mapResult(result, (data) => normalizeHandover(recordOf(data)));
+}
+
+/**
+ * Counter fallback when the patient has no app or phone: the desk confirms the patient (last 4
+ * digits of the phone on file, or the clinic UHID) and gives a reason; the API audits who, when
+ * and why. Paid + dispensed is still required. Backend: POST
+ * /pharmacy-ops/prescriptions/:id/handover/verify-without-code.
+ */
+export async function verifyPrescriptionHandoverWithoutCode(
+  input: VerifyHandoverWithoutCodeInput,
+): Promise<ActionResult<PharmacyHandover>> {
+  const value = input.identityValue.trim();
+  const reason = input.reason.trim();
+  if (input.identityCheck === "PHONE_LAST4" && !/^\d{4}$/.test(value)) {
+    return invalid("Enter the last 4 digits of the patient's phone number.");
+  }
+  if (input.identityCheck === "UHID" && (value.length === 0 || value.length > 40)) {
+    return invalid("Enter the patient's UHID.");
+  }
+  if (reason.length < 3 || reason.length > 200) {
+    return invalid("Say why the code could not be used (3 to 200 characters).");
+  }
+  const result = await clinicOpsRequest<unknown>(
+    API_ENDPOINTS.PHARMACY_EXT.HANDOVER_VERIFY_WITHOUT_CODE(encodeURIComponent(input.prescriptionId)),
+    {
+      method: "POST",
+      what: "Identity check",
+      body: { identityCheck: input.identityCheck, identityValue: value, reason },
+    },
+  );
   return mapResult(result, (data) => normalizeHandover(recordOf(data)));
 }
 

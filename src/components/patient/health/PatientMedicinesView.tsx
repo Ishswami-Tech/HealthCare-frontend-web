@@ -13,6 +13,8 @@ import {
   PHARMACY_STATE,
   canCollect,
   canPay,
+  deskCardMeta,
+  deskCardStatus,
   filterPrescriptions,
   isAdviceOnly,
   medicinesLabel,
@@ -54,14 +56,15 @@ function DeskCard({
   prescription: PatientPrescription;
   renderPay: PatientMedicinesViewProps["renderPay"];
 }) {
+  // Everything on this card is read from this prescription only (status, number, medicines).
   const due = canPay(prescription);
-  const meta = [prescription.number, medicinesLabel(prescription.lines.length), prescription.queueLabel]
-    .filter(Boolean)
-    .join(" · ");
+  const status = deskCardStatus(prescription);
+  const meta = deskCardMeta(prescription);
   return (
     <Surface
       as="section"
-      aria-label={due ? `Payment pending for ${prescription.number}` : `${prescription.number} at the medicine desk`}
+      aria-label={`${status.label}: ${prescription.number}`}
+      data-testid={`desk-card-${prescription.id}`}
       className={cn(
         "gap-4",
         due ? "border border-[#fed7aa] dark:border-orange-900/70" : "border border-[#a7f3d0] dark:border-emerald-900/70",
@@ -84,7 +87,7 @@ function DeskCard({
               due ? "text-[#7c2d12] dark:text-orange-200" : "text-brand-dark",
             )}
           >
-            {due ? PHARMACY_STATE.awaiting_payment.label : PHARMACY_STATE[prescription.state].label}
+            {status.label}
           </span>
           <span className={cn("text-[13px]", due ? "text-[#9a3412] dark:text-orange-300" : "text-ink-muted")}>{meta}</span>
         </div>
@@ -92,7 +95,9 @@ function DeskCard({
       <p className="m-0 text-[13px] text-ink-muted">
         {due
           ? "Medicines are handed over after the payment is received."
-          : "Collect your medicines at the medicine desk."}
+          : canCollect(prescription)
+            ? "Show the code at the medicine desk to collect these medicines."
+            : "The pharmacy is preparing these medicines."}
       </p>
       {due ? renderPay(prescription, "card") : <HandoverCodePanel prescription={prescription} />}
     </Surface>

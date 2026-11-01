@@ -4,6 +4,7 @@
  */
 
 import type { PillTone } from "@/components/tbd";
+import { formatDateKeyInIST } from "@/lib/utils/date-time";
 import type { PrescriptionRow } from "../../prescriptions/_components/pharmacist-prescriptions.logic";
 
 export type HandoverListFilter = "waiting" | "collected";
@@ -24,18 +25,67 @@ export function isAwaitingHandover(row: PrescriptionRow): boolean {
   return isDispensed(row) && row.medicines.length > 0 && !isCollected(row);
 }
 
+const timeOf = (value: string | null): number => (value ? Date.parse(value) || 0 : 0);
+
+/** When the row joined the counter queue: dispensed time, else when it was prescribed. */
+function queuedAt(row: PrescriptionRow): string | null {
+  return row.dispensedAt ?? row.prescribedAt ?? null;
+}
+
+/** Dispensed (or prescribed) on the clinic's (IST) calendar day of `nowMs`. */
+export function isTodayRow(row: PrescriptionRow, nowMs: number): boolean {
+  const at = queuedAt(row);
+  return Boolean(at) && formatDateKeyInIST(at as string) === formatDateKeyInIST(new Date(nowMs));
+}
+
+export interface WaitingGroups {
+  /** Dispensed today: the patients who are at the counter now, longest wait first. */
+  today: PrescriptionRow[];
+  /** Dispensed on an earlier day and never collected: backlog, newest first. */
+  older: PrescriptionRow[];
+}
+
 /**
- * Rows of one filter. Waiting rows come oldest first (who has waited longest is served first);
- * collected rows newest first.
+ * The waiting list in the order the counter works it: today's patients first (who has waited
+ * longest today is served first), then the older backlog, so a stale prior-day row never sits
+ * above a patient standing at the counter now.
  */
-export function handoverRows(rows: readonly PrescriptionRow[], filter: HandoverListFilter): PrescriptionRow[] {
-  const time = (value: string | null): number => (value ? Date.parse(value) || 0 : 0);
+export function waitingGroups(rows: readonly PrescriptionRow[], nowMs: number): WaitingGroups {
+  const waiting = rows.filter(isAwaitingHandover);
+  return {
+    today: waiting
+      .filter((row) => isTodayRow(row, nowMs))
+      .sort((a, b) => timeOf(queuedAt(a)) - timeOf(queuedAt(b))),
+    older: waiting
+      .filter((row) => !isTodayRow(row, nowMs))
+      .sort((a, b) => timeOf(queuedAt(b)) - timeOf(queuedAt(a))),
+  };
+}
+
+/**
+ * Rows of one filter. Waiting rows: today's first (longest wait first), then older ones (see
+ * waitingGroups); collected rows newest first.
+ */
+export function handoverRows(
+  rows: readonly PrescriptionRow[],
+  filter: HandoverListFilter,
+  nowMs: number = Date.now(),
+): PrescriptionRow[] {
   if (filter === "waiting") {
-    return rows.filter(isAwaitingHandover).sort((a, b) => time(a.dispensedAt) - time(b.dispensedAt));
+    const groups = waitingGroups(rows, nowMs);
+    return [...groups.today, ...groups.older];
   }
   return rows
     .filter((row) => isDispensed(row) && row.medicines.length > 0 && isCollected(row))
-    .sort((a, b) => time(b.handedOverAt ?? b.dispensedAt) - time(a.handedOverAt ?? a.dispensedAt));
+    .sort((a, b) => timeOf(b.handedOverAt ?? b.dispensedAt) - timeOf(a.handedOverAt ?? a.dispensedAt));
+}
+
+/** "Showing all 23 waiting: 19 today, 4 older" — the list is never silently cut. */
+export function waitingCountLabel(groups: WaitingGroups): string {
+  const total = groups.today.length + groups.older.length;
+  if (total === 0) return "";
+  const parts = [`${groups.today.length} today`, ...(groups.older.length > 0 ? [`${groups.older.length} older`] : [])];
+  return `Showing all ${total} waiting: ${parts.join(", ")}`;
 }
 
 /** "Waiting 4 min", "Waiting 1 h 05 min", "Waiting since 25 Sep" (over a day); "" without a time. */

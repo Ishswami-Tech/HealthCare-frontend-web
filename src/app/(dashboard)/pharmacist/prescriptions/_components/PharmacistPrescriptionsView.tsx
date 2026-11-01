@@ -17,7 +17,7 @@ export interface PharmacistPrescriptionsViewProps {
   tab: PrescriptionsTab;
   onTabChange: (tab: PrescriptionsTab) => void;
 
-  /** Open prescriptions after the search and state filter, newest first. */
+  /** Open prescriptions after the search and state filter: today first (longest wait first), then older. */
   activePrescriptions: PrescriptionRow[];
   /** Dispensed and cancelled prescriptions after the search and state filter. */
   historyPrescriptions: PrescriptionRow[];

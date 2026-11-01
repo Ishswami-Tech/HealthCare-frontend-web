@@ -9,7 +9,7 @@ import { useIssueHandoverCode } from "@/hooks/query/usePharmacyOps";
 import { useCountdown } from "@/hooks/utils/useCountdown";
 import { formatDateLabel } from "@/lib/utils/date-time";
 import type { HandoverCode } from "@/types/pharmacy-ops.types";
-import { canCollect, isCollected, type PatientPrescription } from "./patient-health.logic";
+import { canCollect, codeCoverageLines, isCollected, type PatientPrescription } from "./patient-health.logic";
 
 type HandoverCodePanelProps = {
   prescription: Pick<PatientPrescription, "id" | "number" | "readyForHandover" | "handoverStatus" | "handedOverAt">;
@@ -31,9 +31,25 @@ function IssuedCode({
 }) {
   const countdown = useCountdown(issued.expiresAt);
   const expired = Boolean(issued.expiresAt) && countdown.isExpired;
+  const covers = codeCoverageLines(issued.prescriptions);
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-hair bg-well px-4 py-4 text-center">
       <span className="text-[13px] text-ink-muted">Show this at the medicine counter</span>
+      {covers.length > 0 ? (
+        <div className="flex w-full flex-col gap-1 text-left" data-testid="handover-code-covers">
+          <span className="text-xs font-bold text-ink">
+            {covers.length === 1 ? "This code collects" : `One code collects all ${covers.length} prescriptions`}
+          </span>
+          <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+            {covers.map((line) => (
+              <li key={line.prescriptionId} className="text-xs text-ink-muted">
+                <span className="font-semibold text-ink">{line.title}</span>
+                {line.medicines ? ` · ${line.medicines}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {issued.qrImage && !expired ? (
         // A data URL from the API; next/image adds nothing for an inline picture.
         <img
@@ -96,7 +112,11 @@ export function HandoverCodePanel({ prescription }: HandoverCodePanelProps) {
     setError(null);
     issueCode
       .mutateAsync({ prescriptionId: prescription.id })
-      .then((code) => queryClient.setQueryData(codeKey, code))
+      .then((code) => {
+        // One code collects every ready prescription it lists: each of their cards shows it.
+        const ids = new Set([prescription.id, ...code.prescriptions.map((entry) => entry.prescriptionId)]);
+        for (const id of ids) queryClient.setQueryData(["patientHandoverCode", id], code);
+      })
       .catch((failure: unknown) => {
         setError(failure instanceof Error && failure.message ? failure.message : "We could not get a code. Please try again.");
       });

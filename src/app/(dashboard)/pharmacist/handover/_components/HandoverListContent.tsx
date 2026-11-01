@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Eye, HandHeart, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,9 +38,12 @@ import {
   handoverPayment,
   handoverRows,
   isLongWait,
+  isTodayRow,
   normalizedPatientName,
   patientIdentity,
   repeatedNames,
+  waitingCountLabel,
+  waitingGroups,
   waitingLabel,
   type HandoverListFilter,
 } from "./handover-list.logic";
@@ -74,18 +77,21 @@ export function HandoverListContent() {
   const now = useNow();
 
   const all = useMemo(() => asList(query.data).map(normalizePrescription), [query.data]);
-  const waitingCount = useMemo(() => handoverRows(all, "waiting").length, [all]);
+  const groups = useMemo(() => waitingGroups(all, now), [all, now]);
+  const waitingCount = groups.today.length + groups.older.length;
   const rows = useMemo(() => {
-    const ordered = handoverRows(all, filter);
+    const ordered = handoverRows(all, filter, now);
     // filterPrescriptions keeps the order it is given.
     return filterPrescriptions(ordered, search, "all");
-  }, [all, filter, search]);
+  }, [all, filter, search, now]);
+  // Waiting list: index of the first row from an earlier day (the "Older" group starts there).
+  const firstOlder = filter === "waiting" ? rows.findIndex((row) => !isTodayRow(row, now)) : -1;
   const sameName = useMemo(() => repeatedNames(rows), [rows]);
 
   return (
     <TbdPage
       title="Hand-over"
-      description="Patients waiting for their medicines, longest wait first. Check the patient's code, tick the medicines and record who received them."
+      description="Today's patients first, longest wait first; older uncollected prescriptions are listed after them. Check the patient's code, tick the medicines and record who received them."
       actions={
         <span className="flex flex-wrap items-center gap-3">
           <Freshness
@@ -139,80 +145,96 @@ export function HandoverListContent() {
           />
         ) : (
           <div role="table" aria-label={filter === "waiting" ? "Waiting for hand-over" : "Collected"}>
+            {filter === "waiting" ? (
+              <p className="m-0 px-5 pt-3 text-xs text-ink-muted" data-testid="handover-waiting-count">
+                {waitingCountLabel(groups)}
+                {search ? ` · ${rows.length} match the search` : ""}
+              </p>
+            ) : null}
             <GridHead columns={COLUMNS} labels={["Patient", "Medicines", "Waiting", "Action"]} />
             {rows.map((row, position) => {
               const identity = patientIdentity(row);
               const repeated = sameName.has(normalizedPatientName(row.patientName));
               const payment = handoverPayment(row, formatRupees);
               const waiting = waitingLabel(row.dispensedAt, now, dateLabel(row.dispensedAt));
-              const long = filter === "waiting" && isLongWait(row.dispensedAt, now);
               const details = [
                 identity,
-                repeated || !identity ? row.reference : "",
+                row.reference,
                 row.prescribedAt ? `Rx ${timeLabel(row.prescribedAt)}` : "",
               ].filter(Boolean);
+              const olderStarts = position === firstOlder;
+              const older = firstOlder >= 0 && position >= firstOlder;
+              // Only today's waits are flagged: an older row is backlog, not a patient at the counter.
+              const long = filter === "waiting" && !older && isLongWait(row.dispensedAt, now);
               return (
-                <GridRow key={row.id} columns={COLUMNS}>
-                  <div role="cell">
-                    <CellTitle
-                      left={<InitialsAvatar name={row.patientName} />}
-                      title={
-                        <span className="flex flex-wrap items-center gap-2">
-                          {filter === "waiting" ? (
-                            <span className="text-xs font-extrabold text-ink-muted" aria-label={`Position ${position + 1}`}>
-                              #{position + 1}
-                            </span>
-                          ) : null}
-                          <span>{row.patientName}</span>
-                          {repeated ? <Pill tone="amber">Same name</Pill> : null}
-                        </span>
-                      }
-                      description={details.join(" · ")}
-                    />
-                  </div>
-                  <div role="cell" className="flex flex-col gap-1">
-                    <span className="text-[13px] font-bold text-ink">{plural(row.medicines.length, "medicine")}</span>
-                    <Pill tone={payment.tone}>{payment.label}</Pill>
-                  </div>
-                  <div role="cell" className="flex flex-col gap-0.5 text-[13px]">
-                    {filter === "waiting" ? (
-                      <>
-                        <span className={cn("font-bold", long ? "text-[#b45309] dark:text-amber-300" : "text-ink")}>
-                          {waiting || "—"}
-                        </span>
-                        <span className="text-xs text-ink-muted">
-                          {row.status === "PARTIAL" ? "Part dispensed" : "Dispensed"}{" "}
-                          {timeLabel(row.dispensedAt)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-ink-soft">Collected {dateTimeLabel(row.handedOverAt) || "—"}</span>
-                    )}
-                  </div>
-                  <div role="cell">
-                    {filter === "waiting" ? (
-                      <Button asChild size="compact">
-                        <Link
-                          href={routeFor("/pharmacist/handover/[id]", { id: row.id })}
-                          aria-label={`Hand over to ${row.patientName}${identity ? ` (${identity})` : ""}`}
-                        >
-                          <HandHeart />
-                          Hand over
-                        </Link>
-                      </Button>
-                    ) : (
-                      <Button asChild size="compact" variant="outline">
-                        <Link
-                          href={routeFor("/pharmacist/handover/[id]", { id: row.id })}
-                          aria-label={`View the hand-over of ${row.patientName}`}
-                        >
-                          <Eye />
-                          View
-                        </Link>
-                      </Button>
-                    )}
-                  </div>
-                </GridRow>
+                <Fragment key={row.id}>
+                  {olderStarts ? (
+                    <div role="row" className="border-b border-hair bg-well px-5 py-2 text-xs font-extrabold text-ink-muted">
+                      <span role="cell">Older · dispensed before today, not collected ({rows.length - firstOlder})</span>
+                    </div>
+                  ) : null}
+                  <GridRow columns={COLUMNS}>
+                    <div role="cell">
+                      <CellTitle
+                        left={<InitialsAvatar name={row.patientName} />}
+                        title={
+                          <span className="flex flex-wrap items-center gap-2">
+                            {filter === "waiting" && !older ? (
+                              <span className="text-xs font-extrabold text-ink-muted" aria-label={`Position ${position + 1}`}>
+                                #{position + 1}
+                              </span>
+                            ) : null}
+                            <span>{row.patientName}</span>
+                            {repeated ? <Pill tone="amber">Same name</Pill> : null}
+                          </span>
+                        }
+                        description={details.join(" · ")}
+                      />
+                    </div>
+                    <div role="cell" className="flex flex-col gap-1">
+                      <span className="text-[13px] font-bold text-ink">{plural(row.medicines.length, "medicine")}</span>
+                      <Pill tone={payment.tone}>{payment.label}</Pill>
+                    </div>
+                    <div role="cell" className="flex flex-col gap-0.5 text-[13px]">
+                      {filter === "waiting" ? (
+                        <>
+                          <span className={cn("font-bold", long ? "text-[#b45309] dark:text-amber-300" : "text-ink")}>
+                            {waiting || "—"}
+                          </span>
+                          <span className="text-xs text-ink-muted">
+                            {row.status === "PARTIAL" ? "Part dispensed" : "Dispensed"}{" "}
+                            {timeLabel(row.dispensedAt)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-ink-soft">Collected {dateTimeLabel(row.handedOverAt) || "—"}</span>
+                      )}
+                    </div>
+                    <div role="cell">
+                      {filter === "waiting" ? (
+                        <Button asChild size="compact">
+                          <Link
+                            href={routeFor("/pharmacist/handover/[id]", { id: row.id })}
+                            aria-label={`Hand over to ${row.patientName}${identity ? ` (${identity})` : ""}`}
+                          >
+                            <HandHeart />
+                            Hand over
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button asChild size="compact" variant="outline">
+                          <Link
+                            href={routeFor("/pharmacist/handover/[id]", { id: row.id })}
+                            aria-label={`View the hand-over of ${row.patientName}`}
+                          >
+                            <Eye />
+                            View
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
+                  </GridRow>
+                </Fragment>
               );
             })}
           </div>

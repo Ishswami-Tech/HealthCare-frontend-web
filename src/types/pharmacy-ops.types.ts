@@ -50,7 +50,8 @@ export interface PharmacyHandover {
   id: string;
   prescriptionId: string;
   status: HandoverStatus;
-  method: "QR" | "OTP" | null;
+  /** MANUAL: verified at the counter by an identity check instead of a code. */
+  method: "QR" | "OTP" | "MANUAL" | null;
   verified: boolean;
   verifiedAt: string | null;
   patientName: string;
@@ -60,6 +61,16 @@ export interface PharmacyHandover {
   undoUntil: string | null;
   canUndo: boolean;
   undoneAt: string | null;
+  /** Verify only: other prescriptions of the same patient the same code verified. */
+  alsoVerified: Array<{ handoverId: string; prescriptionId: string }>;
+}
+
+/** A prescription a collection code collects (Rx number, date and medicines, for the patient). */
+export interface HandoverCodePrescription {
+  prescriptionId: string;
+  prescriptionNumber: string | null;
+  prescribedAt: string | null;
+  medicines: string[];
 }
 
 /** The one-time code the patient shows at the counter (`POST /pharmacy-ops/prescriptions/:id/handover/code`). */
@@ -72,6 +83,16 @@ export interface HandoverCode {
   /** A ready-made QR picture (data URL) when the API sends one; null otherwise. */
   qrImage: string | null;
   expiresAt: string | null;
+  /** Every prescription this one code collects at the counter (the requested one first). */
+  prescriptions: HandoverCodePrescription[];
+}
+
+/** Counter fallback when the patient has no app / phone (identity check + reason, audited). */
+export interface VerifyHandoverWithoutCodeInput {
+  prescriptionId: string;
+  identityCheck: "PHONE_LAST4" | "UHID";
+  identityValue: string;
+  reason: string;
 }
 
 export interface ConfirmHandoverInput {

@@ -26,10 +26,12 @@ import {
   buildDispensePayload,
   buildMedicineCatalog,
   filterBatchAudit,
+  counterWorkOrder,
   filterPrescriptions,
   isHistoryPrescription,
   normalizePrescription,
   sortNewestFirst,
+  withCatalogStock,
   type PrescriptionRow,
   type PrescriptionsTab,
 } from "./pharmacist-prescriptions.logic";
@@ -142,9 +144,16 @@ export default function PharmacistPrescriptionsContent() {
     if (batchOptions.size > 0) prefillBatches(batchOptions);
   }, [batchOptions, prefillBatches]);
 
+  // Today's patients first (longest wait first), then the older backlog; stock read from the
+  // live medicine catalog so a stock receipt shows up on the board right away.
   const allActive = useMemo(
-    () => prescriptions.filter((prescription) => !isHistoryPrescription(prescription)),
-    [prescriptions],
+    () =>
+      counterWorkOrder(
+        prescriptions
+          .filter((prescription) => !isHistoryPrescription(prescription))
+          .map((prescription) => withCatalogStock(prescription, catalogById)),
+      ),
+    [prescriptions, catalogById],
   );
   const allHistory = useMemo(() => prescriptions.filter(isHistoryPrescription), [prescriptions]);
 
