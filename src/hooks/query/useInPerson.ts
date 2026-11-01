@@ -5,6 +5,7 @@ import { useQueryData } from "../core/useQueryData";
 import { useAuth } from "../auth/useAuth";
 import {
   fetchInPersonDesk,
+  fetchInPersonDeskFeesDue,
   fetchInPersonVisit,
   fetchMyInPersonToday,
   submitInPersonCheckIn,
@@ -12,6 +13,7 @@ import {
   type CheckInActionFailure,
 } from "@/lib/actions/in-person.server";
 import type {
+  DeskFeesDue,
   InPersonCheckInRequest,
   InPersonCheckInResult,
   InPersonDeskBoard,
@@ -42,6 +44,7 @@ export const inPersonKeys = {
     page?: number,
     limit?: number,
   ) => ["inPerson", clinicId, "desk", date ?? null, locationId ?? null, page ?? null, limit ?? null] as const,
+  deskFees: (clinicId: string, date: string | undefined) => ["inPerson", clinicId, "deskFees", date ?? null] as const,
 };
 
 function unwrap<T>(result: { success: true; data: T } | { success: false; error: string }): T {
@@ -96,6 +99,20 @@ export function useInPersonDesk(
     inPersonKeys.desk(clinicId, params.date, params.locationId, params.page, params.limit),
     async () => unwrap(await fetchInPersonDesk(params)),
     { enabled, staleTime: IN_PERSON_REFRESH_MS / 2, refetchInterval: IN_PERSON_REFRESH_MS },
+  );
+}
+
+/**
+ * Unpaid desk fees of the day at the receptionist's location (`GET /in-person/desk/fees-due`): the
+ * PENDING consultation bills of today's visits, e.g. a plan-less walk-in's desk fee. Polled like
+ * the desk board; a recorded payment invalidates it (useRecordInvoicePayment).
+ */
+export function useInPersonDeskFeesDue(date: string | undefined, enabled = true) {
+  const clinicId = useCurrentClinicId();
+  return useQueryData<DeskFeesDue>(
+    inPersonKeys.deskFees(clinicId, date),
+    async () => unwrap(await fetchInPersonDeskFeesDue(date ? { date } : {})),
+    { enabled: enabled && Boolean(clinicId), staleTime: IN_PERSON_REFRESH_MS / 2, refetchInterval: IN_PERSON_REFRESH_MS },
   );
 }
 

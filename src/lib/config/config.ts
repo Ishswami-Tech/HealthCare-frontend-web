@@ -1304,6 +1304,7 @@ export const API_ENDPOINTS = {
     VISIT: (appointmentId: string) => `/in-person/appointments/${appointmentId}`,
     CHECK_IN: '/in-person/check-in',                            // patient {qrCode, appointmentId?} | staff {appointmentId}
     DESK: '/in-person/desk',                                    // reception: ?date&locationId
+    DESK_FEES_DUE: '/in-person/desk/fees-due',                  // reception: ?date -> unpaid desk fees of the day
     WALK_IN: '/in-person/walk-in',                              // POST {patientId, locationId?, durationMinutes?, notes?} (contract 18.5)
   },
 } as const;

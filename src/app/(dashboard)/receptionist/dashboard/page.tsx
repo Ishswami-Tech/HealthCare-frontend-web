@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { ReceptionVisitList, ReceptionStatus } from "@/components/receptionist/ReceptionVisitList";
 import { NoClinicalRecordsNote } from "@/components/receptionist/ReceptionNotes";
 import { ReceptionDeskBoard } from "@/components/receptionist/ReceptionDeskBoard";
+import { deskFeeAmount, useDeskFeesToday } from "@/components/receptionist/DeskFeeCollect";
 import { countByStage, hasArrived, minutesSince, startsInLabel } from "@/components/receptionist/reception.logic";
 import {
   RECEPTION_ROUTES,
@@ -50,6 +51,8 @@ export default function ReceptionDashboardPage() {
   const { visits, locationName, isLoading, error, refetch, truncated } = useReceptionVisits({ from: today });
   const { desk } = useReceptionLocation();
   const { checkIn, pendingId } = useReceptionCheckIn();
+  // Unpaid desk fees of today (plan-less walk-ins): a tile + a row tag until collected.
+  const deskFees = useDeskFeesToday();
   const now = Date.now();
 
   const loadedCounts = useMemo(() => countByStage(visits), [visits]);
@@ -115,7 +118,7 @@ export default function ReceptionDashboardPage() {
         <StatTile value={counts.missed} label="Missed" tone="rose" />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <StatTile
           value={`${checkedInCount} of ${clinicVisits.length}`}
           label="Checked in"
@@ -131,6 +134,13 @@ export default function ReceptionDashboardPage() {
           value={videoVisits.length}
           label="Video visits"
           hint={`${videoVisits.filter((visit) => visit.stage === "completed").length} done · joined online`}
+        />
+        <StatTile
+          value={deskFeeAmount(deskFees.totalDue)}
+          label="Desk fees to collect"
+          hint={deskFees.fees.length === 0 ? "Nothing due" : `${deskFees.fees.length} unpaid · collect at the counter`}
+          tone={deskFees.fees.length > 0 ? "amber" : "ink"}
+          href={RECEPTION_ROUTES.collect()}
         />
       </div>
 
@@ -165,7 +175,7 @@ export default function ReceptionDashboardPage() {
                     right={
                       <span className="flex items-center gap-2">
                         <span className="text-xs font-bold text-ink-muted">{minutesSince(visit.checkedInAtMs, now) ?? 0} min</span>
-                        <ReceptionStatus visit={visit} />
+                        <ReceptionStatus visit={visit} feeDue={deskFees.byAppointment.get(visit.id)} />
                       </span>
                     }
                   />
@@ -209,6 +219,7 @@ export default function ReceptionDashboardPage() {
               showType={false}
               onCheckIn={(visit) => void checkIn(visit)}
               checkingInId={pendingId}
+              feeDueOf={(visit) => deskFees.byAppointment.get(visit.id)}
               emptyTitle="Nobody left to arrive"
               emptyDescription="Every in-clinic patient for today has checked in."
               renderMore={(visit) => (

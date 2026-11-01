@@ -152,3 +152,38 @@ export interface InPersonDeskBoard {
   limit?: number;
   totalPages?: number;
 }
+
+/**
+ * One unpaid desk fee (`GET /in-person/desk/fees-due`): the PENDING consultation bill of a visit of
+ * the day at the desk's location, e.g. the desk fee of a plan-less walk-in. Amounts are the stored
+ * invoice (raised from clinic settings), in rupees. Paying never blocks the consultation.
+ */
+export interface DeskFeeDue {
+  invoiceId: string;
+  invoiceNumber: string;
+  appointmentId: string;
+  /** Patient.id */
+  patientId: string;
+  /** User.id of the patient (the desk patient links are keyed by it). */
+  patientUserId: string;
+  patientName: string;
+  doctorName: string;
+  /** HH:mm (IST), or "" */
+  time: string;
+  appointmentStatus: string;
+  description: string | null;
+  /** "WALK_IN_DESK_FEE" for a plan-less walk-in. */
+  paymentFor: string | null;
+  totalAmount: number;
+  paidAmount: number;
+  balance: number;
+  createdAt: string;
+}
+
+export interface DeskFeesDue {
+  locationId: string | null;
+  date: string;
+  fees: DeskFeeDue[];
+  /** Sum of the balances, in rupees. */
+  totalDue: number;
+}

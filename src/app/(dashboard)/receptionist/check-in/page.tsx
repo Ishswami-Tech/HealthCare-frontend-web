@@ -21,6 +21,7 @@ import {
 import { useCheckInHistory } from "@/hooks/query/useAppointments";
 import { formatDateTimeLabel } from "@/lib/utils/date-time";
 import { ReceptionVisitList } from "@/components/receptionist/ReceptionVisitList";
+import { useDeskFeesToday } from "@/components/receptionist/DeskFeeCollect";
 import { checkInRows, hasArrived, readCheckInHistory, type CheckInFilter } from "@/components/receptionist/reception.logic";
 import {
   RECEPTION_ROUTES,
@@ -76,6 +77,8 @@ export default function ReceptionCheckInPage() {
   const today = todayKey();
   const { visits, locationName, isLoading, error, refetch } = useReceptionVisits({ from: today });
   const { checkIn, pendingId } = useReceptionCheckIn();
+  // Unpaid desk fees (plan-less walk-ins): shown on the row until collected, never blocking.
+  const deskFees = useDeskFeesToday();
   const [filter, setFilter] = useState<CheckInFilter>("waiting");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"today" | "history">("today");
@@ -161,6 +164,7 @@ export default function ReceptionCheckInPage() {
             showType={false}
             onCheckIn={(visit) => void checkIn(visit)}
             checkingInId={pendingId}
+            feeDueOf={(visit) => deskFees.byAppointment.get(visit.id)}
             emptyTitle={filter === "waiting" ? "Everyone has checked in" : "No in-clinic visits"}
             emptyDescription={
               filter === "waiting"

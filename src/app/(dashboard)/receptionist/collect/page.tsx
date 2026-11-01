@@ -36,13 +36,45 @@ import {
   useReceptionLocation,
   useReceptionVisits,
 } from "@/components/receptionist/useReceptionDesk";
+import { DeskFeeDuePill, DeskFeesDueRows, deskFeeAmount, useDeskFeesToday } from "@/components/receptionist/DeskFeeCollect";
 
 /**
- * Visits the doctor completed today at this location. In-clinic consultations are covered by the
- * patient's monthly in-person plan (no per-visit fee): the desk only collects other open bills.
+ * Unpaid desk fees of today at this location (plan-less walk-ins under the clinic's desk-fee rule),
+ * whatever the visit stage: the desk can collect at arrival or at checkout. Hidden when none is due.
+ */
+function DeskFeesToday() {
+  const { clinicId } = useReceptionLocation();
+  const { fees, totalDue, isPending, error, refetch } = useDeskFeesToday();
+  if (isPending) return <SkeletonRows rows={2} />;
+  if (error && fees.length === 0) {
+    return (
+      <LoadError
+        title="Desk fees could not be loaded"
+        message={error instanceof Error ? error.message : undefined}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+  if (fees.length === 0) return null;
+  return (
+    <Surface as="section" aria-label="Desk fees to collect">
+      <SectionTitle
+        title="Desk fees to collect"
+        count={fees.length}
+        description={`${deskFeeAmount(totalDue)} due today. Patients without an active plan pay the clinic's desk fee at the counter; the visit goes ahead either way.`}
+      />
+      <DeskFeesDueRows clinicId={clinicId} fees={fees} />
+    </Surface>
+  );
+}
+
+/**
+ * Visits the doctor completed today at this location. A plan covers the in-clinic consultation; a
+ * plan-less visit carries a desk fee, tagged here until it is collected. Other open bills too.
  */
 function CompletedToday() {
   const { visits, isLoading, error, refetch } = useReceptionVisits({ from: todayKey() });
+  const { byAppointment } = useDeskFeesToday();
   const completed = visits.filter((visit) => visit.stage === "completed" && visit.kind === "clinic").reverse();
   return (
     <Surface as="section" aria-label="Completed today">
@@ -66,7 +98,7 @@ function CompletedToday() {
               left={<InitialsAvatar name={visit.patientName} size={36} />}
               title={visit.patientName}
               description={[visit.doctorName, visit.timeLabel, visit.tokenLabel].filter(Boolean).join(" · ")}
-              right={<Pill tone="slate">Open</Pill>}
+              right={byAppointment.get(visit.id) ? <DeskFeeDuePill fee={byAppointment.get(visit.id)} /> : <Pill tone="slate">Open</Pill>}
             />
           ))}
         </div>
@@ -114,8 +146,8 @@ function PatientCollect({ patientUserId }: { patientUserId: string }) {
   const contact = useMemo(() => readPatientContact(patient.data), [patient.data]);
   const bills = usePatientBills(clinicId, contact?.patientId ?? "", { limit: 50 });
   const [collecting, setCollecting] = useState<CollectTarget | null>(null);
-  // Open invoices only (plan renewals, pharmacy, lab ...). No consultation bill is raised here: the
-  // in-person visit is covered by the patient's monthly plan. A VOID / PAID bill is never offered.
+  // Open invoices only (desk fee of a plan-less visit, plan renewals, pharmacy, lab ...). A visit
+  // covered by the monthly plan has no consultation bill. A VOID / PAID bill is never offered.
   const due = (bills.data?.rows ?? []).filter(
     (bill) => bill.source === "INVOICE" && bill.balance > 0 && (bill.status === "PENDING" || bill.status === "PARTIAL"),
   );
@@ -167,7 +199,7 @@ function PatientCollect({ patientUserId }: { patientUserId: string }) {
           <EmptyBlock
             icon={Receipt}
             title="Nothing to collect"
-            description="This patient has no open bill. The in-clinic consultation is covered by the monthly plan."
+            description="This patient has no open bill (no desk fee, pharmacy or plan bill is due)."
           />
         ) : (
           due.map((bill) => (
@@ -209,18 +241,26 @@ function PatientCollect({ patientUserId }: { patientUserId: string }) {
 function CollectContent() {
   const params = useSearchParams();
   const patientUserId = params.get("patientId") ?? "";
-  return patientUserId ? <PatientCollect patientUserId={patientUserId} /> : <CompletedToday />;
+  return patientUserId ? (
+    <PatientCollect patientUserId={patientUserId} />
+  ) : (
+    <div className="flex flex-col gap-5">
+      <DeskFeesToday />
+      <CompletedToday />
+    </div>
+  );
 }
 
 /**
- * RecBillingHandoff: after the doctor completes a visit, the desk checks the patient's monthly
- * in-person plan and collects any open bill (records only, no gateway). No per-visit consultation fee.
+ * RecBillingHandoff: the desk collects today's unpaid desk fees (plan-less visits, amount from clinic
+ * settings) and, after the doctor completes a visit, checks the patient's monthly in-person plan and
+ * collects any open bill (records only, no gateway).
  */
 export default function ReceptionCollectPage() {
   return (
     <TbdPage
       title="Collect payment"
-      description="Check the patient's in-person plan and collect any open bill at the desk, then send the receipt."
+      description="Collect desk fees and any open bill at the desk, check the patient's in-person plan, then send the receipt."
       backHref={RECEPTION_ROUTES.dashboard}
       backLabel="Dashboard"
     >

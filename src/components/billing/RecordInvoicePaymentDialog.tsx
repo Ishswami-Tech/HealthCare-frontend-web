@@ -34,6 +34,8 @@ interface RecordInvoicePaymentDialogProps {
   invoiceId: string;
   invoiceNumber?: string | null;
   balance: number;
+  /** Method preselected when the dialog opens (the desk's Cash / UPI / Card shortcut); default Cash. */
+  initialMethod?: CollectionMethod;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRecorded?: () => void;
@@ -48,11 +50,12 @@ export function RecordInvoicePaymentDialog({
   invoiceId,
   invoiceNumber,
   balance,
+  initialMethod = "CASH",
   open,
   onOpenChange,
   onRecorded,
 }: RecordInvoicePaymentDialogProps) {
-  const [method, setMethod] = useState<CollectionMethod>("CASH");
+  const [method, setMethod] = useState<CollectionMethod>(initialMethod);
   const [amount, setAmount] = useState(String(balance || ""));
   const [transactionId, setTransactionId] = useState("");
   const [note, setNote] = useState("");
@@ -62,13 +65,13 @@ export function RecordInvoicePaymentDialog({
 
   useEffect(() => {
     if (open) {
-      setMethod("CASH");
+      setMethod(initialMethod);
       setAmount(balance > 0 ? String(balance) : "");
       setTransactionId("");
       setNote("");
       setError(null);
     }
-  }, [open, balance]);
+  }, [open, balance, initialMethod]);
 
   const parsedAmount = Number(amount);
   const overBalance = balance > 0 && Number.isFinite(parsedAmount) && parsedAmount > balance;

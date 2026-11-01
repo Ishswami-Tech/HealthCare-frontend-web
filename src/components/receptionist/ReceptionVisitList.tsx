@@ -16,8 +16,10 @@ import {
   VisitTypeChip,
   type TbdIcon,
 } from "@/components/tbd";
+import type { DeskFeeDue } from "@/types/in-person.types";
 import type { ReceptionVisit } from "./reception.logic";
 import { RECEPTION_ROUTES } from "./useReceptionDesk";
+import { DeskFeeDuePill } from "./DeskFeeCollect";
 
 export interface ReceptionVisitActions {
   /** One click check-in; the row shows the button only when the visit can be checked in. */
@@ -26,16 +28,19 @@ export interface ReceptionVisitActions {
   checkingInId?: string | null;
   /** Extra buttons at the end of a row (Reschedule, No-show). */
   renderMore?: (visit: ReceptionVisit) => ReactNode;
+  /** Unpaid desk fee of a row (useDeskFeesToday): the row shows "Fee due ₹X" until it is collected. */
+  feeDueOf?: (visit: ReceptionVisit) => DeskFeeDue | undefined;
 }
 
-/** Status tag of a desk row, with the token, the walk-in tag and the urgent tag. */
-export function ReceptionStatus({ visit }: { visit: ReceptionVisit }) {
+/** Status tag of a desk row, with the token, the walk-in tag, the urgent tag and any fee due. */
+export function ReceptionStatus({ visit, feeDue }: { visit: ReceptionVisit; feeDue?: DeskFeeDue | undefined }) {
   return (
     <span className="flex flex-wrap items-center gap-1.5">
       <Pill tone={visit.statusTone}>{visit.statusLabel}</Pill>
       {visit.tokenLabel ? <Pill tone="white">{visit.tokenLabel}</Pill> : null}
       {visit.isUrgent ? <Pill tone="rose">Urgent</Pill> : null}
       {visit.isWalkIn ? <Pill tone="slate">Walk-in</Pill> : null}
+      <DeskFeeDuePill fee={feeDue} />
     </span>
   );
 }
@@ -84,6 +89,7 @@ export function ReceptionVisitList({
   onCheckIn,
   checkingInId = null,
   renderMore,
+  feeDueOf,
 }: {
   visits: ReceptionVisit[];
   isLoading?: boolean;
@@ -141,7 +147,7 @@ export function ReceptionVisitList({
           ) : null}
           <span className="text-[13px] text-ink-soft [overflow-wrap:anywhere]">{visit.doctorName}</span>
           {showType ? <VisitTypeChip type={visit.kind === "video" ? "VIDEO_CALL" : "IN_PERSON"} /> : null}
-          <ReceptionStatus visit={visit} />
+          <ReceptionStatus visit={visit} feeDue={feeDueOf?.(visit)} />
           <span className="flex flex-wrap items-center justify-end gap-2">
             <CheckInCell visit={visit} onCheckIn={onCheckIn} pending={checkingInId === visit.id} />
             {renderMore?.(visit)}

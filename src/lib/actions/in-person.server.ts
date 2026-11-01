@@ -13,6 +13,7 @@ import { API_ENDPOINTS } from '../config/config';
 import type {
   BookingLocation,
   CheckInFailureCode,
+  DeskFeesDue,
   InPersonCheckInRequest,
   InPersonCheckInResult,
   InPersonDeskBoard,
@@ -29,6 +30,7 @@ import type {
  *   GET  in-person/appointments/:id      one visit (live queue / you're next polling)
  *   POST in-person/check-in              patient QR scan | reception one-click (same endpoint)
  *   GET  in-person/desk                  reception: the location's appointments today
+ *   GET  in-person/desk/fees-due         reception: unpaid desk fees of the day's visits there
  *   POST in-person/walk-in               reception: walk-in visit now + check-in (contract 18.5)
  * Every action resolves the clinic from the session and returns a discriminated result.
  */
@@ -135,6 +137,13 @@ export async function fetchInPersonDesk(
   }
   const query = search.toString();
   return getJson<InPersonDeskBoard>(`${API_ENDPOINTS.IN_PERSON.DESK}${query ? `?${query}` : ''}`, 'the desk');
+}
+
+export async function fetchInPersonDeskFeesDue(
+  params: { date?: string } = {}
+): Promise<{ success: true; data: DeskFeesDue } | ActionFailure> {
+  const query = params.date ? `?${new URLSearchParams({ date: params.date }).toString()}` : '';
+  return getJson<DeskFeesDue>(`${API_ENDPOINTS.IN_PERSON.DESK_FEES_DUE}${query}`, 'the desk fees');
 }
 
 async function postJson<T>(endpoint: string, body: unknown, what: string): Promise<CheckInActionFailure | { success: true; data: T }> {

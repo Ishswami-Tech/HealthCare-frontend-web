@@ -22,18 +22,23 @@ import { useAppointment } from "@/hooks/query/useAppointments";
 import { asRow } from "@/components/patient/home/homeData";
 import { toReceptionVisit } from "@/components/receptionist/reception.logic";
 import { RECEPTION_ROUTES, useReceptionLocation } from "@/components/receptionist/useReceptionDesk";
+import { DeskFeePrompt, useDeskFeesToday } from "@/components/receptionist/DeskFeeCollect";
 
 /** After a check-in: product rules v2, no vitals stage. */
 const NEXT_STEPS = [
   { title: "Waiting in the queue", text: "The patient waits for the doctor in token order. Urgent patients may go first." },
   { title: "Called in", text: "Only the doctor calls the next patient. The patient app shows “You're next”." },
-  { title: "Billing at the desk", text: "When the doctor completes the visit, collect the payment here." },
+  { title: "Billing at the desk", text: "Collect any desk fee now or when the doctor completes the visit (Collect payment)." },
 ];
 
 function CheckInSuccess() {
   const appointmentId = useSearchParams().get("id") ?? "";
-  const { locationName } = useReceptionLocation();
+  const { clinicId, locationName } = useReceptionLocation();
   const { data, isPending, error, refetch } = useAppointment(appointmentId);
+  // A plan-less walk-in / check-in under the clinic's desk-fee rule has a PENDING desk bill: offer
+  // it here, inline. Collecting is optional now; the fee stays on the desk lists until paid.
+  const deskFees = useDeskFeesToday(Boolean(appointmentId));
+  const feeDue = deskFees.byAppointment.get(appointmentId);
   const visit = useMemo(() => {
     const row = asRow(data);
     return row ? toReceptionVisit(row, Date.now()) : null;
@@ -105,6 +110,8 @@ function CheckInSuccess() {
           <VisitTypeChip type="IN_PERSON" variant="chip" />
           <Pill tone={visit.statusTone}>{visit.statusLabel}</Pill>
         </div>
+
+        {feeDue ? <DeskFeePrompt clinicId={clinicId} fee={feeDue} /> : null}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <FactTile label="Doctor" value={visit.doctorName} />

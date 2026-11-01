@@ -79,6 +79,8 @@ export const useRecordInvoicePayment = () =>
         // A desk payment on a plan bill starts the plan.
         ["active-subscription"],
         ["subscriptions"],
+        // A desk fee leaves the reception "fee due" lists (inPersonKeys.deskFees).
+        ["inPerson"],
       ],
     },
   );
