@@ -1,12 +1,16 @@
 "use client";
 
 import { useDeferredValue, useId, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { CircleAlert, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FIELD_LABEL_SMALL, Pill } from "@/components/tbd";
 import { DispenseStockPicker } from "@/components/dispense/DispenseStockPicker";
+import { DoseField } from "@/components/doctor/rx/DoseField";
+import { doseConflictWarning } from "@/components/doctor/rx/dose-units.logic";
+import { toMedicineList } from "@/components/doctor/rx/rx-form.logic";
 import { useDispenseStock } from "@/hooks/query/useDirectDispense";
+import { useMedicines } from "@/hooks/query/usePharmacy";
 import type { DispenseStockItem } from "@/lib/dispense/direct-dispense";
 import { cn } from "@/lib/utils";
 import type { RxDraftLine } from "@/types/rx-drafts.types";
@@ -23,6 +27,21 @@ const CHANGE_TAGS: Record<LineChange, { label: string; tone: "slate" | "amber" |
 };
 
 type EditableField = "dosage" | "frequency" | "duration" | "quantity" | "instructions";
+
+/** Same query (and cache entry) as the prescribe screen's catalogue, so no request per line. */
+const CATALOGUE_FILTERS = { limit: 200 } as const;
+
+/** Dosage form of each catalogue medicine, by id; a medicine not in the list has no form. */
+function useMedicineForms(clinicId: string): ReadonlyMap<string, string> {
+  const { data } = useMedicines(clinicId, CATALOGUE_FILTERS);
+  return useMemo(() => {
+    const forms = new Map<string, string>();
+    for (const medicine of toMedicineList(data)) {
+      if (medicine.id && medicine.dosageForm) forms.set(medicine.id, medicine.dosageForm);
+    }
+    return forms;
+  }, [data]);
+}
 
 function Presets({ values, current, onPick, label }: { values: readonly string[]; current: string; onPick: (value: string) => void; label: string }) {
   return (
@@ -47,12 +66,15 @@ function Presets({ values, current, onPick, label }: { values: readonly string[]
 
 function LineRow({
   line,
+  dosageForm,
   change,
   changedFields,
   onFieldChange,
   onRemove,
 }: {
   line: RxDraftLine;
+  /** The medicine's dosage form from the catalogue; undefined keeps the free-text dose. */
+  dosageForm?: string | undefined;
   change?: LineChange | undefined;
   changedFields?: string[] | undefined;
   onFieldChange: (field: EditableField, value: string) => void;
@@ -60,6 +82,7 @@ function LineRow({
 }) {
   const id = useId();
   const tag = change ? CHANGE_TAGS[change] : null;
+  const doseWarning = dosageForm ? doseConflictWarning(line.dosage, dosageForm) : null;
   const field = (name: EditableField, label: string, placeholder: string, inputMode?: "numeric") => (
     <label className="flex min-w-0 flex-col gap-1" htmlFor={`${id}-${name}`}>
       <span className={FIELD_LABEL_SMALL}>{label}</span>
@@ -89,12 +112,34 @@ function LineRow({
         </Button>
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        {field("dosage", "Dose", "e.g. 1 tablet")}
+        <div className="col-span-2 flex min-w-0 flex-col gap-1 md:col-span-1">
+          <label htmlFor={`${id}-dosage`} className={FIELD_LABEL_SMALL}>
+            Dose
+          </label>
+          <DoseField
+            id={`${id}-dosage`}
+            dosage={line.dosage}
+            dosageForm={dosageForm}
+            fieldClassName="h-10"
+            warningId={`${id}-dose-warning`}
+            onChange={(value) => onFieldChange("dosage", value)}
+          />
+        </div>
         {field("frequency", "Frequency", "1-0-1")}
         {field("duration", "Duration", "5 days")}
         {field("quantity", "Quantity", "10", "numeric")}
         {field("instructions", "Timing", "After food")}
       </div>
+      {doseWarning ? (
+        <span
+          id={`${id}-dose-warning`}
+          role="status"
+          className="inline-flex items-start gap-[5px] rounded-[10px] bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-[#b45309] dark:bg-amber-500/10 dark:text-amber-300"
+        >
+          <CircleAlert className="mt-px size-3 shrink-0" strokeWidth={2.6} aria-hidden="true" />
+          {doseWarning}
+        </span>
+      ) : null}
       <div className="flex flex-col gap-1.5">
         <Presets label="Frequency presets" values={FREQUENCY_PRESETS} current={line.frequency} onPick={(value) => onFieldChange("frequency", value)} />
         <Presets label="Duration presets" values={DURATION_PRESETS} current={line.duration} onPick={(value) => onFieldChange("duration", value)} />
@@ -137,7 +182,8 @@ function AddFromStock({
 }
 
 /**
- * Edit the medicine lines of a draft: dose, frequency, duration, quantity, timing; remove a line;
+ * Edit the medicine lines of a draft: dose (amount + a unit that fits the medicine's form, read
+ * from the cached clinic catalogue; free text when the form is unknown), frequency, duration, quantity, timing; remove a line;
  * add a medicine from clinic stock. Controlled: the parent holds the lines and saves them.
  * `changes` (from `diffDraftLines`) tags each line Unchanged / Edited / Added.
  */
@@ -153,6 +199,7 @@ export function DraftLinesEditor({
   changes?: ReadonlyMap<string, { change: LineChange; fields: string[] }>;
 }) {
   const [adding, setAdding] = useState(false);
+  const forms = useMedicineForms(clinicId);
   const update = (key: string, field: EditableField, value: string) =>
     onChange(lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)));
 
@@ -163,6 +210,7 @@ export function DraftLinesEditor({
           <LineRow
             key={line.key}
             line={line}
+            dosageForm={line.medicineId ? forms.get(line.medicineId) : undefined}
             change={changes?.get(line.key)?.change}
             changedFields={changes?.get(line.key)?.fields}
             onFieldChange={(field, value) => update(line.key, field, value)}
