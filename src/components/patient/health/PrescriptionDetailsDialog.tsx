@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Divider, Note, Pill, SummaryLine, statusLabel, statusTone } from "@/components/tbd";
 import { HandoverCodePanel } from "./HandoverCodePanel";
-import { PHARMACY_STATE, canPay, isAdviceOnly, type PatientPrescription } from "./patient-health.logic";
+import { canPay, isAdviceOnly, prescriptionStatusPill, type PatientPrescription } from "./patient-health.logic";
 import { formatRupees } from "@/lib/utils/currency";
 import { formatDateLabel } from "@/lib/utils/date-time";
 import { showErrorToast } from "@/hooks/utils/use-toast";
@@ -37,7 +37,7 @@ export function PrescriptionDetailsDialog({
   onDownloadBill,
   downloadingBillId = null,
 }: PrescriptionDetailsDialogProps) {
-  const state = prescription ? PHARMACY_STATE[prescription.state] : null;
+  const state = prescription ? prescriptionStatusPill(prescription) : null;
 
   return (
     <Dialog open={prescription !== null} onOpenChange={(open) => (open ? undefined : onClose())}>

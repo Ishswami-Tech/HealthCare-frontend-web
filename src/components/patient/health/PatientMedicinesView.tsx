@@ -18,6 +18,7 @@ import {
   filterPrescriptions,
   isAdviceOnly,
   medicinesLabel,
+  prescriptionStatusPill,
   type CurrentMedicine,
   type PatientPrescription,
 } from "./patient-health.logic";
@@ -297,7 +298,7 @@ export function PatientMedicinesView({
               ) : (
                 <ul className="m-0 flex list-none flex-col p-0">
                   {shown.map((prescription) => {
-                    const state = PHARMACY_STATE[prescription.state];
+                    const state = prescriptionStatusPill(prescription);
                     return (
                       <li key={prescription.id} className="border-b border-hair last:border-b-0">
                         <button

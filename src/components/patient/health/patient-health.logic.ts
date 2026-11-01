@@ -360,6 +360,23 @@ export function isCollected(prescription: Pick<PatientPrescription, "handoverSta
   return prescription.handoverStatus === "HANDED_OVER";
 }
 
+/**
+ * The status pill of a prescription: "Collected 1 Nov 2026" once the counter confirmed the
+ * hand-over (the same `handoverStatus` / `handedOverAt` the details note reads), otherwise its
+ * pharmacy state. The pharmacy state stays "dispensed" after the hand-over, so it is not enough.
+ */
+export function prescriptionStatusPill(
+  prescription: Pick<PatientPrescription, "state" | "handoverStatus" | "handedOverAt">,
+): { label: string; tone: PillTone } {
+  if (isCollected(prescription)) {
+    return {
+      label: prescription.handedOverAt ? `Collected ${formatDateLabel(prescription.handedOverAt)}` : "Collected",
+      tone: "slate",
+    };
+  }
+  return PHARMACY_STATE[prescription.state];
+}
+
 /** The patient can ask for a collection code now. */
 export function canCollect(prescription: Pick<PatientPrescription, "readyForHandover" | "handoverStatus">): boolean {
   return prescription.readyForHandover && !isCollected(prescription);
@@ -370,10 +387,10 @@ export function canCollect(prescription: Pick<PatientPrescription, "readyForHand
  * ready to collect with a code (the server's `canCollect`), collected, or its pharmacy state.
  */
 export function deskCardStatus(
-  prescription: Pick<PatientPrescription, "pendingAmount" | "state" | "readyForHandover" | "handoverStatus">,
+  prescription: Pick<PatientPrescription, "pendingAmount" | "state" | "readyForHandover" | "handoverStatus" | "handedOverAt">,
 ): { label: string; tone: PillTone } {
   if (canPay(prescription)) return PHARMACY_STATE.awaiting_payment;
-  if (isCollected(prescription)) return { label: "Collected", tone: "slate" };
+  if (isCollected(prescription)) return prescriptionStatusPill(prescription);
   if (canCollect(prescription)) return { label: "Ready to collect", tone: "green" };
   return PHARMACY_STATE[prescription.state];
 }
@@ -800,7 +817,7 @@ function uploadRow(raw: Raw, index: number, userId: string, now: number): Report
 }
 
 function prescriptionRow(prescription: PatientPrescription): ReportRow {
-  const state = PHARMACY_STATE[prescription.state];
+  const state = prescriptionStatusPill(prescription);
   return {
     id: `rx-${prescription.id}`,
     kind: "rx",
