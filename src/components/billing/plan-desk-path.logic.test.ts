@@ -12,11 +12,18 @@ describe("resolveWalkInPlanSettings", () => {
   it("reads the rule and desk fee from appointmentSettings", () => {
     assert.deepEqual(
       resolveWalkInPlanSettings({ appointmentSettings: { walkInWithoutPlan: "allow_with_desk_fee", walkInDeskFee: "300" } }),
-      { policy: "ALLOW_WITH_DESK_FEE", deskFee: 300 },
+      { policy: "ALLOW_WITH_DESK_FEE", deskFee: 300, consultationFee: null },
     );
   });
   it("defaults to REQUIRE_PLAN like the backend", () => {
-    assert.deepEqual(resolveWalkInPlanSettings({ appointmentSettings: {} }), { policy: "REQUIRE_PLAN", deskFee: null });
+    assert.deepEqual(resolveWalkInPlanSettings({ appointmentSettings: {} }), { policy: "REQUIRE_PLAN", deskFee: null, consultationFee: null });
+  });
+  it("reads the clinic consultation fee the desk bills when the desk fee is blank", () => {
+    const rule = resolveWalkInPlanSettings({
+      appointmentSettings: { walkInWithoutPlan: "ALLOW_WITH_DESK_FEE", walkInDeskFee: "" },
+      billingSettings: { opdConsultationFee: 500 },
+    });
+    assert.deepEqual(rule, { policy: "ALLOW_WITH_DESK_FEE", deskFee: null, consultationFee: 500 });
   });
   it("is null when no settings came back", () => {
     assert.equal(resolveWalkInPlanSettings(undefined), null);
@@ -38,6 +45,14 @@ describe("walkInFallbackText (same words as mobile)", () => {
   });
   it("offers a plan at the desk when a plan is required", () => {
     assert.match(walkInFallbackText({ policy: "REQUIRE_PLAN", deskFee: null }), /set up a plan/);
+  });
+  it("shows the consultation fee when the clinic left the desk fee blank (D9)", () => {
+    assert.equal(
+      walkInFallbackText({ policy: "ALLOW_WITH_DESK_FEE", deskFee: null, consultationFee: 500 }),
+      "No plan? Walk in — the reception desk will check you in (consultation fee ₹500, pay at the desk).",
+    );
+    assert.match(walkInFallbackText({ policy: "ALLOW_WITH_DESK_FEE", deskFee: 300, consultationFee: 500 }), /desk fee ₹300/);
+    assert.match(walkInFallbackText({ policy: "ALLOW_WITH_DESK_FEE", deskFee: null, consultationFee: null }), /as per clinic/);
   });
   it("stays neutral when the rule is unknown", () => {
     assert.match(walkInFallbackText(null), /as per clinic/);

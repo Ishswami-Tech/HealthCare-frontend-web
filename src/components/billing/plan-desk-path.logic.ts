@@ -8,6 +8,8 @@
  *
  *   appointmentSettings.walkInWithoutPlan   'REQUIRE_PLAN' (default) | 'ALLOW_WITH_DESK_FEE' | 'ALLOW_FREE'
  *   appointmentSettings.walkInDeskFee       whole rupees, used by ALLOW_WITH_DESK_FEE
+ *   billingSettings.opdConsultationFee      whole rupees: what the desk charges when walkInDeskFee is blank
+ *                                           (backend BillingService.resolveConsultationFee)
  *
  * "Pay at the clinic" creates nothing: reception sells the plan at the desk (Collect payment ->
  * Sell plan) and the plan starts only once that payment is recorded.
@@ -19,6 +21,12 @@ export interface WalkInPlanSettings {
   policy: WalkInPlanPolicy;
   /** Rupees; null when the clinic has not set one (the desk uses the consultation fee then). */
   deskFee: number | null;
+  /**
+   * The clinic's consultation fee (`billingSettings.opdConsultationFee`, rupees): the desk bill of a
+   * plan-less walk-in when `deskFee` is blank. A doctor's own fee, when set, may differ. Optional so a
+   * rule built by hand (tests, older callers) still type-checks.
+   */
+  consultationFee?: number | null;
 }
 
 const POLICIES: readonly WalkInPlanPolicy[] = ["REQUIRE_PLAN", "ALLOW_WITH_DESK_FEE", "ALLOW_FREE"];
@@ -41,7 +49,12 @@ export function resolveWalkInPlanSettings(settings: unknown): WalkInPlanSettings
   const appointment = isRecord(settings.appointmentSettings) ? settings.appointmentSettings : settings;
   const raw = typeof appointment.walkInWithoutPlan === "string" ? appointment.walkInWithoutPlan.trim().toUpperCase() : "";
   const policy = (POLICIES as readonly string[]).includes(raw) ? (raw as WalkInPlanPolicy) : "REQUIRE_PLAN";
-  return { policy, deskFee: normalizeDeskFee(appointment.walkInDeskFee) };
+  const billing = isRecord(settings.billingSettings) ? settings.billingSettings : {};
+  return {
+    policy,
+    deskFee: normalizeDeskFee(appointment.walkInDeskFee),
+    consultationFee: normalizeDeskFee(billing.opdConsultationFee),
+  };
 }
 
 const rupees = (amount: number): string => `₹${amount.toLocaleString("en-IN")}`;
@@ -53,6 +66,10 @@ export function walkInFallbackText(rule: WalkInPlanSettings | null): string {
   }
   if (rule?.policy === "ALLOW_WITH_DESK_FEE" && rule.deskFee) {
     return `No plan? Walk in — the reception desk will check you in (desk fee ${rupees(rule.deskFee)}, pay at the desk).`;
+  }
+  // No desk fee set: the desk bills the clinic's consultation fee (backend resolveConsultationFee).
+  if (rule?.policy === "ALLOW_WITH_DESK_FEE" && rule.consultationFee) {
+    return `No plan? Walk in — the reception desk will check you in (consultation fee ${rupees(rule.consultationFee)}, pay at the desk).`;
   }
   if (rule?.policy === "REQUIRE_PLAN") {
     return "No plan? Walk in and ask at the reception desk — they can set up a plan and check you in.";

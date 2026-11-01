@@ -50,7 +50,11 @@ export function PatientPlanStatus({
     );
   }
   // Clinic settings rule; unknown settings read as the backend default (REQUIRE_PLAN).
-  const { policy, deskFee } = resolveWalkInPlanSettings(clinic.data?.settings) ?? { policy: "REQUIRE_PLAN", deskFee: null };
+  const rule = resolveWalkInPlanSettings(clinic.data?.settings);
+  const policy = rule?.policy ?? "REQUIRE_PLAN";
+  const deskFee = rule?.deskFee ?? null;
+  // A blank desk fee: the desk bills the clinic's consultation fee instead (backend rule).
+  const consultationFee = rule?.consultationFee ?? null;
   if (policy === "ALLOW_FREE") {
     return (
       <Note tone="blue" icon={CalendarClock} className={className}>
@@ -62,7 +66,12 @@ export function PatientPlanStatus({
   if (policy === "ALLOW_WITH_DESK_FEE") {
     return (
       <Note tone="amber" icon={CalendarClock} className={className}>
-        <strong>No active in-person plan.</strong> This clinic charges a desk fee{deskFee ? ` of ₹${deskFee}` : ""}{" "}
+        <strong>No active in-person plan.</strong> This clinic charges a desk fee
+        {deskFee
+          ? ` of ₹${deskFee.toLocaleString("en-IN")}`
+          : consultationFee
+            ? ` (the consultation fee, ₹${consultationFee.toLocaleString("en-IN")})`
+            : ""}{" "}
         for a plan-less visit instead of requiring one. Check the patient in and collect it at the desk.
       </Note>
     );
