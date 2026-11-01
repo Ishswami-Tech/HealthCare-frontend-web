@@ -48,6 +48,11 @@ export interface MutationOperationOptions<TData, TVariables, TError = Error> {
   onSuccess?: (data: TData, variables: TVariables) => void | Promise<void>;
   /** Callback on error */
   onError?: (error: TError, variables: TVariables) => void;
+  /**
+   * An expected refusal the caller shows in its own UI (e.g. "already registered"): no error toast,
+   * the loading toast is dismissed, `onError` still runs and the promise still rejects.
+   */
+  isHandledError?: (error: TError) => boolean;
   /** Whether to show toast */
   showToast?: boolean;
   /** Whether to show loading toast */
@@ -88,6 +93,7 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
     invalidateRefetchType,
     onSuccess,
     onError,
+    isHandledError,
     showToast = true,
     showLoading = true,
     mutationOptions,
@@ -155,7 +161,11 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
         return;
       }
 
-      if (showToast) {
+      if (isHandledError?.(error)) {
+        if (showLoading || showToast) {
+          dismissToast(toastId);
+        }
+      } else if (showToast) {
         showErrorToast(finalErrorMessage, {
           id: toastId,
         });

@@ -336,6 +336,38 @@ export async function getAllUsers() {
 
 // ===== ENHANCED USER MANAGEMENT ACTIONS =====
 
+const USER_CONFLICT_FIELDS = {
+  USER_PHONE_ALREADY_EXISTS: 'phone',
+  USER_EMAIL_ALREADY_EXISTS: 'email',
+  USER_ALREADY_EXISTS: 'email',
+} as const;
+
+export type CreateUserConflictCode = keyof typeof USER_CONFLICT_FIELDS;
+
+/** `createUser` answer: the new user, or the server's refusal because the account already exists. */
+export type CreateUserResult =
+  | { ok: true; user: unknown }
+  | {
+      ok: false;
+      code: CreateUserConflictCode;
+      field: (typeof USER_CONFLICT_FIELDS)[CreateUserConflictCode];
+      message: string;
+    };
+
+function isUserConflictCode(value: unknown): value is CreateUserConflictCode {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(USER_CONFLICT_FIELDS, value);
+}
+
+/** A 409 "account already exists" from POST /user, as a typed result; anything else is undefined. */
+function toCreateUserConflict(error: unknown): Extract<CreateUserResult, { ok: false }> | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  const record = error as Record<string, unknown>;
+  const details = record.details && typeof record.details === 'object' ? (record.details as Record<string, unknown>) : {};
+  const code = [record.backendCode, record.code, details.code, details.errorCode].find(isUserConflictCode);
+  if (!code) return undefined;
+  return { ok: false, code, field: USER_CONFLICT_FIELDS[code], message: sanitizeErrorMessage(error) };
+}
+
 /**
  * Create a new user
  */
@@ -380,17 +412,29 @@ export async function createUser(userData: {
     expiryDate?: string;
     status?: string;
   }[];
-}) {
+}): Promise<CreateUserResult> {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
-  return executeAction('createUser', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.BASE, {
-      method: 'POST',
-      body: JSON.stringify(userData)
-    });
-  }, { email: userData.email, role: userData.role });
+  return executeAction('createUser', async (): Promise<CreateUserResult> => {
+    try {
+      const user = await requestUserApi<unknown>(API_ENDPOINTS.USERS.BASE, {
+        method: 'POST',
+        body: JSON.stringify(userData)
+      });
+      return { ok: true, user };
+    } catch (error) {
+      // A taken phone/email is an expected answer (409), not a failure: return it typed so the
+      // browser gets the code instead of a masked server-action 500.
+      const conflict = toCreateUserConflict(error);
+      if (conflict) {
+        logger.info('[createUser] Refused: account already exists', { role: userData.role, code: conflict.code });
+        return conflict;
+      }
+      throw error;
+    }
+  }, { role: userData.role });
 }
 
 /**

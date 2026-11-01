@@ -16,7 +16,7 @@ import {
   exportPatientData,
   updatePatientCarePlan
 } from '@/lib/actions/patients.server';
-import { createUser } from '@/lib/actions/users.server';
+import { createUser, type CreateUserConflictCode } from '@/lib/actions/users.server';
 import { usePatientStore } from '@/stores';
 
 // ===== PATIENTS QUERY HOOKS =====
@@ -253,9 +253,32 @@ export const useCreatePatient = () => {
 };
 
 /**
- * Hook to quick register patient through the role-protected user endpoint.
+ * The server refused the registration because an account already exists on this phone/email
+ * (409 USER_PHONE_ALREADY_EXISTS / USER_EMAIL_ALREADY_EXISTS). Thrown in the browser from the
+ * typed `createUser` result, so callers can branch on `field` instead of matching message text.
  */
-export const useQuickRegisterPatient = () => {
+export class UserAlreadyExistsError extends Error {
+  readonly code: CreateUserConflictCode;
+  readonly field: 'phone' | 'email';
+
+  constructor(conflict: { code: CreateUserConflictCode; field: 'phone' | 'email'; message: string }) {
+    super(conflict.message);
+    this.name = 'UserAlreadyExistsError';
+    this.code = conflict.code;
+    this.field = conflict.field;
+  }
+}
+
+export function isUserAlreadyExistsError(error: unknown): error is UserAlreadyExistsError {
+  return error instanceof UserAlreadyExistsError;
+}
+
+/**
+ * Hook to quick register patient through the role-protected user endpoint.
+ * `quietConflicts`: the caller shows its own "already registered" UI, so no error toast is shown
+ * for an existing account (other failures still toast).
+ */
+export const useQuickRegisterPatient = (options?: { quietConflicts?: boolean }) => {
   return useMutationOperation(
     async (patientData: {
       email?: string;
@@ -295,7 +318,7 @@ export const useQuickRegisterPatient = () => {
         patientData.email?.trim() ||
         `patient.${patientData.phone.replace(/\D/g, '')}.${Date.now()}@clinic.local`;
 
-      const createdUser = await createUser({
+      const created = await createUser({
         email: generatedEmail,
         password: patientData.password,
         firstName: patientData.firstName,
@@ -342,12 +365,17 @@ export const useQuickRegisterPatient = () => {
           : {}),
       });
 
+      if (!created.ok) {
+        throw new UserAlreadyExistsError(created);
+      }
+
       return {
-        user: createdUser,
+        user: created.user,
         generatedEmail,
       };
     },
     {
+      ...(options?.quietConflicts ? { isHandledError: isUserAlreadyExistsError } : {}),
       toastId: TOAST_IDS.PATIENT.CREATE,
       loadingMessage: 'Registering patient...',
       successMessage: 'Patient registered successfully',

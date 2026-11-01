@@ -9,21 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChoiceChip, Field, fieldAria, Note, SkeletonRows, Surface, TbdPage } from "@/components/tbd";
 import useZodForm from "@/hooks/utils/useZodForm";
-import { useQuickRegisterPatient } from "@/hooks/query/usePatients";
+import { isUserAlreadyExistsError, useQuickRegisterPatient } from "@/hooks/query/usePatients";
 import { asRow, firstText } from "@/components/patient/home/homeData";
 import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
 import { RECEPTION_ROUTES, useReceptionLocation } from "@/components/receptionist/useReceptionDesk";
 import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
-
-/**
- * The server refuses a second account for one mobile number with a 409 whose message says so
- * (USER_PHONE_ALREADY_EXISTS). Server actions forward only the message, so match on it.
- */
-const PHONE_TAKEN_PATTERN = /phone number (is already registered|already (belongs|exists))/i;
-
-function isPhoneAlreadyRegistered(message: string): boolean {
-  return PHONE_TAKEN_PATTERN.test(message);
-}
 
 /**
  * After a failed registration: patients of this clinic already on that mobile number. Clinic-scoped
@@ -106,7 +96,8 @@ const GENDERS: Array<{ value: NonNullable<RegisterValues["gender"]>; label: stri
 function RegisterForm() {
   const router = useRouter();
   const next = useSearchParams().get("next");
-  const register = useQuickRegisterPatient();
+  // The "already registered" note below replaces the error toast for a taken phone/email.
+  const register = useQuickRegisterPatient({ quietConflicts: true });
   const [failedPhone, setFailedPhone] = useState("");
   const [phoneTaken, setPhoneTaken] = useState(false);
 
@@ -134,9 +125,13 @@ function RegisterForm() {
       }
       router.push(patientUserId ? RECEPTION_ROUTES.patient(patientUserId) : RECEPTION_ROUTES.patients);
     } catch (error) {
-      // The mutation hook shows the error toast; the form keeps what was typed. When the number
-      // already belongs to a patient of this clinic, offer that record below.
-      setPhoneTaken(isPhoneAlreadyRegistered(error instanceof Error ? error.message : String(error)));
+      // Other failures are toasted by the mutation hook; the form keeps what was typed. When the
+      // number already belongs to a patient of this clinic, offer that record below.
+      if (isUserAlreadyExistsError(error) && error.field === "email") {
+        form.setError("email", { type: "conflict", message: error.message });
+        return;
+      }
+      setPhoneTaken(isUserAlreadyExistsError(error) && error.field === "phone");
       setFailedPhone(values.phone.replace(/\D/g, ""));
     }
   };
