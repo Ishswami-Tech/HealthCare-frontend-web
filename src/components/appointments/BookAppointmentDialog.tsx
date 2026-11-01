@@ -1836,7 +1836,9 @@ function BookAppointmentStep3({
           selected={selectedDate}
           defaultMonth={initialMonth}
           onSelect={(d) => {
-            if (d && isClinicClosedDate(d)) {
+            // Clicking the selected day again makes the picker send `undefined`: keep the date
+            // instead of leaving the step without one.
+            if (!d || isClinicClosedDate(d)) {
               return;
             }
             setSelectedDate(d);
