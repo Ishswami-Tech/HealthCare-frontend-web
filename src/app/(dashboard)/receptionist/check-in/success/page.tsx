@@ -22,7 +22,7 @@ import { useAppointment } from "@/hooks/query/useAppointments";
 import { asRow } from "@/components/patient/home/homeData";
 import { toReceptionVisit } from "@/components/receptionist/reception.logic";
 import { RECEPTION_ROUTES, useReceptionLocation } from "@/components/receptionist/useReceptionDesk";
-import { DeskFeePrompt, useDeskFeesToday } from "@/components/receptionist/DeskFeeCollect";
+import { DeskFeePrompt, useVisitDeskFee } from "@/components/receptionist/DeskFeeCollect";
 
 /** After a check-in: product rules v2, no vitals stage. */
 const NEXT_STEPS = [
@@ -35,14 +35,15 @@ function CheckInSuccess() {
   const appointmentId = useSearchParams().get("id") ?? "";
   const { clinicId, locationName } = useReceptionLocation();
   const { data, isPending, error, refetch } = useAppointment(appointmentId);
-  // A plan-less walk-in / check-in under the clinic's desk-fee rule has a PENDING desk bill: offer
-  // it here, inline. Collecting is optional now; the fee stays on the desk lists until paid.
-  const deskFees = useDeskFeesToday(Boolean(appointmentId));
-  const feeDue = deskFees.byAppointment.get(appointmentId);
   const visit = useMemo(() => {
     const row = asRow(data);
     return row ? toReceptionVisit(row, Date.now()) : null;
   }, [data]);
+  // A plan-less walk-in / check-in under the clinic's desk-fee rule has a PENDING desk bill: offer
+  // it here, inline. The list is read fresh on open, and a walk-in's own response bill shows at
+  // once. Collecting is optional now; the fee stays on the desk lists until paid.
+  const deskFee = useVisitDeskFee(appointmentId, visit?.patientName ?? "Patient");
+  const feeDue = deskFee.fee;
 
   if (!appointmentId) {
     return (
@@ -111,7 +112,7 @@ function CheckInSuccess() {
           <Pill tone={visit.statusTone}>{visit.statusLabel}</Pill>
         </div>
 
-        {feeDue ? <DeskFeePrompt clinicId={clinicId} fee={feeDue} /> : null}
+        {feeDue ? <DeskFeePrompt clinicId={clinicId} fee={feeDue} onRecorded={deskFee.clear} /> : null}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <FactTile label="Doctor" value={visit.doctorName} />

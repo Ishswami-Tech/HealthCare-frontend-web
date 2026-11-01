@@ -22,6 +22,7 @@ import {
 } from "@/components/tbd";
 import { QUEUE_PRIORITY_OPTIONS, type QueuePriority } from "@/app/(dashboard)/queue/_components/queue-roles.logic";
 import { CheckInRefusedError, useInPersonWalkIn } from "@/hooks/query/useInPerson";
+import { rememberWalkInDeskFee } from "@/components/receptionist/DeskFeeCollect";
 import { useSetQueuePriority } from "@/hooks/query/useQueue";
 import { useCreateAppointment } from "@/hooks/query/useAppointments";
 import { useDoctors } from "@/hooks/query/useDoctors";
@@ -320,6 +321,9 @@ function WalkInForm() {
       // Drop any partial copy (a realtime snapshot of the new visit) so the success page loads the
       // full record instead of showing placeholders.
       queryClient.removeQueries({ queryKey: ["appointment", visit.appointmentId], exact: true });
+      // The desk bill this call raised: the success step offers it at once (D1), before the next
+      // fees-due read has it.
+      rememberWalkInDeskFee(queryClient, visit.appointmentId, result.planWaiver);
       router.push(RECEPTION_ROUTES.checkInSuccess(visit.appointmentId));
     } catch (error) {
       if (error instanceof CheckInRefusedError && error.failure.nextAvailable !== undefined) {

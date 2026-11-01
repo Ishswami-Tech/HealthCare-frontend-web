@@ -107,12 +107,20 @@ export function useInPersonDesk(
  * PENDING consultation bills of today's visits, e.g. a plan-less walk-in's desk fee. Polled like
  * the desk board; a recorded payment invalidates it (useRecordInvoicePayment).
  */
-export function useInPersonDeskFeesDue(date: string | undefined, enabled = true) {
+export function useInPersonDeskFeesDue(date: string | undefined, enabled = true, options: { freshOnMount?: boolean } = {}) {
   const clinicId = useCurrentClinicId();
   return useQueryData<DeskFeesDue>(
     inPersonKeys.deskFees(clinicId, date),
     async () => unwrap(await fetchInPersonDeskFeesDue(date ? { date } : {})),
-    { enabled: enabled && Boolean(clinicId), staleTime: IN_PERSON_REFRESH_MS / 2, refetchInterval: IN_PERSON_REFRESH_MS },
+    {
+      enabled: enabled && Boolean(clinicId),
+      staleTime: IN_PERSON_REFRESH_MS / 2,
+      refetchInterval: IN_PERSON_REFRESH_MS,
+      // The app default is refetchOnMount: false, so a screen opened right after a walk-in would
+      // keep the list cached before the new desk bill existed. Screens that must show the new
+      // bill (check-in success) always read it fresh when they open.
+      ...(options.freshOnMount ? { refetchOnMount: "always" as const } : {}),
+    },
   );
 }
 

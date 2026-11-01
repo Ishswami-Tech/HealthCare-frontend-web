@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Banknote, CreditCard, Smartphone, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InitialsAvatar, ListRow, Pill } from "@/components/tbd";
@@ -30,11 +31,76 @@ export function deskFeeAmount(amount: number): string {
 }
 
 /** Today's unpaid desk fees of the reception location, keyed by appointment id. */
-export function useDeskFeesToday(enabled = true) {
-  const query = useInPersonDeskFeesDue(todayKey(), enabled);
+export function useDeskFeesToday(enabled = true, options: { freshOnMount?: boolean } = {}) {
+  const query = useInPersonDeskFeesDue(todayKey(), enabled, options);
   const fees = useMemo(() => query.data?.fees ?? [], [query.data]);
   const byAppointment = useMemo(() => new Map(fees.map((fee) => [fee.appointmentId, fee])), [fees]);
   return { ...query, fees, byAppointment, totalDue: query.data?.totalDue ?? 0 };
+}
+
+/** The desk bill a walk-in response raised (`planWaiver.invoiceId` / `deskFee`), kept in memory only. */
+interface WalkInDeskFeeSeed {
+  invoiceId: string;
+  amount: number;
+}
+
+const walkInDeskFeeSeedKey = (appointmentId: string) => ["walkInDeskFeeSeed", appointmentId] as const;
+
+/**
+ * Remembers the desk bill the walk-in call returned, so the check-in success step can offer it at
+ * once instead of waiting for the next fees-due read. The amount is the server's (clinic settings),
+ * never computed here.
+ */
+export function rememberWalkInDeskFee(
+  queryClient: QueryClient,
+  appointmentId: string,
+  waiver: { invoiceId: string | null; deskFee: number | null } | null | undefined,
+): void {
+  if (!waiver?.invoiceId || !waiver.deskFee || waiver.deskFee <= 0) return;
+  queryClient.setQueryData<WalkInDeskFeeSeed>(walkInDeskFeeSeedKey(appointmentId), {
+    invoiceId: waiver.invoiceId,
+    amount: waiver.deskFee,
+  });
+}
+
+/**
+ * The desk fee to offer for one visit: the fees-due row when the list has it (it carries the bill
+ * number and any part payment), else the bill the walk-in response returned. `clear` drops the
+ * remembered bill once it is collected here.
+ */
+export function useVisitDeskFee(appointmentId: string, patientName: string) {
+  const queryClient = useQueryClient();
+  const deskFees = useDeskFeesToday(Boolean(appointmentId), { freshOnMount: true });
+  const listed = deskFees.byAppointment.get(appointmentId);
+  const [seed, setSeed] = useState<WalkInDeskFeeSeed | undefined>(() =>
+    appointmentId ? queryClient.getQueryData<WalkInDeskFeeSeed>(walkInDeskFeeSeedKey(appointmentId)) : undefined,
+  );
+  const fee = useMemo<DeskFeeDue | undefined>(() => {
+    if (listed) return listed;
+    if (!seed) return undefined;
+    return {
+      invoiceId: seed.invoiceId,
+      invoiceNumber: "",
+      appointmentId,
+      patientId: "",
+      patientUserId: "",
+      patientName,
+      doctorName: "",
+      time: "",
+      appointmentStatus: "",
+      description: null,
+      paymentFor: "WALK_IN_DESK_FEE",
+      totalAmount: seed.amount,
+      paidAmount: 0,
+      balance: seed.amount,
+      createdAt: "",
+    };
+  }, [listed, seed, appointmentId, patientName]);
+  const clear = () => {
+    queryClient.removeQueries({ queryKey: walkInDeskFeeSeedKey(appointmentId), exact: true });
+    setSeed(undefined);
+  };
+  return { fee, clear };
 }
 
 /** The "Fee due ₹X" tag of a desk row. */
