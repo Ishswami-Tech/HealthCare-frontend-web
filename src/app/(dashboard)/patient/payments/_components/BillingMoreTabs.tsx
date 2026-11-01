@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Check, CheckCircle2, CreditCard, Download, FileText, Loader2, RefreshCw, Wallet } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, CreditCard, Download, FileText, Loader2, RefreshCw, Store, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,6 +41,7 @@ import {
   type SubscriptionGroups,
 } from "./patientBilling.logic";
 import { formatRupees } from "@/lib/utils/currency";
+import { PAY_AT_CLINIC_LABEL, payAtClinicText, planCycleNoun } from "@/components/billing/plan-desk-path.logic";
 import { EMPTY_DATE_LABEL, formatDateLabel } from "@/lib/utils/date-time";
 
 export const PATIENT_BILLING_TABS = ["invoices", "plans"] as const;
@@ -222,6 +224,9 @@ function PlansGrid({
   /** Opens the Invoices tab, where the pending invoice is paid. */
   onOpenInvoices: () => void;
 }) {
+  // "Pay at the clinic": which plan's desk note is open. Nothing is created; reception sells the
+  // plan at the desk and it starts once that payment is recorded.
+  const [deskPlanId, setDeskPlanId] = useState<string | null>(null);
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" role="status" aria-label="Loading plans">
@@ -311,14 +316,40 @@ function PlansGrid({
                     <Pill tone="green">Current plan</Pill>
                   </div>
                 ) : (
-                  <Button
-                    size="md"
-                    className="w-full"
-                    disabled={Boolean(current) || Boolean(pendingInvoice)}
-                    onClick={() => onChoosePlan(plan)}
-                  >
-                    Subscribe
-                  </Button>
+                  <div className="flex flex-col gap-2.5">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Button
+                        size="md"
+                        className="w-full"
+                        disabled={Boolean(current) || Boolean(pendingInvoice)}
+                        onClick={() => onChoosePlan(plan)}
+                      >
+                        <CreditCard aria-hidden="true" /> Pay online
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="md"
+                        className="w-full"
+                        disabled={Boolean(current)}
+                        aria-expanded={deskPlanId === plan.id}
+                        aria-controls={`pay-at-clinic-${plan.id}`}
+                        onClick={() => setDeskPlanId((open) => (open === plan.id ? null : plan.id))}
+                      >
+                        <Store aria-hidden="true" /> {PAY_AT_CLINIC_LABEL}
+                      </Button>
+                    </div>
+                    {deskPlanId === plan.id ? (
+                      <Note tone="blue" icon={Store}>
+                        <span id={`pay-at-clinic-${plan.id}`} role="status">
+                          {payAtClinicText({
+                            name: plan.name,
+                            priceLabel: formatRupees(plan.price, { currency: plan.currency }),
+                            cycle: planCycleNoun(plan.billingCycle),
+                          })}
+                        </span>
+                      </Note>
+                    ) : null}
+                  </div>
                 )}
               </div>
             </Surface>

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { CalendarDays, Mail, MapPin, Phone, UserPlus } from "lucide-react";
+import { CalendarDays, Mail, MapPin, Phone, UserPlus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   LoadError,
@@ -14,6 +14,7 @@ import {
   type TbdIcon,
 } from "@/components/tbd";
 import { usePatient } from "@/hooks/query/usePatients";
+import { PatientPlanStatus } from "@/components/billing/PatientPlanStatus";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { ReceptionVisitList } from "@/components/receptionist/ReceptionVisitList";
 import { ReceptionRowActions } from "@/components/receptionist/ReceptionRowActions";
@@ -146,6 +147,16 @@ export default function ReceptionPatientDetailPage() {
             </Surface>
           </div>
           <div className="flex flex-col gap-5">
+            {/* Plan: no plan -> sell one at the desk (Collect payment -> Sell plan), cash / UPI / card. */}
+            <Surface as="section" aria-label="Care plan">
+              <SectionTitle title="Care plan" />
+              <PatientPlanStatus clinicId={clinicId} patientUserId={contact.userId || patientUserId} />
+              <Button asChild variant="outline" size="md" className="self-start">
+                <Link href={RECEPTION_ROUTES.collect(contact.userId || patientUserId)}>
+                  <Wallet aria-hidden="true" /> Collect payment / sell plan
+                </Link>
+              </Button>
+            </Surface>
             <Surface as="section" aria-label="Contact">
               <SectionTitle title="Contact" />
               <ContactLine icon={Phone} value={contact.phone} label="Mobile · signs in by OTP" />

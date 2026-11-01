@@ -16,6 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { PLAN_NEEDED_MESSAGE, PLAN_NEEDED_TITLE, walkInFallbackText } from "@/components/billing/plan-desk-path.logic";
 import { BookingDoctorRow } from "./BookingDoctor";
 import { slotPeriodKeyOf } from "./BookingSlotGroups";
 import { BookingNotice } from "./BookingStates";
@@ -56,7 +57,8 @@ export interface BookingReviewStepViewProps {
       }
     | undefined;
   /** In-clinic plan check for patients. */
-  plan?: { loading: boolean; required: boolean; activeTill?: string | null } | undefined;
+  /** `walkInNote`: the clinic's plan-less walk-in rule in plain words (clinic settings). */
+  plan?: { loading: boolean; required: boolean; activeTill?: string | null; walkInNote?: string | null } | undefined;
   /** Staff, in-clinic: the patient's plan and the clinic's plan-less visit rule. */
   staffPlanNotice?: ReactNode;
   /** Page layout: the amber book / pay button, shown inside the summary card on wide screens. */
@@ -194,7 +196,11 @@ function VideoPaymentPolicy({
   );
 }
 
-function PlanNotice({ plan }: { plan: { loading: boolean; required: boolean; activeTill?: string | null } }) {
+function PlanNotice({
+  plan,
+}: {
+  plan: { loading: boolean; required: boolean; activeTill?: string | null; walkInNote?: string | null };
+}) {
   if (plan.loading) {
     return (
       <BookingNotice tone="green" title="Checking your plan">
@@ -204,14 +210,14 @@ function PlanNotice({ plan }: { plan: { loading: boolean; required: boolean; act
   }
   if (plan.required) {
     return (
-      <BookingNotice tone="amber" title="Plan required">
+      <BookingNotice tone="amber" title={PLAN_NEEDED_TITLE}>
         <p className="m-0 text-xs">
-          In-clinic visits are covered by a monthly plan. You need an active plan for this clinic to continue.{" "}
+          {PLAN_NEEDED_MESSAGE}{" "}
           <Link href="/patient/payments?tab=plans" className="font-bold underline">
             See plans
-          </Link>{" "}
-          or ask the reception desk to book this visit for you.
+          </Link>
         </p>
+        <p className="m-0 mt-1.5 text-xs">{plan.walkInNote || walkInFallbackText(null)}</p>
       </BookingNotice>
     );
   }

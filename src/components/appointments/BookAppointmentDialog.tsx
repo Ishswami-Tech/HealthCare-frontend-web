@@ -137,6 +137,7 @@ import {
 } from "@/components/appointments/booking";
 import { IconBox, Note, Pill, SectionTitle } from "@/components/tbd";
 import { PatientPlanStatus } from "@/components/billing/PatientPlanStatus";
+import { resolveWalkInPlanSettings, walkInFallbackText } from "@/components/billing/plan-desk-path.logic";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
   Activity,
@@ -2132,6 +2133,9 @@ function BookAppointmentStep5({
   staffPlanPatientUserId = "",
 }: BookAppointmentStep5Props) {
   const { language } = useLanguage();
+  // Plan-less patient: the clinic's walk-in rule and desk fee (clinic settings), same words as mobile.
+  const { data: stepClinic } = useCurrentClinic();
+  const patientWalkInNote = walkInFallbackText(resolveWalkInPlanSettings(stepClinic?.settings));
   const isPageLayout = layout === "page";
   // The existing gateway button: same props and callbacks, only the look changed.
   const payButton =
@@ -2226,6 +2230,7 @@ function BookAppointmentStep5({
               loading: isSubscriptionGateLoading,
               required: needsSubscriptionPlan,
               activeTill: planActiveTill ?? null,
+              walkInNote: patientWalkInNote,
             }
           : undefined
       }

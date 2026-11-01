@@ -154,7 +154,7 @@ export function BillingPlanCard({
         ) : (
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-[15px] font-bold text-ink">No active plan</span>
-            <span className="text-[13px] text-ink-muted">Subscribe to a plan to book in-clinic visits.</span>
+            <span className="text-[13px] text-ink-muted">Get a plan, online or at the clinic reception, to book in-clinic visits.</span>
           </div>
         )}
       </div>

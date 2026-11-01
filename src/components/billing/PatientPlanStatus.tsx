@@ -7,29 +7,13 @@ import { useActiveSubscription } from "@/hooks/query/useBilling";
 import { useCurrentClinic } from "@/hooks/query/useClinics";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { planStatusOf } from "./plan-status.logic";
-
-/**
- * The clinic's plan-less walk-in rule (`clinic.settings.appointmentSettings.walkInWithoutPlan`,
- * set on the clinic-admin settings screen): REQUIRE_PLAN blocks the desk until the patient has a
- * plan, ALLOW_WITH_DESK_FEE lets the visit go ahead against a desk bill, ALLOW_FREE waives it.
- * Mirrors the backend's own `WalkInPlanWaiver` policy values.
- */
-function walkInPolicyOf(clinicSettings: unknown): { policy: "REQUIRE_PLAN" | "ALLOW_WITH_DESK_FEE" | "ALLOW_FREE"; deskFee: number | null } {
-  const settings = clinicSettings && typeof clinicSettings === "object" ? (clinicSettings as Record<string, unknown>) : {};
-  const appointmentSettings =
-    settings.appointmentSettings && typeof settings.appointmentSettings === "object"
-      ? (settings.appointmentSettings as Record<string, unknown>)
-      : {};
-  const value = String(appointmentSettings.walkInWithoutPlan ?? "").toUpperCase();
-  const policy = value === "ALLOW_WITH_DESK_FEE" || value === "ALLOW_FREE" ? value : "REQUIRE_PLAN";
-  const fee = Number(appointmentSettings.walkInDeskFee);
-  return { policy, deskFee: Number.isFinite(fee) && fee > 0 ? Math.round(fee) : null };
-}
+import { resolveWalkInPlanSettings } from "./plan-desk-path.logic";
 
 /**
  * The patient's monthly in-person plan, for staff screens (reception collect / walk-in, clinic
  * admin invoice). In-clinic visits are covered by this plan, not billed per visit. Read only:
- * the patient buys or renews the plan in the app (Plans & billing).
+ * the patient buys the plan in the app, or reception sells it at the desk (Collect payment ->
+ * Sell plan; the plan starts once that payment is recorded).
  */
 export function PatientPlanStatus({
   clinicId,
@@ -65,7 +49,8 @@ export function PatientPlanStatus({
       </Note>
     );
   }
-  const { policy, deskFee } = walkInPolicyOf(clinic.data?.settings);
+  // Clinic settings rule; unknown settings read as the backend default (REQUIRE_PLAN).
+  const { policy, deskFee } = resolveWalkInPlanSettings(clinic.data?.settings) ?? { policy: "REQUIRE_PLAN", deskFee: null };
   if (policy === "ALLOW_FREE") {
     return (
       <Note tone="blue" icon={CalendarClock} className={className}>
@@ -84,8 +69,9 @@ export function PatientPlanStatus({
   }
   return (
     <Note tone="amber" icon={CalendarClock} className={className}>
-      <strong>No active in-person plan.</strong> In-clinic visits need an active monthly plan before check-in. The
-      patient renews or buys it in the app (Plans &amp; billing).
+      <strong>No active in-person plan.</strong> In-clinic visits need an active plan before check-in. Sell one at
+      the desk from Collect payment (cash, UPI or card; it starts once the payment is recorded), or the patient buys
+      it in the app.
     </Note>
   );
 }
