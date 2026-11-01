@@ -239,3 +239,139 @@ export function doseConflictWarning(dosage: string, form: unknown): string | nul
 export function defaultDoseForForm(form: unknown): string | null {
   return doseRuleFor(form)?.defaultDose ?? null;
 }
+
+// ------------------------------------------------------------------ quantity to dispense
+
+/** How many doses a day a "How often" value means; 0 when it cannot be counted (when needed). */
+export function dosesPerDay(frequency: string): number {
+  const text = frequency.toLowerCase();
+  if (/when needed|sos|as needed/.test(text)) return 0;
+  if (/once a week|weekly/.test(text)) return 1 / 7;
+  if (/four times/.test(text)) return 4;
+  if (/three times|thrice/.test(text)) return 3;
+  if (/twice|two times/.test(text)) return 2;
+  if (/once|bedtime|empty stomach|at night|in the morning/.test(text)) return 1;
+  return 0;
+}
+
+/** Dose units that are themselves the thing the pharmacy counts out (one tablet, one capsule). */
+const COUNTABLE_UNITS: ReadonlySet<DoseUnitValue> = new Set<DoseUnitValue>(["tablet", "capsule"]);
+
+/** Liquid forms: a measured dose, sold by the bottle. */
+const LIQUID_FORMS: ReadonlySet<string> = new Set(["ARISHTA", "ASAVA", "SYRUP", "KASHAYAM", "SWARASA", "DRINK", "YAVKUT_KWATH", "DROPS", "OIL"]);
+
+/**
+ * What the quantity of a line counts:
+ * - "count": tablets / capsules; quantity = dose amount x doses a day x days.
+ * - "saleUnit": a measured dose (g, teaspoon, ml ...) of a medicine sold by the pack / bottle; the
+ *   quantity is how many packs, which a dose cannot work out, so it starts at 1.
+ * - "doses": no form and no countable unit (an older line, "1 dose"): doses a day x days.
+ */
+export type QuantityBasis = "count" | "saleUnit" | "doses";
+
+/** The dose amount and unit when the text is exactly "<amount> <unit>", whatever the form. */
+export function doseAmountOf(dosage: string): { amount: number; unit: DoseUnitValue } | null {
+  const match = dosage.trim().match(/^(\d+(?:\.\d+)?(?:\s+\d+\/\d+)?|\d+\/\d+|\.\d+|\d*[½¼¾⅓⅔])\s*([a-z.]+)$/i);
+  if (!match) return null;
+  const unit = unitFromWord(match[2] ?? "");
+  const amount = parseAmount((match[1] ?? "").trim());
+  return unit && amount !== null ? { amount, unit } : null;
+}
+
+/** The dose unit the medicine's stock / sale unit names ("tablets" -> tablet, "g" -> g), or null. */
+function saleUnitOf(saleUnit: string | null | undefined): DoseUnitValue | null {
+  const text = (saleUnit ?? "").trim();
+  return text ? unitFromWord(text) : null;
+}
+
+export function quantityBasisFor(dosage: string, form: unknown, saleUnit?: string | null): QuantityBasis {
+  const dose = doseAmountOf(dosage);
+  const sale = saleUnitOf(saleUnit);
+  const recorded = Boolean((saleUnit ?? "").trim());
+  // Sold in the unit it is dosed in (tablets as tablets, a churna sold by the gram): count it out.
+  if (dose && sale && dose.unit === sale) return "count";
+  const sellsSingles = !recorded || (sale !== null && COUNTABLE_UNITS.has(sale));
+  const rule = doseRuleFor(form);
+  if (rule) {
+    const countableForm = rule.units.every((unit) => COUNTABLE_UNITS.has(unit));
+    return countableForm && sellsSingles ? "count" : "saleUnit";
+  }
+  if (!dose) return "doses";
+  return COUNTABLE_UNITS.has(dose.unit) && sellsSingles ? "count" : "saleUnit";
+}
+
+export interface QuantityInput {
+  dosage: string;
+  frequency: string;
+  days: string;
+  dosageForm?: string | null;
+  /** The medicine's stock / sale unit (`Medicine.unit`: "tablet", "pack", "bottle", ...). */
+  saleUnit?: string | null;
+}
+
+/**
+ * The quantity to dispense, as text; "" when it cannot be worked out. Tablets: 2 tablets twice a
+ * day for 5 days = 20. A measured dose (3 g churna) is sold by the pack, so it starts at 1 pack.
+ */
+export function suggestedQuantityFor(input: QuantityInput): string {
+  const basis = quantityBasisFor(input.dosage, input.dosageForm, input.saleUnit);
+  if (basis === "saleUnit") return "1";
+  const perDay = dosesPerDay(input.frequency);
+  const dayCount = Number.parseInt(input.days, 10);
+  if (perDay <= 0 || !Number.isFinite(dayCount) || dayCount <= 0) return "";
+  const perDose = basis === "count" ? (doseAmountOf(input.dosage)?.amount ?? 1) : 1;
+  return String(Math.max(1, Math.ceil(perDose * perDay * dayCount)));
+}
+
+/** "tablets", "pack", "bottles": what the quantity counts, for the label next to it; "" when unknown. */
+export function quantityUnitLabel(
+  dosage: string,
+  form: unknown,
+  saleUnit: string | null | undefined,
+  quantity: number,
+): string {
+  const basis = quantityBasisFor(dosage, form, saleUnit);
+  if (basis === "doses") return "";
+  const many = quantity !== 1;
+  if (basis === "count") {
+    const unit = doseAmountOf(dosage)?.unit ?? doseRuleFor(form)?.units[0] ?? "tablet";
+    const spec = DOSE_UNITS[unit];
+    return many ? spec.plural : spec.singular;
+  }
+  const recorded = (saleUnit ?? "").trim();
+  if (recorded) {
+    // "100 g" / "200 ml pack" are shown as recorded; a plain word is made plural ("pack" -> "packs").
+    if (/\d/.test(recorded) || !many || /s$/i.test(recorded)) return recorded;
+    return `${recorded}s`;
+  }
+  const key = doseFormOf(form);
+  const fallback = key && LIQUID_FORMS.has(key) ? "bottle" : "pack";
+  return many ? `${fallback}s` : fallback;
+}
+
+/** Most of one unit a single dose usually is; above it the dose gets a soft warning. */
+export const MAX_AMOUNT_PER_DOSE: Readonly<Partial<Record<DoseUnitValue, number>>> = {
+  tablet: 4,
+  capsule: 4,
+  g: 10,
+  mg: 1000,
+  ml: 30,
+  teaspoon: 3,
+  tablespoon: 2,
+  pinch: 4,
+  drop: 20,
+  sachet: 2,
+};
+
+/**
+ * A soft warning for an implausible amount in one dose ("20 tablets"), or null. Advisory only: it
+ * never blocks saving and never changes the dose, which the patient sees exactly as written.
+ */
+export function doseAmountWarning(dosage: string): string | null {
+  const dose = doseAmountOf(dosage);
+  if (!dose) return null;
+  const max = MAX_AMOUNT_PER_DOSE[dose.unit];
+  if (max === undefined || dose.amount <= max) return null;
+  const spec = DOSE_UNITS[dose.unit];
+  return `${dosage.trim()} in one dose is more than usual (up to ${max} ${max > 1 ? spec.plural : spec.singular}). Check the amount before saving.`;
+}

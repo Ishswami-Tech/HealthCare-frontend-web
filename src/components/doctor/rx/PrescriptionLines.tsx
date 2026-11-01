@@ -17,7 +17,7 @@ import {
 } from "./rx-form.logic";
 import { STOCK_TONE_CLASS } from "./MedicineCatalogue";
 import { DoseField } from "./DoseField";
-import { doseConflictWarning } from "./dose-units.logic";
+import { doseAmountWarning, doseConflictWarning, quantityUnitLabel } from "./dose-units.logic";
 
 const SMALL_FIELD = "h-[38px] rounded-[10px] px-2.5 text-[13px] font-semibold md:text-[13px]";
 
@@ -25,7 +25,8 @@ type RowField = Extract<PrescriptionFormAction, { type: "updateMedication" }>["f
 
 /**
  * The medicine lines of a prescription: dose (amount + a unit that fits the medicine's form), one "How often" choice (how many times a day and
- * when), days and quantity. Stock sits on the same line as the name; no prices are shown.
+ * when), days and quantity. Stock sits on the same line as the name. The quantity says what it
+ * counts (tablets, packs, bottles) and the stock medicine's price per sale unit, so the bill is clear.
  */
 export function PrescriptionLines({
   medications,
@@ -62,6 +63,16 @@ export function PrescriptionLines({
         const rowId = `${fieldId}-${medication.id}`;
         const update = (field: RowField) => (value: string) => onUpdate(medication.id, field, value);
         const doseWarning = medicine ? doseConflictWarning(medication.dosage, medicine.dosageForm) : null;
+        // Soft only: the dose is saved and shown to the patient exactly as the doctor wrote it.
+        const amountWarning = doseAmountWarning(medication.dosage);
+        const dosageForm = medicine?.dosageForm ?? medication.dosageForm;
+        const saleUnit = medicine?.unit ?? medication.saleUnit;
+        const qtyUnit = quantityUnitLabel(medication.dosage, dosageForm, saleUnit, quantityOf(medication));
+        const unitPrice = medicine ? Number(medicine.unitPrice) : 0;
+        const priceNote =
+          unitPrice > 0
+            ? `₹${unitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} per ${quantityUnitLabel(medication.dosage, dosageForm, saleUnit, 1) || "unit"}`
+            : "";
 
         return (
           <fieldset
@@ -152,7 +163,7 @@ export function PrescriptionLines({
               </div>
               <div className="flex min-w-0 flex-col gap-1">
                 <label htmlFor={`${rowId}-quantity`} className={FIELD_LABEL_SMALL}>
-                  Qty
+                  Qty{qtyUnit ? ` (${qtyUnit})` : ""}
                 </label>
                 <Input
                   id={`${rowId}-quantity`}
@@ -163,8 +174,14 @@ export function PrescriptionLines({
                   className={SMALL_FIELD}
                   placeholder="1"
                   value={medication.quantity}
+                  aria-describedby={priceNote ? `${rowId}-quantity-price` : undefined}
                   onChange={(event) => update("quantity")(event.target.value)}
                 />
+                {priceNote ? (
+                  <span id={`${rowId}-quantity-price`} className="text-[11px] font-semibold text-ink-muted">
+                    {priceNote}
+                  </span>
+                ) : null}
               </div>
             </div>
 
@@ -176,6 +193,16 @@ export function PrescriptionLines({
               >
                 <CircleAlert className="mt-px size-3 shrink-0" strokeWidth={2.6} aria-hidden="true" />
                 {doseWarning}
+              </span>
+            ) : null}
+
+            {amountWarning ? (
+              <span
+                role="status"
+                className="inline-flex items-start gap-[5px] rounded-[10px] bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-[#b45309] dark:bg-amber-500/10 dark:text-amber-300"
+              >
+                <CircleAlert className="mt-px size-3 shrink-0" strokeWidth={2.6} aria-hidden="true" />
+                {amountWarning}
               </span>
             ) : null}
 

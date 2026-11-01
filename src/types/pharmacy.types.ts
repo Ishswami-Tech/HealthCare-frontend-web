@@ -12,6 +12,8 @@ export interface Medicine {
   strength: string;
   packSize: number;
   unitPrice: number;
+  /** Stock / sale unit as recorded (`Medicine.unit`: "tablet", "pack", "bottle", "100 g" ...). */
+  unit?: string | null;
   stockQuantity: number;
   minStockLevel: number;
   maxStockLevel: number;

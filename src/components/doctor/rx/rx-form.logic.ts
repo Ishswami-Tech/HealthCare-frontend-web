@@ -6,7 +6,9 @@
 import type { Medicine } from "@/types/pharmacy.types";
 import { prescriptionReference } from "@/lib/utils/labels";
 import { asList, asRecord, asRecordOrEmpty, textOf, trimmedString } from "@/lib/utils/coerce";
-import { defaultDoseForForm } from "./dose-units.logic";
+import { defaultDoseForForm, suggestedQuantityFor } from "./dose-units.logic";
+
+export { dosesPerDay } from "./dose-units.logic";
 
 export interface PrescriptionMedicationRow {
   id: string;
@@ -18,8 +20,12 @@ export interface PrescriptionMedicationRow {
   frequency: string;
   days: string;
   quantity: string;
-  /** True once the quantity was typed by hand: it then stops following how often x days. */
+  /** True once the quantity was typed by hand: it then stops following dose x how often x days. */
   quantityEdited: boolean;
+  /** The medicine's dosage form (TABLET, CHURNA ...): decides what the quantity counts. */
+  dosageForm?: string | null;
+  /** The medicine's stock / sale unit (`Medicine.unit`: "tablet", "pack", "bottle" ...). */
+  saleUnit?: string | null;
 }
 
 export interface PrescriptionFormValues {
@@ -71,24 +77,23 @@ export function frequencyOptionsFor(value: string): string[] {
   return current && !options.includes(current) ? [current, ...options] : options;
 }
 
-/** How many doses a day a "How often" value means; 0 when it cannot be counted (when needed). */
-export function dosesPerDay(frequency: string): number {
-  const text = frequency.toLowerCase();
-  if (/when needed|sos|as needed/.test(text)) return 0;
-  if (/once a week|weekly/.test(text)) return 1 / 7;
-  if (/four times/.test(text)) return 4;
-  if (/three times|thrice/.test(text)) return 3;
-  if (/twice|two times/.test(text)) return 2;
-  if (/once|bedtime|empty stomach|at night|in the morning/.test(text)) return 1;
-  return 0;
-}
-
-/** Tablets needed for how often x days, as text; "" when it cannot be worked out. */
-export function suggestedQuantity(frequency: string, days: string): string {
-  const perDay = dosesPerDay(frequency);
-  const dayCount = Number.parseInt(days, 10);
-  if (perDay <= 0 || !Number.isFinite(dayCount) || dayCount <= 0) return "";
-  return String(Math.max(1, Math.ceil(perDay * dayCount)));
+/**
+ * The quantity to dispense for a line, as text; "" when it cannot be worked out. Tablets and
+ * capsules: dose amount x doses a day x days (2 tablets twice a day for 5 days = 20). A measured
+ * dose (g, teaspoon, ml) of a medicine sold by the pack / bottle starts at 1 pack (dose-units.logic).
+ */
+export function suggestedQuantity(
+  frequency: string,
+  days: string,
+  line: { dosage?: string; dosageForm?: string | null; saleUnit?: string | null } = {},
+): string {
+  return suggestedQuantityFor({
+    dosage: line.dosage ?? "",
+    frequency,
+    days,
+    dosageForm: line.dosageForm ?? null,
+    saleUnit: line.saleUnit ?? null,
+  });
 }
 
 export const emptyPrescriptionForm = (): PrescriptionFormValues => ({
@@ -110,8 +115,9 @@ function updateRow(
 ): PrescriptionMedicationRow {
   if (field === "quantity") return { ...row, quantity: value, quantityEdited: true };
   const next = { ...row, [field]: value };
-  if ((field === "frequency" || field === "days") && !row.quantityEdited) {
-    const suggested = suggestedQuantity(next.frequency, next.days);
+  // The dose amount counts too (2 tablets a dose needs twice the tablets of 1).
+  if ((field === "dosage" || field === "frequency" || field === "days") && !row.quantityEdited) {
+    const suggested = suggestedQuantity(next.frequency, next.days, next);
     if (suggested) next.quantity = suggested;
   }
   return next;
@@ -180,21 +186,25 @@ export function defaultDoseFor(medicine?: { dosageForm?: string | null; name?: s
 }
 
 export function createMedicationRow(
-  medicine?: Pick<Medicine, "id" | "name" | "strength"> & { dosageForm?: string | null },
+  medicine?: Pick<Medicine, "id" | "name" | "strength"> & { dosageForm?: string | null; unit?: string | null },
   preset: MedicationPreset = {},
 ): PrescriptionMedicationRow {
   const frequency = preset.frequency?.trim() || DEFAULT_FREQUENCY;
   const days = preset.days?.trim() || DEFAULT_DAYS;
-  const quantity = preset.quantity?.trim() || suggestedQuantity(frequency, days) || "1";
+  const dosage = preset.dosage?.trim() || defaultDoseFor(medicine);
+  const line = { dosage, dosageForm: medicine?.dosageForm ?? null, saleUnit: medicine?.unit ?? null };
+  const quantity = preset.quantity?.trim() || suggestedQuantity(frequency, days, line) || "1";
   return {
     id: newRowId(),
     medicineId: medicine?.id ?? "",
     name: medicine ? medicineTitle(medicine) : "",
-    dosage: preset.dosage?.trim() || defaultDoseFor(medicine),
+    dosage,
     frequency,
     days,
     quantity,
     quantityEdited: Boolean(preset.quantity?.trim()),
+    dosageForm: line.dosageForm,
+    saleUnit: line.saleUnit,
   };
 }
 
@@ -392,6 +402,8 @@ export function prescriptionToFormValues(raw: unknown): PrescriptionFormValues {
         days: daysFromDuration(item.duration) || DEFAULT_DAYS,
         quantity: Number.isFinite(quantity) && quantity > 0 ? String(Math.round(quantity)) : "1",
         quantityEdited: true,
+        dosageForm: textOf(medicine.category) || null,
+        saleUnit: textOf(medicine.unit) || null,
       },
     ];
   });
