@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, ListOrdered, UserCheck } from "lucide-react";
@@ -23,6 +24,16 @@ import { asRow } from "@/components/patient/home/homeData";
 import { toReceptionVisit } from "@/components/receptionist/reception.logic";
 import { RECEPTION_ROUTES, useReceptionLocation } from "@/components/receptionist/useReceptionDesk";
 import { DeskFeePrompt, useVisitDeskFee } from "@/components/receptionist/DeskFeeCollect";
+import {
+  overlayWalkInVisit,
+  serverShowsCheckIn,
+  walkInVisitSeedKey,
+  type WalkInVisitSeed,
+} from "@/components/receptionist/walk-in-visit-seed.logic";
+
+/** Re-reads of a record that lags the walk-in's check-in (then the response keeps showing). */
+const MAX_SEED_REREADS = 3;
+const SEED_REREAD_DELAY_MS = 1500;
 
 /** After a check-in: product rules v2, no vitals stage. */
 const NEXT_STEPS = [
@@ -35,10 +46,26 @@ function CheckInSuccess() {
   const appointmentId = useSearchParams().get("id") ?? "";
   const { clinicId, locationName } = useReceptionLocation();
   const { data, isPending, error, refetch } = useAppointment(appointmentId);
+  // A walk-in's own response (checked in, token): shown at once, even when the record read lags
+  // the write (D12); the record is re-read until it shows the check-in too.
+  const queryClient = useQueryClient();
+  const [seed] = useState<WalkInVisitSeed | undefined>(() =>
+    appointmentId ? queryClient.getQueryData<WalkInVisitSeed>(walkInVisitSeedKey(appointmentId)) : undefined,
+  );
+  const lagging = Boolean(seed && data && !serverShowsCheckIn(asRow(data)));
+  const rereads = useRef(0);
+  useEffect(() => {
+    if (!lagging || rereads.current >= MAX_SEED_REREADS) return;
+    const timer = setTimeout(() => {
+      rereads.current += 1;
+      void refetch();
+    }, SEED_REREAD_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [lagging, data, refetch]);
   const visit = useMemo(() => {
-    const row = asRow(data);
+    const row = overlayWalkInVisit(asRow(data) ?? null, seed);
     return row ? toReceptionVisit(row, Date.now()) : null;
-  }, [data]);
+  }, [data, seed]);
   // A plan-less walk-in / check-in under the clinic's desk-fee rule has a PENDING desk bill: offer
   // it here, inline. The list is read fresh on open, and a walk-in's own response bill shows at
   // once. Collecting is optional now; the fee stays on the desk lists until paid.

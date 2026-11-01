@@ -23,6 +23,7 @@ import {
 import { QUEUE_PRIORITY_OPTIONS, type QueuePriority } from "@/app/(dashboard)/queue/_components/queue-roles.logic";
 import { CheckInRefusedError, useInPersonWalkIn } from "@/hooks/query/useInPerson";
 import { rememberWalkInDeskFee } from "@/components/receptionist/DeskFeeCollect";
+import { rememberWalkInVisit } from "@/components/receptionist/walk-in-visit-seed.logic";
 import { useSetQueuePriority } from "@/hooks/query/useQueue";
 import { useCreateAppointment } from "@/hooks/query/useAppointments";
 import { useDoctors } from "@/hooks/query/useDoctors";
@@ -324,6 +325,8 @@ function WalkInForm() {
       // The desk bill this call raised: the success step offers it at once (D1), before the next
       // fees-due read has it.
       rememberWalkInDeskFee(queryClient, visit.appointmentId, result.planWaiver);
+      // Its check-in (status, token): the success step shows it at once even if the record read lags (D12).
+      rememberWalkInVisit(queryClient, visit);
       router.push(RECEPTION_ROUTES.checkInSuccess(visit.appointmentId));
     } catch (error) {
       if (error instanceof CheckInRefusedError && error.failure.nextAvailable !== undefined) {
