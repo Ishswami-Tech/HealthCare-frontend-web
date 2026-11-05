@@ -10,6 +10,7 @@ import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
 import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
 import { TempsAnalyticsClient } from "@/app/providers/TempsAnalyticsClient";
+import { PostHogAnalyticsClient } from "@/app/providers/PostHogAnalyticsClient";
 import Script from "next/script";
 import { APP_CONFIG } from "@/lib/config/config";
 import { baseSEO } from "@/lib/config/seo";
@@ -155,7 +156,9 @@ export default async function RootLayout({
         >
           {/* AppProvider handles Language, Store, Query, WS, and Theme */}
           <TempsAnalyticsClient>
-            <AppProvider>{children}</AppProvider>
+            <PostHogAnalyticsClient>
+              <AppProvider>{children}</AppProvider>
+            </PostHogAnalyticsClient>
           </TempsAnalyticsClient>
         </PerformanceProvider>
       </body>

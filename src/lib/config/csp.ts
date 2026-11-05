@@ -163,6 +163,8 @@ export interface ContentSecurityPolicyOptions {
   appUrl?: string | undefined;
   apiUrl?: string | undefined;
   websocketUrl?: string | undefined;
+  /** Product-analytics ingest origin (PostHog); connect-src only, it loads no scripts. */
+  analyticsUrl?: string | undefined;
   /** Adds 'unsafe-eval' for React refresh; never true in production. */
   isDevelopment: boolean;
   /** Adds upgrade-insecure-requests; only for production HTTPS. */
@@ -183,6 +185,7 @@ export function buildContentSecurityPolicy(
     buildOriginConnectSrc(options.appUrl),
     buildOriginConnectSrc(options.apiUrl),
     buildOriginConnectSrc(options.websocketUrl),
+    [normalizeOrigin(options.analyticsUrl)],
   );
   const scriptSources = joinSources(
     ["'self'", "'unsafe-inline'"],

@@ -33,6 +33,7 @@ const contentSecurityPolicy = buildContentSecurityPolicy({
   appUrl: process.env.NEXT_PUBLIC_APP_URL,
   apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
   websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL,
+  analyticsUrl: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   isDevelopment: !isProduction,
   enforceHttps: false,
 });
