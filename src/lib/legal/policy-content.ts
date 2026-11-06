@@ -14,6 +14,7 @@ export const legalBrand = {
 
 export const legalDates = {
   updated: "February 2026",
+  privacyUpdated: "November 2026",
 } as const;
 
 export const termsSections = [
@@ -71,6 +72,19 @@ export const privacySections = [
   {
     title: "5. Appointment and Billing Notices",
     body: `${patientDataDisclosure} ${paymentCollectionDisclosure} Payment processors receive only the information required to create, process, verify, refund, or reconcile the transaction.`,
+  },
+  {
+    title: "6. Mobile App Data and Permissions",
+    body: "This section describes what our mobile app collects, why, and who processes it.",
+    bullets: [
+      "Location (only when you check in): if you allow location access, the app reads your device location only while the clinic check-in screen is open, to show how far you are from the clinic on the day of your visit and to confirm you are at the clinic when you check in. Your position is sent to the clinic server for that check-in. The app does not request background location and does not track you when the check-in screen is closed. You can refuse location and check in at the reception desk instead.",
+      "Camera and microphone: the camera is used to scan the clinic check-in QR code; the code is read on your device and the camera image is not uploaded. During a video consultation your camera and microphone are streamed live to your doctor through our video provider, Daily.co. The app uses the camera and microphone only when you start a scan or join a video call.",
+      "Notifications and device information: to send appointment, queue and payment notifications, the app registers a push notification token for your device and stores it on the clinic server together with your device platform, device model or name, operating system version and app version. Signing out removes this device from your account for notifications.",
+      "Crash and diagnostic reports: when crash reporting is enabled in the app, technical error reports (such as the error, the screen and the device and app version) are sent to Sentry so we can fix problems. The app removes identifiers such as phone numbers, email addresses and record IDs from these reports before they are sent, and it does not record your screen.",
+      "Payments: card, UPI and bank details are entered in the payment screens of Cashfree or PhonePe, our payment processors; the app does not receive or store your full card number. The clinic server keeps the invoice and the payment status it receives from the processor.",
+      "Who processes your data: information may be shared with the clinic, the authorised care team and platform operators, and with service providers only as needed to run appointments, payments, notifications, video consultations, support, security and legal compliance: Google Firebase (push notifications), Expo (push notifications on iOS), Daily.co (video consultations), Cashfree and PhonePe (payments), Sentry (crash reports, when enabled), message providers used to send login codes, and our hosting provider.",
+      "Keeping and deleting your data: your account and records are kept while your account is active. You can delete your account in the app under Settings > Delete account. Your account is then deactivated straight away and you can no longer sign in. Records the clinic is required to keep by law, such as medical and billing records, may be retained for the period the law requires. For other deletion or correction requests, contact us using the details below.",
+    ],
   },
 ] as const;
 
