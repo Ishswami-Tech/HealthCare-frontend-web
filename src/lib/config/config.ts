@@ -401,6 +401,9 @@ export const API_ENDPOINTS = {
     APPLE_LOGIN: '/auth/apple',
     PERMISSIONS: '/auth/permissions',
     PERMISSION_VALIDATE: '/auth/permissions/validate',
+    // Super admin: app store reviewer login (GET status, PUT enable, DELETE disable)
+    REVIEW_LOGIN: '/auth/admin/review-login',
+    REVIEW_LOGIN_REGENERATE: '/auth/admin/review-login/regenerate', // POST
   },
   
   // Clinic Management Endpoints
