@@ -551,7 +551,8 @@ export function useHealthRealtime(
 
       const healthSocketUrl = `${baseUrl}/health`;
       sharedHealthSocket = io(healthSocketUrl, {
-        transports: ['websocket', 'polling'],
+        // Server is websocket-only (no sticky-session routing across its replicas).
+        transports: ['websocket'],
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,

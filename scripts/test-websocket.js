@@ -247,7 +247,8 @@ async function testWebSocket() {
 
   // Socket.IO connection options
   const socketOptions = {
-    transports: ['websocket', 'polling'],
+    // Server is websocket-only (no sticky-session routing across its replicas).
+    transports: ['websocket'],
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
