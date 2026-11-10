@@ -161,6 +161,12 @@ export const useWebSocketStore = create<WebSocketState>()(
             ...(Object.keys(auth).length ? { auth } : {}),
             ...(Object.keys(query).length ? { query } : {}),
             autoConnect: false,
+            // Backend runs multiple replicas with no sticky-session routing between them, so
+            // HTTP long-polling (the client's default first transport) fails once a session's
+            // second request lands on a different replica. The server only accepts websocket
+            // connections for this reason; match it here instead of defaulting to
+            // ['polling', 'websocket'], which would otherwise fail its initial handshake.
+            transports: ['websocket'],
             reconnection: autoReconnect,
             reconnectionAttempts,
             reconnectionDelay,
