@@ -14,7 +14,6 @@ import {
   addDoctorReview,
   getDoctorAppointments,
   getDoctorReviews,
-  getDoctors as getDoctorsServerAction,
   getEarningsSplit,
   getMyDoctorEarnings,
   updateDoctorProfile,
@@ -24,6 +23,7 @@ import { usePatientStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCurrentClinicId } from './useClinics';
 import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
+import { readCollection } from '@/lib/utils/collection-response';
 
 const useDoctorQueryScope = () => {
   const sessionId = useAuthStore((state) => state.session?.session_id?.trim() || '');
@@ -120,6 +120,9 @@ export const useDoctors = (clinicId: string, filters?: {
 }) => {
   const { connectionStatus } = useWebSocketStatus();
   const shouldPoll = connectionStatus !== 'connected';
+  // The session's clinic wins over the one passed in (as the getDoctors server action did).
+  const sessionClinicId = useAuthStore((state) => state.session?.user?.clinicId);
+  const resolvedClinicId = sessionClinicId || clinicId;
   const queryKey = useMemo(
     () => [
       'doctors',
@@ -147,10 +150,20 @@ export const useDoctors = (clinicId: string, filters?: {
 
   return useQueryData(queryKey, async () => {
     try {
+      // Straight from the browser to the backend: as a server action every load and every
+      // 60 s poll (socket down) ran a Vercel Function.
       const queryDoctors = async (params?: typeof filters) => {
-        return normalizeDoctorRows(
-          await getDoctorsServerAction(clinicId, params)
+        const query: Record<string, string> = {};
+        for (const [key, value] of Object.entries(params ?? {})) {
+          if (value !== undefined) query[key] = String(value);
+        }
+        if (resolvedClinicId) query.clinicId = resolvedClinicId;
+        const response = await clinicApiClient.get<unknown>(
+          API_ENDPOINTS.DOCTORS.GET_ALL,
+          query,
+          { clinicId: resolvedClinicId, cache: 'no-store' } as RequestInit
         );
+        return normalizeDoctorRows(readCollection(response.data, 'doctors'));
       };
 
       const hasLocationOnlyFilter =
@@ -196,9 +209,11 @@ export const useDoctors = (clinicId: string, filters?: {
     }
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
-    staleTime: 0,
+    // The doctor list rarely changes and doctor writes invalidate it: a minute of freshness
+    // instead of a request on every mount and window focus.
+    staleTime: 60_000,
     gcTime: GC_TIMES.STATIC,
-    refetchOnMount: 'always',
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchInterval: shouldPoll ? 60_000 : false,

@@ -365,3 +365,23 @@ export function createUserFriendlyError(
   const message = sanitizeErrorMessage(error);
   return new Error(message || defaultMessage);
 }
+
+/** True when the backend refused because the user must complete their profile first. */
+export function isProfileCompletionAccessError(error: unknown): boolean {
+  if (!error) {
+    return false;
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as { message?: unknown }).message ?? '')
+        : String(error);
+
+  return (
+    message.includes('Please complete your profile') ||
+    message.includes('Profile incomplete') ||
+    message.includes('requiresProfileCompletion')
+  );
+}

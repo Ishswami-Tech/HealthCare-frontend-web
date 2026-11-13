@@ -11,6 +11,8 @@ import { auditLog } from '@/lib/utils/audit';
 import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
 import { API_ENDPOINTS } from '@/lib/config/config';
+import { readCollection } from '@/lib/utils/collection-response';
+import { isProfileCompletionAccessError } from '@/lib/utils/error-handler';
 import type {
   Clinic,
   ClinicLocation,
@@ -26,48 +28,6 @@ import type {
 // ✅ Input Validation Schemas
 import { createClinicSchema, updateClinicSchema } from '@/lib/schema/clinic.schema';
 
-function normalizeCollectionResponse<T>(payload: unknown): T[] {
-  if (Array.isArray(payload)) {
-    return payload as T[];
-  }
-
-  const data = payload as {
-    value?: T[];
-    data?: T[] | { locations?: T[] };
-    locations?: T[];
-    items?: T[];
-    results?: T[];
-  } | null | undefined;
-
-  if (Array.isArray(data?.value)) {
-    return data.value;
-  }
-
-  if (Array.isArray(data?.items)) {
-    return data.items;
-  }
-
-  if (Array.isArray(data?.results)) {
-    return data.results;
-  }
-
-  if (Array.isArray(data?.locations)) {
-    return data.locations;
-  }
-
-  if (Array.isArray(data?.data)) {
-    return data.data;
-  }
-
-  if (data && typeof data.data === 'object' && !Array.isArray(data.data)) {
-    const nested = data.data as { locations?: T[] };
-    if (Array.isArray(nested.locations)) {
-      return nested.locations;
-    }
-  }
-
-  return [];
-}
 
 // ✅ Clinic Management Server Actions
 
@@ -370,7 +330,7 @@ export async function getClinicLocations(clinicId: string, includeInactive = fal
         cache: 'no-store',
       }
     );
-    return normalizeCollectionResponse<ClinicLocation>(data);
+    return readCollection<ClinicLocation>(data, 'locations');
   } catch (error) {
     logger.error('Failed to get clinic locations', error instanceof Error ? error : new Error(String(error)));
     if (isProfileCompletionAccessError(error)) {
@@ -599,24 +559,6 @@ export async function getClinicDoctors(clinicId: string) {
   }
 }
 
-function isProfileCompletionAccessError(error: unknown): boolean {
-  if (!error) {
-    return false;
-  }
-
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'object' && error !== null && 'message' in error
-        ? String((error as { message?: unknown }).message ?? '')
-        : String(error);
-
-  return (
-    message.includes('Please complete your profile') ||
-    message.includes('Profile incomplete') ||
-    message.includes('requiresProfileCompletion')
-  );
-}
 
 /**
  * Get Clinic Staff
