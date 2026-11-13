@@ -541,6 +541,21 @@ interface RequestCache {
 const activeRefreshPromises = new Map<string, Promise<any>>();
 
 // ✅ Base API Client Class (Optimized for 10M+ users)
+/**
+ * Appends `params` as a query string, leaving out `undefined` and `null` values.
+ * `new URLSearchParams({ clinicId: undefined })` sends the literal text "undefined", which the
+ * backend's clinic guard then treats as a clinic id and refuses (403).
+ */
+function withQuery(endpoint: string, params?: Record<string, any>): string {
+  if (!params) return endpoint;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) query.append(key, String(value));
+  }
+  const text = query.toString();
+  return text ? `${endpoint}?${text}` : endpoint;
+}
+
 export class ApiClient {
   private baseURL: string;
   private timeout: number;
@@ -1085,7 +1100,7 @@ export class ApiClient {
 
   // ✅ HTTP Method Helpers
   async get<T>(endpoint: string, params?: Record<string, any>, options?: RequestInit): Promise<ApiResponse<T>> {
-    const url = params ? `${endpoint}?${new URLSearchParams(params)}` : endpoint;
+    const url = withQuery(endpoint, params);
     return this.request<T>(url, options);
   }
 
