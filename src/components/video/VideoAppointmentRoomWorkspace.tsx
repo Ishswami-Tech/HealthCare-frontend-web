@@ -382,7 +382,9 @@ export function VideoAppointmentRoomWorkspace({
 
   React.useEffect(() => {
     void refreshRoomData();
+    // Every refresh is three server actions (Vercel Functions); skip it while the tab is hidden.
     const interval = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
       void refreshRoomData();
     }, 30000);
 

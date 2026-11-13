@@ -1,29 +1,9 @@
-'use server';
-
-import { authenticatedApi } from './auth.server';
-import {
-  actionSuccess,
-  caughtFailure,
-  clinicHeaders,
-  resolveClinicContext,
-  statusFailure,
-  type ActionErrorCode,
-  type ActionFailure,
-} from './_shared';
-import { API_ENDPOINTS } from '../config/config';
 import { asRecord } from '@/lib/utils/coerce';
 
 /**
- * A patient's own place in today's clinic queue.
- *
- * Backend route (`QueueController`):
+ * A patient's own place in today's clinic queue (backend `QueueController`):
  *   GET queue/me                      the caller's live queue entry for today, or `null`
  *   GET queue/me?appointmentId=<id>   the same, for one visit
- *
- * Patients are not allowed the staff queue list (`GET queue`), so this is the only way a
- * patient learns their position. The action mirrors `fetchHealthLibraryPosts`: it resolves the
- * clinic from the session, sends it as `X-Clinic-ID`, and returns a discriminated result
- * instead of throwing.
  */
 
 /** Mirrors the backend `MyQueuePosition`. Only what the route returns — no other patients. */
@@ -44,10 +24,6 @@ export interface MyQueuePosition {
   checkedInAt: string | null;
 }
 
-export type PatientQueueErrorCode = ActionErrorCode;
-
-type PatientQueueFailure = ActionFailure;
-
 function wholeNumber(value: unknown, fallback: number): number {
   const parsed = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
   return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : fallback;
@@ -57,7 +33,7 @@ function wholeNumber(value: unknown, fallback: number): number {
  * The route answers `{ success, data: MyQueuePosition | null, meta }`. The API client lifts
  * `data` out of that envelope; this also accepts the envelope itself, so either shape works.
  */
-function readQueuePosition(payload: unknown): MyQueuePosition | null {
+export function readQueuePosition(payload: unknown): MyQueuePosition | null {
   const outer = asRecord(payload);
   if (!outer) return null;
   const entry = typeof outer.appointmentId === 'string' ? outer : asRecord(outer.data);
@@ -77,39 +53,4 @@ function readQueuePosition(payload: unknown): MyQueuePosition | null {
     estimatedWaitTime: wholeNumber(entry.estimatedWaitTime, 0),
     checkedInAt: typeof entry.checkedInAt === 'string' && entry.checkedInAt ? entry.checkedInAt : null,
   };
-}
-
-/**
- * Loads the signed-in patient's own queue entry for today.
- * `data` is `null` when the patient is not in a queue (not checked in, or the visit is over).
- */
-export async function fetchMyQueuePosition(
-  appointmentId?: string
-): Promise<{ success: true; data: MyQueuePosition | null } | PatientQueueFailure> {
-  try {
-    const context = await resolveClinicContext('load your queue position');
-    if (!context.success) {
-      return context;
-    }
-
-    const visitId = String(appointmentId || '').trim();
-    const endpoint = visitId
-      ? `${API_ENDPOINTS.QUEUE.ME}?appointmentId=${encodeURIComponent(visitId)}`
-      : API_ENDPOINTS.QUEUE.ME;
-
-    const { status, data } = await authenticatedApi<unknown>(endpoint, {
-      headers: clinicHeaders(context.clinicId),
-      omitClinicId: true,
-      cache: 'no-store',
-    });
-
-    const failure = statusFailure(status, 'Queue position');
-    if (failure) {
-      return failure;
-    }
-
-    return actionSuccess(readQueuePosition(data));
-  } catch (error) {
-    return caughtFailure(error);
-  }
 }
