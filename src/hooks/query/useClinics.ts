@@ -27,12 +27,8 @@ import {
 } from '@/types/clinic.types';
 import {
   createClinic,
-  getClinics,
-  getClinicById,
   getClinicByAppName,
-  getMyClinic,
   getClinicLocation,
-  getClinicLocations,
   updateClinic,
   deleteClinic,
   createClinicLocation,
@@ -48,7 +44,6 @@ import {
   getClinicUsers,
   validateAppName,
   associateUserToClinic,
-  getClinicStats,
   getClinicOperatingHours,
   getClinicSettings,
   updateClinicSettings,
@@ -58,6 +53,14 @@ import {
   getHealthReady,
   getHealthLive
 } from '@/lib/actions/clinic.server';
+// Reads go straight to the backend (no Vercel Function per call/poll); writes stay server actions.
+import {
+  fetchClinicById,
+  fetchClinicLocations,
+  fetchClinicStats,
+  fetchClinics,
+  fetchMyClinic,
+} from '@/lib/clinics/clinic-reads';
 import type {
   ClinicCommunicationConfig,
   UpdateClinicCommunicationConfig,
@@ -122,7 +125,7 @@ export const useClinics = (options?: { enabled?: boolean }) => {
     ['clinics'],
     async () => {
       try {
-        return await getClinics();
+        return await fetchClinics();
       } catch (error) {
         if (isSessionInvalidError(error)) {
           return [];
@@ -151,7 +154,7 @@ export const useClinic = (clinicId?: string) => {
     ['clinic', id],
     async () => {
       try {
-        const result = await getClinicById(id);
+        const result = await fetchClinicById(id);
         if (!result) {
           throw new Error('Failed to fetch clinic');
         }
@@ -215,7 +218,7 @@ export const useMyClinic = (options?: {
     ['myClinic', authScope],
     async () => {
       try {
-        const result = await getMyClinic();
+        const result = await fetchMyClinic();
         if (!result) {
           throw new Error('Failed to fetch clinic');
         }
@@ -321,7 +324,7 @@ export const useClinicLocations = (
     ['clinicLocations', clinicId, authScope, options?.includeInactive ? 'all' : 'active'],
     async () => {
       try {
-        const result = await getClinicLocations(clinicId, options?.includeInactive ?? false);
+        const result = await fetchClinicLocations(clinicId, options?.includeInactive ?? false);
         if (!result) {
           throw new Error('Failed to fetch clinic locations');
         }
@@ -646,7 +649,7 @@ export const useClinicStats = (clinicId: string) => {
     ['clinicStats', clinicId],
     async () => {
       try {
-        const result = await getClinicStats(clinicId);
+        const result = await fetchClinicStats(clinicId);
         if (!result) {
           throw new Error('Failed to fetch clinic stats');
         }
@@ -754,7 +757,7 @@ export const useActiveLocations = (clinicId: string, options?: {
     ['activeLocations', clinicId, authScope],
     async () => {
       try {
-        const result = await getClinicLocations(clinicId, false);
+        const result = await fetchClinicLocations(clinicId, false);
         if (!result) {
           throw new Error('Failed to fetch active locations');
         }
@@ -939,7 +942,7 @@ export const useCurrentClinic = () => {
       try {
         // Doctors/staff get 403 on clinics/:id (ownership-scoped). Use my-clinic.
         if (!canFetchClinicById(userRole)) {
-          const mine = await getMyClinic();
+          const mine = await fetchMyClinic();
           if (!mine) {
             throw new Error('Failed to fetch clinic');
           }
@@ -948,7 +951,7 @@ export const useCurrentClinic = () => {
         if (!clinicId) {
           throw new Error('No clinic ID available');
         }
-        const result = await getClinicById(clinicId);
+        const result = await fetchClinicById(clinicId);
         if (!result) {
           throw new Error('Failed to fetch clinic');
         }

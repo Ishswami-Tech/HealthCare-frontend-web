@@ -27,8 +27,9 @@ import {
   useNotificationStore,
   Notification,
 } from "@/stores/notifications.store";
+import { clinicApiClient } from "@/lib/api/client";
+import { API_ENDPOINTS } from "@/lib/config/config";
 import {
-  getUserNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
@@ -82,11 +83,18 @@ export function useNotifications(enabled: boolean = true) {
     ["notifications", session?.user?.id],
     async () => {
       if (!session?.user?.id) return null;
-      const result = await getUserNotifications(session.user.id, {
-        limit: 100,
-        offset: 0,
-      });
-      return result;
+      // Straight from the browser to the backend: this polls (every minute while the socket is
+      // down), and as a server action every poll ran a Vercel Function plus the proxy.
+      try {
+        const response = await clinicApiClient.get(
+          API_ENDPOINTS.COMMUNICATION.INBOX.LIST(session.user.id),
+          { limit: 100, offset: 0 }
+        );
+        return response.data;
+      } catch {
+        // Non-blocking, as before: the bell shows what the store already has.
+        return [];
+      }
     },
     {
       enabled: enabled && !!session?.user?.id && !!session?.isAuthenticated,

@@ -60,6 +60,7 @@ import {
     scanLocationQRAndCheckIn,
 } from '@/lib/actions/appointments.server';
 import { clinicApiClient } from '@/lib/api/client';
+import { fetchAppointmentList } from '@/lib/appointments/fetch-appointment-list';
 import {
   addToQueue,
   callNextPatient,
@@ -380,48 +381,12 @@ export const useAppointments = (
     }
 
     // ✅ REST path (avoids RSC POST storm from invoking a server action on every
-    // refetch/poll/reconnect). The backend contract is the same; we just
-    // unwrap the `ApiResponse` envelope here instead of in a server action.
-    // Coerce `status` (which can be a string or array) into the comma-
-    // separated string the backend `GET /appointments` query parser expects,
-    // matching the previous server-action behavior.
-    const statusParam: string | undefined = (() => {
-      const s = filters.status;
-      if (s == null) return undefined;
-      if (Array.isArray(s)) return s.length > 0 ? s.join(',') : undefined;
-      return String(s);
-    })();
-
-    const response = await clinicApiClient.getAppointments({
-      ...(filters.clinicId ? { clinicId: filters.clinicId } : {}),
-      ...(filters.patientId ? { patientId: filters.patientId } : {}),
-      ...(filters.doctorId ? { doctorId: filters.doctorId } : {}),
-      ...(statusParam ? { status: statusParam } : {}),
-      ...(filters.date ? { date: filters.date } : {}),
-      ...(filters.startDate ? { startDate: filters.startDate } : {}),
-      ...(filters.endDate ? { endDate: filters.endDate } : {}),
-      ...(filters.page ? { page: filters.page } : {}),
-      ...(filters.limit ? { limit: filters.limit } : {}),
-    });
-
-    if (!response.success) {
-      throw new Error(response.error || response.message || 'Failed to fetch appointments');
-    }
-
-    // Unwrap the various envelopes the backend can return: raw array,
-    // { appointments: [] }, { data: { appointments: [] } }, or { data: [] }.
-    const payload: any = (response as any).data;
-    const rawAppointments: unknown[] = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.appointments)
-        ? payload.appointments
-        : Array.isArray(payload?.data)
-          ? payload.data
-          : Array.isArray(payload?.data?.appointments)
-            ? payload.data.appointments
-            : [];
+    // refetch/poll/reconnect). Shared with useRealTimeAppointments.
+    // locationId has never been sent from this hook: the receptionist pages pass a check-in
+    // location id there, which the backend's clinic-location filter would not match.
+    const { locationId: _unsentLocationId, ...listFilters } = filters;
+    const { appointments: rawAppointments, meta } = await fetchAppointmentList(listFilters);
     const appointments = rawAppointments as any[];
-    const meta = payload?.pagination || (response as any).meta;
     // Note: server-action `getAppointments` previously ran a timezone
     // normalization step here. We skip it on the client path because the
     // UI already formats dates via `formatISODateInIST` at render time, and

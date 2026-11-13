@@ -351,6 +351,29 @@ export default async function proxy(request: NextRequest) {
   // STEP 9: Add Security Headers (CSP, HSTS, etc.)
   // =========================================================================
 
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy());
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(self), microphone=(self), geolocation=()",
+  );
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains",
+  );
+
+  return response;
+}
+
+/**
+ * The CSP only depends on build-time NEXT_PUBLIC_* values, so it is built once per server
+ * instance instead of on every request.
+ */
+let cachedContentSecurityPolicy: string | null = null;
+
+function buildContentSecurityPolicy(): string {
   // ✅ Dynamically build allowed hosts from environment variables
   const apiHost = normalizeOrigin(
     process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
@@ -370,7 +393,7 @@ export default async function proxy(request: NextRequest) {
   ).join(" ");
 
   // Strict Content Security Policy
-  const csp = `
+  return `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.facebook.com https://connect.facebook.net https://sdk.cashfree.com https://checkout.razorpay.com https://payments.zoho.com https://static.zohocdn.com https://c.daily.co https://*.daily.co;
     worker-src 'self' blob:;
@@ -388,21 +411,11 @@ export default async function proxy(request: NextRequest) {
   `
     .replace(/\s{2,}/g, " ")
     .trim();
+}
 
-  response.headers.set("Content-Security-Policy", csp);
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(self), microphone=(self), geolocation=()",
-  );
-  response.headers.set(
-    "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains",
-  );
-
-  return response;
+function contentSecurityPolicy(): string {
+  cachedContentSecurityPolicy ??= buildContentSecurityPolicy();
+  return cachedContentSecurityPolicy;
 }
 
 // ============================================================================
@@ -415,13 +428,21 @@ export default async function proxy(request: NextRequest) {
  */
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - Static assets (svg, png, jpg, etc.)
-     */
-    "/((?!api/|monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|woff2?|ttf|css|js|map|json|txt|xml|pdf|mp4|webm)$).*)",
+    {
+      /*
+       * Match all request paths except:
+       * - _next/static (static files)
+       * - _next/image (image optimization files)
+       * - favicon.ico (favicon file)
+       * - Static assets (svg, png, jpg, etc.)
+       */
+      source:
+        "/((?!api/|monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|woff2?|ttf|css|js|map|json|txt|xml|pdf|mp4|webm)$).*)",
+      // Server action calls (a POST to the page URL with a Next-Action header) skip the proxy:
+      // an action is reached by its id from any page, so the page's route guard never protected
+      // it; every action checks the session itself. Running the proxy as well doubled the Vercel
+      // Functions per action call.
+      missing: [{ type: "header", key: "next-action" }],
+    },
   ],
 };
