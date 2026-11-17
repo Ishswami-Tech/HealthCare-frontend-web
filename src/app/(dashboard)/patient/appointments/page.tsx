@@ -66,11 +66,16 @@ function PatientAppointmentsContent() {
   const [bookingFamilyMemberId, setBookingFamilyMemberId] = useState(
     shouldOpenBooking ? queryFamilyMemberId : undefined,
   );
-  const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
+  // `openBooking=1` is a one-shot request: once the wizard has opened, closing it must not
+  // bring back "Opening booking…" (the query string can outlive the replaceState below).
+  const [isBookingRequestHandled, setIsBookingRequestHandled] = useState(shouldOpenBooking);
+  const isBookingDialogOpening =
+    shouldOpenBooking && !isBookingRequestHandled && !isBookingDialogOpen;
 
   useEffect(() => {
     if (shouldOpenBooking) {
       setIsBookingDialogOpen(true);
+      setIsBookingRequestHandled(true);
       setBookingFamilyMemberId(queryFamilyMemberId);
     }
 
