@@ -126,7 +126,9 @@ export const useDoctors = (clinicId: string, filters?: {
   const queryKey = useMemo(
     () => [
       'doctors',
-      clinicId,
+      // The clinic the request is actually sent for (the session's wins), so the list refetches
+      // when the session clinic arrives after the first render.
+      resolvedClinicId,
       filters?.search?.trim() || '',
       filters?.specialization?.trim() || '',
       typeof filters?.isActive === 'boolean' ? String(filters.isActive) : 'any',
@@ -135,7 +137,7 @@ export const useDoctors = (clinicId: string, filters?: {
       filters?.locationId?.trim() || '',
     ],
     [
-      clinicId,
+      resolvedClinicId,
       filters?.isActive,
       filters?.limit,
       filters?.locationId,

@@ -84,7 +84,9 @@ const DEFAULT_HEADERS_CACHE = {
   'X-Client-Version': '1.0.0',
   'X-Client-Platform': 'web',
   'Accept-Language': 'en-US,en;q=0.9',
-  'User-Agent': 'HealthcareFrontend/1.0.0',
+  // No custom User-Agent: Chromium drops it, but WebKit (every iOS browser) and Firefox send it,
+  // which makes the CORS preflight ask for `user-agent`. The backend does not allow that header,
+  // so on an iPhone every API call failed with "Load failed" ("Unable to load doctors").
 };
 
 async function getDefaultHeaders(): Promise<Record<string, string>> {

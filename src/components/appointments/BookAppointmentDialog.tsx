@@ -2917,7 +2917,7 @@ export function BookAppointmentDialog({
 
     if (doctorsFetched && Array.isArray(doctorsData) && doctorsData.length === 0) {
       doctorAutoRefreshRef.current = true;
-      queryClient.invalidateQueries({ queryKey: ["doctors", activeClinicId] });
+      queryClient.invalidateQueries({ queryKey: ["doctors"] });
       void refetchDoctors({ cancelRefetch: true });
     }
   }, [activeClinicId, dialogOpen, doctorsData, doctorsFetched, doctorsFetching, doctorsLoading, isHardRefreshingDoctors, queryClient, refetchDoctors]);
@@ -2937,7 +2937,7 @@ export function BookAppointmentDialog({
       queryClient.removeQueries({ queryKey: ['clinicDoctors'] });
       queryClient.removeQueries({ queryKey: ['doctorAvailability'] });
       queryClient.removeQueries({ queryKey: ['doctorSchedule'] });
-      queryClient.invalidateQueries({ queryKey: ['doctors', activeClinicId] });
+      queryClient.invalidateQueries({ queryKey: ['doctors'] });
       queryClient.invalidateQueries({ queryKey: ['clinicDoctors', activeClinicId] });
       await refetchDoctors({ cancelRefetch: true });
     } catch (err) {
