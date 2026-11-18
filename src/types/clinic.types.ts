@@ -107,11 +107,19 @@ export interface ClinicSettings {
     allowRescheduling: boolean;
     allowCancellation: boolean;
     cancellationWindow: number; // hours
+    /** null = no window: video visits are booked in the OPD sessions. */
     videoCallWindow?: {
       start: string;
       end: string;
-    };
+    } | null;
     operatingWindowsByDay?: Record<string, Array<{ start: string; end: string }> | { start: string; end: string } | null>;
+    /** Doctor WhatsApp summaries: morning full-day list, and one before each window (minutes 5-180). */
+    doctorSummary?: {
+      morningEnabled?: boolean;
+      morningTime?: string; // HH:MM IST
+      beforeWindowEnabled?: boolean;
+      beforeWindowMinutes?: number;
+    };
     holidayClosures?: Array<{ date: string; title?: string; type?: string } | string>;
     holidayDates?: string[];
   };
