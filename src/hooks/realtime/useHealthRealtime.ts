@@ -519,7 +519,11 @@ export function useHealthRealtime(
 
   // Initialize Socket.IO connection
   useEffect(() => {
-    if (!enabled) return;
+    // The /health namespace only accepts signed-in users: without a token the
+    // server rejects the handshake. Signed-out pages therefore never open the
+    // socket (useDetailedHealthStatus falls back to REST polling), and when the
+    // token goes away (logout, reset) the cleanup below closes the socket.
+    if (!enabled || !currentToken) return;
 
     if (sharedHealthDisconnectTimer !== null) {
       window.clearTimeout(sharedHealthDisconnectTimer);
@@ -559,12 +563,12 @@ export function useHealthRealtime(
         reconnectionAttempts: 5,
         timeout: 20000,
         forceNew: false,
-        ...(currentToken ? { auth: { token: currentToken } } : {}),
+        auth: { token: currentToken },
       });
       bindSharedHealthSocket(sharedHealthSocket);
-      scheduleSharedHealthAuthRefresh(currentToken || undefined);
+      scheduleSharedHealthAuthRefresh(currentToken);
       useHealthStore.getState().setConnectionStatus('connecting');
-    } else if (currentToken) {
+    } else {
       const socketAuth = sharedHealthSocket.auth as { token?: string } | undefined;
 
       if (socketAuth?.token !== currentToken) {
@@ -575,8 +579,6 @@ export function useHealthRealtime(
         sharedHealthSocket.connect();
       }
       scheduleSharedHealthAuthRefresh(currentToken);
-    } else if (!sharedHealthSocket.connected) {
-      sharedHealthSocket.connect();
     }
 
     return () => {
