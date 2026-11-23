@@ -8,15 +8,16 @@ import {
   ArrowRight,
   Bell,
   Calendar,
+  CalendarPlus,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock,
   Hospital,
+  Home,
   MapPin,
   Pencil,
   ScanQrCode,
-  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -363,9 +364,40 @@ export function CheckInSelectView({
   );
 }
 
+// ── QR self check-in switched off at the clinic ─────────────────────────────
+
+export function CheckInQrOffView({ onQueue }: { onQueue: () => void }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHead title="Check in at clinic" backHref={BACK_HREF} />
+      <Surface>
+        <EmptyBlock
+          icon={Hospital}
+          title="QR check-in is off at this clinic"
+          description="This clinic checks patients in at the reception desk. When you arrive, tell reception your name; your place in the queue will then show in the app."
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <Button size="md" onClick={onQueue}>
+                <Activity aria-hidden="true" />
+                Open live queue
+              </Button>
+              <Button size="md" variant="outline" asChild>
+                <Link href={BACK_HREF}>
+                  <Home aria-hidden="true" />
+                  Back to home
+                </Link>
+              </Button>
+            </div>
+          }
+        />
+      </Surface>
+    </div>
+  );
+}
+
 // ── No in-clinic visit / loading ───────────────────────────────────────────
 
-export function CheckInNoVisitView({ onBook }: { onBook: () => void }) {
+export function CheckInNoVisitView({ onBook }: { onBook?: (() => void) | undefined }) {
   return (
     <div className="flex flex-col gap-5">
       <PageHead title="Check in at clinic" backHref={BACK_HREF} />
@@ -373,19 +405,16 @@ export function CheckInNoVisitView({ onBook }: { onBook: () => void }) {
         <EmptyBlock
           icon={Calendar}
           title="No in-clinic visit to check in for"
-          description="Check-in with the clinic QR is only for in-clinic visits. Clinic visits are booked at the front desk. Once you have one, open this page at the clinic to scan the QR."
+          description="Check-in with the clinic QR is only for in-clinic visits. Once you have one, open this page at the clinic to scan the QR."
           action={
-            // Online booking is for video visits only, so it is offered as its own, named action.
-            <div className="flex flex-col items-center gap-2.5">
-              <p className="m-0 text-[13px] text-ink-muted">
-                Want to see the doctor online instead? A video visit needs no check-in.
-              </p>
-              {/* Booking is the one amber action in the app. */}
+            // Not offered while the clinic has every consultation type switched off.
+            onBook ? (
+              // Booking is the one amber action in the app.
               <Button variant="action" size="md" onClick={onBook}>
-                <Video aria-hidden="true" />
-                Book a video visit
+                <CalendarPlus aria-hidden="true" />
+                Book appointment
               </Button>
-            </div>
+            ) : undefined
           }
         />
       </Surface>

@@ -21,11 +21,11 @@ interface VideoAppointmentDialogProps {
  * VideoAppointmentDialog - A convenience wrapper for BookAppointmentDialog
  * that forces video-only mode for appointments.
  *
- * NOTE: videoOnly is now the default in BookAppointmentDialog (hardcoded to VIDEO).
- * This wrapper is kept for semantic clarity and easy identification of video-specific usages.
+ * Video stays subject to the clinic's video switch and the doctor's override; when video is
+ * switched off the dialog shows its "booking paused" state and hides its trigger.
  *
  * Flow: Date → Time → Confirm & Pay
  */
 export function VideoAppointmentDialog(props: VideoAppointmentDialogProps) {
-  return <BookAppointmentDialog {...props} />;
+  return <BookAppointmentDialog {...props} videoOnly />;
 }

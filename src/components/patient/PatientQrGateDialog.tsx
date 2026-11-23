@@ -47,18 +47,20 @@ export function PatientQrGateDialog({
           <Button variant="outline" size="md" onClick={() => onOpenChange(false)}>
             {closeLabel}
           </Button>
-          {/* Booking is the amber action. */}
-          <Button
-            variant="action"
-            size="md"
-            onClick={() => {
-              onOpenChange(false);
-              onBookAppointment?.();
-            }}
-          >
-            <Calendar aria-hidden="true" />
-            {bookLabel}
-          </Button>
+          {/* Booking is the amber action; omitted when there is nothing to book online. */}
+          {onBookAppointment ? (
+            <Button
+              variant="action"
+              size="md"
+              onClick={() => {
+                onOpenChange(false);
+                onBookAppointment();
+              }}
+            >
+              <Calendar aria-hidden="true" />
+              {bookLabel}
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>

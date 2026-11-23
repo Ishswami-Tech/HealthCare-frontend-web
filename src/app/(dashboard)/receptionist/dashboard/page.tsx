@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Activity, AlertCircle, Calendar, CheckCircle, Clock, QrCode, Users, ExternalLink, Receipt, ChevronRight, Pill, Plus, Video } from "lucide-react";
+import { Activity, AlertCircle, Calendar, CheckCircle, Clock, QrCode, Users, ExternalLink, Receipt, ChevronRight, CalendarPlus, Pill } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -554,9 +554,9 @@ export default function ReceptionistDashboard() {
             </Button>
             <BookAppointmentDialog
               trigger={
-                <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2 animate-pulse">
-                  <Video className="size-4" />
-                  Book Video Appointment
+                <Button className="gap-2">
+                  <CalendarPlus className="size-4" />
+                  Book appointment
                 </Button>
               }
               onBooked={() => refetchMedicineDesk?.()}
@@ -883,9 +883,9 @@ export default function ReceptionistDashboard() {
               </p>
               <BookAppointmentDialog
                 trigger={
-                  <Button size="sm" className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white animate-pulse">
-                    <Video className="size-4 mr-2" />
-                    Book Video Appointment
+                  <Button size="sm" className="w-full">
+                    <CalendarPlus className="size-4 mr-2" />
+                    Book appointment
                   </Button>
                 }
                 onBooked={() => refetchMedicineDesk?.()}

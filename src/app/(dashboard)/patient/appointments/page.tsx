@@ -10,11 +10,15 @@ import { PageHead } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { APP_CONFIG } from "@/lib/config/config";
 
 function PatientAppointmentsContent() {
   useWebSocketQuerySync();
+  // No Book button while the clinic has every consultation type switched off (a request that
+  // still opens the wizard shows its "booking paused" state).
+  const { onlineBookingEnabled } = useClinicServiceToggles();
   const searchParams = useSearchParams();
   const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const queryClinicId = getSearchParam("clinicId") || undefined;
@@ -99,10 +103,12 @@ function PatientAppointmentsContent() {
         title="Appointments"
         description="Manage your consultations"
         actions={
-          <Button variant="action" size="md" onClick={() => setIsBookingDialogOpen(true)}>
-            <Plus aria-hidden="true" />
-            Book appointment
-          </Button>
+          onlineBookingEnabled ? (
+            <Button variant="action" size="md" onClick={() => setIsBookingDialogOpen(true)}>
+              <Plus aria-hidden="true" />
+              Book appointment
+            </Button>
+          ) : undefined
         }
       />
 

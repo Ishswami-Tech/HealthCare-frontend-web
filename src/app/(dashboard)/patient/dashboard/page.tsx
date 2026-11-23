@@ -21,6 +21,7 @@ import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/
 import { resolvePatientDisplayName } from "@/lib/utils/display-name";
 import { useLanguage } from "@/lib/i18n/context";
 import { PatientHomeView } from "@/components/patient/home/PatientHomeView";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import {
   LIBRARY_FILTERS,
   LIBRARY_STRIP_SIZE,
@@ -225,17 +226,23 @@ export default function PatientDashboard() {
     push("/patient/appointments?openBooking=1");
   }, [push]);
 
+  // QR self check-in switched off at the clinic: no scan entry points; reception checks patients in.
+  // Both consultation types switched off: no online booking entry points.
+  const { qrCheckInEnabled, videoConsultationEnabled, onlineBookingEnabled } =
+    useClinicServiceToggles();
   const startCheckIn = useCallback(() => {
     if (hasInPersonAppointment) {
       push("/patient/check-in");
       return;
     }
     openQrGate({
-      bookLabel: "Book video appointment",
+      bookLabel: "Book appointment",
       // Opens the booking wizard, like the other Book buttons on Home.
-      onBookAppointment: () => push("/patient/appointments?openBooking=1"),
+      ...(onlineBookingEnabled
+        ? { onBookAppointment: () => push("/patient/appointments?openBooking=1") }
+        : {}),
     });
-  }, [hasInPersonAppointment, openQrGate, push]);
+  }, [hasInPersonAppointment, onlineBookingEnabled, openQrGate, push]);
 
   const visitActions = useMemo(
     () => ({
@@ -245,9 +252,9 @@ export default function PatientDashboard() {
       onReschedule: (appointmentId: string) =>
         push(`/patient/appointments?id=${encodeURIComponent(appointmentId)}&action=reschedule`),
       onPay: (appointmentId: string) => push(`/patient/appointments?id=${encodeURIComponent(appointmentId)}`),
-      onCheckIn: startCheckIn,
+      onCheckIn: qrCheckInEnabled ? startCheckIn : undefined,
     }),
-    [push, startCheckIn]
+    [push, qrCheckInEnabled, startCheckIn]
   );
 
   return (
@@ -259,9 +266,10 @@ export default function PatientDashboard() {
       showProfileBanner={authoritativeProfileComplete !== true}
       onCompleteProfile={() => push("/profile-completion")}
       notice={<ClaimRecordCard userId={session?.user?.id ?? ""} enabled={Boolean(session?.user)} />}
-      onBook={openBooking}
+      onBook={onlineBookingEnabled ? openBooking : undefined}
+      videoBookingEnabled={videoConsultationEnabled}
       isBookingOpening={isBookingAppointmentLoading}
-      onScanCheckIn={startCheckIn}
+      onScanCheckIn={qrCheckInEnabled ? startCheckIn : undefined}
       stats={stats}
       isStatsLoading={showSummarySkeleton}
       visits={visits}

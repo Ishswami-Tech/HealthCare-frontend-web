@@ -25,6 +25,7 @@ import { logger } from '@/lib/utils/logger';
 // prefetch helper all share the same list. Re-exported here to keep call
 // sites within this file readable.
 import { APPOINTMENT_QUERY_FAMILIES } from '@/hooks/query/useAppointments';
+import { refetchClinicSettingsQueries } from '@/lib/clinics/clinic-settings-queries';
 import {
   coalesceRealtimeInvalidation,
 } from '@/hooks/realtime/useRealtimeInvalidationCoalescer';
@@ -1188,8 +1189,26 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
           invalidateClinicQueryFamilies(queryClient);
           invalidateDashboardQueryFamilies(queryClient);
+          // The clinic switches (QR check-in, video, in-person) live on the clinic: re-read the
+          // ones on screen now, so an open booking or check-in view follows the change.
+          if (!resolvedClinicId || !clinicId || resolvedClinicId === clinicId) {
+            refetchClinicSettingsQueries(queryClient);
+          }
         })
       );
+
+      // Clinic switches changed (QR self check-in, video, in-person, doctor overrides). Sent to the
+      // `clinic:<id>` and `clinic:<id>:public` rooms, which the socket joins on connect. The payload
+      // is slim (ids only once it passes the broadcaster), so the settings are always re-read.
+      const unsubscribeClinicSettingsUpdated = subscribe('clinic.settings.updated', (rawData: unknown) => {
+        const data = (rawData ?? {}) as { clinicId?: string; id?: string };
+        const eventClinicId = String(data.clinicId || data.id || '');
+        if (eventClinicId && clinicId && eventClinicId !== clinicId) {
+          return;
+        }
+        logger.info('Realtime clinic settings updated', { clinicId: eventClinicId });
+        refetchClinicSettingsQueries(queryClient);
+      });
 
       // ✅ Doctor clinic assignment changes (e.g., doctor added/removed from
       // a clinic via the DoctorClinic join table). Drives realtime refresh
@@ -1290,6 +1309,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         ...unsubscribePaymentLifecycleEvents,
         ...unsubscribeUserLifecycleEvents,
         ...unsubscribeClinicLifecycleEvents,
+        unsubscribeClinicSettingsUpdated,
         ...unsubscribeDoctorClinicEvents,
         ...unsubscribeEhrLifecycleEvents
       );

@@ -58,7 +58,7 @@ export interface AppointmentManagerViewProps {
   onDateRangeChange: (range: ManagerDateRange) => void;
   actions: ManagerVisitActions;
   renderPay: ManagerPayRenderer;
-  checkInHref: string;
+  checkInHref: string | null;
   cancelling: boolean;
   rescheduling: boolean;
   /** Title row for pages that have no title of their own (staff). */

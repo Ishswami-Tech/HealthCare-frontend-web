@@ -7,6 +7,7 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import { useAddDoctorReview } from "@/hooks/query/useDoctors";
 import {
   useAppointments,
@@ -106,6 +107,7 @@ export default function AppointmentManager({
   initialTab,
 }: AppointmentManagerProps = {}) {
   const { session } = useAuth();
+  const { qrCheckInEnabled, onlineBookingEnabled } = useClinicServiceToggles();
   const user = session?.user;
   const hasShownRealtimeToastRef = useRef(false);
   const currentTimestamp = useCurrentTimestamp();
@@ -123,8 +125,9 @@ export default function AppointmentManager({
     if (userRole === Role.CLINIC_LOCATION_HEAD) {
       return "/clinic-location-head/check-in";
     }
-    return "/patient/check-in";
-  }, [user?.role]);
+    // Patients check themselves in only by QR; with it switched off, reception checks them in.
+    return qrCheckInEnabled ? "/patient/check-in" : null;
+  }, [qrCheckInEnabled, user?.role]);
   // Staff lists (reception, clinic) lead with the patient's name and show the numbers.
   const staffView = isAdminView || !isPatientViewer(user?.role, isAdminView);
   const { language } = useLanguage();
@@ -480,7 +483,8 @@ export default function AppointmentManager({
     );
   };
 
-  const bookAction = onBookAppointment ? (
+  // No Book button while the clinic has every consultation type switched off.
+  const bookAction = !onlineBookingEnabled ? undefined : onBookAppointment ? (
     <Button variant="action" size="md" onClick={onBookAppointment}>
       <Plus aria-hidden="true" />
       Book appointment

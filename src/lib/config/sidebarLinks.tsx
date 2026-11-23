@@ -20,7 +20,8 @@ import {
   Bed,
   Sparkles,
   Star,
-  Bell
+  Bell,
+  ToggleRight
 } from "lucide-react";
 
 import { Permission } from "@/types/rbac.types";
@@ -42,6 +43,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Earnings", href: "/super-admin/earnings", icon: DollarSign, permission: Permission.MANAGE_BILLING },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.MANAGE_BILLING },
+    { title: "Clinic Services", href: "/super-admin/clinic-services", icon: ToggleRight, permission: Permission.UPDATE_CLINICS },
     { title: "System Health", href: "/super-admin/health", icon: Activity, permission: Permission.MANAGE_SYSTEM_SETTINGS },
     { title: "Settings", href: "/super-admin/settings", icon: Settings, permission: Permission.MANAGE_SYSTEM_SETTINGS },
   ],

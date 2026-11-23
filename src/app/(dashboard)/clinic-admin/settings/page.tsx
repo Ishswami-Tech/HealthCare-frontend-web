@@ -32,6 +32,8 @@ import {
 } from "@/components/dashboard/DashboardPageShell";
 import { OperatingWindowsEditor } from "@/components/dashboard/OperatingWindowsEditor";
 import { PaymentProviderSettings } from "@/components/clinic-admin/PaymentProviderSettings";
+import { OpdServiceToggleList } from "@/components/clinic/OpdServiceToggleList";
+import { buildOpdServiceTogglesPatch, readOpdServiceToggles } from "@/lib/clinics/opd-controls.logic";
 import { AlertTriangle, Loader2, Save, Plus, Stethoscope, Trash2, Video, Ban } from "lucide-react";
 import { showErrorToast } from "@/hooks/utils/use-toast";
 import type {
@@ -59,7 +61,7 @@ function clampBeforeWindowMinutes(value: number | ""): number {
   return Math.min(DOCTOR_SUMMARY_DEFAULTS.maxBeforeWindowMinutes, Math.max(DOCTOR_SUMMARY_DEFAULTS.minBeforeWindowMinutes, minutes));
 }
 
-type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; videoCallWindowStart: string; videoCallWindowEnd: string; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean; doctorSummaryMorningEnabled: boolean; doctorSummaryMorningTime: string; doctorSummaryBeforeWindowEnabled: boolean; doctorSummaryBeforeWindowMinutes: number | "" };
+type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; videoCallWindowStart: string; videoCallWindowEnd: string; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; qrCheckInEnabled: boolean; emergencyOnly: boolean; doctorSummaryMorningEnabled: boolean; doctorSummaryMorningTime: string; doctorSummaryBeforeWindowEnabled: boolean; doctorSummaryBeforeWindowMinutes: number | "" };
 type ClinicAdminSettingsState = {
   clinicForm: ClinicForm;
   settings: SettingsForm;
@@ -285,7 +287,7 @@ export default function ClinicAdminSettingsPage() {
 
   const [editorState, setEditorState] = useState<ClinicAdminSettingsState>(() => ({
     clinicForm: { name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" },
-    settings: { appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,videoCallWindowStart:"",videoCallWindowEnd:"",noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false,doctorSummaryMorningEnabled:true,doctorSummaryMorningTime:DOCTOR_SUMMARY_DEFAULTS.morningTime,doctorSummaryBeforeWindowEnabled:true,doctorSummaryBeforeWindowMinutes:DOCTOR_SUMMARY_DEFAULTS.beforeWindowMinutes },
+    settings: { appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,videoCallWindowStart:"",videoCallWindowEnd:"",noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,qrCheckInEnabled:true,emergencyOnly:false,doctorSummaryMorningEnabled:true,doctorSummaryMorningTime:DOCTOR_SUMMARY_DEFAULTS.morningTime,doctorSummaryBeforeWindowEnabled:true,doctorSummaryBeforeWindowMinutes:DOCTOR_SUMMARY_DEFAULTS.beforeWindowMinutes },
     sessions: defaultSessions(),
   }));
   const { clinicForm, settings, sessions } = editorState;
@@ -354,7 +356,7 @@ export default function ClinicAdminSettingsPage() {
     const dayWin = isRecord(appt.operatingWindowsByDay) ? appt.operatingWindowsByDay : {};
     const parsed = defaultSessions(); DAYS.forEach(d => { if (dayWin[d] !== undefined) parsed[d] = parseSessions(dayWin[d]); });
     const newClinicForm: ClinicForm = { name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD" };
-    const newSettings: SettingsForm = { appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), videoCallWindowStart: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.start : undefined, ""), videoCallWindowEnd: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.end : undefined, ""), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false), doctorSummaryMorningEnabled: typeof doctorSummary.morningEnabled==="boolean"?doctorSummary.morningEnabled:true, doctorSummaryMorningTime: normalizeTime(doctorSummary.morningTime, DOCTOR_SUMMARY_DEFAULTS.morningTime), doctorSummaryBeforeWindowEnabled: typeof doctorSummary.beforeWindowEnabled==="boolean"?doctorSummary.beforeWindowEnabled:true, doctorSummaryBeforeWindowMinutes: clampBeforeWindowMinutes(toNumber(doctorSummary.beforeWindowMinutes, DOCTOR_SUMMARY_DEFAULTS.beforeWindowMinutes)) };
+    const newSettings: SettingsForm = { appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), videoCallWindowStart: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.start : undefined, ""), videoCallWindowEnd: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.end : undefined, ""), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", ...readOpdServiceToggles(appt), emergencyOnly: Boolean(opd.emergencyOnly ?? false), doctorSummaryMorningEnabled: typeof doctorSummary.morningEnabled==="boolean"?doctorSummary.morningEnabled:true, doctorSummaryMorningTime: normalizeTime(doctorSummary.morningTime, DOCTOR_SUMMARY_DEFAULTS.morningTime), doctorSummaryBeforeWindowEnabled: typeof doctorSummary.beforeWindowEnabled==="boolean"?doctorSummary.beforeWindowEnabled:true, doctorSummaryBeforeWindowMinutes: clampBeforeWindowMinutes(toNumber(doctorSummary.beforeWindowMinutes, DOCTOR_SUMMARY_DEFAULTS.beforeWindowMinutes)) };
     setEditorState({
       clinicForm: newClinicForm,
       settings: newSettings,
@@ -383,7 +385,7 @@ export default function ClinicAdminSettingsPage() {
       name: clinicForm.name.trim(), address: clinicForm.address.trim(), city: clinicForm.city.trim(), state: clinicForm.state.trim(), country: clinicForm.country.trim(), zipCode: clinicForm.zipCode.trim(), phone: clinicForm.phone.trim(), email: clinicForm.email.trim(), website: clinicForm.website.trim(), description: clinicForm.description.trim(), timezone: clinicForm.timezone.trim() || "Asia/Kolkata", currency: clinicForm.currency.trim() || "INR", language: clinicForm.language.trim() || "en", operatingHours: clinicForm.operatingHours.trim(),
       settings: {
         ...base,
-        appointmentSettings: { ...appt, appointmentDuration: settings.appointmentDuration, maxAdvanceBooking: settings.maxAdvanceBooking, minAdvanceBooking: settings.minAdvanceBooking, cancellationWindow: settings.cancellationWindow, videoCallWindow: videoCallPreview.configured ? { start: videoCallPreview.start, end: videoCallPreview.end } : null, noShowWindowMinutes: settings.noShowWindowMinutes, allowRescheduling: settings.allowRescheduling, allowCancellation: settings.allowCancellation, autoConfirmation: settings.autoConfirmation, walkInAllowed: settings.walkInAllowed, operatingWindowsByDay: sessions, dailyOperatingWindow: sessions.monday[0] || { start:"11:00", end:"14:00" }, opdControls: { isOpdPaused: settings.clinicPaused, pauseReason: settings.pauseReason.trim(), generalConsultationEnabled: settings.generalConsultationEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, emergencyOnly: settings.emergencyOnly }, doctorConsultationControls: doctorCtrl, doctorSummary: { morningEnabled: settings.doctorSummaryMorningEnabled, morningTime: settings.doctorSummaryMorningTime, beforeWindowEnabled: settings.doctorSummaryBeforeWindowEnabled, beforeWindowMinutes: clampBeforeWindowMinutes(settings.doctorSummaryBeforeWindowMinutes) } },
+        appointmentSettings: { ...appt, appointmentDuration: settings.appointmentDuration, maxAdvanceBooking: settings.maxAdvanceBooking, minAdvanceBooking: settings.minAdvanceBooking, cancellationWindow: settings.cancellationWindow, videoCallWindow: videoCallPreview.configured ? { start: videoCallPreview.start, end: videoCallPreview.end } : null, noShowWindowMinutes: settings.noShowWindowMinutes, allowRescheduling: settings.allowRescheduling, allowCancellation: settings.allowCancellation, autoConfirmation: settings.autoConfirmation, walkInAllowed: settings.walkInAllowed, operatingWindowsByDay: sessions, dailyOperatingWindow: sessions.monday[0] || { start:"11:00", end:"14:00" }, opdControls: { ...buildOpdServiceTogglesPatch(base, { qrCheckInEnabled: settings.qrCheckInEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, generalConsultationEnabled: settings.generalConsultationEnabled }).appointmentSettings.opdControls, isOpdPaused: settings.clinicPaused, pauseReason: settings.pauseReason.trim(), emergencyOnly: settings.emergencyOnly }, doctorConsultationControls: doctorCtrl, doctorSummary: { morningEnabled: settings.doctorSummaryMorningEnabled, morningTime: settings.doctorSummaryMorningTime, beforeWindowEnabled: settings.doctorSummaryBeforeWindowEnabled, beforeWindowMinutes: clampBeforeWindowMinutes(settings.doctorSummaryBeforeWindowMinutes) } },
         notificationSettings: { ...notifSet, appointmentReminders: settings.appointmentReminders, cancellationAlerts: settings.cancellationAlerts, emailNotifications: settings.emailNotifications, smsNotifications: settings.smsNotifications, pushNotifications: settings.pushNotifications },
         notifications: { ...notif, email: settings.emailNotifications, sms: settings.smsNotifications, push: settings.pushNotifications },
         paymentSettings: { ...pay, currency: clinicForm.currency.trim() || "INR", paymentMethods, autoBilling: settings.autoBilling },
@@ -697,15 +699,22 @@ export default function ClinicAdminSettingsPage() {
           <Card className={ALERT_CARD_CLASS}>
             <CardHeader className={COMPACT_CARD_HEADER}>
               <CardTitle>Emergency / OPD Controls</CardTitle>
-              <CardDescription>Temporarily restrict clinic consultations.</CardDescription>
+              <CardDescription>Turn clinic services on or off, or temporarily restrict consultations. Changes apply after Save.</CardDescription>
             </CardHeader>
             <CardContent className={`${COMPACT_CARD_CONTENT} flex flex-col gap-y-3`}>
               <ToggleRow label="Pause Clinic OPD" checked={settings.clinicPaused} onCheckedChange={(value) => setSF("clinicPaused", value)} />
               <SettingField label="Pause Reason">
                 <Input className={FORM_INPUT_CLASS} value={settings.pauseReason} onChange={(e) => setSF("pauseReason", e.target.value)} />
               </SettingField>
-              <ToggleRow label="General Consultation Enabled" checked={settings.generalConsultationEnabled} onCheckedChange={(value) => setSF("generalConsultationEnabled", value)} />
-              <ToggleRow label="Video Consultation Enabled" checked={settings.videoConsultationEnabled} onCheckedChange={(value) => setSF("videoConsultationEnabled", value)} />
+              <OpdServiceToggleList
+                value={{ qrCheckInEnabled: settings.qrCheckInEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, generalConsultationEnabled: settings.generalConsultationEnabled }}
+                onChange={(key, value) => setSF(key, value)}
+              />
+              {!settings.videoConsultationEnabled && !settings.generalConsultationEnabled ? (
+                <p role="status" className="text-xs text-amber-700 dark:text-amber-400">
+                  Both consultation types are off: patients will see that online booking is paused.
+                </p>
+              ) : null}
               <ToggleRow label="Emergency Only Mode" checked={settings.emergencyOnly} onCheckedChange={(value) => setSF("emergencyOnly", value)} />
             </CardContent>
           </Card>
@@ -794,12 +803,12 @@ export default function ClinicAdminSettingsPage() {
                       </IconTableHead>
                     </TableHead>
                     <TableHead className="w-[68px] px-2 text-center">
-                      <IconTableHead label="General Consultation">
+                      <IconTableHead label="In-person consultations">
                         <Stethoscope className="size-4" />
                       </IconTableHead>
                     </TableHead>
                     <TableHead className="w-[68px] px-2 text-center">
-                      <IconTableHead label="Video Consultation">
+                      <IconTableHead label="Video consultations">
                         <Video className="size-4" />
                       </IconTableHead>
                     </TableHead>
@@ -827,10 +836,10 @@ export default function ClinicAdminSettingsPage() {
                           <Switch checked={control.isPaused} onCheckedChange={(value) => updDoc(doctor.id, "isPaused", value)} aria-label={`Pause ${doctor.name}`} />
                         </TableCell>
                         <TableCell className="px-2 text-center">
-                          <Switch checked={control.generalConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "generalConsultationEnabled", value)} aria-label={`General consultation for ${doctor.name}`} />
+                          <Switch checked={control.generalConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "generalConsultationEnabled", value)} aria-label={`In-person consultations for ${doctor.name}`} />
                         </TableCell>
                         <TableCell className="px-2 text-center">
-                          <Switch checked={control.videoConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "videoConsultationEnabled", value)} aria-label={`Video consultation for ${doctor.name}`} />
+                          <Switch checked={control.videoConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "videoConsultationEnabled", value)} aria-label={`Video consultations for ${doctor.name}`} />
                         </TableCell>
                         <TableCell className="px-2 text-center">
                           <Switch checked={control.emergencyOnly} onCheckedChange={(value) => updDoc(doctor.id, "emergencyOnly", value)} aria-label={`Emergency only for ${doctor.name}`} />

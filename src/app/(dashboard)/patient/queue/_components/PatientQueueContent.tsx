@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { usePatientQueue } from "@/hooks/query/usePatientQueue";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import { toHomeVisit } from "@/components/patient/home/homeData";
 import { useLanguage } from "@/lib/i18n/context";
 import {
@@ -23,6 +24,7 @@ export function PatientQueueContent() {
   const { data: appointmentsData } = useMyAppointments();
   const [now] = useState(() => Date.now());
   const { language } = useLanguage();
+  const { qrCheckInEnabled } = useClinicServiceToggles();
 
   const appointments = useMemo(() => readAppointments(appointmentsData), [appointmentsData]);
 
@@ -63,6 +65,7 @@ export function PatientQueueContent() {
   return (
     <PatientQueueEmptyView
       canCheckIn={Boolean(visitToCheckIn)}
+      qrCheckInEnabled={qrCheckInEnabled}
       visitLine={
         visitToCheckIn
           ? [visitToCheckIn.doctorName, visitToCheckIn.timeLabel ? `Today, ${visitToCheckIn.timeLabel}` : "Today"]

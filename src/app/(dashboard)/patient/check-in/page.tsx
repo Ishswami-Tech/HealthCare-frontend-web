@@ -20,12 +20,15 @@ import {
   type QrCheckInSelectionCandidate,
 } from "@/hooks/query/useAppointments";
 import { formatTimeInIST } from "@/lib/utils/date-time";
+import { isQrCheckInDisabledError } from "@/lib/clinics/opd-controls.logic";
+import { useClinicServiceToggles, useRefreshClinicSettings } from "@/hooks/query/useClinicServiceToggles";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
 import {
   CheckedInView,
   CheckInIntroView,
   CheckInLoadingView,
   CheckInNoVisitView,
+  CheckInQrOffView,
   CheckInScanView,
   CheckInSelectView,
   type CheckInChoice,
@@ -149,6 +152,9 @@ export default function PatientCheckInPage() {
   const [isCodeDrawerOpen, setIsCodeDrawerOpen] = useState(false);
   const [now] = useState(() => Date.now());
   const scanLocationQrAndCheckInMutation = useScanLocationQrAndCheckIn();
+  // Clinic switch: QR self check-in off means reception checks patients in (backend refuses scans).
+  const { qrCheckInEnabled, onlineBookingEnabled } = useClinicServiceToggles();
+  const refreshClinicSettings = useRefreshClinicSettings();
   const {
     isProcessing,
     successData,
@@ -221,12 +227,15 @@ export default function PatientCheckInPage() {
         return;
       }
 
+      if (isQrCheckInDisabledError(result.error)) refreshClinicSettings();
       showErrorToast(
         result.error || "Failed to check in. Please try again or ask reception.",
         { id: TOAST_IDS.APPOINTMENT.CHECK_IN }
       );
       dispatch({ type: "SHOW_ERROR" });
     } catch (error) {
+      // The cached clinic said QR was on but the backend refused: re-read the switch.
+      if (isQrCheckInDisabledError(error)) refreshClinicSettings();
       showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
       dispatch({ type: "SHOW_ERROR" });
     }
@@ -247,11 +256,13 @@ export default function PatientCheckInPage() {
         return;
       }
 
+      if (isQrCheckInDisabledError(result.error)) refreshClinicSettings();
       showErrorToast(result.error || "Failed to check in.", {
         id: TOAST_IDS.APPOINTMENT.CHECK_IN,
       });
       dispatch({ type: "SHOW_ERROR" });
     } catch (error) {
+      if (isQrCheckInDisabledError(error)) refreshClinicSettings();
       showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
       dispatch({ type: "SHOW_ERROR" });
     }
@@ -277,6 +288,12 @@ export default function PatientCheckInPage() {
         onScanAgain={!successData ? () => setStep("scan") : undefined}
       />
     );
+  }
+
+  // Guard: no scanner (or code entry) while the clinic has QR self check-in switched off.
+  // A patient who is already checked in still sees their ticket above.
+  if (!qrCheckInEnabled) {
+    return <CheckInQrOffView onQueue={() => push("/patient/queue")} />;
   }
 
   if (selectingAppointment && eligibleAppointments.length > 0) {
@@ -313,7 +330,11 @@ export default function PatientCheckInPage() {
   }
 
   if (!hasEligibleAppointment) {
-    return <CheckInNoVisitView onBook={() => push("/patient/appointments?openBooking=1")} />;
+    return (
+      <CheckInNoVisitView
+        onBook={onlineBookingEnabled ? () => push("/patient/appointments?openBooking=1") : undefined}
+      />
+    );
   }
 
   const visit = (visitToCheckIn ?? checkedInVisit ?? clinicVisits[0])?.visit;

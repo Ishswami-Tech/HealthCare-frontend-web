@@ -232,6 +232,11 @@ export const useMyClinic = (options?: {
     },
     {
       enabled: (options?.enabled ?? true) && !!session?.user?.id && !isPending,
+      // This is where the clinic switches (QR check-in, video, in-person) are read. A flip
+      // arrives over the socket (`clinic.settings.updated`); without a socket, returning to the
+      // tab or a 30 s staleness still picks it up.
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
       refetchInterval: isConnected || useAuthStore.getState().isRefreshing ? false : 120_000,
       retry: clinicQueryRetry,
     }
@@ -259,6 +264,9 @@ export const useUpdateClinic = () => {
         ['clinic'],
         ['myClinic'],
         ['current-clinic'],
+        // Settings (incl. the QR / video / in-person switches) are read from these too.
+        ['clinicByAppName'],
+        ['clinicSettings'],
         ['doctorAvailability'],
         ['appointments'],
         ['video-appointments'],
