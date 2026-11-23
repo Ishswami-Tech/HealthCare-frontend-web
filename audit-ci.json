@@ -2,6 +2,5 @@
   "moderate": true,
   "high": true,
   "allowlist": [
-    "GHSA-vfj7-8cjw-p6xm"
   ]
 }
