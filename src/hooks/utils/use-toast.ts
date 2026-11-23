@@ -77,6 +77,9 @@ export const TOAST_IDS = {
     PERMISSION: 'video-permission',
     PROVIDER_SETTINGS: 'video-provider-settings',
   },
+  REVIEW_LOGIN: {
+    SAVE: 'review-login-save',
+  },
   PAYMENT: {
     SUCCESS: 'payment-success',
     ERROR: 'payment-error',

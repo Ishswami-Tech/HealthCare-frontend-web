@@ -246,12 +246,16 @@ export function PatientQueueView({
 export function PatientQueueEmptyView({
   canCheckIn,
   visitLine,
+  qrCheckInEnabled = true,
 }: {
   /** An in-clinic visit is booked for today and not checked in yet. */
   canCheckIn: boolean;
   /** "Dr. Deshmukh · Today, 02:00 PM", for that visit. */
   visitLine?: string | null;
+  /** Clinic switch: when off, reception checks the patient in and no scan is offered. */
+  qrCheckInEnabled?: boolean;
 }) {
+  const canSelfCheckIn = canCheckIn && qrCheckInEnabled;
   return (
     <div className="flex flex-col gap-5">
       <PageHead title="Live Queue" backHref={BACK_HREF} />
@@ -261,11 +265,15 @@ export function PatientQueueEmptyView({
           title="You are not in a queue right now"
           description={
             canCheckIn
-              ? `${visitLine ? `Your in-clinic visit: ${visitLine}. ` : ""}Check in at the clinic and your place in the queue will show here.`
+              ? `${visitLine ? `Your in-clinic visit: ${visitLine}. ` : ""}${
+                  qrCheckInEnabled
+                    ? "Check in at the clinic and your place in the queue will show here."
+                    : "Reception will check you in when you arrive, and your place in the queue will show here."
+                }`
               : "The queue is for in-clinic visits. Your place will show here after you check in at the clinic on the day of your visit."
           }
           action={
-            canCheckIn ? (
+            canSelfCheckIn ? (
               <Button size="md" asChild>
                 <Link href="/patient/check-in">
                   <ScanLine aria-hidden="true" />

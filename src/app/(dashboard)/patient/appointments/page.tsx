@@ -10,11 +10,15 @@ import { PageHead } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { APP_CONFIG } from "@/lib/config/config";
 
 function PatientAppointmentsContent() {
   useWebSocketQuerySync();
+  // No Book button while the clinic has every consultation type switched off (a request that
+  // still opens the wizard shows its "booking paused" state).
+  const { onlineBookingEnabled } = useClinicServiceToggles();
   const searchParams = useSearchParams();
   const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const queryClinicId = getSearchParam("clinicId") || undefined;
@@ -69,7 +73,11 @@ function PatientAppointmentsContent() {
   const [bookingFamilyMemberId, setBookingFamilyMemberId] = useState(
     shouldOpenBooking ? queryFamilyMemberId : undefined,
   );
-  const isBookingDialogOpening = shouldOpenBooking && !isBookingDialogOpen;
+  // `openBooking=1` is a one-shot request: once the wizard has opened, closing it must not
+  // bring back "Opening booking…" (the query string can outlive the replaceState below).
+  const [isBookingRequestHandled, setIsBookingRequestHandled] = useState(shouldOpenBooking);
+  const isBookingDialogOpening =
+    shouldOpenBooking && !isBookingRequestHandled && !isBookingDialogOpen;
 
   // Opening the dialog and stripping the query string used to happen in the same effect. Next's
   // App Router patches history.replaceState to keep useSearchParams() in sync, so that call could
@@ -81,6 +89,7 @@ function PatientAppointmentsContent() {
   useEffect(() => {
     if (shouldOpenBooking) {
       setIsBookingDialogOpen(true);
+      setIsBookingRequestHandled(true);
       setBookingFamilyMemberId(queryFamilyMemberId);
     }
   }, [shouldOpenBooking, queryFamilyMemberId]);
@@ -106,10 +115,12 @@ function PatientAppointmentsContent() {
         title="Appointments"
         description="Manage your consultations"
         actions={
-          <Button variant="action" size="md" onClick={() => setIsBookingDialogOpen(true)}>
-            <Plus aria-hidden="true" />
-            Book appointment
-          </Button>
+          onlineBookingEnabled ? (
+            <Button variant="action" size="md" onClick={() => setIsBookingDialogOpen(true)}>
+              <Plus aria-hidden="true" />
+              Book appointment
+            </Button>
+          ) : undefined
         }
       />
 

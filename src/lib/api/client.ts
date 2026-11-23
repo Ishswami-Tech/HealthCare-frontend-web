@@ -117,7 +117,9 @@ const DEFAULT_HEADERS_CACHE = {
   'X-Client-Version': '1.0.0',
   'X-Client-Platform': 'web',
   'Accept-Language': 'en-US,en;q=0.9',
-  'User-Agent': 'HealthcareFrontend/1.0.0',
+  // No custom User-Agent: Chromium drops it, but WebKit (every iOS browser) and Firefox send it,
+  // which makes the CORS preflight ask for `user-agent`. The backend does not allow that header,
+  // so on an iPhone every API call failed with "Load failed" ("Unable to load doctors").
 };
 
 async function getDefaultHeaders(): Promise<Record<string, string>> {
@@ -582,6 +584,21 @@ interface RequestCache {
 const activeRefreshPromises = new Map<string, Promise<any>>();
 
 // ✅ Base API Client Class (Optimized for 10M+ users)
+/**
+ * Appends `params` as a query string, leaving out `undefined` and `null` values.
+ * `new URLSearchParams({ clinicId: undefined })` sends the literal text "undefined", which the
+ * backend's clinic guard then treats as a clinic id and refuses (403).
+ */
+function withQuery(endpoint: string, params?: Record<string, any>): string {
+  if (!params) return endpoint;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) query.append(key, String(value));
+  }
+  const text = query.toString();
+  return text ? `${endpoint}?${text}` : endpoint;
+}
+
 export class ApiClient {
   private baseURL: string;
   private timeout: number;
@@ -1166,7 +1183,7 @@ export class ApiClient {
 
   // ✅ HTTP Method Helpers
   async get<T>(endpoint: string, params?: Record<string, any>, options?: RequestInit): Promise<ApiResponse<T>> {
-    const url = params ? `${endpoint}?${new URLSearchParams(params)}` : endpoint;
+    const url = withQuery(endpoint, params);
     return this.request<T>(url, options);
   }
 

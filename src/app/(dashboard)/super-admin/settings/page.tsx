@@ -22,7 +22,8 @@ import {
   useGlobalVideoProviderSetting,
   useUpdateGlobalVideoProviderSetting,
 } from "@/hooks/query/useVideoProviderSettings";
-import { Loader2, Bell, Globe, Palette, Save, Shield } from "lucide-react";
+import { Loader2, Bell, Globe, KeyRound, Palette, Save, Shield } from "lucide-react";
+import { ReviewLoginSettings } from "./_components/ReviewLoginSettings";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { ClinicWithRelations } from "@/types/clinic.types";
 import type { VideoProviderType } from "@/types/video.types";
@@ -522,7 +523,7 @@ export default function SuperAdminSettings() {
       </Card>
 
       <HashTabs
-        tabs={["general", "security", "notifications", "appearance"] as const}
+        tabs={["general", "security", "notifications", "appearance", "review-login"] as const}
         defaultValue="general"
         className="flex flex-col gap-y-6"
       >
@@ -542,6 +543,10 @@ export default function SuperAdminSettings() {
           <TabsTrigger value="appearance">
             <Palette className="size-4" />
             Appearance
+          </TabsTrigger>
+          <TabsTrigger value="review-login">
+            <KeyRound className="size-4" />
+            App review login
           </TabsTrigger>
         </TabsList>
 
@@ -746,6 +751,10 @@ export default function SuperAdminSettings() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="review-login">
+          <ReviewLoginSettings />
         </TabsContent>
       </HashTabs>
     </div>

@@ -8,10 +8,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useClinics } from "@/hooks/query/useClinics";
-import { useUsers } from "@/hooks/query/useUsers";
-import { useAppointments } from "@/hooks/query/useAppointments";
-import { useRevenueAnalytics } from "@/hooks/query/useAnalytics";
+import { useDashboardAnalytics } from "@/hooks/query/useAnalytics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import {
@@ -23,80 +20,110 @@ import {
   Activity,
 } from "lucide-react";
 
+type ApiRecord = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is ApiRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const toNumber = (value: unknown): number | null => (typeof value === "number" ? value : null);
+
+interface RecentEntry {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  clinicName: string | null;
+}
+
+interface SystemDashboard {
+  totalClinics: number | null;
+  totalUsers: number | null;
+  usersByRole: Record<string, number> | null;
+  totalAppointments: number | null;
+  revenue: number | null;
+  recentClinics: RecentEntry[];
+  recentUsers: RecentEntry[];
+}
+
+function toRecentEntries(value: unknown): RecentEntry[] {
+  return (Array.isArray(value) ? value : [])
+    .filter(isRecord)
+    .filter((entry) => typeof entry.id === "string" && typeof entry.createdAt === "string")
+    .map((entry) => ({
+      id: entry.id as string,
+      name: typeof entry.name === "string" && entry.name ? entry.name : "Unnamed",
+      isActive: entry.isActive !== false,
+      createdAt: entry.createdAt as string,
+      clinicName: typeof entry.clinicName === "string" ? entry.clinicName : null,
+    }));
+}
+
+/**
+ * GET /analytics/dashboard for a Super Admin: { summary, billing, system } covering every clinic,
+ * possibly wrapped in { data }. Anything missing stays null and shows as a dash, never as 0.
+ */
+function toSystemDashboard(data: unknown): SystemDashboard {
+  const source = isRecord(data) && isRecord(data.data) ? data.data : data;
+  const summary = isRecord(source) && isRecord(source.summary) ? source.summary : {};
+  const system = isRecord(source) && isRecord(source.system) ? source.system : {};
+  let usersByRole: Record<string, number> | null = null;
+  if (isRecord(system.usersByRole)) {
+    usersByRole = {};
+    for (const [role, count] of Object.entries(system.usersByRole)) {
+      if (typeof count === "number") usersByRole[role] = count;
+    }
+  }
+  return {
+    totalClinics: toNumber(system.totalClinics),
+    totalUsers: toNumber(system.totalUsers),
+    usersByRole,
+    totalAppointments: toNumber(summary.totalAppointments),
+    revenue: toNumber(summary.revenue),
+    recentClinics: toRecentEntries(system.recentClinics),
+    recentUsers: toRecentEntries(system.recentUsers),
+  };
+}
+
+const showCount = (value: number | null | undefined) =>
+  typeof value === "number" ? value.toLocaleString() : "—";
+
 export default function SuperAdminDashboard() {
   useAuth();
   useWebSocketQuerySync();
 
-  // Fetch real data using existing hooks and server actions
-  const { data: clinics } = useClinics();
-  const { data: users } = useUsers();
-  const { data: appointmentsData } = useAppointments({ limit: 1 }); // Just to get total count
-  const { data: revenueData } = useRevenueAnalytics({ period: "month" });
-
-  // Calculate real stats from fetched data
-  const clinicsArray = useMemo(() => (clinics as any)?.clinics || [], [clinics]);
-  const usersArray = useMemo(
-    () => (Array.isArray(users) ? users : (users as any)?.users || []),
-    [users]
-  );
-  const appointments = (appointmentsData as any)?.appointments || [];
-  const revenue = (revenueData as any)?.totalRevenue || (revenueData as any)?.monthlyRevenue || 0;
+  // One request: for a Super Admin, GET /analytics/dashboard covers the whole system (every
+  // clinic); the selected clinic only sets the working context.
+  const { data: dashboardData } = useDashboardAnalytics("month");
+  const dashboard = useMemo(() => toSystemDashboard(dashboardData), [dashboardData]);
 
   const stats = {
-    totalClinics: clinicsArray.length || 0,
-    totalUsers: usersArray.length || 0,
-    totalAppointments: (appointmentsData as any)?.total || appointments.length || 0,
-    monthlyRevenue: revenue || 0,
-    activePatients:
-      usersArray.filter(
-        (user: any) =>
-          user.role === "PATIENT" ||
-          user.roles?.some((r: any) => r.name === "PATIENT")
-      ).length || 0,
-    activeDoctors:
-      usersArray.filter(
-        (user: any) =>
-          user.role === "DOCTOR" ||
-          user.roles?.some((r: any) => r.name === "DOCTOR")
-      ).length || 0,
-    systemHealth: clinicsArray.length > 0 ? "LIVE" : "LIMITED",
-    avgSatisfaction:
-      typeof (revenueData as any)?.avgSatisfaction === "number"
-        ? (revenueData as any).avgSatisfaction
-        : null,
+    totalClinics: dashboard.totalClinics,
+    totalUsers: dashboard.totalUsers,
+    totalAppointments: dashboard.totalAppointments,
+    monthlyRevenue: dashboard.revenue,
+    patients: dashboard.usersByRole ? (dashboard.usersByRole["PATIENT"] ?? 0) : null,
+    doctors: dashboard.usersByRole ? (dashboard.usersByRole["DOCTOR"] ?? 0) : null,
+    systemHealth: (dashboard.totalClinics ?? 0) > 0 ? "LIVE" : "LIMITED",
   };
 
-  const recentActivity = useMemo(() => {
-    const clinicActivity = clinicsArray
-      .slice()
-      .sort((a: any, b: any) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime())
-      .slice(0, 5)
-      .map((clinic: any) => ({
-        id: `clinic-${clinic.id}`,
-        type: "Clinic",
-        name: clinic.name,
-        status: clinic.isActive !== false ? "Active" : "Inactive",
-        clinic: clinic.name,
-        date: clinic.createdAt || clinic.updatedAt || new Date(),
-      }));
-
-    const userActivity = usersArray
-      .slice()
-      .sort((a: any, b: any) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime())
-      .slice(0, 5)
-      .map((user: any) => ({
-        id: `user-${user.id}`,
-        type: "User",
-        name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-        status: user.isActive !== false ? "Active" : "Inactive",
-        clinic: user.clinic?.name || "N/A",
-        date: user.createdAt || user.updatedAt || new Date(),
-      }));
-
-    return [...clinicActivity, ...userActivity]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10);
-  }, [clinicsArray, usersArray]);
+  const recentActivity = useMemo(
+    () =>
+      [
+        ...dashboard.recentClinics.map((clinic) => ({ ...clinic, key: `clinic-${clinic.id}`, type: "Clinic" })),
+        ...dashboard.recentUsers.map((user) => ({ ...user, key: `user-${user.id}`, type: "User" })),
+      ]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10)
+        .map((entry) => ({
+          id: entry.key,
+          type: entry.type,
+          name: entry.name,
+          status: entry.isActive ? "Active" : "Inactive",
+          clinic: entry.clinicName || "N/A",
+          date: entry.createdAt,
+        })),
+    [dashboard]
+  );
 
   const activityColumns = useMemo<ColumnDef<any>[]>(
     () => [
@@ -142,7 +169,7 @@ export default function SuperAdminDashboard() {
                 <Building2 className="size-4 text-blue-600 dark:text-blue-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-900 dark:text-blue-50">{stats.totalClinics}</div>
+                <div className="text-2xl font-bold text-blue-900 dark:text-blue-50">{showCount(stats.totalClinics)}</div>
                 <p className="text-xs text-muted-foreground">Live clinic count</p>
               </CardContent>
             </Card>
@@ -155,7 +182,7 @@ export default function SuperAdminDashboard() {
                 <Users className="size-4 text-emerald-600 dark:text-emerald-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-50">{stats.totalUsers}</div>
+                <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-50">{showCount(stats.totalUsers)}</div>
                 <p className="text-xs text-muted-foreground">Live user count</p>
               </CardContent>
             </Card>
@@ -163,15 +190,15 @@ export default function SuperAdminDashboard() {
             <Card className="border-indigo-100 bg-indigo-50/70 shadow-sm dark:border-indigo-900 dark:bg-indigo-950/20">
               <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Total Appointments
+                  Appointments
                 </CardTitle>
                 <Calendar className="size-4 text-indigo-600 dark:text-indigo-300" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-50">
-                  {stats.totalAppointments}
+                  {showCount(stats.totalAppointments)}
                 </div>
-                <p className="text-xs text-muted-foreground">Live appointment volume</p>
+                <p className="text-xs text-muted-foreground">Last 30 days, all clinics</p>
               </CardContent>
             </Card>
 
@@ -184,9 +211,9 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-amber-900 dark:text-amber-50">
-                  ₹{stats.monthlyRevenue.toLocaleString()}
+                  {typeof stats.monthlyRevenue === "number" ? `₹${stats.monthlyRevenue.toLocaleString()}` : "—"}
                 </div>
-                <p className="text-xs text-muted-foreground">Current analytics total</p>
+                <p className="text-xs text-muted-foreground">Completed payments, last 30 days</p>
               </CardContent>
             </Card>
           </div>
@@ -195,28 +222,28 @@ export default function SuperAdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="border-blue-100 bg-blue-50/70 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
               <CardHeader>
-                <CardTitle className="text-lg">Active Patients</CardTitle>
+                <CardTitle className="text-lg">Patients</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">
-                  {stats.activePatients}
+                  {showCount(stats.patients)}
                 </div>
                 <p className="text-sm text-blue-700/70 dark:text-blue-200/70">
-                  Patients treated this month
+                  Registered patients
                 </p>
               </CardContent>
             </Card>
 
             <Card className="border-emerald-100 bg-emerald-50/70 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/20">
               <CardHeader>
-                <CardTitle className="text-lg">Active Doctors</CardTitle>
+                <CardTitle className="text-lg">Doctors</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">
-                  {stats.activeDoctors}
+                  {showCount(stats.doctors)}
                 </div>
                 <p className="text-sm text-emerald-700/70 dark:text-emerald-200/70">
-                  Doctors across all clinics
+                  Registered doctors
                 </p>
               </CardContent>
             </Card>
@@ -227,12 +254,10 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-purple-700 dark:text-purple-300">
-                  {stats.avgSatisfaction !== null ? `${stats.avgSatisfaction}/5.0` : "N/A"}
+                  N/A
                 </div>
                 <p className="text-sm text-purple-700/70 dark:text-purple-200/70">
-                  {stats.avgSatisfaction !== null
-                    ? "Average patient satisfaction"
-                    : "Satisfaction data is not yet wired system-wide"}
+                  Satisfaction data is not yet wired system-wide
                 </p>
               </CardContent>
             </Card>

@@ -20,7 +20,11 @@ const DAILY_CONNECT_SRC = [
 ];
 
 const THIRD_PARTY_CONNECT_SRC = [
+  // A CSP wildcard covers one label only: the project's EU DSN
+  // (o….ingest.de.sentry.io) is not matched by *.ingest.sentry.io.
   "https://*.ingest.sentry.io",
+  "https://*.ingest.de.sentry.io",
+  "https://*.ingest.us.sentry.io",
   "https://*.cashfree.com",
   "https://api.cashfree.com",
   "https://sandbox.cashfree.com",

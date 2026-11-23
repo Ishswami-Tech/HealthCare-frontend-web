@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useMyInPersonToday } from "@/hooks/query/useInPerson";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import { toHomeVisit } from "@/components/patient/home/homeData";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useLanguage } from "@/lib/i18n/context";
@@ -28,6 +29,7 @@ export function PatientQueueContent({ appointmentId }: { appointmentId?: string 
   const { data: appointmentsData } = useMyAppointments();
   const [now] = useState(() => Date.now());
   const { language } = useLanguage();
+  const { qrCheckInEnabled } = useClinicServiceToggles();
 
   const appointments = useMemo(() => readAppointments(appointmentsData), [appointmentsData]);
   const queued = pickQueuedVisitById(visits, appointmentId);
@@ -70,6 +72,7 @@ export function PatientQueueContent({ appointmentId }: { appointmentId?: string 
   return (
     <PatientQueueEmptyView
       canCheckIn={Boolean(booked)}
+      qrCheckInEnabled={qrCheckInEnabled}
       visitLine={booked ? [booked.doctorName, `Today, ${booked.time}`, booked.locationName].filter(Boolean).join(" · ") : null}
     />
   );

@@ -37,8 +37,8 @@ export interface HomeVisitActions {
   onReschedule: (visitId: string) => void;
   /** Go to where a pending video visit is paid. */
   onPay: (visitId: string) => void;
-  /** Start the clinic QR check-in. */
-  onCheckIn: () => void;
+  /** Start the clinic QR check-in. Omitted when the clinic has QR self check-in switched off. */
+  onCheckIn?: (() => void) | undefined;
 }
 
 /** Re-renders on a slow tick so "Starts in 25 minutes" stays true while the page is open. */
@@ -504,12 +504,14 @@ function ClinicVisitCard({
           <p className="m-0 text-sm font-semibold text-ink-soft">
             Self check-in has closed. Please ask the reception desk.
           </p>
-        ) : (
+        ) : actions.onCheckIn ? (
           <Button size="md" className="h-12 w-full sm:w-auto" onClick={actions.onCheckIn}>
             <ScanLine aria-hidden="true" />
             Check in with QR
             <ArrowRight aria-hidden="true" />
           </Button>
+        ) : (
+          <p className="m-0 text-sm text-muted-foreground">Reception will check you in when you arrive.</p>
         )}
       </div>
     </article>
@@ -539,7 +541,9 @@ export function HomeVisitRow({ visit, actions }: { visit: HomeVisit; actions: Ho
   const isVideo = visit.kind === "video";
   const Icon = isVideo ? Video : Hospital;
   const when = [visit.isToday ? "Today" : visit.dateLabel, visit.timeLabel].filter(Boolean).join(" · ");
-  const canCheckIn = !isVideo && visit.clinicStage === "upcoming" && clinicWindowState(visit, now) === "OPEN";
+  // No QR check-in button while the clinic has QR self check-in switched off (onCheckIn omitted).
+  const canCheckIn =
+    Boolean(actions.onCheckIn) && !isVideo && visit.clinicStage === "upcoming" && clinicWindowState(visit, now) === "OPEN";
   const subtitle = [visit.doctorName, isVideo ? "Video consultation" : "In-clinic visit"].filter(Boolean).join(" · ");
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line bg-card px-3.5 py-3">

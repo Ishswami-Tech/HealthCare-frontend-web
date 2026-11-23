@@ -575,7 +575,8 @@ export function useHealthRealtime(
 
       const healthSocketUrl = `${baseUrl}/health`;
       sharedHealthSocket = io(healthSocketUrl, {
-        transports: ['websocket', 'polling'],
+        // Server is websocket-only (no sticky-session routing across its replicas).
+        transports: ['websocket'],
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
@@ -585,9 +586,9 @@ export function useHealthRealtime(
         auth: { token: currentToken },
       });
       bindSharedHealthSocket(sharedHealthSocket);
-      scheduleSharedHealthAuthRefresh(currentToken || undefined);
+      scheduleSharedHealthAuthRefresh(currentToken);
       useHealthStore.getState().setConnectionStatus('connecting');
-    } else if (currentToken) {
+    } else {
       const socketAuth = sharedHealthSocket.auth as { token?: string } | undefined;
 
       if (socketAuth?.token !== currentToken) {

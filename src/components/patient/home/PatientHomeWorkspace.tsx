@@ -31,7 +31,7 @@ export interface PatientHomeWorkspaceProps {
   isLoading?: boolean;
   actions: HomeVisitActions;
   /** Opens the booking flow. */
-  onBook: () => void;
+  onBook?: (() => void) | undefined;
   isBookingOpening?: boolean;
   /** First tab to show. Used by the preview; the app always starts on "All". */
   initialTab?: HomeWorkspaceTab;
@@ -145,10 +145,12 @@ export function PatientHomeWorkspace({
             <Button variant="outline" size="md" asChild>
               <Link prefetch={false} href="/patient/appointments?tab=past">Past visits</Link>
             </Button>
-            <Button variant="action" size="md" disabled={isBookingOpening} onClick={onBook}>
-              {isBookingOpening ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
-              {isBookingOpening ? "Opening…" : "Book now"}
-            </Button>
+            {onBook ? (
+              <Button variant="action" size="md" disabled={isBookingOpening} onClick={onBook}>
+                {isBookingOpening ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
+                {isBookingOpening ? "Opening…" : "Book now"}
+              </Button>
+            ) : null}
           </div>
         </div>
       )}

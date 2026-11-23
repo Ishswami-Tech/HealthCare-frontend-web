@@ -8,13 +8,14 @@ import { shortBookingRef } from "@/components/appointments/booking/format";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { CheckInRefusedError, useInPersonCheckIn, useMyInPersonToday } from "@/hooks/query/useInPerson";
 import { showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { isQrCheckInDisabledError } from "@/lib/clinics/opd-controls.logic";
+import { useClinicServiceToggles, useRefreshClinicSettings } from "@/hooks/query/useClinicServiceToggles";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST } from "@/lib/utils/date-time";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useActiveSubscription } from "@/hooks/query/useBilling";
 import { planStatusOf } from "@/components/billing/plan-status.logic";
 import { useClinicProximity } from "@/components/patient/queue/useClinicProximity";
-import { useMyClinic } from "@/hooks/query/useClinics";
 import type { CheckInFailureCode, InPersonVisit } from "@/types/in-person.types";
 import {
   CheckedInView,
@@ -66,22 +67,12 @@ type CheckInState =
   | { kind: "error"; reason: CheckInFailureCode; message: string }
   | { kind: "location"; failure: LocationFailure };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Clinic-wide "QR Check-in Enabled" toggle (clinic-admin settings), defaults to on when unset. */
-function useQrCheckInEnabled(): boolean {
-  const clinic = useMyClinic();
-  const settings: Record<string, unknown> = isRecord(clinic.data?.settings) ? clinic.data.settings : {};
-  const appt: Record<string, unknown> = isRecord(settings.appointmentSettings) ? settings.appointmentSettings : {};
-  const opd: Record<string, unknown> = isRecord(appt.opdControls) ? appt.opdControls : {};
-  return Boolean(opd.qrCheckInEnabled ?? true);
-}
-
 export default function PatientCheckInPage() {
   const { push } = useRouter();
-  const qrCheckInEnabled = useQrCheckInEnabled();
+  // Clinic switches (live: clinic.settings.updated re-reads them). QR off means reception checks
+  // patients in and the backend refuses scans.
+  const { qrCheckInEnabled, generalConsultationEnabled } = useClinicServiceToggles();
+  const refreshClinicSettings = useRefreshClinicSettings();
   const { data: appointmentsData, isPending: isAppointmentsPending } = useMyAppointments();
   const { data: todayVisits } = useMyInPersonToday({ live: true });
   const checkIn = useInPersonCheckIn();
@@ -153,6 +144,8 @@ export default function PatientCheckInPage() {
       setIsCodeDrawerOpen(false);
       const reason = error instanceof CheckInRefusedError ? error.failure.reason : "UNKNOWN";
       const message = error instanceof Error ? error.message : "";
+      // The cached clinic said QR was on but the backend refused: re-read the switch.
+      if (isQrCheckInDisabledError({ code: reason, message })) refreshClinicSettings();
       setState({ kind: "error", reason, message });
     }
   };
@@ -274,7 +267,12 @@ export default function PatientCheckInPage() {
   }
 
   if (!hasEligibleAppointment) {
-    return <CheckInNoVisitView onBook={() => push("/patient/appointments?openBooking=1&mode=IN_PERSON")} />;
+    // Not offered while the clinic has in-person consultations switched off.
+    return (
+      <CheckInNoVisitView
+        onBook={generalConsultationEnabled ? () => push("/patient/appointments?openBooking=1&mode=IN_PERSON") : undefined}
+      />
+    );
   }
 
   const visit = introVisit;

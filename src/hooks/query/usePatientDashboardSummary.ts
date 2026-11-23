@@ -12,7 +12,9 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useRBAC } from "../utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
-import { fetchPatientDashboardSummary } from "@/lib/actions/patient-dashboard.server";
+import { clinicApiClient } from "@/lib/api/client";
+import { API_ENDPOINTS } from "@/lib/config/config";
+import { isApiError } from "@/lib/utils/error-handler";
 
 const dashboardSummaryLoadedState: { sessionKey: string; loaded: boolean } = {
   sessionKey: "",
@@ -45,6 +47,29 @@ export type UsePatientDashboardSummaryResult = ReturnType<
   typeof useQueryData<PatientDashboardSummaryResponse | null>
 >;
 
+/**
+ * `GET patients/me/dashboard-summary` straight from the browser. As a server action every load
+ * and every 60 s poll (socket down) ran a Vercel Function. 401 and 403 (session gone, profile
+ * incomplete, forbidden) give `null`, so the dashboard shows its empty state, as before.
+ */
+async function readPatientDashboardSummary(
+  clinicId: string
+): Promise<PatientDashboardSummaryResponse | null> {
+  try {
+    const response = await clinicApiClient.get<PatientDashboardSummaryResponse>(
+      API_ENDPOINTS.PATIENTS.DASHBOARD_SUMMARY,
+      undefined,
+      { clinicId, cache: "no-store" } as RequestInit
+    );
+    return response.data ?? null;
+  } catch (error) {
+    if (isApiError(error) && (error.statusCode === 401 || error.statusCode === 403)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export const usePatientDashboardSummary = (
   options: UsePatientDashboardSummaryOptions = {}
 ): UsePatientDashboardSummaryResult => {
@@ -61,25 +86,16 @@ export const usePatientDashboardSummary = (
   const query = useQueryData<PatientDashboardSummaryResponse | null>(
     ["patientDashboardSummary", userId, clinicId],
     async () => {
-      const result = await fetchPatientDashboardSummary();
-      if (!result.success) {
-        if (
-          result.code === "UNAUTHENTICATED" ||
-          result.code === "CLINIC_CONTEXT_REQUIRED" ||
-          result.code === "PROFILE_INCOMPLETE" ||
-          result.code === "FORBIDDEN"
-        ) {
-          return null;
-        }
-        throw new Error(result.error || "Failed to fetch dashboard summary");
-      }
+      if (!clinicId) return null;
+      const summary = await readPatientDashboardSummary(clinicId);
+      if (!summary) return null;
 
       const sessionKey =
         useAuthStore.getState().session?.session_id ||
         `${String(userId || "")}|${String(clinicId || "")}`;
       markDashboardSummaryLoadedOnce(sessionKey);
 
-      return result.data;
+      return summary;
     },
     {
       enabled:
@@ -127,23 +143,13 @@ export const prefetchPatientDashboardSummary = async (
     await queryClient.prefetchQuery({
       queryKey: ["patientDashboardSummary", userId, clinicId],
       queryFn: async () => {
-        const result = await fetchPatientDashboardSummary();
-        if (!result.success) {
-        if (
-          result.code === "UNAUTHENTICATED" ||
-          result.code === "CLINIC_CONTEXT_REQUIRED" ||
-          result.code === "PROFILE_INCOMPLETE" ||
-          result.code === "FORBIDDEN"
-        ) {
-          return null;
-        }
-        throw new Error(result.error || "Failed to fetch dashboard summary");
-      }
+        const summary = await readPatientDashboardSummary(clinicId);
+        if (!summary) return null;
 
       const sessionKey =
         state.session?.session_id || `${String(userId)}|${String(clinicId)}`;
       markDashboardSummaryLoadedOnce(sessionKey);
-      return result.data;
+      return summary;
     },
     staleTime: 60 * 1000,
   });

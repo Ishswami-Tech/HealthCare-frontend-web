@@ -16,6 +16,7 @@ import {
   Clock,
   Hospital,
   KeyRound,
+  Home,
   MapPin,
   Pencil,
   ScanQrCode,
@@ -456,9 +457,40 @@ export function CheckInSelectView({
   );
 }
 
+// ── QR self check-in switched off at the clinic ─────────────────────────────
+
+export function CheckInQrOffView({ onQueue }: { onQueue: () => void }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHead title="Check in at clinic" backHref={BACK_HREF} />
+      <Surface>
+        <EmptyBlock
+          icon={Hospital}
+          title="QR check-in is off at this clinic"
+          description="This clinic checks patients in at the reception desk. When you arrive, tell reception your name; your place in the queue will then show in the app."
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <Button size="md" onClick={onQueue}>
+                <Activity aria-hidden="true" />
+                Open live queue
+              </Button>
+              <Button size="md" variant="outline" asChild>
+                <Link href={BACK_HREF}>
+                  <Home aria-hidden="true" />
+                  Back to home
+                </Link>
+              </Button>
+            </div>
+          }
+        />
+      </Surface>
+    </div>
+  );
+}
+
 // ── No in-clinic visit / loading ───────────────────────────────────────────
 
-export function CheckInNoVisitView({ onBook }: { onBook: () => void }) {
+export function CheckInNoVisitView({ onBook }: { onBook?: (() => void) | undefined }) {
   return (
     <div className="flex flex-col gap-5">
       <PageHead title="Check in at clinic" backHref={BACK_HREF} />
@@ -468,11 +500,14 @@ export function CheckInNoVisitView({ onBook }: { onBook: () => void }) {
           title="No visit today"
           description="Book a clinic visit or ask the reception desk. Once you have a visit today, open this page at the clinic to scan the QR."
           action={
-            // Booking is the one amber action in the app.
-            <Button variant="action" size="md" onClick={onBook}>
-              <CalendarPlus aria-hidden="true" />
-              Book a clinic visit
-            </Button>
+            // Not offered while the clinic has every consultation type switched off.
+            onBook ? (
+              // Booking is the one amber action in the app.
+              <Button variant="action" size="md" onClick={onBook}>
+                <CalendarPlus aria-hidden="true" />
+                Book appointment
+              </Button>
+            ) : undefined
           }
         />
       </Surface>

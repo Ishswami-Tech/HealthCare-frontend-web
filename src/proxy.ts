@@ -407,13 +407,21 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
  */
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - Static assets (svg, png, jpg, etc.)
-     */
-    "/((?!api/|monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|woff2?|ttf|css|js|map|json|txt|xml|pdf|mp4|webm)$).*)",
+    {
+      /*
+       * Match all request paths except:
+       * - _next/static (static files)
+       * - _next/image (image optimization files)
+       * - favicon.ico (favicon file)
+       * - Static assets (svg, png, jpg, etc.)
+       */
+      source:
+        "/((?!api/|monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|woff2?|ttf|css|js|map|json|txt|xml|pdf|mp4|webm)$).*)",
+      // Server action calls (a POST to the page URL with a Next-Action header) skip the proxy:
+      // an action is reached by its id from any page, so the page's route guard never protected
+      // it; every action checks the session itself. Running the proxy as well doubled the Vercel
+      // Functions per action call.
+      missing: [{ type: "header", key: "next-action" }],
+    },
   ],
 };

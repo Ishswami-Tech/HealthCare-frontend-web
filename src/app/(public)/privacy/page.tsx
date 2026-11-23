@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
               </div>
               <CardTitle className="text-3xl font-bold text-foreground">Privacy Policy</CardTitle>
             </div>
-            <p className="text-muted-foreground">Last updated: {legalDates.updated}</p>
+            <p className="text-muted-foreground">Last updated: {legalDates.privacyUpdated}</p>
             <p className="text-lg leading-relaxed text-muted-foreground">
               Your privacy is critically important to us. {legalBrand.displayName} uses the{" "}
               {legalBrand.platformName} platform/domain for digital appointments, patient workflows,

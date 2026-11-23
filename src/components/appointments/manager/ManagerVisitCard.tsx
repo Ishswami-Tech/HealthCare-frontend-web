@@ -58,8 +58,8 @@ export function ManagerVisitCard({
   now: number | null;
   actions: ManagerVisitActions;
   renderPay: ManagerPayRenderer;
-  /** Where "Check in" goes for this viewer. */
-  checkInHref: string;
+  /** Where "Check in" goes for this viewer. Null when there is no check-in page to go to (patient, QR self check-in off). */
+  checkInHref: string | null;
   cancelling: boolean;
   rescheduling: boolean;
 }) {
@@ -101,7 +101,7 @@ export function ManagerVisitCard({
         Track live queue
       </Link>
     </Button>
-  ) : visit.canCheckIn ? (
+  ) : visit.canCheckIn && checkInHref ? (
     <Button size="md" className="max-sm:flex-1" asChild>
       <Link prefetch={false} href={checkInHref}>
         <ScanLine aria-hidden="true" />

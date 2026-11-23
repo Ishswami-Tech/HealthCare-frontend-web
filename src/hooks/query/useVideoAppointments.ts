@@ -296,6 +296,7 @@ export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
   const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+  const { isConnected: socketConnected } = useWebSocketStatus();
   const clinicId = useCurrentClinicId();
   const resolvedAppointmentId = normalizeVideoSessionAppointmentId(id);
   const {
@@ -329,7 +330,9 @@ export function useVideoAppointment(id: string) {
       enabled: !!resolvedAppointmentId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
       staleTime: 0,
       gcTime: 5 * 60 * 1000, // 5 minutes
-      refetchInterval: isAuthRefreshing ? false : 30_000,
+      // Realtime consultation/participant events refresh this while the socket is up; poll only
+      // as a fallback (each poll is a server action, i.e. a Vercel Function).
+      refetchInterval: isAuthRefreshing || socketConnected ? false : 30_000,
       refetchOnMount: 'always',
       refetchOnWindowFocus: !isAuthRefreshing,
       retry: false,

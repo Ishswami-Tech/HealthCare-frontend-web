@@ -23,7 +23,6 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import {
   createAppointment as createAppointmentAction,
   cancelAppointment as cancelAppointmentAction,
-  getAppointments,
   updateAppointment as updateAppointmentAction,
 } from "@/lib/actions/appointments.server";
 import {
@@ -37,6 +36,8 @@ import type {
   AppointmentFilters,
 } from "@/types/appointment.types";
 import { getAppointmentQueryKey } from "@/lib/query/appointment-query-keys";
+import { fetchAppointmentList } from "@/lib/appointments/fetch-appointment-list";
+import { normalizeAppointment } from "@/lib/utils/appointmentUtils";
 import { useAppointmentAnalytics } from "@/hooks/query/useAnalytics";
 import { useQueueStats } from "@/hooks/query/useQueue";
 
@@ -175,16 +176,18 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
     async () => {
       if (!resolvedClinicId) throw new Error("No clinic selected");
 
-      const response = await getAppointments({
+      // Straight from the browser to the backend: as a server action every load and every 30 s
+      // poll (socket down) ran a Vercel Function. Rows are normalized as the action did.
+      const { appointments } = await fetchAppointmentList({
         ...filters,
         clinicId: resolvedClinicId,
       });
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch appointments");
-      }
-
-      const appointments = response.appointments || [];
-      return { success: true, data: appointments };
+      return {
+        success: true,
+        data: appointments.map((row) =>
+          normalizeAppointment(row as Record<string, unknown>),
+        ) as unknown as Appointment[],
+      };
     },
     {
       enabled: !!resolvedClinicId && doctorFilterReady,

@@ -3,9 +3,12 @@
 import { useQueryData } from "../core/useQueryData";
 import { useAuth } from "../auth/useAuth";
 import { useAuthStore } from "@/stores/auth.store";
-import { fetchMyQueuePosition, type MyQueuePosition } from "@/lib/actions/patient-queue.server";
+import { clinicApiClient } from "@/lib/api/client";
+import { API_ENDPOINTS } from "@/lib/config/config";
+import { isSessionInvalidError } from "@/lib/utils/auth-recovery";
+import { readQueuePosition, type MyQueuePosition } from "@/lib/queue/my-queue-position";
 
-export type { MyQueuePosition } from "@/lib/actions/patient-queue.server";
+export type { MyQueuePosition } from "@/lib/queue/my-queue-position";
 
 /** How often the patient's queue place is read again while the tab is visible. */
 export const PATIENT_QUEUE_REFRESH_MS = 30 * 1000;
@@ -63,15 +66,21 @@ export const usePatientQueue = (options: UsePatientQueueOptions = {}) => {
 
   return useQueryData<MyQueuePosition | null>(
     patientQueueKeys.me(clinicId, userId, appointmentId),
+    // Straight from the browser to the backend: polling through a server action ran a Vercel
+    // Function (and the proxy) every 30 seconds for every patient with the page open.
     async () => {
-      const result = await fetchMyQueuePosition(appointmentId);
-      if (!result.success) {
-        if (result.code === "UNAUTHENTICATED" || result.code === "CLINIC_CONTEXT_REQUIRED") {
-          return null;
-        }
-        throw new Error(result.error || "Failed to fetch your queue position");
+      if (!clinicId) return null;
+      try {
+        const response = await clinicApiClient.get<unknown>(
+          API_ENDPOINTS.QUEUE.ME,
+          appointmentId ? { appointmentId } : undefined,
+          { clinicId, cache: "no-store" } as RequestInit
+        );
+        return readQueuePosition(response.data ?? response);
+      } catch (error) {
+        if (isSessionInvalidError(error)) return null;
+        throw error;
       }
-      return result.data;
     },
     {
       enabled: (options.enabled ?? true) && !!userId && isPatient,

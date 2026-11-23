@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, CircleAlert, FileText, Pencil, RefreshCw, Trash2, UserX, Video } from "lucide-react";
+import { CalendarDays, CalendarPlus, CircleAlert, FileText, Pencil, RefreshCw, Trash2, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, IconBox, InitialsAvatar, PageHead, Pill, SoftCard, Surface, type IconTone, type TbdIcon } from "@/components/tbd";
@@ -12,9 +12,9 @@ import { genderLabel } from "@/lib/utils/labels";
 
 const FAMILY_HREF = "/patient/family";
 
-/** Opens the booking wizard on the appointments page with this family member chosen, defaulted to video (the label this link carries). */
-function bookVideoVisitHref(memberId: string): string {
-  return `/patient/appointments?openBooking=1&mode=video&familyMemberId=${encodeURIComponent(memberId)}`;
+/** Opens the booking wizard on the appointments page with this family member chosen. */
+function bookVisitHref(memberId: string): string {
+  return `/patient/appointments?openBooking=1&familyMemberId=${encodeURIComponent(memberId)}`;
 }
 
 export type FamilyMemberState = "loading" | "error" | "missing" | "ready";
@@ -190,9 +190,9 @@ export function FamilyMemberView({ state, member, onEdit, onRemove, onRetry }: F
 
           <div className="flex w-full flex-wrap gap-2.5 sm:w-auto">
             <Button variant="action" size="md" className="h-auto min-h-11 basis-full whitespace-normal py-2 sm:basis-auto" asChild>
-              <Link href={bookVideoVisitHref(member.id)}>
-                <Video aria-hidden="true" />
-                Book a video visit for {firstName}
+              <Link href={bookVisitHref(member.id)}>
+                <CalendarPlus aria-hidden="true" />
+                Book a visit for {firstName}
               </Link>
             </Button>
             <Button variant="outline" size="md" className="flex-1 sm:flex-none" onClick={onEdit}>
@@ -229,7 +229,7 @@ export function FamilyMemberView({ state, member, onEdit, onRemove, onRetry }: F
               icon={CalendarDays}
               tone="blue"
               title={`Clinic visit for ${firstName}`}
-              description={`Video visits can be booked above. For a visit at the clinic, ask your clinic to book it. They can pick ${firstName} from your family card.`}
+              description={`Book a visit for ${firstName} above, or ask your clinic to book it. They can pick ${firstName} from your family card.`}
             />
             <NotYetRow
               icon={FileText}

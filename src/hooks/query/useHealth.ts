@@ -2,7 +2,7 @@ import { useQueryData } from '../core/useQueryData';
 import { useHealthRealtime } from '../realtime/useHealthRealtime';
 import { useHealthStore } from '@/stores';
 import { useEffect } from 'react';
-import { getDetailedHealthStatus as getDetailedHealthStatusServerAction } from '@/lib/actions/health.server';
+import { fetchDetailedHealthStatus } from '@/lib/health/detailed-health';
 import { nextHealthFailureStreak } from '@/lib/utils/health-status';
 
 /** HTTP /health poll interval for visitors without the admin health socket. */
@@ -157,7 +157,7 @@ export const useDetailedHealthStatus = () => {
   const queryResult = useQueryData<DetailedHealthStatus>(
     ['detailedHealthStatus'],
     async () => {
-      const status = await getDetailedHealthStatusServerAction();
+      const status = await fetchDetailedHealthStatus();
       // One streak per fetch (the queryFn runs once per poll, whatever the number of consumers).
       httpFailureStreak = nextHealthFailureStreak(httpFailureStreak, status);
       return { ...status, failureStreak: httpFailureStreak };

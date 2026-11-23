@@ -161,6 +161,12 @@ export const useWebSocketStore = create<WebSocketState>()(
             ...(Object.keys(auth).length ? { auth } : {}),
             ...(Object.keys(query).length ? { query } : {}),
             autoConnect: false,
+            // Backend runs multiple replicas with no sticky-session routing between them, so
+            // HTTP long-polling (the client's default first transport) fails once a session's
+            // second request lands on a different replica. The server only accepts websocket
+            // connections for this reason; match it here instead of defaulting to
+            // ['polling', 'websocket'], which would otherwise fail its initial handshake.
+            transports: ['websocket'],
             reconnection: autoReconnect,
             reconnectionAttempts,
             reconnectionDelay,
@@ -192,8 +198,24 @@ export const useWebSocketStore = create<WebSocketState>()(
             }
           });
 
+          // Once reconnectionAttempts is exhausted, Socket.IO gives up on its own and never
+          // tries again - callers that stay mounted indefinitely (most of this app's pages)
+          // would otherwise be stuck in 'error' until something explicitly calls reconnect().
+          // isConnected already gates callers' REST poll fallback, so staleness isn't at risk,
+          // but settle into a slow periodic retry instead of giving up outright, so a transient
+          // outage self-heals without the user navigating away and back or reloading the page.
+          const SLOW_RETRY_MS = 60000;
+          let slowRetryTimer: ReturnType<typeof setInterval> | null = null;
+          const stopSlowRetry = () => {
+            if (slowRetryTimer) {
+              clearInterval(slowRetryTimer);
+              slowRetryTimer = null;
+            }
+          };
+
           // Connection event handlers
           socket.on('connect', () => {
+            stopSlowRetry();
             // WebSocket connected successfully
             set((state) => ({
               isConnected: true,
@@ -289,6 +311,8 @@ export const useWebSocketStore = create<WebSocketState>()(
               connectionStatus: 'error',
               error: 'Failed to reconnect after maximum attempts',
             });
+            stopSlowRetry();
+            slowRetryTimer = setInterval(() => socket.connect(), SLOW_RETRY_MS);
           };
 
           socket.io.on('reconnect', onReconnect);
@@ -296,6 +320,7 @@ export const useWebSocketStore = create<WebSocketState>()(
           socket.io.on('reconnect_error', onReconnectError);
           socket.io.on('reconnect_failed', onReconnectFailed);
           managerCleanup.set(socket, () => {
+            stopSlowRetry();
             socket.io.off('reconnect', onReconnect);
             socket.io.off('reconnect_attempt', onReconnectAttempt);
             socket.io.off('reconnect_error', onReconnectError);
