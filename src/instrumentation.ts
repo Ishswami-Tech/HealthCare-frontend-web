@@ -2,6 +2,10 @@ import * as Sentry from "@sentry/nextjs";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { installStaleServerActionLogFilter } = await import(
+      "./lib/observability/stale-action-log-filter"
+    );
+    installStaleServerActionLogFilter();
     await import("../sentry.server.config");
   }
 
