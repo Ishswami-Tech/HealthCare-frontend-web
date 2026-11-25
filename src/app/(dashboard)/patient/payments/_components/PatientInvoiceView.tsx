@@ -1,4 +1,5 @@
 "use client";
+import { APP_CONFIG } from "@/lib/config/config";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -159,7 +160,7 @@ export function PatientInvoiceView({
               <span className="flex size-[38px] items-center justify-center rounded-xl bg-white dark:bg-white/10">
                 <Activity className="size-5 text-brand" strokeWidth={2.4} aria-hidden="true" />
               </span>
-              <span className="text-[17px] font-extrabold text-ink">TestByDoctor</span>
+              <span className="text-[17px] font-extrabold text-ink">{APP_CONFIG.CLINIC.BRAND_NAME}</span>
             </span>
             <span
               className={cn(

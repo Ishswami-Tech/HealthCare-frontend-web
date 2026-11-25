@@ -1,3 +1,4 @@
+import { APP_CONFIG } from "@/lib/config/config";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Activity, ChevronLeft } from "lucide-react";
@@ -49,7 +50,7 @@ export function VideoStageShell({
   return (
     <div className="tbd-wash flex min-h-dvh w-full flex-col text-ink" data-tone="lavender">
       <header className="mx-auto flex h-[72px] w-full max-w-[1160px] shrink-0 items-center justify-between gap-3 px-4 sm:px-6 md:px-8">
-        <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-2.5" aria-label="TestByDoctor home">
+        <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-2.5" aria-label={`${APP_CONFIG.CLINIC.BRAND_NAME} home`}>
           <span
             className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#047857] text-white shadow-[0_6px_14px_rgba(4,120,87,0.28)]"
             aria-hidden="true"
@@ -57,7 +58,7 @@ export function VideoStageShell({
             <Activity className="size-5" strokeWidth={2.6} />
           </span>
           <span className="flex min-w-0 flex-col justify-center leading-[1.15]">
-            <span className="truncate text-base font-extrabold tracking-[-0.3px] text-ink">TestByDoctor</span>
+            <span className="truncate text-base font-extrabold tracking-[-0.3px] text-ink">{APP_CONFIG.CLINIC.BRAND_NAME}</span>
             {portalLabel ? (
               <span className="truncate text-[10.5px] font-bold tracking-[0.4px] text-brand">{portalLabel}</span>
             ) : null}

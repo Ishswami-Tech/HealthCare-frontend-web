@@ -2,7 +2,11 @@
 # Stage 1: deps — install node_modules
 # Layer is cached by Docker until package-lock.json changes.
 # ============================================================
-FROM node:24-alpine AS deps
+# deps and builder run once on the build machine's own platform ($BUILDPLATFORM), so a
+# multi-platform build shares one `next build`: every architecture gets byte-identical .next output
+# (separate per-arch builds produced different chunk names, and a page served by one replica then
+# asked another replica for chunks it did not have).
+FROM --platform=$BUILDPLATFORM node:24-alpine AS deps
 WORKDIR /app
 
 # libc6-compat is needed by some native node addons on alpine
@@ -16,7 +20,7 @@ RUN npm ci --no-audit --no-fund \
 # ============================================================
 # Stage 2: builder — compile Next.js standalone output
 # ============================================================
-FROM node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 WORKDIR /app
 
 # All NEXT_PUBLIC_* vars must be declared as ARGs so Next.js
@@ -69,6 +73,14 @@ ARG NEXT_PUBLIC_WS_TIMEOUT
 ARG NEXT_PUBLIC_WS_URL
 ARG NEXT_PUBLIC_YOUTUBE_API_KEY
 ARG NEXT_PUBLIC_APPLE_CLIENT_ID
+# Read by next.config / app metadata during `next build`, so they are fixed per image too.
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_SERVER_ACTION_ALLOWED_ORIGINS
+ARG GOOGLE_SITE_VERIFICATION
+ARG BING_VERIFICATION
+ARG YAHOO_VERIFICATION
+ARG YANDEX_VERIFICATION
 
 # Expose to build environment
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
@@ -119,16 +131,45 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
     NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL \
     NEXT_PUBLIC_YOUTUBE_API_KEY=$NEXT_PUBLIC_YOUTUBE_API_KEY \
     NEXT_PUBLIC_APPLE_CLIENT_ID=$NEXT_PUBLIC_APPLE_CLIENT_ID \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_SERVER_ACTION_ALLOWED_ORIGINS=$NEXT_SERVER_ACTION_ALLOWED_ORIGINS \
+    GOOGLE_SITE_VERIFICATION=$GOOGLE_SITE_VERIFICATION \
+    BING_VERIFICATION=$BING_VERIFICATION \
+    YAHOO_VERIFICATION=$YAHOO_VERIFICATION \
+    YANDEX_VERIFICATION=$YANDEX_VERIFICATION \
+    NEXT_PUBLIC_HOSTED_ON_TEMPS=true \
     NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN npm run build:deploy
+# next/font/google downloads font files during the build and occasionally fails on CI runners;
+# retry the build instead of failing the whole image.
+RUN for attempt in 1 2 3; do \
+      npm run build:deploy && exit 0; \
+      echo "next build failed (attempt $attempt), retrying in 10s"; sleep 10; \
+    done; exit 1
 
 # ============================================================
-# Stage 3: runner — minimal production image (~200MB vs ~1GB)
+# Stage 3: sharp — the image library's native binaries for the TARGET platform. The standalone
+# output above carries the build platform's binaries only; npm can install another platform's
+# optional packages without running anything for it. Same version as the lockfile.
+# ============================================================
+FROM --platform=$BUILDPLATFORM node:24-alpine AS sharp
+ARG TARGETARCH
+WORKDIR /sharp
+COPY --from=deps /app/node_modules/sharp/package.json /tmp/sharp-package.json
+RUN version=$(node -p "require('/tmp/sharp-package.json').version") \
+    && cpu=$([ "$TARGETARCH" = "arm64" ] && echo arm64 || echo x64) \
+    && npm init -y >/dev/null \
+    && npm install --no-audit --no-fund --os=linux --libc=musl --cpu=$cpu "sharp@$version" \
+    && ls node_modules/@img | grep -q "sharp-linuxmusl-$cpu" \
+    && echo "sharp $version for linux/musl/$cpu"
+
+# ============================================================
+# Stage 4: runner — minimal production image (~200MB vs ~1GB)
 # ============================================================
 FROM node:24-alpine AS runner
 WORKDIR /app
@@ -144,6 +185,8 @@ RUN addgroup -g 1001 -S nodejs \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Adds this platform's sharp binaries next to the build platform's (sharp loads the matching one).
+COPY --from=sharp --chown=nextjs:nodejs /sharp/node_modules/@img ./node_modules/@img
 
 RUN mkdir -p /app/.next/cache && \
     chown -R nextjs:nodejs /app/.next /app/public /app/server.js /app/node_modules
