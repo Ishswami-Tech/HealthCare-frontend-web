@@ -1,8 +1,13 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { queryClientConfig } from "@/hooks/query/config";
 import { ERROR_MESSAGES } from "@/lib/config/config";
 import { ROUTES } from "@/lib/config/routes";
@@ -13,6 +18,10 @@ import {
   TOAST_IDS,
 } from "@/hooks/utils/use-toast";
 import { isSessionInvalidError, triggerClientAuthRecovery } from "@/lib/utils/auth-recovery";
+import {
+  isStaleServerActionError,
+  reloadIfStaleDeployment,
+} from "@/lib/utils/deployment-skew";
 
 interface ApiError extends Error {
   response?: {
@@ -33,11 +42,28 @@ export default function QueryProvider({
     () =>
       new QueryClient({
         ...queryClientConfig,
+        // A tab from an older deploy calls server actions the server no longer has; every query
+        // and mutation then fails the same way. Reload once to load the current build.
+        queryCache: new QueryCache({
+          onError: (error) => {
+            reloadIfStaleDeployment(error);
+          },
+        }),
+        mutationCache: new MutationCache({
+          onError: (error) => {
+            reloadIfStaleDeployment(error);
+          },
+        }),
         defaultOptions: {
           queries: {
             ...queryClientConfig.defaultOptions?.queries,
             retry: (failureCount, error) => {
               const apiError = error as ApiError;
+
+              // Retrying can't fix a server action from an older deploy; the reload will.
+              if (isStaleServerActionError(error)) {
+                return false;
+              }
 
               // Don't retry on client errors (4xx)
               if (
@@ -56,6 +82,10 @@ export default function QueryProvider({
             ...queryClientConfig.defaultOptions?.mutations,
             retry: (failureCount, error) => {
               const apiError = error as ApiError;
+
+              if (isStaleServerActionError(error)) {
+                return false;
+              }
 
               // Don't retry on client errors
               if (
@@ -83,6 +113,11 @@ export default function QueryProvider({
             },
             onError: (error) => {
               const apiError = error as ApiError;
+
+              // The page is reloading to the current build; a toast would only flash.
+              if (isStaleServerActionError(error)) {
+                return;
+              }
 
               // ✅ Skip showing toast if error should be handled by component
               if (!shouldHandleErrorGlobally(apiError)) {
@@ -139,6 +174,19 @@ export default function QueryProvider({
         },
       })
   );
+
+  // Server actions called outside React Query surface the same error as an unhandled rejection.
+  useEffect(() => {
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (reloadIfStaleDeployment(event.reason)) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
