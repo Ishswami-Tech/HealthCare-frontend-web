@@ -6,6 +6,7 @@
 
 import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
+import { TempsAnalyticsClient } from "@/app/providers/TempsAnalyticsClient";
 import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
 import Script from "next/script";
 import { APP_CONFIG } from "@/lib/config/config";
@@ -151,7 +152,9 @@ export default async function RootLayout({
           }}
         >
           {/* AppProvider handles Language, Store, Query, WS, and Theme */}
-          <AppProvider>{children}</AppProvider>
+          <TempsAnalyticsClient>
+            <AppProvider>{children}</AppProvider>
+          </TempsAnalyticsClient>
         </PerformanceProvider>
       </body>
     </html>

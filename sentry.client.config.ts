@@ -4,56 +4,86 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+const buildTimeDsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-if (!dsn) {
-  console.warn("[Sentry] NEXT_PUBLIC_SENTRY_DSN is not set — client-side error reporting is disabled.");
+type RuntimeSentryConfig = {
+  sentryDsn?: string | null;
+  sentryTunnel?: string | null;
+  sentryRelease?: string | null;
+};
+
+function startSentry(options: { dsn?: string | undefined; tunnel?: string | undefined; release?: string | undefined }) {
+  if (!options.dsn) {
+    console.warn("[Sentry] No DSN configured; client-side error reporting is disabled.");
+  }
+  Sentry.init({
+    dsn: options.dsn || "",
+    // Temps serves a same-origin ingest path, so events are not blocked by the CSP or ad blockers.
+    ...(options.tunnel ? { tunnel: options.tunnel } : {}),
+    ...(options.release ? { release: options.release } : {}),
+    // Environment tag for filtering in Sentry dashboard
+    environment: process.env.NODE_ENV,
+
+    // Session Replay
+    integrations: [Sentry.replayIntegration()],
+
+    // ── Replay Sampling ────────────────────────────────────────────────────────
+    // 1% of normal sessions get replayed (adjust based on Sentry quota)
+    replaysSessionSampleRate: 0.01,
+    // 100% of sessions that throw an error get replayed
+    replaysOnErrorSampleRate: 1.0,
+
+    // ── Tracing ────────────────────────────────────────────────────────────────
+    // 10% of transactions in production; 100% in dev for debugging
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+
+    // Only trace requests from our own domain (plus localhost for dev)
+    tracePropagationTargets: [
+      "localhost",
+      /https?:\/\/.*\.ishswami\.in/,
+      /https?:\/\/backend-service-v1\.ishswami\.in/,
+    ],
+
+    // Disable sending PII by default (healthcare compliance)
+    dataCollection: {
+      userInfo: false,
+      httpBodies: [],
+    },
+
+    // Scrub PHI/PII from all outgoing Sentry events
+    beforeSend(event, hint) {
+      if (event) {
+        sanitizeEvent(event);
+      }
+      if (hint?.originalException instanceof Error) {
+        sanitizeError(hint.originalException);
+      }
+      return event;
+    },
+  });
 }
 
-Sentry.init({
-  dsn: dsn || "",
-
-  // Environment tag for filtering in Sentry dashboard
-  environment: process.env.NODE_ENV,
-
-  // Session Replay
-  integrations: [Sentry.replayIntegration()],
-
-  // ── Replay Sampling ────────────────────────────────────────────────────────
-  // 1% of normal sessions get replayed (adjust based on Sentry quota)
-  replaysSessionSampleRate: 0.01,
-  // 100% of sessions that throw an error get replayed
-  replaysOnErrorSampleRate: 1.0,
-
-  // ── Tracing ────────────────────────────────────────────────────────────────
-  // 10% of transactions in production; 100% in dev for debugging
-  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
-
-  // Only trace requests from our own domain (plus localhost for dev)
-  tracePropagationTargets: [
-    "localhost",
-    /https?:\/\/.*\.ishswami\.in/,
-    /https?:\/\/backend-service-v1\.ishswami\.in/,
-  ],
-
-  // Disable sending PII by default (healthcare compliance)
-  dataCollection: {
-    userInfo: false,
-    httpBodies: [],
-  },
-
-  // Scrub PHI/PII from all outgoing Sentry events
-  beforeSend(event, hint) {
-    if (event) {
-      sanitizeEvent(event);
-    }
-    if (hint?.originalException instanceof Error) {
-      sanitizeError(hint.originalException);
-    }
-    return event;
-  },
-
-});
+// On Temps the DSN differs per environment (pre-prod / production) while one image serves both,
+// so it is read at runtime from /api/observability/config (Temps injects SENTRY_DSN / SENTRY_TUNNEL
+// into the container). Other hosts keep the build-time DSN and make no extra request.
+if (process.env.NEXT_PUBLIC_HOSTED_ON_TEMPS === "true" && typeof window !== "undefined") {
+  fetch("/api/observability/config", { credentials: "omit" })
+    .then((response) => (response.ok ? (response.json() as Promise<RuntimeSentryConfig>) : null))
+    .then((config) => {
+      if (config?.sentryDsn) {
+        startSentry({
+          dsn: config.sentryDsn,
+          tunnel: config.sentryTunnel || undefined,
+          release: config.sentryRelease || undefined,
+        });
+      } else {
+        startSentry({ dsn: buildTimeDsn });
+      }
+    })
+    .catch(() => startSentry({ dsn: buildTimeDsn }));
+} else {
+  startSentry({ dsn: buildTimeDsn });
+}
 
 /**
  * Capture React Router transitions for SPA navigation tracking.
