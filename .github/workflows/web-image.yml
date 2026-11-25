@@ -11,14 +11,16 @@ name: Web image (Temps)
 # live in the Temps environment, not here.
 #
 # - pull_request to main: build and smoke-test both platforms, push nothing.
-# - push to main / manual run: push sha-<sha> (immutable, deploy this), main and latest, then
-#   deploy to Temps when ENABLE_TEMPS_DEPLOY is "true" and the control-plane SSH secrets are set.
+# - push to main: push sha-<sha> (immutable, deploy this), main and latest, then deploy to the
+#   Temps "production" environment.
+# - push to preprod: push sha-<sha> and preprod, then deploy to the Temps "preprod" environment.
+# Deploys run only when ENABLE_TEMPS_DEPLOY is "true" and the control-plane SSH secrets are set.
 
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, preprod]
   workflow_dispatch:
 
 permissions:
@@ -199,6 +201,7 @@ jobs:
           set -euo pipefail
           tags="-t ${IMAGE}:sha-${GITHUB_SHA}"
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then tags="$tags -t ${IMAGE}:main -t ${IMAGE}:latest"; fi
+          if [ "${GITHUB_REF}" = "refs/heads/preprod" ]; then tags="$tags -t ${IMAGE}:preprod"; fi
           docker buildx imagetools create $tags $(printf "${IMAGE}@sha256:%s " *)
           docker buildx imagetools inspect "${IMAGE}:sha-${GITHUB_SHA}"
           echo "image=${IMAGE}:sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
@@ -208,14 +211,15 @@ jobs:
     name: Deploy to Temps
     # Off until the control-plane SSH secrets (same names as HealthCareBackend) are added and
     # ENABLE_TEMPS_DEPLOY is set to "true"; until then deploy the sha- tag by hand.
-    if: github.ref == 'refs/heads/main' && vars.ENABLE_TEMPS_DEPLOY == 'true'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/preprod') && vars.ENABLE_TEMPS_DEPLOY == 'true'
     needs: merge
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    environment: production
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'preprod' }}
     env:
       IMAGE: ${{ needs.merge.outputs.image }}
       TEMPS_PROJECT: ${{ vars.TEMPS_WEB_PROJECT || 'healthcare-web' }}
+      TEMPS_ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'production' || 'preprod' }}
       TEMPS_CLI_VERSION: "0.1.38"
     steps:
       - name: Deploy image on the control plane
@@ -236,5 +240,5 @@ jobs:
               sleep 10
             done
             npx -y @temps-sdk/cli@${TEMPS_CLI_VERSION} --target-context temps-local deploy:image \
-              --image '${IMAGE}' -p '${TEMPS_PROJECT}' -e production -y --timeout 600
+              --image '${IMAGE}' -p '${TEMPS_PROJECT}' -e '${TEMPS_ENVIRONMENT}' -y --timeout 600
           "
