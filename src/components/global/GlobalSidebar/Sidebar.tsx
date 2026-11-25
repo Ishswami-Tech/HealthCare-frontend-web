@@ -1,5 +1,6 @@
 // @ts-nocheck
 "use client";
+import { APP_CONFIG } from "@/lib/config/config";
 
 /**
  * ✅ GlobalSidebar - Refactored to use standard shadcn sidebar components
@@ -148,7 +149,7 @@ function portalLabel(role?: string): string {
 const Logo = memo(function Logo({ role }: { role?: string }) {
   const portal = portalLabel(role);
   const { data: myClinic } = useMyClinic();
-  const brandName = myClinic?.name?.trim() || "TestByDoctor";
+  const brandName = myClinic?.name?.trim() || APP_CONFIG.CLINIC.BRAND_NAME;
   return (
     <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-2.5">
       <BrandMark />

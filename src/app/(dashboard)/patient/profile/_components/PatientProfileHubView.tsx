@@ -1,4 +1,5 @@
 "use client";
+import { APP_CONFIG } from "@/lib/config/config";
 
 import Link from "next/link";
 import {
@@ -190,7 +191,7 @@ export function PatientProfileHubView({
           <LogOut strokeWidth={2.4} aria-hidden="true" />
           Log out
         </Button>
-        {appVersion ? <span className="text-xs text-ink-muted">TestByDoctor · Version {appVersion}</span> : null}
+        {appVersion ? <span className="text-xs text-ink-muted">{APP_CONFIG.CLINIC.BRAND_NAME} · Version {appVersion}</span> : null}
       </div>
 
       <Dialog open={logoutOpen} onOpenChange={(open) => (loggingOut ? undefined : onLogoutOpenChange(open))}>
