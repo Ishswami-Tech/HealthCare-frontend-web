@@ -1,0 +1,240 @@
+name: Web image (Temps)
+
+# Builds the web app as one multi-arch image (linux/amd64 + linux/arm64) and deploys it to Temps.
+# Production runs one copy on each of temps-worker (amd64), oracle-main and oracle-vm2-dss (both
+# arm64); Temps only places a copy on a node the image has a platform for, so both platforms are
+# built natively on their own runner (no QEMU) and combined into one tag.
+#
+# NEXT_PUBLIC_* and the other build-time values are baked into the image by `next build`. They come
+# from repository Variables (Settings > Secrets and variables > Actions > Variables), one per name,
+# the same values the Vercel project used. Runtime-only secrets (BACKEND_PROTECTION_KEY, SENTRY_DSN)
+# live in the Temps environment, not here.
+#
+# - pull_request to main: build and smoke-test both platforms, push nothing.
+# - push to main / manual run: push sha-<sha> (immutable, deploy this), main and latest, then
+#   deploy to Temps when ENABLE_TEMPS_DEPLOY is "true" and the control-plane SSH secrets are set.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: web-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: healthcare-frontend-web
+
+jobs:
+  build:
+    name: "Build (${{ matrix.platform }})"
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Platform pair
+        run: |
+          platform="${{ matrix.platform }}"
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
+
+      - name: Image name (lowercase)
+        id: image
+        run: echo "image=${REGISTRY}/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (push by digest outside pull requests)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            BING_VERIFICATION=${{ vars.BING_VERIFICATION }}
+            GOOGLE_SITE_VERIFICATION=${{ vars.GOOGLE_SITE_VERIFICATION }}
+            NEXT_PUBLIC_API_BASE_URL=${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+            NEXT_PUBLIC_API_PREFIX=${{ vars.NEXT_PUBLIC_API_PREFIX }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_API_VERSION=${{ vars.NEXT_PUBLIC_API_VERSION }}
+            NEXT_PUBLIC_APPLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_APPLE_CLIENT_ID }}
+            NEXT_PUBLIC_APP_NAME=${{ vars.NEXT_PUBLIC_APP_NAME }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_APP_VERSION=${{ vars.NEXT_PUBLIC_APP_VERSION }}
+            NEXT_PUBLIC_AUTH_ENABLED=${{ vars.NEXT_PUBLIC_AUTH_ENABLED }}
+            NEXT_PUBLIC_BACKEND_URL=${{ vars.NEXT_PUBLIC_BACKEND_URL }}
+            NEXT_PUBLIC_CASHFREE_API_VERSION=${{ vars.NEXT_PUBLIC_CASHFREE_API_VERSION }}
+            NEXT_PUBLIC_CASHFREE_APP_ID=${{ vars.NEXT_PUBLIC_CASHFREE_APP_ID }}
+            NEXT_PUBLIC_CASHFREE_MODE=${{ vars.NEXT_PUBLIC_CASHFREE_MODE }}
+            NEXT_PUBLIC_CLINIC_API_URL=${{ vars.NEXT_PUBLIC_CLINIC_API_URL }}
+            NEXT_PUBLIC_CLINIC_ID=${{ vars.NEXT_PUBLIC_CLINIC_ID }}
+            NEXT_PUBLIC_DEBUG_BACKEND_STATUS=${{ vars.NEXT_PUBLIC_DEBUG_BACKEND_STATUS }}
+            NEXT_PUBLIC_ENABLE_ANALYTICS=${{ vars.NEXT_PUBLIC_ENABLE_ANALYTICS }}
+            NEXT_PUBLIC_ENABLE_CONSOLE_LOGS=${{ vars.NEXT_PUBLIC_ENABLE_CONSOLE_LOGS }}
+            NEXT_PUBLIC_ENABLE_CORS=${{ vars.NEXT_PUBLIC_ENABLE_CORS }}
+            NEXT_PUBLIC_ENABLED_PAYMENT_PROVIDERS=${{ vars.NEXT_PUBLIC_ENABLED_PAYMENT_PROVIDERS }}
+            NEXT_PUBLIC_ENABLE_HTTPS=${{ vars.NEXT_PUBLIC_ENABLE_HTTPS }}
+            NEXT_PUBLIC_ENABLE_NOTIFICATIONS=${{ vars.NEXT_PUBLIC_ENABLE_NOTIFICATIONS }}
+            NEXT_PUBLIC_ENABLE_REAL_TIME=${{ vars.NEXT_PUBLIC_ENABLE_REAL_TIME }}
+            NEXT_PUBLIC_ENABLE_VIDEO_CALLS=${{ vars.NEXT_PUBLIC_ENABLE_VIDEO_CALLS }}
+            NEXT_PUBLIC_ENABLE_VIDEO_RECORDING=${{ vars.NEXT_PUBLIC_ENABLE_VIDEO_RECORDING }}
+            NEXT_PUBLIC_ENVIRONMENT=${{ vars.NEXT_PUBLIC_ENVIRONMENT }}
+            NEXT_PUBLIC_FACEBOOK_APP_ID=${{ vars.NEXT_PUBLIC_FACEBOOK_APP_ID }}
+            NEXT_PUBLIC_FIREBASE_API_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+            NEXT_PUBLIC_FIREBASE_APP_ID=${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+            NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+            NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+            NEXT_PUBLIC_FIREBASE_VAPID_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
+            NEXT_PUBLIC_FRONTEND_DOMAIN=${{ vars.NEXT_PUBLIC_FRONTEND_DOMAIN }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ vars.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+            NEXT_PUBLIC_HEALTH_CHECK_INTERVAL=${{ vars.NEXT_PUBLIC_HEALTH_CHECK_INTERVAL }}
+            NEXT_PUBLIC_LOG_LEVEL=${{ vars.NEXT_PUBLIC_LOG_LEVEL }}
+            NEXT_PUBLIC_MAIN_DOMAIN=${{ vars.NEXT_PUBLIC_MAIN_DOMAIN }}
+            NEXT_PUBLIC_PAYMENT_BRIDGE_URL=${{ vars.NEXT_PUBLIC_PAYMENT_BRIDGE_URL }}
+            NEXT_PUBLIC_RAZORPAY_KEY_ID=${{ vars.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED=${{ vars.NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED }}
+            NEXT_PUBLIC_WEBSOCKET_URL=${{ vars.NEXT_PUBLIC_WEBSOCKET_URL }}
+            NEXT_PUBLIC_WS_MAX_RECONNECT_ATTEMPTS=${{ vars.NEXT_PUBLIC_WS_MAX_RECONNECT_ATTEMPTS }}
+            NEXT_PUBLIC_WS_TIMEOUT=${{ vars.NEXT_PUBLIC_WS_TIMEOUT }}
+            NEXT_PUBLIC_WS_URL=${{ vars.NEXT_PUBLIC_WS_URL }}
+            NEXT_PUBLIC_YOUTUBE_API_KEY=${{ vars.NEXT_PUBLIC_YOUTUBE_API_KEY }}
+            NEXT_SERVER_ACTION_ALLOWED_ORIGINS=${{ vars.NEXT_SERVER_ACTION_ALLOWED_ORIGINS }}
+            YAHOO_VERIFICATION=${{ vars.YAHOO_VERIFICATION }}
+            YANDEX_VERIFICATION=${{ vars.YANDEX_VERIFICATION }}
+          cache-from: type=gha,scope=web-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,ignore-error=true,scope=web-${{ env.PLATFORM_PAIR }}
+          outputs: ${{ github.event_name == 'pull_request' && 'type=docker,name=web-smoke:local' || format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', steps.image.outputs.image) }}
+
+      - name: Smoke test on ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          ref="${{ github.event_name == 'pull_request' && 'web-smoke:local' || format('{0}@{1}', steps.image.outputs.image, steps.build.outputs.digest) }}"
+          expected="${{ matrix.platform == 'linux/arm64' && 'aarch64' || 'x86_64' }}"
+          arch=$(docker run --rm --entrypoint uname "$ref" -m)
+          [ "$arch" = "$expected" ] || { echo "::error::image arch $arch, expected $expected"; exit 1; }
+          docker run -d --name web-smoke -p 3000:3000 "$ref"
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:3000/api/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://localhost:3000/api/health
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/)
+          [ "$code" = "200" ] || { echo "::error::GET / returned $code"; docker logs web-smoke | tail -50; exit 1; }
+          echo "arch=$arch, /api/health ok, / 200"
+          docker rm -f web-smoke
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Tag multi-arch image
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      image: ${{ steps.tag.outputs.image }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list
+        id: tag
+        working-directory: /tmp/digests
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+        run: |
+          set -euo pipefail
+          tags="-t ${IMAGE}:sha-${GITHUB_SHA}"
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then tags="$tags -t ${IMAGE}:main -t ${IMAGE}:latest"; fi
+          docker buildx imagetools create $tags $(printf "${IMAGE}@sha256:%s " *)
+          docker buildx imagetools inspect "${IMAGE}:sha-${GITHUB_SHA}"
+          echo "image=${IMAGE}:sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Image: \`${IMAGE}:sha-${GITHUB_SHA}\` (linux/amd64 + linux/arm64)" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to Temps
+    # Off until the control-plane SSH secrets (same names as HealthCareBackend) are added and
+    # ENABLE_TEMPS_DEPLOY is set to "true"; until then deploy the sha- tag by hand.
+    if: github.ref == 'refs/heads/main' && vars.ENABLE_TEMPS_DEPLOY == 'true'
+    needs: merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    env:
+      IMAGE: ${{ needs.merge.outputs.image }}
+      TEMPS_PROJECT: ${{ vars.TEMPS_WEB_PROJECT || 'healthcare-web' }}
+      TEMPS_CLI_VERSION: "0.1.38"
+    steps:
+      - name: Deploy image on the control plane
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "${SERVER_USER}@${SERVER_HOST}" "
+            set -euo pipefail
+            # Temps reads the platforms from the control plane's local image store; hold the
+            # arm64 variant too so the two arm64 nodes can be scheduled (see HealthCareBackend ci.yml).
+            for attempt in 1 2 3; do
+              docker pull -q --platform linux/arm64 '${IMAGE}' >/dev/null && break
+              [ \$attempt = 3 ] && { echo 'arm64 pull failed'; exit 1; }
+              sleep 10
+            done
+            npx -y @temps-sdk/cli@${TEMPS_CLI_VERSION} --target-context temps-local deploy:image \
+              --image '${IMAGE}' -p '${TEMPS_PROJECT}' -e production -y --timeout 600
+          "

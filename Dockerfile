@@ -69,6 +69,14 @@ ARG NEXT_PUBLIC_WS_TIMEOUT
 ARG NEXT_PUBLIC_WS_URL
 ARG NEXT_PUBLIC_YOUTUBE_API_KEY
 ARG NEXT_PUBLIC_APPLE_CLIENT_ID
+# Read by next.config / app metadata during `next build`, so they are fixed per image too.
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_SERVER_ACTION_ALLOWED_ORIGINS
+ARG GOOGLE_SITE_VERIFICATION
+ARG BING_VERIFICATION
+ARG YAHOO_VERIFICATION
+ARG YANDEX_VERIFICATION
 
 # Expose to build environment
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
@@ -119,13 +127,25 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
     NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL \
     NEXT_PUBLIC_YOUTUBE_API_KEY=$NEXT_PUBLIC_YOUTUBE_API_KEY \
     NEXT_PUBLIC_APPLE_CLIENT_ID=$NEXT_PUBLIC_APPLE_CLIENT_ID \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_SERVER_ACTION_ALLOWED_ORIGINS=$NEXT_SERVER_ACTION_ALLOWED_ORIGINS \
+    GOOGLE_SITE_VERIFICATION=$GOOGLE_SITE_VERIFICATION \
+    BING_VERIFICATION=$BING_VERIFICATION \
+    YAHOO_VERIFICATION=$YAHOO_VERIFICATION \
+    YANDEX_VERIFICATION=$YANDEX_VERIFICATION \
     NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN npm run build:deploy
+# next/font/google downloads font files during the build and occasionally fails on CI runners;
+# retry the build instead of failing the whole image.
+RUN for attempt in 1 2 3; do \
+      npm run build:deploy && exit 0; \
+      echo "next build failed (attempt $attempt), retrying in 10s"; sleep 10; \
+    done; exit 1
 
 # ============================================================
 # Stage 3: runner — minimal production image (~200MB vs ~1GB)
