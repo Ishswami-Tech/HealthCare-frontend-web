@@ -2,7 +2,11 @@
 # Stage 1: deps — install node_modules
 # Layer is cached by Docker until package-lock.json changes.
 # ============================================================
-FROM node:24-alpine AS deps
+# deps and builder run once on the build machine's own platform ($BUILDPLATFORM), so a
+# multi-platform build shares one `next build`: every architecture gets byte-identical .next output
+# (separate per-arch builds produced different chunk names, and a page served by one replica then
+# asked another replica for chunks it did not have).
+FROM --platform=$BUILDPLATFORM node:24-alpine AS deps
 WORKDIR /app
 
 # libc6-compat is needed by some native node addons on alpine
@@ -16,7 +20,7 @@ RUN npm ci --no-audit --no-fund \
 # ============================================================
 # Stage 2: builder — compile Next.js standalone output
 # ============================================================
-FROM node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 WORKDIR /app
 
 # All NEXT_PUBLIC_* vars must be declared as ARGs so Next.js
@@ -148,7 +152,23 @@ RUN for attempt in 1 2 3; do \
     done; exit 1
 
 # ============================================================
-# Stage 3: runner — minimal production image (~200MB vs ~1GB)
+# Stage 3: sharp — the image library's native binaries for the TARGET platform. The standalone
+# output above carries the build platform's binaries only; npm can install another platform's
+# optional packages without running anything for it. Same version as the lockfile.
+# ============================================================
+FROM --platform=$BUILDPLATFORM node:24-alpine AS sharp
+ARG TARGETARCH
+WORKDIR /sharp
+COPY --from=deps /app/node_modules/sharp/package.json /tmp/sharp-package.json
+RUN version=$(node -p "require('/tmp/sharp-package.json').version") \
+    && cpu=$([ "$TARGETARCH" = "arm64" ] && echo arm64 || echo x64) \
+    && npm init -y >/dev/null \
+    && npm install --no-audit --no-fund --os=linux --libc=musl --cpu=$cpu "sharp@$version" \
+    && ls node_modules/@img | grep -q "sharp-linuxmusl-$cpu" \
+    && echo "sharp $version for linux/musl/$cpu"
+
+# ============================================================
+# Stage 4: runner — minimal production image (~200MB vs ~1GB)
 # ============================================================
 FROM node:24-alpine AS runner
 WORKDIR /app
@@ -164,6 +184,8 @@ RUN addgroup -g 1001 -S nodejs \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Adds this platform's sharp binaries next to the build platform's (sharp loads the matching one).
+COPY --from=sharp --chown=nextjs:nodejs /sharp/node_modules/@img ./node_modules/@img
 
 RUN mkdir -p /app/.next/cache && \
     chown -R nextjs:nodejs /app/.next /app/public /app/server.js /app/node_modules
