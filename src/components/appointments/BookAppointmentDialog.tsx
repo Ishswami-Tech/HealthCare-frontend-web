@@ -2140,7 +2140,7 @@ function BookAppointmentStep6({
                 slot: selectedSlot,
                 durationMinutes: appointmentDurationMinutes,
                 title: `Video visit with ${doctorName}`,
-                description: "TestByDoctor video appointment",
+                description: `${APP_CONFIG.CLINIC.BRAND_NAME} video appointment`,
                 uid: bookedAppointmentId,
               });
               if (!saved) {
