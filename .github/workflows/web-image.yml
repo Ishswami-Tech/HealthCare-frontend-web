@@ -130,6 +130,11 @@ jobs:
             NEXT_SERVER_ACTION_ALLOWED_ORIGINS=${{ vars.NEXT_SERVER_ACTION_ALLOWED_ORIGINS }}
             YAHOO_VERIFICATION=${{ vars.YAHOO_VERIFICATION }}
             YANDEX_VERIFICATION=${{ vars.YANDEX_VERIFICATION }}
+          # Fixed salt for server action IDs, so open tabs keep working across deploys (see Dockerfile).
+          # The build layer cache does not track secret values: after rotating this secret, run the
+          # workflow once without cache (or change the Dockerfile) so the new key is used.
+          secrets: |
+            next_server_actions_encryption_key=${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
           cache-from: type=gha,scope=web-multi
           cache-to: type=gha,mode=max,ignore-error=true,scope=web-multi
 
