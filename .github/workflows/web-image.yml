@@ -268,7 +268,7 @@ jobs:
         # gated the deploy on the new containers. Cloudflare may challenge requests from GitHub's
         # data-centre IPs, so a non-200 here is a warning, not a failed deploy.
         run: |
-          host="${{ github.ref == 'refs/heads/main' && 'prod.viddhakarma.com' || 'pre-prod.viddhakarma.com' }}"
+          host="${{ github.ref == 'refs/heads/main' && 'www.viddhakarma.com' || 'pre-prod.viddhakarma.com' }}"
           code=$(curl -s -o /dev/null -w '%{http_code}' "https://${host}/api/health" || true)
           if [ "$code" = "200" ]; then
             echo "https://${host}/api/health -> 200"
