@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { APPOINTMENT_NOTES_MAX_LENGTH } from "@/lib/schema/appointments.schema";
 import { cn } from "@/lib/utils";
 import { BookingDoctorRow } from "./BookingDoctor";
 import { BookingNotice } from "./BookingStates";
@@ -82,9 +83,24 @@ function ReasonFields({
           id="book-appointment-chief-complaint"
           value={chiefComplaint}
           onChange={(event) => onChiefComplaintChange(event.target.value)}
+          maxLength={APPOINTMENT_NOTES_MAX_LENGTH}
+          aria-describedby="book-appointment-chief-complaint-count"
           placeholder="Briefly describe your symptoms or reason for visit..."
           className="min-h-[96px] flex-1 resize-none rounded-[14px] text-sm leading-normal"
         />
+        <p
+          id="book-appointment-chief-complaint-count"
+          aria-live="polite"
+          className={cn(
+            "mt-1 text-right text-xs",
+            chiefComplaint.length >= APPOINTMENT_NOTES_MAX_LENGTH
+              ? "font-semibold text-destructive"
+              : "text-muted-foreground"
+          )}
+        >
+          {chiefComplaint.length}/{APPOINTMENT_NOTES_MAX_LENGTH} characters
+          {chiefComplaint.length >= APPOINTMENT_NOTES_MAX_LENGTH ? " (limit reached)" : ""}
+        </p>
       </div>
       <div>
         <label htmlFor="book-appointment-urgency" className={FIELD_LABEL}>
