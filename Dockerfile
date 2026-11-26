@@ -147,7 +147,23 @@ COPY . .
 
 # next/font/google downloads font files during the build and occasionally fails on CI runners;
 # retry the build instead of failing the whole image.
-RUN for attempt in 1 2 3; do \
+#
+# Server action IDs are hashed with NEXT_SERVER_ACTIONS_ENCRYPTION_KEY. Without it Next makes a new
+# random key every build, so every deploy renames every action and every open browser tab fails
+# ("Failed to find Server Action") until it reloads. A fixed key keeps the IDs of unchanged actions
+# the same across deploys. It comes in as a BuildKit secret, so it is not stored in image layers or
+# history; Next writes it into .next/server/server-reference-manifest.json, which the server reads
+# at runtime, so the container needs no extra environment variable. Without the secret (local
+# builds, fork PRs) the build falls back to Next's random key.
+RUN --mount=type=secret,id=next_server_actions_encryption_key,required=false \
+    if [ -s /run/secrets/next_server_actions_encryption_key ]; then \
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(cat /run/secrets/next_server_actions_encryption_key)"; \
+      export NEXT_SERVER_ACTIONS_ENCRYPTION_KEY; \
+      echo "Using the fixed server action key"; \
+    else \
+      echo "No server action key secret; Next will generate a random one"; \
+    fi; \
+    for attempt in 1 2 3; do \
       npm run build:deploy && exit 0; \
       echo "next build failed (attempt $attempt), retrying in 10s"; sleep 10; \
     done; exit 1
