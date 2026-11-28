@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MAX_UPLOAD_BYTES, UPLOAD_OPTIONS, uploadProblem, type UploadType } from "./patient-health.logic";
 import { formatBytes } from "@/lib/utils/labels";
+import { formatISODateInIST } from "@/lib/utils/date-time";
 
 const TYPE_ICON: Record<UploadType, LucideIcon> = {
   LAB_TEST: FlaskConical,
@@ -187,7 +188,7 @@ export function ReportUploadForm({
                 id="report-date"
                 type="date"
                 value={details.date}
-                max={new Date().toISOString().slice(0, 10)}
+                max={formatISODateInIST(new Date())}
                 disabled={isUploading}
                 onChange={(event) => setDetails((current) => ({ ...current, date: event.target.value }))}
               />

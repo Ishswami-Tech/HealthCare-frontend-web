@@ -14,6 +14,7 @@ import { asRow, firstText } from "@/components/patient/home/homeData";
 import { generateTemporaryPassword } from "@/lib/utils/temporary-password";
 import { RECEPTION_ROUTES, useReceptionLocation } from "@/components/receptionist/useReceptionDesk";
 import { usePatientDirectory } from "@/hooks/query/usePatientDirectory";
+import { formatISODateInIST } from "@/lib/utils/date-time";
 
 /**
  * After a failed registration: patients of this clinic already on that mobile number. Clinic-scoped
@@ -183,7 +184,7 @@ function RegisterForm() {
             </div>
           </Field>
           <Field label="Date of birth (optional)" htmlFor="dateOfBirth">
-            <Input id="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} {...form.register("dateOfBirth")} />
+            <Input id="dateOfBirth" type="date" max={formatISODateInIST(new Date())} {...form.register("dateOfBirth")} />
           </Field>
           <Field label="Address (optional)" htmlFor="address" className="sm:col-span-2">
             <Input id="address" autoComplete="street-address" placeholder="House / street, area, city" {...form.register("address")} />

@@ -35,9 +35,18 @@ function saveBlob(blob: Blob, fileName: string): void {
 /**
  * Saves a stored file under its friendly name. Files on the patient's record stream through the
  * authenticated `/content` API path (local disk and S3 alike: a stored `/storage/...` URL is
- * served by nothing). Other files (e.g. prescription PDFs) are fetched as a blob; when that is not possible
- * (CORS, network) they open in a new tab instead.
+ * served by nothing). Other same-origin files (e.g. the `/api/pharmacy/prescriptions/:id/pdf`
+ * route) are fetched as a blob; anything else opens in a new tab, since a cross-origin fetch is
+ * blocked by the CSP connect-src (and CORS) and could only fail.
  */
+function isSameOriginUrl(url: string): boolean {
+  try {
+    return new URL(url, window.location.href).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
 async function saveReportFile(row: ReportRow & { fileUrl: string }): Promise<void> {
   const fileName = row.downloadFileName || row.title || "document";
   if (row.contentUrl) {
@@ -48,9 +57,9 @@ async function saveReportFile(row: ReportRow & { fileUrl: string }): Promise<voi
     }
     return;
   }
-  if (row.downloadFileName) {
+  if (row.downloadFileName && isSameOriginUrl(row.fileUrl)) {
     try {
-      const response = await fetch(row.fileUrl);
+      const response = await fetch(row.fileUrl, { credentials: "same-origin" });
       if (response.ok) {
         saveBlob(await response.blob(), row.downloadFileName);
         return;

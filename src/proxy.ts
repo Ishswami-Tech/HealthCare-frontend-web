@@ -168,6 +168,28 @@ export default async function proxy(request: NextRequest) {
 }
 
 /**
+ * The policy only depends on build-time NEXT_PUBLIC_* values and whether the request is HTTPS, so
+ * each of the two variants is built once per server instance instead of on every request.
+ */
+const cachedContentSecurityPolicies = new Map<boolean, string>();
+
+function contentSecurityPolicy(isProduction: boolean, enforceHttps: boolean): string {
+  let policy = cachedContentSecurityPolicies.get(enforceHttps);
+  if (policy === undefined) {
+    policy = buildContentSecurityPolicy({
+      appUrl: process.env.NEXT_PUBLIC_APP_URL,
+      apiUrl:
+        process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
+      websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL,
+      isDevelopment: !isProduction,
+      enforceHttps,
+    });
+    cachedContentSecurityPolicies.set(enforceHttps, policy);
+  }
+  return policy;
+}
+
+/**
  * Security headers for EVERY proxied response - public pages, protected pages
  * and redirects alike (they used to be added only on the final protected-page
  * branch, so public pages and redirects carried the weak next.config policy).
@@ -187,16 +209,10 @@ function applySecurityHeaders(
     isProduction &&
     (request.nextUrl.protocol === "https:" || forwardedProto === "https");
 
-  const csp = buildContentSecurityPolicy({
-    appUrl: process.env.NEXT_PUBLIC_APP_URL,
-    apiUrl:
-      process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
-    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL,
-    isDevelopment: !isProduction,
-    enforceHttps,
-  });
-
-  response.headers.set("Content-Security-Policy", csp);
+  response.headers.set(
+    "Content-Security-Policy",
+    contentSecurityPolicy(isProduction, enforceHttps),
+  );
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
