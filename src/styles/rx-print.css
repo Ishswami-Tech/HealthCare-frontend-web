@@ -1,0 +1,178 @@
+/*
+ * Prescription print sheet (DocRxPrint, /doctor/prescriptions/[id]/print).
+ * On screen the sheet is a white page preview; on paper only the sheet prints (the dashboard
+ * shell, toolbar and options are hidden) and the @page margin is the only margin.
+ * The page size (A4 / A5) is set by the print view itself, because it depends on the choice.
+ */
+
+.rx-sheet {
+  background: #ffffff;
+  color: #171717;
+  font-size: 13px;
+  line-height: 1.45;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 27, 45, 0.12);
+  padding: 32px 36px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.rx-sheet[data-paper="A4"] {
+  max-width: 794px;
+  min-height: 1123px;
+}
+
+.rx-sheet[data-paper="A5"] {
+  max-width: 559px;
+  min-height: 794px;
+  font-size: 12px;
+  padding: 24px 26px;
+}
+
+.rx-sheet h1,
+.rx-sheet h2,
+.rx-sheet h3 {
+  color: #0f1b2d;
+  margin: 0;
+}
+
+.rx-sheet .rx-rule {
+  border-top: 2px solid #0f766e;
+}
+
+/* Letterhead: brand tile + clinic name (same mark and teal as the server-rendered PDF). */
+.rx-sheet .rx-logo {
+  color: #0f766e;
+  flex: none;
+  height: 46px;
+  width: 46px;
+}
+
+.rx-sheet .rx-clinic {
+  color: #0f766e;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.rx-sheet .rx-label {
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.rx-sheet table.rx-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rx-sheet table.rx-table th {
+  text-align: left;
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  background: #ecfdf5;
+  color: #115e59;
+  padding: 7px 8px;
+}
+
+.rx-sheet table.rx-table tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.rx-sheet table.rx-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 7px 8px;
+  vertical-align: top;
+}
+
+.rx-sheet .rx-symbol {
+  color: #0f766e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 26px;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.rx-sheet .rx-bullets {
+  list-style: disc;
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.rx-sheet .rx-bullets li::marker {
+  color: #0f766e;
+}
+
+/* DRAFT / RETURNED: diagonal "not valid" mark and the QR placeholder. */
+.rx-sheet .rx-watermark {
+  color: rgba(220, 38, 38, 0.1);
+  font-size: 64px;
+  font-weight: 800;
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  top: 45%;
+  transform: translate(-50%, -50%) rotate(-35deg);
+  white-space: nowrap;
+}
+
+.rx-sheet .rx-qr-placeholder {
+  align-items: center;
+  border: 1.5px dashed #94a3b8;
+  border-radius: 8px;
+  color: #64748b;
+  display: flex;
+  font-size: 11px;
+  height: 92px;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  width: 92px;
+}
+
+@media print {
+  .rx-sheet table.rx-table th,
+  .rx-sheet table.rx-table tbody tr:nth-child(even) td,
+  .rx-sheet .rx-watermark {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #rx-print-root,
+  #rx-print-root * {
+    visibility: visible;
+  }
+
+  #rx-print-root {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .rx-sheet tr,
+  .rx-sheet .rx-keep {
+    break-inside: avoid;
+  }
+}

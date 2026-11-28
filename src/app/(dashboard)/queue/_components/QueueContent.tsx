@@ -1,11 +1,20 @@
 "use client";
 
-import { QueueAssignDoctorDialog } from "./QueueAssignDoctorDialog";
+import { UserX } from "lucide-react";
+import { ConfirmDialog } from "@/components/tbd";
+import { getQueuePatientDisplayName } from "@/lib/queue/queue-adapter";
 import { QueueMoveToDialog } from "./QueueMoveToDialog";
+import { QueuePatientSummary } from "./QueuePatientSummary";
+import { QueuePriorityDialog } from "./QueuePriorityDialog";
 import { QueueErrorView, QueueLoadingView, QueueView } from "./QueueView";
 import { useQueuePageData } from "./useQueuePageData";
 
-/** Thin container for `/queue`: reads the data hook and hands plain props to the views. */
+/**
+ * Thin container for `/queue`: reads the data hook and hands plain props to the views.
+ * One screen for every role; what a row offers follows the role (see `queue-roles.logic.ts`):
+ * doctor calls / starts / completes, assistant drafts Rx / dispenses, front desk sets priority
+ * and marks no-shows, clinic admin also sees every location at a glance.
+ */
 export default function QueueContent() {
   const data = useQueuePageData();
 
@@ -29,6 +38,10 @@ export default function QueueContent() {
         scopeLabel={data.queueScopeLabel}
         canManageQueue={data.canManageQueue}
         liveSync={data.isLiveSyncConnected}
+        online={data.isOnline}
+        onRetry={() => void data.refetchQueue()}
+        roleNote={data.roleNote}
+        overview={data.queueOverview}
         staleCount={data.staleCount}
         isCleaningUp={data.isCleaningUp}
         onCleanUpStale={() => void data.handleBulkCleanup()}
@@ -64,15 +77,18 @@ export default function QueueContent() {
           primaryActions: data.procedurePrimaryActions,
         }}
         rowActions={{
-          hasMainAction: data.isDoctorRole,
-          canAssignDoctor: data.canAssignDoctor,
+          variant: data.queueVariant,
           canMoveTo: data.canMoveTo,
-          isAssignPending: data.isAssignPending,
+          canSetPriority: data.canSetPriority,
+          canMarkNoShow: data.canMarkNoShow,
           transferringId: data.transferringId,
           startingId: data.startingId,
+          callingId: data.callingId,
           onStart: (item) => void data.handleStartConsultation(item),
-          onAssignDoctor: data.openAssignDoctorDialog,
+          onCall: (item) => void data.handleCallPatient(item),
           onMoveTo: data.setTransferringQueueItem,
+          onSetPriority: data.openPriorityDialog,
+          onMarkNoShow: data.setNoShowItem,
         }}
       />
 
@@ -86,16 +102,28 @@ export default function QueueContent() {
         onClose={() => data.setTransferringQueueItem(null)}
       />
 
-      <QueueAssignDoctorDialog
-        item={data.assigningQueueItem}
-        doctors={data.assignableDoctors}
-        selectedDoctorId={data.selectedDoctorId}
-        error={data.assignDoctorError}
-        isPending={data.isAssignPending}
-        onSelectDoctor={data.setSelectedDoctorId}
-        onSubmit={() => void data.handleAssignDoctor()}
-        onClose={data.closeAssignDoctorDialog}
+      <QueuePriorityDialog
+        item={data.priorityItem}
+        isPending={data.isPriorityPending}
+        error={data.priorityError}
+        onSubmit={(item, priority, reason) => void data.handleSetPriority(item, priority, reason)}
+        onClose={data.closePriorityDialog}
       />
+
+      <ConfirmDialog
+        open={!!data.noShowItem}
+        onClose={() => data.setNoShowItem(null)}
+        title="Mark no-show"
+        description={`${data.noShowItem ? getQueuePatientDisplayName(data.noShowItem) : "This patient"} leaves the queue. You can undo this for 5 seconds.`}
+        confirmLabel="Mark no-show"
+        busyLabel="Marking…"
+        confirmIcon={<UserX />}
+        tone="danger"
+        busy={data.isNoShowPending}
+        onConfirm={() => void data.handleConfirmNoShow()}
+      >
+        {data.noShowItem ? <QueuePatientSummary item={data.noShowItem} /> : null}
+      </ConfirmDialog>
     </>
   );
 }

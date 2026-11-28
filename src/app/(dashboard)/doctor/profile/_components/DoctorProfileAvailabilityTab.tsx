@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Clock, Loader2, Save } from "lucide-react";
+import Link from "next/link";
+import { CalendarOff, Clock, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PROFILE_SWITCH, ProfileCard } from "./DoctorProfileParts";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
@@ -119,6 +120,13 @@ export function DoctorProfileAvailabilityTab({
           );
         })}
       </div>
+      <Link
+        href="/doctor/leave"
+        className="mt-3 inline-flex min-h-10 items-center gap-2 self-start rounded-xl border border-line bg-card px-4 text-[13px] font-bold text-ink hover:bg-mint-soft"
+      >
+        <CalendarOff className="size-4 text-brand" aria-hidden="true" />
+        Leave &amp; breaks
+      </Link>
     </ProfileCard>
   );
 }

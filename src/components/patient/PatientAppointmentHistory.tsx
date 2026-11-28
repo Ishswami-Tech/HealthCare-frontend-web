@@ -1,20 +1,32 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, CalendarX, ChevronDown, FileText, FlaskConical, Heart, Loader2, Plus, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarX,
+  ChevronDown,
+  ClipboardPlus,
+  FileText,
+  FlaskConical,
+  Loader2,
+  Plus,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyBlock, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
+import { EmptyBlock, Note, Pill, SectionTitle, Surface, statusLabel, statusTone } from "@/components/tbd";
 import { VisitCaseSheetSummary } from "@/components/patient/case-sheet/VisitCaseSheetSummary";
+import { VisitMedicinesList } from "@/components/patient/case-sheet/VisitMedicinesList";
 import {
   usePatientAppointmentHistory,
   type PatientAppointmentHistoryRow,
 } from "@/hooks/query/usePatientAppointmentHistory";
-import { useCreatePatientVisit } from "@/hooks/query/usePatientVisits";
+import { useCreatePatientVisit, useVisitCaseSheet } from "@/hooks/query/usePatientVisits";
+import { usePatientPrescriptions } from "@/hooks/query/usePrescriptions";
 import { cn } from "@/lib/utils";
 import { formatDateTimeInIST, parseIstDateTime } from "@/lib/utils/date-time";
 
-export type AppointmentHistoryTab = "history" | "vitals" | "reports" | "prescriptions";
+export type AppointmentHistoryTab = "history" | "reports" | "prescriptions";
 
 interface PatientAppointmentHistoryProps {
   clinicId: string;
@@ -22,7 +34,9 @@ interface PatientAppointmentHistoryProps {
   patientId: string;
   /** Only these roles may see case sheet content (see `canViewCaseSheet`). */
   caseSheetAllowed: boolean;
-  /** Switch the record to another tab (vitals, reports, prescriptions, case sheet). */
+  /** The prescribing doctor's Doctor-entity id — scopes the visit's prescription lookup. */
+  doctorEntityId: string;
+  /** Switch the record to another tab (reports, prescriptions, case sheet). */
   onOpenTab: (tab: AppointmentHistoryTab) => void;
   /** The case sheet tab should show this visit. */
   onOpenVisit: (visitId: string) => void;
@@ -61,11 +75,88 @@ function doctorLabel(name: string): string {
   return name ? `Dr. ${name.replace(/^Dr\.?\s*/i, "")}` : "Doctor not recorded";
 }
 
+/**
+ * The case sheet of the one expanded appointment: this is the only place that fetches it,
+ * so nothing runs for the collapsed rows above.
+ */
+function ExpandedVisitCaseSheet({
+  clinicId,
+  visitId,
+  caseSheetAllowed,
+  doctorEntityId,
+  patientId,
+  row,
+}: {
+  clinicId: string;
+  visitId: string;
+  caseSheetAllowed: boolean;
+  doctorEntityId: string;
+  patientId: string;
+  row: PatientAppointmentHistoryRow;
+}) {
+  // The case-sheet lookup is for the expanded row only; nothing fetches for the collapsed ones.
+  const caseSheet = useVisitCaseSheet(clinicId, visitId);
+  // The same visit's written prescriptions, read with an existing per-patient endpoint so no
+  // new backend call is added; only requested once the row is expanded.
+  const prescriptions = usePatientPrescriptions(doctorEntityId, patientId, undefined, {
+    enabled: caseSheetAllowed && !caseSheet.isPending,
+  });
+  const visitRows = (prescriptions.data?.prescriptions ?? []).filter((prescription) =>
+    prescription.visitId ? prescription.visitId === visitId : prescription.appointmentId === row.id,
+  );
+
+  if (!caseSheetAllowed) return null;
+  return (
+    <>
+      <VisitCaseSheetSummary clinicId={clinicId} visitId={visitId} />
+      <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+        <section aria-label="Medicines on record" className="flex flex-col gap-1">
+          <SectionTitle title="Medicines" description="Currently on the patient's record" />
+          <VisitMedicinesList caseSheet={caseSheet.data} />
+        </section>
+        <section aria-label="Prescriptions" className="flex flex-col gap-2">
+          <SectionTitle title="Prescriptions" description="Written for this visit" />
+          {prescriptions.isPending ? (
+            <div className="flex flex-col gap-1.5" role="status" aria-label="Loading prescriptions">
+              <Skeleton className="h-4 w-36 rounded" />
+              <Skeleton className="h-4 w-48 rounded" />
+            </div>
+          ) : visitRows.length === 0 ? (
+            <Note tone="blue" icon={ClipboardPlus}>
+              No prescriptions written for this visit.
+            </Note>
+          ) : (
+            <ul className="m-0 list-none p-0">
+              {visitRows.map((prescription) => (
+                <li
+                  key={prescription.id ?? prescription.createdAt}
+                  className="border-b border-hair py-2 text-[13px] first:pt-0 last:border-b-0 last:pb-0"
+                >
+                  <span className="font-bold text-ink">
+                    {(prescription.medications ?? []).map((item) => item.name).filter(Boolean).join(", ") ||
+                      "Prescription"}
+                  </span>
+                  {prescription.notes ? <span className="text-ink-muted"> · {prescription.notes}</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button variant="outline" size="sm">
+            <FileText />
+            View {visitRows.length} prescription{visitRows.length === 1 ? "" : "s"}
+          </Button>
+        </section>
+      </div>
+    </>
+  );
+}
+
 function HistoryRow({
   row,
   clinicId,
   patientId,
   caseSheetAllowed,
+  doctorEntityId,
   onOpenTab,
   onOpenVisit,
 }: { row: PatientAppointmentHistoryRow } & PatientAppointmentHistoryProps) {
@@ -138,10 +229,6 @@ function HistoryRow({
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-ink-muted">Related records</span>
-            <Button variant="outline" size="sm" onClick={() => onOpenTab("vitals")}>
-              <Heart />
-              Vitals
-            </Button>
             <Button variant="outline" size="sm" onClick={() => onOpenTab("prescriptions")}>
               <FileText />
               Prescriptions
@@ -165,7 +252,7 @@ export function PatientAppointmentHistory(props: PatientAppointmentHistoryProps)
 
   if (query.isPending) {
     return (
-      <Surface flush aria-busy="true" aria-label="Loading appointment history">
+      <Surface flush aria-busy="true" role="status" aria-label="Loading appointment history">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="flex flex-col gap-2 border-b border-hair px-5 py-3.5 last:border-b-0">
             <Skeleton className="h-4 w-56 rounded" />

@@ -45,7 +45,8 @@ type InPersonSubscriptionAppointmentData = {
   clinicId: string;
   locationId: string;
   appointmentDate: string;
-  duration: number;
+  /** Server-owned (clinic in-person visit length); booking screens leave it out. */
+  duration?: number;
   treatmentType?: string;
   priority?: string;
   notes?: string;
@@ -162,6 +163,7 @@ function toBillingPlanPayload(data: Partial<CreateBillingPlanData>, forUpdate: b
     ...(data.appointmentsIncluded !== undefined ? { appointmentsIncluded: data.appointmentsIncluded } : {}),
     ...(data.isUnlimitedAppointments !== undefined ? { isUnlimitedAppointments: data.isUnlimitedAppointments } : {}),
     ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+    ...(data.allowFamilyBooking !== undefined ? { allowFamilyBooking: data.allowFamilyBooking } : {}),
     // currency, interval and clinicId can only be set when the plan is created.
     ...(forUpdate
       ? {}
@@ -390,6 +392,43 @@ export function useCreateSubscription() {
   );
 }
 
+/** Plan bill returned by POST /billing/subscriptions/:id/desk-invoice (amounts are the server's). */
+export interface DeskPlanInvoice {
+  id: string;
+  invoiceNumber?: string | null;
+  totalAmount: number;
+  status: string;
+}
+
+/**
+ * Desk fallback for a plan purchase (reception / clinic admin): opens the plan bill the desk
+ * collects cash / UPI-at-desk against. It is never voided by the online payment window; the
+ * payment is then recorded with record-payment, which starts the plan.
+ */
+export function useOpenDeskPlanInvoice() {
+  return useMutationOperation<DeskPlanInvoice, string>(
+    async (subscriptionId: string) => {
+      const result = await clinicApiClient.post(
+        API_ENDPOINTS.BILLING.SUBSCRIPTIONS.DESK_INVOICE(subscriptionId),
+        NO_BODY,
+      );
+      const invoice =
+        unwrapObject<DeskPlanInvoice>(result.data, ['invoice']) ??
+        unwrapObject<DeskPlanInvoice>(unwrapObject<Record<string, unknown>>(result.data, ['data']), ['invoice']);
+      if (!invoice?.id) {
+        throw new Error('The plan bill could not be opened. Please try again.');
+      }
+      return { ...invoice, totalAmount: Number(invoice.totalAmount) || 0 };
+    },
+    {
+      toastId: 'subscription-desk-invoice',
+      loadingMessage: 'Opening the plan bill...',
+      successMessage: 'Plan bill ready to collect',
+      invalidateQueries: [['patient-bills'], ['invoices'], ['clinic-invoices'], ['subscriptions'], ['active-subscription']],
+    }
+  );
+}
+
 export function useCancelSubscription() {
   return useMutationOperation<Subscription, { id: string; immediate?: boolean }>(
     async ({ id, immediate }: { id: string; immediate?: boolean }) => {
@@ -402,6 +441,21 @@ export function useCancelSubscription() {
       toastId: 'subscription-cancel',
       loadingMessage: 'Cancelling subscription...',
       successMessage: 'Subscription cancelled successfully',
+      invalidateQueries: [['subscriptions'], ['active-subscription'], ['clinic-subscriptions'], ['billing-analytics']],
+    }
+  );
+}
+
+export function useRenewSubscription() {
+  return useMutationOperation<Subscription, string>(
+    async (id: string) => {
+      const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.RENEW(id), NO_BODY);
+      return (unwrapObject<Subscription>(result.data, ['subscription']) ?? (result.data as Subscription)) as Subscription;
+    },
+    {
+      toastId: 'subscription-renew',
+      loadingMessage: 'Renewing subscription...',
+      successMessage: 'Subscription renewed successfully',
       invalidateQueries: [['subscriptions'], ['active-subscription'], ['clinic-subscriptions'], ['billing-analytics']],
     }
   );
@@ -441,9 +495,11 @@ export function useInvoices(userId: string, clinicId?: string) {
     },
     {
       enabled: !!userId,
-      staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
+      // Short stale window + focus refetch: an invoice voided / paid elsewhere (worker expiry,
+      // desk payment) must not keep showing "Pay" when the patient comes back to the tab.
+      staleTime: 30 * 1000,
       gcTime: 30 * 60 * 1000, // 30 minutes
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       refetchOnMount: true,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
@@ -471,6 +527,105 @@ export function useClinicInvoices(enabled: boolean = true) {
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnMount: true,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
+    }
+  );
+}
+
+/** Server filters of the paged clinic invoice list (statuses as stored: PENDING | PAID | VOID). */
+export interface ClinicInvoicePageParams {
+  page: number;
+  limit: number;
+  status?: 'PENDING' | 'PAID' | 'VOID' | undefined;
+  q?: string | undefined;
+  /** IST day keys (`YYYY-MM-DD`), both ends inclusive. */
+  dateFrom?: string | undefined;
+  dateTo?: string | undefined;
+}
+
+export interface ClinicInvoicePage {
+  rows: Invoice[];
+  total: number;
+  page: number;
+  limit: number;
+  /** Per status for the same filters without `status` (the status chips). */
+  counts: { all: number; PENDING: number; PAID: number; VOID: number };
+}
+
+function toClinicInvoicePage(value: unknown, params: ClinicInvoicePageParams): ClinicInvoicePage {
+  const outer = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const body = (
+    !Array.isArray(outer['data']) && outer['data'] && typeof outer['data'] === 'object' ? outer['data'] : outer
+  ) as Record<string, unknown>;
+  const counts = (body['counts'] && typeof body['counts'] === 'object' ? body['counts'] : {}) as Record<string, unknown>;
+  const count = (key: string) => (typeof counts[key] === 'number' ? (counts[key] as number) : 0);
+  const rows = Array.isArray(body['data']) ? (body['data'] as Invoice[]) : [];
+  return {
+    rows,
+    total: typeof body['total'] === 'number' ? (body['total'] as number) : rows.length,
+    page: typeof body['page'] === 'number' ? (body['page'] as number) : params.page,
+    limit: typeof body['limit'] === 'number' ? (body['limit'] as number) : params.limit,
+    counts: { all: count('all'), PENDING: count('PENDING'), PAID: count('PAID'), VOID: count('VOID') },
+  };
+}
+
+function clinicInvoicePageQuery(params: ClinicInvoicePageParams): Record<string, string> {
+  const query: Record<string, string> = { page: String(params.page), limit: String(params.limit) };
+  if (params.status) query['status'] = params.status;
+  if (params.q?.trim()) query['q'] = params.q.trim();
+  if (params.dateFrom) query['dateFrom'] = params.dateFrom;
+  if (params.dateTo) query['dateTo'] = params.dateTo;
+  return query;
+}
+
+async function getClinicInvoicePage(clinicId: string | undefined, params: ClinicInvoicePageParams) {
+  const query = clinicInvoicePageQuery(params);
+  const result = await clinicApiClient.get(
+    `${API_ENDPOINTS.BILLING.INVOICES.GET_CLINIC_INVOICES}?${new URLSearchParams(query).toString()}`,
+    undefined,
+    withClinicContext(clinicId),
+  );
+  // The client spreads the body over its envelope, so `result.data` is already the row array of
+  // `{ data, total, page, limit, counts }` and the totals sit on `result` itself: parse the envelope.
+  return toClinicInvoicePage(result, params);
+}
+
+/** Largest export the invoice list walks (pages of 100). */
+export const CLINIC_INVOICE_EXPORT_MAX_ROWS = 5000;
+
+/** Every invoice matching the filters (CSV export), page by page, newest first. */
+export async function fetchAllClinicInvoices(
+  clinicId: string | undefined,
+  filters: Omit<ClinicInvoicePageParams, 'page' | 'limit'>,
+): Promise<Invoice[]> {
+  const rows: Invoice[] = [];
+  for (let page = 1; rows.length < CLINIC_INVOICE_EXPORT_MAX_ROWS; page += 1) {
+    const result = await getClinicInvoicePage(clinicId, { ...filters, page, limit: 100 });
+    rows.push(...result.rows);
+    if (result.rows.length < 100 || rows.length >= result.total) break;
+  }
+  return rows;
+}
+
+/**
+ * GET /billing/invoices/clinic?page=… — one page filtered and counted by the server (newest
+ * first). The key starts with `clinic-invoices`, so every invoice mutation's invalidation reaches it.
+ */
+export function useClinicInvoicePage(params: ClinicInvoicePageParams, enabled: boolean = true) {
+  const clinicId = useCurrentClinicId();
+  const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+
+  return useQueryData<ClinicInvoicePage>(
+    ['clinic-invoices', clinicId, 'page', clinicInvoicePageQuery(params)],
+    () => getClinicInvoicePage(clinicId, params),
+    {
+      enabled: enabled && !!clinicId,
+      staleTime: 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,
+      placeholderData: (previous) => previous,
       refetchInterval: isConnected || isAuthRefreshing ? false : 60_000,
     }
   );
@@ -815,14 +970,21 @@ export function useSendInvoiceViaWhatsApp() {
     async (invoiceId: string) => {
       // POST /billing/invoices/:id/send-whatsapp — SUPER_ADMIN, CLINIC_ADMIN only.
       const result = await clinicApiClient.post(API_ENDPOINTS.BILLING.INVOICES.SEND_WHATSAPP(invoiceId), NO_BODY);
-      const payload = result.data as { success?: boolean; error?: string } | undefined;
-      return { success: payload?.success ?? true, ...(payload?.error ? { error: payload.error } : {}) };
+      const payload = result.data as { success?: boolean; error?: string; message?: string } | undefined;
+      // A 200 that says success:false is a refusal: report it instead of a "sent" toast.
+      if (payload?.success === false) {
+        throw new Error(payload.error || payload.message || 'Failed to send invoice via WhatsApp');
+      }
+      return { success: true };
     },
     {
       toastId: 'send-invoice-whatsapp',
       loadingMessage: 'Sending invoice via WhatsApp...',
       successMessage: 'Invoice sent via WhatsApp successfully',
       errorMessage: 'Failed to send invoice via WhatsApp',
+      // Sending is not idempotent: the global mutation retry re-ran a refused send (the thrown
+      // success:false above carries no HTTP status), so the patient could get the message twice.
+      mutationOptions: { retry: false },
     }
   );
 }

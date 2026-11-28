@@ -131,6 +131,34 @@ export enum Permission {
   DELETE_BILLS = 'DELETE_BILLS',
   PROCESS_PAYMENTS = 'PROCESS_PAYMENTS',
   VIEW_FINANCIAL_REPORTS = 'VIEW_FINANCIAL_REPORTS',
+
+  // TestByDoctor workflow permissions (UI gating; the backend enforces the real rule by role)
+  /** Assistant doctor: write a prescription draft that waits for the doctor. */
+  DRAFT_PRESCRIPTIONS = 'DRAFT_PRESCRIPTIONS',
+  /** Doctor: approve, edit or return a prescription draft. */
+  REVIEW_PRESCRIPTION_DRAFTS = 'REVIEW_PRESCRIPTION_DRAFTS',
+  /** Record vitals (nurse only; product rule: no vitals in the doctor / assistant / desk workflows). */
+  RECORD_VITALS = 'RECORD_VITALS',
+  /** Hand medicines to the patient from clinic stock (assistant doctor, doctor). */
+  DISPENSE_FROM_CLINIC_STOCK = 'DISPENSE_FROM_CLINIC_STOCK',
+  /** Stock list without prices (assistant doctor). */
+  VIEW_STOCK_READONLY = 'VIEW_STOCK_READONLY',
+  /** One-click manual check-in at the desk (reception, clinic admin). */
+  CHECK_IN_PATIENTS = 'CHECK_IN_PATIENTS',
+  /** Clinic admin: check-in log and failed scans. */
+  VIEW_CHECK_IN_LOGS = 'VIEW_CHECK_IN_LOGS',
+  /** Clinic admin: show, print and regenerate location QR codes. */
+  MANAGE_LOCATION_QR = 'MANAGE_LOCATION_QR',
+  /** Clinic admin: roles and permissions matrix. */
+  MANAGE_ROLE_MATRIX = 'MANAGE_ROLE_MATRIX',
+  /** Clinic admin: letterhead / print settings. */
+  MANAGE_PRINT_SETTINGS = 'MANAGE_PRINT_SETTINGS',
+  /** Clinic admin: bulk payment / visit reminders. */
+  SEND_BULK_REMINDERS = 'SEND_BULK_REMINDERS',
+  /** Doctor: own leave and breaks. */
+  MANAGE_DOCTOR_LEAVE = 'MANAGE_DOCTOR_LEAVE',
+  /** Pharmacist: verified hand-over of a dispensed prescription. */
+  HANDOVER_MEDICINES = 'HANDOVER_MEDICINES',
 }
 
 // Role-based permissions mapping
@@ -196,7 +224,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.MANAGE_QUEUE,
     Permission.ADD_TO_QUEUE,
     Permission.REMOVE_FROM_QUEUE,
-    Permission.CALL_NEXT_PATIENT,
     Permission.UPDATE_QUEUE_STATUS,
     
     // Medical records
@@ -236,6 +263,14 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.MANAGE_BILLING,
     Permission.PROCESS_PAYMENTS,
     Permission.VIEW_FINANCIAL_REPORTS,
+
+    // TestByDoctor clinic admin
+    Permission.VIEW_CHECK_IN_LOGS,
+    Permission.MANAGE_LOCATION_QR,
+    Permission.MANAGE_ROLE_MATRIX,
+    Permission.MANAGE_PRINT_SETTINGS,
+    Permission.SEND_BULK_REMINDERS,
+    Permission.CHECK_IN_PATIENTS,
   ],
 
   [Role.DOCTOR]: [
@@ -286,11 +321,14 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.UPDATE_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     
-    // Billing (view plans)
-    Permission.VIEW_BILLING,
     
     // Analytics (limited)
     Permission.VIEW_DOCTOR_ANALYTICS,
+
+    // TestByDoctor: doctor never sees billing amounts (no billing permission on purpose)
+    Permission.REVIEW_PRESCRIPTION_DRAFTS,
+    Permission.DISPENSE_FROM_CLINIC_STOCK,
+    Permission.MANAGE_DOCTOR_LEAVE,
   ],
   
   [Role.ASSISTANT_DOCTOR]: [
@@ -321,7 +359,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     
     // Queue
     Permission.VIEW_QUEUE,
-    Permission.CALL_NEXT_PATIENT,
     Permission.UPDATE_QUEUE_STATUS,
     
     // Medical records
@@ -340,11 +377,14 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     
-    // Billing (view)
-    Permission.VIEW_BILLING,
     
     // Analytics (limited)
     Permission.VIEW_DOCTOR_ANALYTICS,
+
+    // TestByDoctor: assistant drafts, hands over from clinic stock; never sees billing amounts
+    Permission.DRAFT_PRESCRIPTIONS,
+    Permission.DISPENSE_FROM_CLINIC_STOCK,
+    Permission.VIEW_STOCK_READONLY,
   ],
   
   [Role.RECEPTIONIST]: [
@@ -372,7 +412,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.MANAGE_QUEUE,
     Permission.ADD_TO_QUEUE,
     Permission.REMOVE_FROM_QUEUE,
-    Permission.CALL_NEXT_PATIENT,
     Permission.UPDATE_QUEUE_STATUS,
     
     // Billing (front desk)
@@ -382,13 +421,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.CREATE_BILLS,
     Permission.UPDATE_BILLS,
     
-    // Video (view, create, manage)
+    // Video (view only: patients book video visits themselves)
     Permission.VIEW_VIDEO_APPOINTMENTS,
-    Permission.CREATE_VIDEO_APPOINTMENTS,
-    Permission.JOIN_VIDEO_APPOINTMENTS,
-    
-    // Medical records (view for check-in)
-    Permission.VIEW_MEDICAL_RECORDS,
     
     // Notifications
     Permission.VIEW_NOTIFICATIONS,
@@ -397,6 +431,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     
     // Settings (personal)
     Permission.MANAGE_USER_SETTINGS,
+
+    // QR / manual check-in desk
+    Permission.CHECK_IN_PATIENTS,
   ],
   
   [Role.NURSE]: [
@@ -417,7 +454,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.MANAGE_QUEUE,
     Permission.ADD_TO_QUEUE,
     Permission.UPDATE_QUEUE_STATUS,
-    Permission.CALL_NEXT_PATIENT,
     Permission.VIEW_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     Permission.VIEW_BILLING,
@@ -447,6 +483,11 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 
     // Settings (personal)
     Permission.MANAGE_USER_SETTINGS,
+
+    // Verified hand-over
+    Permission.HANDOVER_MEDICINES,
+    // Direct dispense from clinic stock (backend DISPENSE_ROLES includes PHARMACIST, contract §6)
+    Permission.DISPENSE_FROM_CLINIC_STOCK,
   ],
   
   [Role.PATIENT]: [

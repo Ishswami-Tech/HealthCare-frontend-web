@@ -40,7 +40,7 @@ const CATEGORIES: Array<{ key: SettingKey; label: string; description: string }>
 const SWITCH_CLASS =
   'h-7 w-12 border-0 p-[3px] shadow-none data-[state=unchecked]:bg-[#cbd5e1] dark:data-[state=unchecked]:bg-white/20 [&>span]:size-[22px] [&>span]:shadow-[0_1px_3px_rgba(0,0,0,0.2)] [&>span[data-state=checked]]:translate-x-5';
 
-const GROUP_TITLE = 'm-0 text-[11px] font-extrabold uppercase tracking-[0.8px] text-ink-muted';
+const GROUP_TITLE = 'm-0 text-xs font-extrabold uppercase tracking-[0.8px] text-ink-muted';
 
 function PreferenceGroup({
   title,
@@ -149,7 +149,7 @@ export function NotificationPreferences({ userId, onSave }: { userId?: string; o
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col" aria-busy="true" aria-label="Loading notification preferences">
+        <div className="flex flex-col" aria-busy="true" role="status" aria-label="Loading notification preferences">
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className="flex items-center gap-4 border-b border-hair py-[13px] last:border-b-0">
               <div className="flex flex-1 flex-col gap-1.5">

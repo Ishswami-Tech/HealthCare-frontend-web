@@ -150,6 +150,20 @@ function mapPermissionToResourceAction(permission: string): { resource: string; 
     DELETE_BILLS: { resource: 'billing', action: 'delete' },
     PROCESS_PAYMENTS: { resource: 'billing', action: 'update' },
     VIEW_FINANCIAL_REPORTS: { resource: 'billing', action: 'read' },
+
+    DRAFT_PRESCRIPTIONS: { resource: 'prescriptions', action: 'create' },
+    REVIEW_PRESCRIPTION_DRAFTS: { resource: 'prescriptions', action: 'update' },
+    RECORD_VITALS: { resource: 'medical-records', action: 'create' },
+    DISPENSE_FROM_CLINIC_STOCK: { resource: 'prescriptions', action: 'update' },
+    VIEW_STOCK_READONLY: { resource: 'prescriptions', action: 'read' },
+    CHECK_IN_PATIENTS: { resource: 'queue', action: 'create' },
+    VIEW_CHECK_IN_LOGS: { resource: 'queue', action: 'read' },
+    MANAGE_LOCATION_QR: { resource: 'clinics', action: 'update' },
+    MANAGE_ROLE_MATRIX: { resource: 'users', action: '*' },
+    MANAGE_PRINT_SETTINGS: { resource: 'settings', action: 'update' },
+    SEND_BULK_REMINDERS: { resource: 'notifications', action: 'create' },
+    MANAGE_DOCTOR_LEAVE: { resource: 'scheduling', action: 'update' },
+    HANDOVER_MEDICINES: { resource: 'prescriptions', action: 'update' },
   };
 
   const normalized = normalizePermissionName(permission);

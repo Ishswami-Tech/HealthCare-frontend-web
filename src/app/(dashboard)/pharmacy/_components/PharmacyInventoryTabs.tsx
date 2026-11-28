@@ -20,6 +20,7 @@ import {
   Truck,
   UserRound,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SkeletonList } from "@/components/ui/loading";
 import { EmptyBlock, IconBox, Kpi, Note, Pill, SegTabs, Surface, statusLabel, type TbdIcon } from "@/components/tbd";
@@ -487,12 +488,21 @@ export interface PharmacySettingsInfo {
   lastSyncedAt: string | null;
 }
 
-const SETTING_GROUPS: { title: string; rows: { icon: TbdIcon; title: string; description: string }[] }[] = [
+const SETTING_GROUPS: {
+  title: string;
+  /** `href`: the screen that edits the setting; rows without one have no API yet. */
+  rows: { icon: TbdIcon; title: string; description: string; href?: string }[];
+}[] = [
   {
     title: "Inventory Management",
     rows: [
-      { icon: Bell, title: "Stock Alert Settings", description: "When to warn about low stock and expiry" },
-      { icon: Package, title: "Auto Reorder Settings", description: "Order again when a medicine reaches its minimum" },
+      { icon: Bell, title: "Stock Alert Settings", description: "When to warn about low stock and expiry", href: "/pharmacy/alert-settings" },
+      {
+        icon: Package,
+        title: "Auto Reorder Settings",
+        description: "Order again when a medicine reaches its minimum",
+        href: "/pharmacy/alert-settings#reorder",
+      },
     ],
   },
   {
@@ -514,8 +524,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Board `PhInventorySettings`. None of the four settings has a backend endpoint, so each row is
- * shown as not available yet (no screen that pretends to save). System information shows only
+ * Board `PhInventorySettings`. Stock alerts and auto reorder open `/pharmacy/alert-settings`
+ * (reorder rules API); delivery and the payment gateway have no backend endpoint, so those rows
+ * are shown as not available yet (no screen that pretends to save). System information shows only
  * what is known: the app version, supplier and medicine counts, and the last stock-list load.
  */
 export function PharmacySettingsTab({ info }: { info: PharmacySettingsInfo }) {
@@ -536,7 +547,15 @@ export function PharmacySettingsTab({ info }: { info: PharmacySettingsInfo }) {
                     <span className="text-sm font-bold text-ink">{row.title}</span>
                     <span className="text-xs font-medium text-ink-muted">{row.description}</span>
                   </span>
-                  <Pill tone="slate">{NOT_YET}</Pill>
+                  {row.href ? (
+                    <Button asChild variant="outline" size="compact">
+                      <Link href={row.href} aria-label={`Open ${row.title}`}>
+                        Open
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Pill tone="slate">{NOT_YET}</Pill>
+                  )}
                 </li>
               ))}
             </ul>

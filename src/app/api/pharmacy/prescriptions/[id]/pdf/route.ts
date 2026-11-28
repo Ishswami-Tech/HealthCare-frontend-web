@@ -9,6 +9,24 @@ interface RouteParams {
 }
 
 /**
+ * The backend names the file ("prescription-RX-1A2B3C4D.pdf"); keep that name (sanitised) instead of
+ * a generic "prescription.pdf". Only safe characters survive, so it cannot break the header.
+ */
+function pdfFileName(contentDisposition: string | null, prescriptionId: string): string {
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(contentDisposition ?? "");
+  let raw = `prescription-${prescriptionId.slice(0, 8)}`;
+  if (match?.[1]) {
+    try {
+      raw = decodeURIComponent(match[1]).replace(/\.pdf$/i, "");
+    } catch {
+      raw = match[1].replace(/\.pdf$/i, "");
+    }
+  }
+  const safe = raw.replace(/[^A-Za-z0-9-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, 100);
+  return `${safe || "prescription"}.pdf`;
+}
+
+/**
  * Prescription PDF for the signed-in user. The backend endpoint needs the access token and clinic
  * header, which a plain link from the browser does not carry, so the page links here and this route
  * forwards the request with them.
@@ -51,13 +69,14 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const fileName = pdfFileName(backendResponse.headers.get("content-disposition"), prescriptionId);
     const pdfBuffer = await backendResponse.arrayBuffer();
     return new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
         // Opens in the browser's viewer, where it can be printed.
-        "Content-Disposition": 'inline; filename="prescription.pdf"',
+        "Content-Disposition": `inline; filename="${fileName}"`,
         "X-Content-Type-Options": "nosniff",
         "Cache-Control": "no-store",
       },

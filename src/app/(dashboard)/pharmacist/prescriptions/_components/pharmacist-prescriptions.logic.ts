@@ -4,6 +4,7 @@ import { normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 import { formatDoctorDisplayName } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST, formatDateKeyInIST, formatTimeInIST, nowIso } from "@/lib/utils/date-time";
 import type { DispensePrescriptionMedication, PharmacyBatchAuditEntry } from "@/types/pharmacy.types";
+import { checkBatchRow, findBatchOption, type BatchOptionsByMedicine } from "./dispense-batches.logic";
 import {
   DESK_STATE_LABEL,
   DESK_STATE_TONE,
@@ -78,6 +79,8 @@ export type PrescriptionRow = {
   id: string;
   /** Number shown to people ("RX-1A2B3C4D"). */
   reference: string;
+  /** Patient profile id; "" when the API did not send one. */
+  patientId?: string;
   patientName: string;
   patientPhone: string;
   /** Clinic-issued health ID (UHID); empty when none has been issued. */
@@ -99,8 +102,12 @@ export type PrescriptionRow = {
   queueCategory?: string;
   queueStatus?: "PENDING" | "DISPENSED" | "CANCELLED";
   queuePosition?: number | null;
-  /** Latest hand-over time over all medicines (ISO); null when nothing was given. */
+  /** When the patient collected the medicines at the counter (verified hand-over, ISO); null before. */
   handedOverAt: string | null;
+  /** Latest dispense time over all medicines (ISO); null when nothing was given. */
+  dispensedAt: string | null;
+  /** Latest counter hand-over state from the API ("HANDED_OVER" once collected). */
+  handoverStatus: string | null;
   medicines: PrescriptionMedicine[];
   /** The untouched API record, for the cash payment dialog shared with the dashboard. */
   raw: unknown;
@@ -198,16 +205,20 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
     };
   });
 
-  const handedOverAt =
+  const dispensedAt =
     medicines
       .map((medicine) => medicine.dispensedAt)
       .filter((value): value is string => Boolean(value))
       .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())
       .pop() ?? null;
+  const handoverRaw = asRecord(raw.handover);
+  const handoverStatus = text(handoverRaw.status).toUpperCase() || null;
+  const handedOverAt = handoverStatus === "HANDED_OVER" ? text(handoverRaw.handedOverAt) || null : null;
 
   return {
     id,
     reference: prescriptionReference(raw, id),
+    patientId: text(raw.patientId) || text(patient.id),
     patientName:
       text(patientUser.name) ||
       text(patient.name) ||
@@ -232,6 +243,8 @@ export function normalizePrescription(input: unknown): PrescriptionRow {
     queueStatus: raw.queueStatus as PrescriptionRow["queueStatus"],
     queuePosition: queueEntry.position > 0 ? queueEntry.position : null,
     handedOverAt,
+    dispensedAt,
+    handoverStatus,
     medicines,
     raw: input,
   };
@@ -302,8 +315,12 @@ export function isHistoryPrescription(prescription: PrescriptionRow): boolean {
   return prescription.status === "FILLED" || prescription.status === "CANCELLED";
 }
 
-/** A dispense can be reversed once something was handed over. */
+/**
+ * A dispense can be reversed once something was given, until the patient collected it at the
+ * counter (the API refuses it then: a return is recorded instead).
+ */
 export function canReverseDispense(prescription: PrescriptionRow): boolean {
+  if (prescription.handoverStatus === "HANDED_OVER") return false;
   return prescription.status === "PARTIAL" || prescription.status === "FILLED";
 }
 
@@ -337,6 +354,40 @@ export function sortNewestFirst(prescriptions: PrescriptionRow[]): PrescriptionR
   return [...prescriptions].sort(
     (left, right) => new Date(right.prescribedAt).getTime() - new Date(left.prescribedAt).getTime(),
   );
+}
+
+/**
+ * Order of the open (active) list at the counter: today's prescriptions first, the one waiting
+ * longest today at the top, then the backlog of earlier days (newest first). Newest-first over
+ * every day put a patient standing at the counter now below yesterday's rows.
+ */
+export function counterWorkOrder(prescriptions: readonly PrescriptionRow[], now: Date = new Date()): PrescriptionRow[] {
+  const today = formatDateKeyInIST(now);
+  const at = (row: PrescriptionRow): number => new Date(row.prescribedAt).getTime() || 0;
+  const isToday = (row: PrescriptionRow): boolean => formatDateKeyInIST(row.prescribedAt) === today;
+  return [
+    ...prescriptions.filter(isToday).sort((left, right) => at(left) - at(right)),
+    ...prescriptions.filter((row) => !isToday(row)).sort((left, right) => at(right) - at(left)),
+  ];
+}
+
+/**
+ * The stock a row shows, from the live medicine catalog when it has the medicine: the
+ * prescription list embeds each medicine's stock at the time the list was read, so a stock
+ * receipt elsewhere left the board saying "4 in stock" after the shelf held 304.
+ */
+export function withCatalogStock(
+  prescription: PrescriptionRow,
+  catalogById: ReadonlyMap<string, CatalogMedicine>,
+): PrescriptionRow {
+  let changed = false;
+  const medicines = prescription.medicines.map((medicine) => {
+    const stock = catalogById.get(medicine.medicineId)?.stock;
+    if (stock === null || stock === undefined || stock === medicine.availableStock) return medicine;
+    changed = true;
+    return { ...medicine, availableStock: stock, available: stock >= medicine.prescribedQuantity };
+  });
+  return changed ? { ...prescription, medicines } : prescription;
 }
 
 // ── Labels ─────────────────────────────────────────────────────────────────
@@ -450,6 +501,8 @@ export type DispenseLineState = {
   substituteMedicineId: string;
   substitutionReason: string;
   batches: DispenseBatchRow[];
+  /** Medicine id whose server lots pre-filled `batches` ("" until pre-filled). */
+  batchesPrefilledFor: string;
   dispenseBatchHistory?: DispenseHistoryEntry[];
 };
 
@@ -501,6 +554,7 @@ export function createDispenseLine(medicine: PrescriptionMedicine): DispenseLine
     substituteMedicineId: "",
     substitutionReason: "",
     batches: [createBatchRow(String(remaining))],
+    batchesPrefilledFor: "",
     ...(medicine.dispenseBatchHistory ? { dispenseBatchHistory: medicine.dispenseBatchHistory } : {}),
   };
 }
@@ -534,6 +588,7 @@ export type DispensePayloadResult =
 export function buildDispensePayload(
   lines: DispenseLineState[],
   catalogById: Map<string, CatalogMedicine>,
+  batchOptions: BatchOptionsByMedicine = new Map(),
 ): DispensePayloadResult {
   const medications: DispensePrescriptionMedication[] = [];
 
@@ -562,6 +617,10 @@ export function buildDispensePayload(
       return { error: `Add a substitution reason for ${line.name}.` };
     }
 
+    // Lots of the medicine really given (the substitute when one is chosen). Not loaded (or the
+    // lookup failed) counts as "no tracked batch": typed batch and expiry, checked by the server.
+    const options = batchOptions.get(line.substituteMedicineId || line.medicineId) ?? [];
+
     for (const batch of line.batches) {
       const batchQuantity = Number(batch.quantity);
       const hasBatchDetails =
@@ -573,20 +632,24 @@ export function buildDispensePayload(
         return { error: `Enter a valid batch quantity for ${line.name}.` };
       }
 
-      if (!batch.batchNumber.trim()) {
-        return { error: `Enter a batch number for ${line.name}.` };
-      }
+      const rowCheck = checkBatchRow(
+        line.name,
+        { quantity: batchQuantity, batchNumber: batch.batchNumber, expiryDate: batch.expiryDate },
+        options,
+      );
+      if (rowCheck.error) return { error: rowCheck.error };
 
-      if (!batch.expiryDate.trim()) {
-        return { error: `Enter an expiry date for ${line.name}.` };
-      }
+      const batchNumber = batch.batchNumber.trim();
+      // A tracked lot carries its own expiry from the stock record; only an untracked medicine
+      // sends the typed one.
+      const expiryDate = options.length > 0 ? findBatchOption(options, batchNumber)?.expiryDate : batch.expiryDate;
 
       medications.push({
         medicineId: line.medicineId,
         prescriptionItemId: line.prescriptionItemId,
         quantityDispensed: batchQuantity,
-        batchNumber: batch.batchNumber.trim(),
-        expiryDate: batch.expiryDate,
+        ...(batchNumber ? { batchNumber } : {}),
+        ...(batchNumber && expiryDate ? { expiryDate } : {}),
         ...(line.substituteMedicineId ? { substituteMedicineId: line.substituteMedicineId } : {}),
         ...(line.substitutionReason.trim() ? { substitutionReason: line.substitutionReason.trim() } : {}),
       });

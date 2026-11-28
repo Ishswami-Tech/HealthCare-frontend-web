@@ -2,16 +2,12 @@
 
 import type { ReactNode } from "react";
 import {
-  AlertCircle,
   Calendar as CalendarIcon,
+  CalendarCheck2,
   CheckCircle,
   Clock,
   Play,
-  UserX,
-  Video,
-  XCircle,
 } from "lucide-react";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -28,6 +24,7 @@ import {
   PageHero,
   SearchBox,
   Surface,
+  appointmentStatusLabel,
   type IconTone,
   type TbdIcon,
 } from "@/components/tbd";
@@ -50,10 +47,17 @@ interface DoctorAppointmentsSummaryProps {
   expiredAppointmentsCount: number;
   noShowAppointmentsCount: number;
   totalAppointmentsCount: number;
+  /** "Follow-ups only" toggle, orthogonal to status (a follow-up can be any status). */
+  followUpOnly: boolean;
+  followUpAppointmentsCount: number;
+  /** Visit-type filter, also orthogonal to status. */
+  visitTypeFilter: "ALL" | "IN_PERSON" | "VIDEO_CALL";
   setSearchTerm: (value: string) => void;
   setAppointmentViewFilter: (value: DoctorAppointmentViewFilter) => void;
   setDateFilter: (value: DoctorAppointmentDateFilter) => void;
   setDateRange: (from: string, to: string) => void;
+  setFollowUpOnly: (value: boolean) => void;
+  setVisitTypeFilter: (value: "ALL" | "IN_PERSON" | "VIDEO_CALL") => void;
   loading?: boolean;
   /** Replaces the live connection tag (used by the design preview). */
   connectionSlot?: ReactNode;
@@ -97,7 +101,7 @@ const DATE_OPTIONS: { value: DoctorAppointmentDateFilter; label: string }[] = [
   { value: "CUSTOM", label: "Custom range" },
 ];
 
-function statusLabel(
+function statusFilterLabel(
   value: DoctorAppointmentViewFilter,
   counts: {
     all: number;
@@ -116,17 +120,17 @@ function statusLabel(
     case "ACTIVE":
       return `Active (${counts.active})`;
     case "IN_PROGRESS":
-      return `In progress (${counts.inProgress})`;
+      return `${appointmentStatusLabel("IN_PROGRESS")} (${counts.inProgress})`;
     case "CONFIRMED":
-      return `Confirmed (${counts.confirmed})`;
+      return `${appointmentStatusLabel("CONFIRMED")} (${counts.confirmed})`;
     case "COMPLETED":
-      return `Completed (${counts.completed})`;
+      return `${appointmentStatusLabel("COMPLETED")} (${counts.completed})`;
     case "CANCELLED":
-      return `Cancelled (${counts.cancelled})`;
+      return `${appointmentStatusLabel("CANCELLED")} (${counts.cancelled})`;
     case "EXPIRED":
-      return `Expired (${counts.expired})`;
+      return `${appointmentStatusLabel("EXPIRED")} (${counts.expired})`;
     case "NO_SHOW":
-      return `No show (${counts.noShow})`;
+      return `${appointmentStatusLabel("NO_SHOW")} (${counts.noShow})`;
     default:
       return value;
   }
@@ -149,10 +153,15 @@ export function DoctorAppointmentsSummary({
   expiredAppointmentsCount,
   noShowAppointmentsCount,
   totalAppointmentsCount,
+  followUpOnly,
+  followUpAppointmentsCount,
+  visitTypeFilter,
   setSearchTerm,
   setAppointmentViewFilter,
   setDateFilter,
   setDateRange,
+  setFollowUpOnly,
+  setVisitTypeFilter,
   loading = false,
   connectionSlot,
 }: DoctorAppointmentsSummaryProps) {
@@ -185,28 +194,17 @@ export function DoctorAppointmentsSummary({
         title="My Appointments"
         description={`Today is ${todayLabel || "today"}. Review active visits and appointment history.`}
         badge={connectionSlot ?? <ConnectionPill />}
-        actions={
-          <BookAppointmentDialog
-            {...(clinicId ? { clinicId } : {})}
-            {...(userId ? { initialDoctorId: userId } : {})}
-            trigger={
-              <Button size="md" className="w-full sm:w-auto">
-                <Video />
-                Book Video Appointment
-              </Button>
-            }
-          />
-        }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7" role="group" aria-label="Appointment counts">
-        <StatTile label="Active" value={activeAppointmentsCount} icon={Clock} tone="slate" loading={loading} />
-        <StatTile label="In Progress" value={inProgressAppointmentsCount} icon={Play} tone="blue" loading={loading} />
-        <StatTile label="Completed" value={completedAppointmentsCount} icon={CheckCircle} tone="mint" loading={loading} />
-        <StatTile label="Cancelled" value={cancelledAppointmentsCount} icon={XCircle} tone="rose" loading={loading} />
-        <StatTile label="Expired" value={expiredAppointmentsCount} icon={AlertCircle} tone="slate" loading={loading} />
-        <StatTile label="No Show" value={noShowAppointmentsCount} icon={UserX} tone="amber" loading={loading} />
-        <StatTile label="Total (excl. expired)" value={totalAppointmentsCount} icon={CalendarIcon} tone="video" loading={loading} />
+      {/* Four tiles that actually partition the list — each visit counts in exactly one, so they
+          add up to something a doctor can trust at a glance. Cancelled / expired / no-show are
+          still one click away in the status dropdown below (same as "Confirmed" already was);
+          they're audit information, not what a doctor needs to see on every page load. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="group" aria-label="Appointment counts">
+        <StatTile label="Still to see" value={activeAppointmentsCount} icon={Clock} tone="slate" loading={loading} />
+        <StatTile label={appointmentStatusLabel("IN_PROGRESS")} value={inProgressAppointmentsCount} icon={Play} tone="blue" loading={loading} />
+        <StatTile label={appointmentStatusLabel("COMPLETED")} value={completedAppointmentsCount} icon={CheckCircle} tone="mint" loading={loading} />
+        <StatTile label="Total" value={totalAppointmentsCount} icon={CalendarIcon} tone="video" loading={loading} />
       </div>
 
       <Surface as="section" aria-label="Filter appointments" className="!p-3.5 sm:!p-4">
@@ -268,11 +266,40 @@ export function DoctorAppointmentsSummary({
             <SelectContent>
               {statusValues.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {statusLabel(value, counts)}
+                  {statusFilterLabel(value, counts)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+
+          <Select
+            value={visitTypeFilter}
+            onValueChange={(value) => setVisitTypeFilter(value as "ALL" | "IN_PERSON" | "VIDEO_CALL")}
+          >
+            <SelectTrigger
+              aria-label="Filter by visit type"
+              className="h-10 w-full rounded-xl border-line text-[13px] font-semibold lg:w-[150px]"
+            >
+              <SelectValue placeholder="Visit type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All visit types</SelectItem>
+              <SelectItem value="IN_PERSON">In-clinic</SelectItem>
+              <SelectItem value="VIDEO_CALL">Video call</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            type="button"
+            variant={followUpOnly ? "default" : "outline"}
+            size="md"
+            aria-pressed={followUpOnly}
+            className="h-10 shrink-0 rounded-xl text-[13px] font-semibold"
+            onClick={() => setFollowUpOnly(!followUpOnly)}
+          >
+            <CalendarCheck2 aria-hidden="true" className="size-4" />
+            Follow-ups ({followUpAppointmentsCount})
+          </Button>
 
           <div className="min-w-0 flex-1">
             <SearchBox

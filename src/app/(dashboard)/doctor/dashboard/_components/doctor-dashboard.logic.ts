@@ -3,16 +3,19 @@ import type { CanonicalQueueEntry } from "@/types/queue.types";
 import { resolveQueueDisplayLabel } from "@/lib/queue/queue-adapter";
 import {
   formatDateInIST,
+  formatTimeInIST,
   getAppointmentDateTimeValue,
   getAppointmentPaymentDisplayState,
   getAppointmentPatientName,
+  getAppointmentPatientRemarks,
+  getAppointmentViewState,
   getDisplayAppointmentDuration,
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
   VIDEO_JOIN_EARLY_WINDOW_MINUTES,
   VIDEO_JOIN_LATE_WINDOW_MINUTES,
 } from "@/lib/utils/appointmentUtils";
-import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
+import { doctorTitleName, resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { ageInYears } from "@/lib/utils/date-time";
 import { genderLabel } from "@/lib/utils/labels";
 
@@ -48,7 +51,7 @@ export interface TransformedAppointment {
   sentToPharmacy: boolean;
 }
 
-export type DoctorAppointmentFilter = "ALL" | "CONFIRMED" | "COMPLETED";
+export type DoctorAppointmentFilter = "ALL" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 /** What a row of "Today's Appointments" lets the doctor do. */
 export type DoctorTodayRowAction = "START" | "START_LOCKED" | "JOIN" | "PRESCRIBE" | "COMPLETE" | "NONE";
@@ -96,12 +99,25 @@ export interface CompletedVisitSummary {
 /** One line of the right-rail Live Queue. */
 export interface DoctorQueueLine {
   key: string;
+  /** The visit of this line ("" when the queue did not say), for call-next and the visit screen. */
+  appointmentId: string;
   position: number;
   patientName: string;
   label: string;
   status: "IN_PROGRESS" | "CHECKED_IN" | "QUEUED";
   /** Minutes of waiting, when the queue reports them. */
   waitMinutes: number | null;
+}
+
+/** One line of the right-rail "Follow-ups" card: an upcoming review visit booked from an earlier one. */
+export interface DoctorFollowUpLine {
+  key: string;
+  appointmentId: string;
+  patientName: string;
+  /** "Wed, 12 Nov" */
+  dateLabel: string;
+  /** "10:30 AM", or "" when the slot has no time yet. */
+  timeLabel: string;
 }
 
 export interface PrescriptionModalState {
@@ -214,17 +230,9 @@ export function doctorDashboardReducer(
   }
 }
 
-export const getDisplayDoctorName = (name?: string | null) => {
-  const resolvedName = resolveDisplayNameAndInitials({
-    name: name || undefined,
-    role: "DOCTOR",
-  }).displayName;
-  const cleaned = String(resolvedName || "")
-    .replace(/^dr\.?\s+/i, "")
-    .trim();
-
-  return cleaned === "User" ? "Doctor" : cleaned || "Doctor";
-};
+/** "Dr. Chandrakumar Deshmukh", or "Doctor" when no real name is known (never "Dr. Doctor"). */
+export const getDisplayDoctorName = (name?: string | null): string =>
+  doctorTitleName(resolveDisplayNameAndInitials({ name: name || undefined, role: "DOCTOR" }).displayName);
 
 export function normalizeQueueToken(value?: string | null): string {
   return String(value || "")
@@ -317,8 +325,11 @@ export function mapDoctorAppointmentToTimelineItem(
         ? "TODAY"
         : "UPCOMING";
 
-  let displayStatus = apt.status as string;
-  if (apt.status === "IN_PROGRESS") displayStatus = "IN PROGRESS";
+  // Same status the appointments list shows (`getAppointmentViewState`), so one visit never reads
+  // SCHEDULED here and CONFIRMED there.
+  const viewStatus = getAppointmentViewState(apt).normalizedStatus as AppointmentStatus;
+  let displayStatus = viewStatus as string;
+  if (viewStatus === "IN_PROGRESS") displayStatus = "IN PROGRESS";
 
   return {
     id: apt.id,
@@ -329,9 +340,9 @@ export function mapDoctorAppointmentToTimelineItem(
     time: `${dateLabel} - ${timeLabel}`,
     scheduleState,
     status: displayStatus.replace(/_/g, " "),
-    statusEnum: apt.status,
+    statusEnum: viewStatus,
     type: apt.type || "Consultation",
-    duration: `${displayDuration || 30} min`,
+    duration: displayDuration ? `${displayDuration} min` : "",
     notes: apt.notes || "",
     isVideo: apt.type === "VIDEO_CALL",
     priority: apt.priority || "NORMAL",
@@ -378,14 +389,14 @@ export function getPatientMetaLabel(apt: AppointmentWithRelations): string {
   return parts.join(" · ");
 }
 
-/** The reason for the visit: the booking reason, else the listed symptoms, else the booking note. */
+/** The reason for the visit: the patient's booking remark, else the listed symptoms. */
 export function getVisitReason(apt: AppointmentWithRelations): string {
-  const reason = readText(apt, "reason") || readText(apt, "chiefComplaint");
-  if (reason) return reason;
+  const { remark } = getAppointmentPatientRemarks(apt);
+  if (remark) return remark;
   if (Array.isArray(apt.symptoms) && apt.symptoms.length > 0) {
     return apt.symptoms.filter((symptom) => typeof symptom === "string" && symptom.trim()).join(", ");
   }
-  return (apt.notes || "").trim();
+  return "";
 }
 
 const clockFormatter = new Intl.DateTimeFormat("en-IN", {
@@ -570,6 +581,7 @@ export function buildDoctorQueueLines(
 
     lines.push({
       key: entry.entryId || entry.appointmentId || `${entry.patientId}-${entry.position}`,
+      appointmentId: entry.appointmentId || "",
       position: entry.position > 0 ? entry.position : lines.length + 1,
       patientName: hasQueueName ? queueName : appointment?.patientName || "Patient",
       label: getDoctorQueueLaneLabel(entry) === "Uncategorized" ? "General Consultation" : getDoctorQueueLaneLabel(entry),
@@ -579,6 +591,26 @@ export function buildDoctorQueueLines(
   });
 
   return lines;
+}
+
+/** Right-rail "Follow-ups" card: the doctor's own upcoming review visits, soonest first. */
+export function buildDoctorFollowUpLines(appointments: AppointmentWithRelations[]): DoctorFollowUpLine[] {
+  return appointments
+    .map((appointment) => {
+      const dateTime = getAppointmentDateTimeValue(appointment);
+      return {
+        key: appointment.id,
+        appointmentId: appointment.id,
+        patientName: getAppointmentPatientName(appointment) || "Patient",
+        dateLabel: dateTime ? formatDateInIST(dateTime, { weekday: "short", day: "2-digit", month: "short" }) : "",
+        timeLabel: dateTime
+          ? formatTimeInIST(dateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+          : "",
+        sortMs: dateTime ? dateTime.getTime() : Number.MAX_SAFE_INTEGER,
+      };
+    })
+    .sort((left, right) => left.sortMs - right.sortMs)
+    .map(({ sortMs: _sortMs, ...line }) => line);
 }
 
 export function buildDoctorDashboardStats(
@@ -601,7 +633,7 @@ export function buildDoctorDashboardStats(
 
   return {
     todayAppointments: todayApts.length,
-    confirmedToday: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "CONFIRMED").length,
+    confirmedToday: todayApts.filter((apt: AppointmentWithRelations) => getAppointmentViewState(apt).normalizedStatus === "CONFIRMED").length,
     inPersonToday: todayApts.filter((apt: AppointmentWithRelations) => String(apt.type || "").toUpperCase() === "IN_PERSON").length,
     liveQueueCount: liveQueueEntries.length,
     checkedInPatients: todayApts.filter((apt: AppointmentWithRelations) => Boolean(apt.checkedInAt)).length,

@@ -257,7 +257,11 @@ export const supplierSchema = z.object({
     .string()
     .trim()
     .max(30, "Use 30 characters or fewer.")
-    .refine((value) => value === "" || /^\+?[\d\s()-]{6,}$/.test(value), "Enter a valid phone number."),
+    // Same rule as the API (SUPPLIER_PHONE_PATTERN): 7-15 digits, optional +, spaces or dashes.
+    .refine(
+      (value) => value === "" || /^(?=(?:\D*\d){7,15}\D*$)\+?[0-9][0-9 -]*[0-9]$/.test(value),
+      "Enter a valid phone number (7-15 digits; +, spaces and dashes are allowed).",
+    ),
   email: z
     .string()
     .trim()

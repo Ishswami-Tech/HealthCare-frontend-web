@@ -5,7 +5,6 @@ import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import {
   getPrakritiAssessments,
   getDoshaImbalances,
-  getAyurvedicDiagnoses,
   getNadiParikshaRecords,
   getAyurvedaTimeline,
 } from "@/lib/actions/ayurveda.server";
@@ -30,19 +29,10 @@ type DoshaEntry = {
   imbalanceLevel: string;
 };
 
-type DiagnosisEntry = {
-  id: string;
-  patientId: string;
-  diagnosisLabel: string;
-  primaryDosha: string;
-  severity: string;
-};
-
 type Summary = {
   totalPrakriti: number;
   totalNadi: number;
   totalDosha: number;
-  totalDiagnoses: number;
 };
 
 export function useAyurvedaDashboard() {
@@ -87,29 +77,17 @@ export function useAyurvedaDashboard() {
     { refetchInterval: isConnected ? false : 120_000 }
   );
 
-  const diagnosisQuery = useQueryData<DiagnosisEntry[]>(
-    ["ayurveda", "diagnoses"],
-    async () => {
-      try {
-        const data = await getAyurvedicDiagnoses("");
-        return Array.isArray(data) ? data : [];
-      } catch {
-        return [];
-      }
-    },
-    { refetchInterval: isConnected ? false : 120_000 }
-  );
+  // No clinic-wide diagnosis list: the backend serves diagnoses only by id (GET /ayurveda/diagnoses/:id)
+  // and per patient through the timeline (GET /ayurveda/patients/:patientId/timeline).
 
   const prakritiData = prakritiQuery.data ?? [];
   const nadiData = nadiQuery.data ?? [];
   const doshaData = doshaQuery.data ?? [];
-  const diagnosisData = diagnosisQuery.data ?? [];
 
   const summary: Summary = {
     totalPrakriti: prakritiData.length,
     totalNadi: nadiData.length,
     totalDosha: doshaData.length,
-    totalDiagnoses: diagnosisData.length,
   };
 
   const isLoading = prakritiQuery.isPending || nadiQuery.isPending;
@@ -119,13 +97,11 @@ export function useAyurvedaDashboard() {
     recentPrakriti: prakritiData.slice(0, 10),
     recentNadi: nadiData.slice(0, 10),
     doshaTrends: doshaData.slice(0, 10),
-    recentDiagnoses: diagnosisData.slice(0, 10),
     isLoading,
     refetch: () => {
       prakritiQuery.refetch();
       nadiQuery.refetch();
       doshaQuery.refetch();
-      diagnosisQuery.refetch();
     },
   };
 }

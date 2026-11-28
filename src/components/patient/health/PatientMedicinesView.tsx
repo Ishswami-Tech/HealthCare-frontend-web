@@ -6,12 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyBlock, InitialsAvatar, PageHead, Pill, SearchBox, SoftCard, Surface } from "@/components/tbd";
 import { cn } from "@/lib/utils";
+import { LoadErrorAlert } from "@/components/patient/LoadErrorAlert";
+import { HandoverCodePanel } from "./HandoverCodePanel";
 import { PrescriptionDetailsDialog } from "./PrescriptionDetailsDialog";
 import {
   PHARMACY_STATE,
+  canCollect,
   canPay,
+  deskCardMeta,
+  deskCardStatus,
   filterPrescriptions,
+  isAdviceOnly,
   medicinesLabel,
+  prescriptionStatusPill,
   type CurrentMedicine,
   type PatientPrescription,
 } from "./patient-health.logic";
@@ -32,6 +39,8 @@ export interface PatientMedicinesViewProps {
   prescriptions: PatientPrescription[];
   isLoading?: boolean;
   failed?: boolean;
+  /** A refresh failed while an earlier list is still on screen. */
+  refreshFailed?: boolean;
   onRetry: () => void;
   /** The amber Pay button of the existing payment flow. */
   renderPay: (prescription: PatientPrescription, placement: "card" | "dialog") => ReactNode;
@@ -48,14 +57,15 @@ function DeskCard({
   prescription: PatientPrescription;
   renderPay: PatientMedicinesViewProps["renderPay"];
 }) {
+  // Everything on this card is read from this prescription only (status, number, medicines).
   const due = canPay(prescription);
-  const meta = [prescription.number, medicinesLabel(prescription.lines.length), prescription.queueLabel]
-    .filter(Boolean)
-    .join(" · ");
+  const status = deskCardStatus(prescription);
+  const meta = deskCardMeta(prescription);
   return (
     <Surface
       as="section"
-      aria-label={due ? `Payment pending for ${prescription.number}` : `${prescription.number} at the medicine desk`}
+      aria-label={`${status.label}: ${prescription.number}`}
+      data-testid={`desk-card-${prescription.id}`}
       className={cn(
         "gap-4",
         due ? "border border-[#fed7aa] dark:border-orange-900/70" : "border border-[#a7f3d0] dark:border-emerald-900/70",
@@ -78,7 +88,7 @@ function DeskCard({
               due ? "text-[#7c2d12] dark:text-orange-200" : "text-brand-dark",
             )}
           >
-            {due ? PHARMACY_STATE.awaiting_payment.label : PHARMACY_STATE[prescription.state].label}
+            {status.label}
           </span>
           <span className={cn("text-[13px]", due ? "text-[#9a3412] dark:text-orange-300" : "text-ink-muted")}>{meta}</span>
         </div>
@@ -86,9 +96,11 @@ function DeskCard({
       <p className="m-0 text-[13px] text-ink-muted">
         {due
           ? "Medicines are handed over after the payment is received."
-          : "Collect your medicines at the medicine desk."}
+          : canCollect(prescription)
+            ? "Show the code at the medicine desk to collect these medicines."
+            : "The pharmacy is preparing these medicines."}
       </p>
-      {due ? renderPay(prescription, "card") : null}
+      {due ? renderPay(prescription, "card") : <HandoverCodePanel prescription={prescription} />}
     </Surface>
   );
 }
@@ -99,6 +111,7 @@ export function PatientMedicinesView({
   prescriptions,
   isLoading = false,
   failed = false,
+  refreshFailed = false,
   onRetry,
   renderPay,
   onDownloadBill,
@@ -112,10 +125,13 @@ export function PatientMedicinesView({
   const selected = selectedId ? (prescriptions.find((prescription) => prescription.id === selectedId) ?? null) : null;
   const filtered = filterPrescriptions(prescriptions, searchTerm);
   const shown = filtered.slice(0, visible);
-  // Open prescriptions that need the patient: something to pay, or waiting at the medicine desk.
+  // Open prescriptions that need the patient: something to pay, waiting at the medicine desk,
+  // or paid and dispensed so the medicines can be collected with a code.
   const deskCards = prescriptions.filter(
     (prescription) =>
-      canPay(prescription) || (prescription.atDesk && prescription.state !== "dispensed" && prescription.state !== "cancelled"),
+      canPay(prescription) ||
+      canCollect(prescription) ||
+      (prescription.atDesk && prescription.state !== "dispensed" && prescription.state !== "cancelled"),
   );
   const sourceCount = new Set(medicines.map((medicine) => medicine.prescriptionId).filter(Boolean)).size;
 
@@ -139,6 +155,14 @@ export function PatientMedicinesView({
           />
         </Surface>
       ) : (
+        <>
+        {refreshFailed ? (
+          <LoadErrorAlert
+            title="We could not refresh your prescriptions."
+            detail="Please check your connection. Showing the last list we loaded."
+            onRetry={onRetry}
+          />
+        ) : null}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-col gap-5">
             <SoftCard as="section" aria-label="Medicines you take now">
@@ -154,7 +178,7 @@ export function PatientMedicinesView({
                       </span>
                     )}
                     {!isLoading && sourceCount > 0 ? (
-                      <span className="whitespace-nowrap rounded-[8px] bg-[#facc15] px-[9px] py-[5px] text-[11px] font-extrabold text-[#422006]">
+                      <span className="whitespace-nowrap rounded-[8px] bg-[#facc15] px-[9px] py-[5px] text-xs font-extrabold text-[#422006]">
                         From {sourceCount} {sourceCount === 1 ? "prescription" : "prescriptions"}
                       </span>
                     ) : null}
@@ -173,7 +197,7 @@ export function PatientMedicinesView({
                 Current medicines
               </h2>
               {isLoading ? (
-                <div className="flex flex-col" aria-busy="true" aria-label="Loading your medicines">
+                <div className="flex flex-col" aria-busy="true" role="status" aria-label="Loading your medicines">
                   {[0, 1, 2].map((index) => (
                     <div key={index} className="flex items-center gap-3.5 border-b border-hair py-3.5 last:border-b-0">
                       <Skeleton className="size-11 shrink-0 rounded-[14px]" />
@@ -252,7 +276,7 @@ export function PatientMedicinesView({
                 />
               ) : null}
               {isLoading ? (
-                <div className="flex flex-col" aria-busy="true" aria-label="Loading your prescriptions">
+                <div className="flex flex-col" aria-busy="true" role="status" aria-label="Loading your prescriptions">
                   {[0, 1].map((index) => (
                     <div key={index} className="flex items-center gap-3.5 border-b border-hair py-3.5 last:border-b-0">
                       <Skeleton className="size-11 shrink-0 rounded-xl" />
@@ -274,13 +298,12 @@ export function PatientMedicinesView({
               ) : (
                 <ul className="m-0 flex list-none flex-col p-0">
                   {shown.map((prescription) => {
-                    const state = PHARMACY_STATE[prescription.state];
+                    const state = prescriptionStatusPill(prescription);
                     return (
                       <li key={prescription.id} className="border-b border-hair last:border-b-0">
                         <button
                           type="button"
                           onClick={() => setSelectedId(prescription.id)}
-                          aria-label={`Open ${prescription.number}`}
                           className="flex w-full items-center gap-3.5 rounded-lg py-3.5 text-left text-ink hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
                         >
                           {prescription.doctorName ? (
@@ -300,9 +323,15 @@ export function PatientMedicinesView({
                             <span className="text-xs text-ink-muted">
                               {[prescription.dateLabel, medicinesLabel(prescription.lines.length)].filter(Boolean).join(" · ")}
                             </span>
-                            <Pill tone={state.tone} className="mt-1">
-                              {state.label}
-                            </Pill>
+                            {isAdviceOnly(prescription) ? (
+                              <Pill tone="slate" className="mt-1">
+                                Advice only
+                              </Pill>
+                            ) : (
+                              <Pill tone={state.tone} className="mt-1">
+                                {state.label}
+                              </Pill>
+                            )}
                           </span>
                           <ChevronRight className="size-4 shrink-0 text-ink-soft" strokeWidth={2.2} aria-hidden="true" />
                         </button>
@@ -319,6 +348,7 @@ export function PatientMedicinesView({
             </Surface>
           </div>
         </div>
+        </>
       )}
 
       <PrescriptionDetailsDialog

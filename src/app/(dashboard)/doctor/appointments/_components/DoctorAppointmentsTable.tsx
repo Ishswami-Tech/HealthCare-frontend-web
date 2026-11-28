@@ -17,10 +17,12 @@ import {
   Video,
 } from "lucide-react";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import { DoctorCaseSheetDialog } from "../../dashboard/_components/DoctorCaseSheetDialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CellTitle, EmptyBlock, InitialsAvatar, Pill, Surface, statusLabel, statusTone } from "@/components/tbd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CellTitle, EmptyBlock, InitialsAvatar, Pill, Surface, appointmentStatusLabel, statusTone } from "@/components/tbd";
 import { VIDEO_JOIN_EARLY_WINDOW_MINUTES, isTerminalAppointmentStatus } from "@/lib/utils/appointmentUtils";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import { cn } from "@/lib/utils";
@@ -31,15 +33,12 @@ import type { DoctorAppointmentDetailsTab } from "./DoctorAppointmentsDetailsDia
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 /**
- * One line per visit on a wide card (patient, type, status, details, actions).
+ * One line per visit on a wide card (patient, type, status, patient remarks, actions).
  * On a narrow card the same cells stack: name and status first, then the rest.
  * `@5xl` is a container width, so the layout follows the card, not the window.
  */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_100px_minmax(0,1.1fr)_388px] @5xl:items-center @5xl:gap-x-4";
-/** Same grid without the Details column (no row has a complaint or reason to show). */
-const ROW_GRID_NO_DETAILS =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_100px_388px] @5xl:items-center @5xl:gap-x-4";
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 @5xl:grid-cols-[minmax(0,1.5fr)_minmax(0,0.85fr)_minmax(0,1fr)_100px_minmax(0,1fr)_388px] @5xl:items-center @5xl:gap-x-4";
 const CELL_BELOW = "col-[2/-1] @5xl:col-auto @5xl:row-auto";
 
 interface DoctorAppointmentsTableProps {
@@ -61,7 +60,6 @@ interface DoctorAppointmentsTableProps {
   onStart: (appointment: TransformedAppointment) => void;
   onComplete: (appointment: TransformedAppointment) => void;
   onReschedule: (appointment: TransformedAppointment) => void;
-  onCancel: (appointment: TransformedAppointment) => void;
 }
 
 /**
@@ -87,30 +85,77 @@ export function completeBlockedReason(appointment: TransformedAppointment): stri
   return "The visit must be confirmed and started before it can be completed.";
 }
 
-/** An icon button that stays reachable when disabled: the reason is in its name and on hover. */
+/** Icon-only row action with a visible tooltip and a matching accessible name. */
+function TooltipIconButton({
+  tooltip,
+  label,
+  onClick,
+  href,
+  children,
+}: {
+  /** Short visible hint, e.g. "View details". */
+  tooltip: string;
+  /** Accessible name, e.g. "View details for Asha Rao". */
+  label: string;
+  onClick?: () => void;
+  href?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {href ? (
+          <Button asChild variant="outline" size="icon">
+            <Link href={href} aria-label={label}>
+              {children}
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="icon" onClick={onClick} aria-label={label}>
+            {children}
+          </Button>
+        )}
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * An icon button that stays reachable when disabled: the wrapper takes focus and hover so the
+ * tooltip can say why, and the reason is in the button's name too.
+ */
 function BlockableIconButton({
+  tooltip,
   label,
   blockedReason,
   onClick,
   children,
 }: {
+  tooltip: string;
   label: string;
   blockedReason: string | null;
   onClick: () => void;
   children: ReactNode;
 }) {
+  const blocked = blockedReason !== null;
   return (
-    <span title={blockedReason ?? label} className="inline-flex">
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={onClick}
-        disabled={blockedReason !== null}
-        aria-label={blockedReason ? `${label} unavailable: ${blockedReason}` : label}
-      >
-        {children}
-      </Button>
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex rounded-xl" tabIndex={blocked ? 0 : undefined}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onClick}
+            disabled={blocked}
+            aria-label={blocked ? `${label} unavailable: ${blockedReason}` : label}
+          >
+            {children}
+          </Button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64">{blocked ? `${tooltip}: ${blockedReason}` : tooltip}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -123,7 +168,6 @@ function RowActions({
   onStart,
   onComplete,
   onReschedule,
-  onCancel,
 }: Pick<
   DoctorAppointmentsTableProps,
   | "clinicId"
@@ -133,7 +177,6 @@ function RowActions({
   | "onStart"
   | "onComplete"
   | "onReschedule"
-  | "onCancel"
 > & { appointment: TransformedAppointment }) {
   const openVideo = () => {
     window.location.assign(buildVideoSessionRoute(app.id));
@@ -142,45 +185,34 @@ function RowActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button
-        variant="outline"
-        size="icon"
+      <TooltipIconButton
+        tooltip="View details"
+        label={`View details for ${app.patientName}`}
         onClick={() => onOpenDetails(app)}
-        aria-label={`View details for ${app.patientName}`}
-        title="View details"
       >
         <Eye />
-      </Button>
+      </TooltipIconButton>
 
+      {/* Doctors move visits but never cancel them (product rule), so there is no cancel action. */}
       {closed ? null : (
-        <>
-          <BlockableIconButton
-            label={`Reschedule ${app.patientName}`}
-            blockedReason={app.rescheduleBlockedReason}
-            onClick={() => onReschedule(app)}
-          >
-            <CalendarClock />
-          </BlockableIconButton>
-          <BlockableIconButton
-            label={`Cancel visit for ${app.patientName}`}
-            blockedReason={app.cancelBlockedReason}
-            onClick={() => onCancel(app)}
-          >
-            <CalendarX />
-          </BlockableIconButton>
-        </>
+        <BlockableIconButton
+          tooltip="Reschedule"
+          label={`Reschedule ${app.patientName}`}
+          blockedReason={app.rescheduleBlockedReason}
+          onClick={() => onReschedule(app)}
+        >
+          <CalendarClock />
+        </BlockableIconButton>
       )}
 
       {app.patientId ? (
-        <Button asChild variant="outline" size="icon">
-          <Link
-            href={`/doctor/patients/${encodeURIComponent(app.patientId)}`}
-            aria-label={`Open EHR for ${app.patientName}`}
-            title="Open EHR"
-          >
-            <FileText />
-          </Link>
-        </Button>
+        <TooltipIconButton
+          tooltip="Patient record (EHR)"
+          label={`Open EHR for ${app.patientName}`}
+          href={`/doctor/patients/${encodeURIComponent(app.patientId)}`}
+        >
+          <FileText />
+        </TooltipIconButton>
       ) : null}
 
       {app.canJoinVideo ? (
@@ -191,16 +223,26 @@ function RowActions({
       ) : null}
 
       {app.joinOpensLater ? (
-        <span className="text-xs font-medium text-ink-muted">
+        <span className="whitespace-nowrap text-xs font-medium text-ink-muted">
           Join opens {VIDEO_JOIN_EARLY_WINDOW_MINUTES} min before
         </span>
       ) : null}
 
       {app.status === "CONFIRMED" && !app.isVideo ? (
-        <Button onClick={() => onStart(app)} disabled={startAppointmentPending}>
-          {startAppointmentPending ? <Loader2 className="animate-spin" /> : <Play />}
-          Start
-        </Button>
+        app.checkedInAt ? (
+          <Button onClick={() => onStart(app)} disabled={startAppointmentPending}>
+            {startAppointmentPending ? <Loader2 className="animate-spin" /> : <Play />}
+            Start
+          </Button>
+        ) : (
+          // The visit page only opens for a checked-in patient, so Start would be a dead end.
+          <span
+            className="whitespace-nowrap text-xs font-medium text-ink-muted"
+            title="You consult only patients who have checked in at the desk."
+          >
+            Waiting for check-in
+          </span>
+        )
       ) : null}
 
       {canCompleteConfirmedVideoVisit(app) ? (
@@ -219,15 +261,13 @@ function RowActions({
       {app.status === "IN_PROGRESS" ? (
         <>
           {app.isVideo ? (
-            <Button
-              variant="outline"
-              size="icon"
+            <TooltipIconButton
+              tooltip="Open video call"
+              label={`Open video call with ${app.patientName}`}
               onClick={openVideo}
-              aria-label={`Open video call with ${app.patientName}`}
-              title="Open video"
             >
               <Video />
-            </Button>
+            </TooltipIconButton>
           ) : null}
           <Button variant="soft" onClick={() => onOpenDetails(app, "prescription")}>
             <PillIcon />
@@ -268,6 +308,36 @@ function RowActions({
   );
 }
 
+/** One truncated line of what the patient wrote when booking; the full text is in the tooltip. */
+function PatientRemarkCell({ remark, urgency }: { remark: string; urgency: string | null }) {
+  const urgencyPill = urgency ? <Pill tone={statusTone(urgency)}>{urgency}</Pill> : null;
+  if (!remark) {
+    return (
+      <span className="flex min-w-0 items-center gap-2 text-sm text-ink-muted">
+        {urgencyPill}
+        <span aria-label="No patient remarks">—</span>
+      </span>
+    );
+  }
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      {urgencyPill}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            className="min-w-0 truncate rounded text-sm font-medium text-ink focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
+            aria-label={`Patient remarks: ${remark}`}
+          >
+            {remark}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-80 whitespace-pre-wrap text-left">{remark}</TooltipContent>
+      </Tooltip>
+    </span>
+  );
+}
+
 function SkeletonRows({ rows = 5, rowGrid }: { rows?: number; rowGrid: string }) {
   return (
     <div aria-hidden="true">
@@ -282,16 +352,19 @@ function SkeletonRows({ rows = 5, rowGrid }: { rows?: number; rowGrid: string })
           </div>
           <div className={cn(CELL_BELOW, "row-[2] flex flex-col gap-1.5")}>
             <Skeleton className="h-3.5 w-24 rounded" />
-            <Skeleton className="h-3 w-40 max-w-full rounded" />
+          </div>
+          <div className={cn(CELL_BELOW, "row-[3] flex flex-col gap-1.5")}>
+            <Skeleton className="h-3.5 w-24 rounded" />
+            <Skeleton className="h-3 w-20 rounded" />
           </div>
           <div className="col-[2] row-[1] @5xl:col-auto @5xl:row-auto">
             <Skeleton className="h-[22px] w-20 rounded-lg" />
           </div>
-          <div className={cn(CELL_BELOW, "row-[3] flex flex-col gap-1.5")}>
+          <div className={cn(CELL_BELOW, "row-[4] flex flex-col gap-1.5")}>
             <Skeleton className="h-3.5 w-36 max-w-full rounded" />
             <Skeleton className="h-3 w-24 rounded" />
           </div>
-          <div className={cn(CELL_BELOW, "row-[4] flex gap-2")}>
+          <div className={cn(CELL_BELOW, "row-[5] flex gap-2")}>
             <Skeleton className="size-9 rounded-xl" />
             <Skeleton className="h-9 w-24 rounded-xl" />
           </div>
@@ -319,10 +392,13 @@ export function DoctorAppointmentsTable({
   onStart,
   onComplete,
   onReschedule,
-  onCancel,
 }: DoctorAppointmentsTableProps) {
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [pageIndex, setPageIndex] = useState(0);
+  // Opens the case sheet in a dialog instead of navigating to /doctor/patients/[id] — same fix
+  // as the dashboard's "Open case sheet", reported again here: clicking a patient's name took
+  // the doctor off this list entirely.
+  const [caseSheetPatientId, setCaseSheetPatientId] = useState<string | null>(null);
   const [appliedResetKey, setAppliedResetKey] = useState(resetKey);
   if (appliedResetKey !== resetKey) {
     setAppliedResetKey(resetKey);
@@ -336,11 +412,10 @@ export function DoctorAppointmentsTable({
   const rangeStart = total === 0 ? 0 : currentPage * pageSize + 1;
   const rangeEnd = total === 0 ? 0 : currentPage * pageSize + pageRows.length;
   const isMissedView = appointmentViewFilter === "NO_SHOW";
-  // The Details column only earns its space when at least one row has a complaint or reason.
-  const showDetails = appointments.some((app) => Boolean(app.chiefComplaint));
-  const rowGrid = showDetails ? ROW_GRID : ROW_GRID_NO_DETAILS;
+  const rowGrid = ROW_GRID;
 
   return (
+    <>
     <Surface flush as="section" className="@container" aria-label={isMissedView ? "Missed appointments" : "Appointments"}>
       {selectedCount > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hair bg-mint-soft px-5 py-2.5">
@@ -364,7 +439,8 @@ export function DoctorAppointmentsTable({
           <UserX className="size-[18px] shrink-0 text-[#be123c] dark:text-rose-300" strokeWidth={2.2} aria-hidden="true" />
           <h2 className="m-0 text-sm font-bold text-ink">Missed appointments</h2>
           <p className="m-0 text-[13px] font-medium text-ink-muted">
-            Patients who do not turn up show here with Call and Book again.
+            Patients who do not turn up show here with Call and Book again; the follow-up panel
+            above them messages and archives them in bulk.
           </p>
         </div>
       ) : null}
@@ -379,8 +455,9 @@ export function DoctorAppointmentsTable({
         >
           <span role="columnheader">Patient</span>
           <span role="columnheader">Type</span>
+          <span role="columnheader">When</span>
           <span role="columnheader">Status</span>
-          {showDetails ? <span role="columnheader">Details</span> : null}
+          <span role="columnheader">Patient remarks</span>
           <span role="columnheader">Actions</span>
         </div>
 
@@ -440,14 +517,15 @@ export function DoctorAppointmentsTable({
                     }
                     title={
                       app.patientId ? (
-                        <Link
-                          href={`/doctor/patients/${encodeURIComponent(app.patientId)}`}
-                          className="text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
-                          aria-label={`Open profile for ${app.patientName}`}
-                          title="Open patient profile"
+                        <button
+                          type="button"
+                          className="text-left text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
+                          aria-label={`${app.patientName}, open case sheet`}
+                          title="Open case sheet"
+                          onClick={() => setCaseSheetPatientId(app.patientId)}
                         >
                           {app.patientName}
-                        </Link>
+                        </button>
                       ) : (
                         app.patientName
                       )
@@ -460,21 +538,19 @@ export function DoctorAppointmentsTable({
                 <div role="cell" className={cn(CELL_BELOW, "row-[2] min-w-0")}>
                   <CellTitle
                     title={getVisitTypeLabel(app.type)}
-                    description={`${app.appointmentDate} · ${app.time} · ${app.duration}`}
+                    description={app.isFollowUp ? "Follow-up" : undefined}
                   />
                 </div>
-                <div role="cell" className="col-[2] row-[1] min-w-0 @5xl:col-auto @5xl:row-auto">
-                  <Pill tone={statusTone(app.status)}>{statusLabel(app.status)}</Pill>
+                <div role="cell" className={cn(CELL_BELOW, "row-[3] min-w-0")}>
+                  <CellTitle title={app.appointmentDate} description={`${app.time} · ${app.duration}`} />
                 </div>
-                {showDetails ? (
-                  <div role="cell" className={cn(CELL_BELOW, "row-[3] min-w-0")}>
-                    <CellTitle
-                      title={<span className="font-medium">{app.chiefComplaint}</span>}
-                      description={getPatientContact(app) || undefined}
-                    />
-                  </div>
-                ) : null}
-                <div role="cell" className={cn(CELL_BELOW, showDetails ? "row-[4]" : "row-[3]", "min-w-0")}>
+                <div role="cell" className="col-[2] row-[1] min-w-0 @5xl:col-auto @5xl:row-auto">
+                  <Pill tone={statusTone(app.status)}>{appointmentStatusLabel(app.status, app.type)}</Pill>
+                </div>
+                <div role="cell" className={cn(CELL_BELOW, "row-[4] min-w-0")}>
+                  <PatientRemarkCell remark={app.chiefComplaint} urgency={app.urgency} />
+                </div>
+                <div role="cell" className={cn(CELL_BELOW, "row-[5] min-w-0")}>
                   <RowActions
                     appointment={app}
                     clinicId={clinicId}
@@ -484,7 +560,6 @@ export function DoctorAppointmentsTable({
                     onStart={onStart}
                     onComplete={onComplete}
                     onReschedule={onReschedule}
-                    onCancel={onCancel}
                   />
                 </div>
               </div>
@@ -547,5 +622,13 @@ export function DoctorAppointmentsTable({
         </div>
       )}
     </Surface>
+    <DoctorCaseSheetDialog
+      open={caseSheetPatientId !== null}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setCaseSheetPatientId(null);
+      }}
+      patientId={caseSheetPatientId ?? ""}
+    />
+    </>
   );
 }

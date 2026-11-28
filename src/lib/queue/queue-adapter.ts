@@ -6,6 +6,7 @@
 
 import { QueueCategory, type CanonicalQueueEntry } from '@/types/queue.types';
 import { asRecordOrEmpty } from '@/lib/utils/coerce';
+import { appointmentStatusLabel } from '@/components/tbd/status';
 
 type QueueLabelSource = {
   serviceBucket?: string | null;
@@ -125,17 +126,19 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
  * Get normalized status label for display
  */
 export function getQueueStatusLabel(entry: CanonicalQueueEntry): string {
+  // Appointment lifecycle words come from the shared staff vocabulary, so the queue, the doctor
+  // dashboard and the reception desk name the same visit the same way.
   const statusMap: Record<string, string> = {
-    WAITING: 'Queued',
-    CONFIRMED: 'Confirmed',
-    IN_PROGRESS: 'In Progress',
-    COMPLETED: 'Completed',
+    WAITING: appointmentStatusLabel('WAITING'),
+    CONFIRMED: appointmentStatusLabel('CONFIRMED'),
+    IN_PROGRESS: appointmentStatusLabel('IN_PROGRESS'),
+    COMPLETED: appointmentStatusLabel('COMPLETED'),
     READY: 'Ready',
     PAID: 'Paid',
-    PENDING: 'Pending',
-    WAITING_FOR_PAYMENT: 'Payment pending',
-    CANCELLED: 'Cancelled',
-    NO_SHOW: 'No Show',
+    PENDING: appointmentStatusLabel('PENDING'),
+    WAITING_FOR_PAYMENT: appointmentStatusLabel('WAITING_FOR_PAYMENT'),
+    CANCELLED: appointmentStatusLabel('CANCELLED'),
+    NO_SHOW: appointmentStatusLabel('NO_SHOW'),
   };
   return statusMap[entry.status] || entry.status;
 }

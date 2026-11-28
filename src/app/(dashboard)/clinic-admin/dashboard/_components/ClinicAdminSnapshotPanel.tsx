@@ -194,8 +194,8 @@ export function ClinicAdminSnapshotPanel({
         <CardContent className="p-4">
           {doctorSummaries.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2">
-              {doctorSummaries.map((doctor) => (
-                <div key={doctor.id} className="rounded-xl border border-border bg-background p-4 shadow-sm">
+              {doctorSummaries.map((doctor, index) => (
+                <div key={`${doctor.id}-${index}`} className="rounded-xl border border-border bg-background p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">{doctor.name}</p>
@@ -268,8 +268,8 @@ export function ClinicAdminSnapshotPanel({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {doctorSummaries.map((doctor) => (
-                    <TableRow key={doctor.id} className="border-border/60">
+                  {doctorSummaries.map((doctor, index) => (
+                    <TableRow key={`${doctor.id}-${index}`} className="border-border/60">
                       <TableCell className="py-2">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold">{doctor.name}</div>
@@ -335,7 +335,7 @@ export function ClinicAdminSnapshotPanel({
                 </TableHeader>
                 <TableBody>
                   {appointmentLedger.map((appointment, index) => (
-                    <TableRow key={appointment.raw?.id || `${appointment.patientName}-${index}`} className="border-border/60 transition-colors hover:bg-muted/20">
+                    <TableRow key={`${appointment.raw?.id || appointment.patientName}-${index}`} className="border-border/60 transition-colors hover:bg-muted/20">
                       <TableCell className="py-2 font-semibold">{appointment.patientName || "Patient"}</TableCell>
                       <TableCell className="py-2 text-sm text-muted-foreground">{appointment.doctorName || "Assigned doctor"}</TableCell>
                       <TableCell className="py-2 text-sm text-muted-foreground">

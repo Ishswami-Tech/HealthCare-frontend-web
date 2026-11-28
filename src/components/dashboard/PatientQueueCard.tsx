@@ -25,6 +25,11 @@ type PatientQueueCardProps = {
 
 const STEPS = ["Book an in-clinic visit", "Reach the clinic", "Scan the QR at the desk"] as const;
 
+/** "/patient/queue", scoped to this visit's appointment when known (picks the right one of several). */
+function queueHref(appointmentId: string | null | undefined): string {
+  return appointmentId ? `/patient/queue?appointmentId=${encodeURIComponent(appointmentId)}` : "/patient/queue";
+}
+
 function Figure({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-0.5 rounded-[14px] bg-[#f4faf6] px-2 py-3 text-center dark:bg-emerald-500/10">
@@ -59,7 +64,7 @@ export function PatientQueueCard({
 
   if (isAppointmentsPending || (checkedInVisit && isQueuePending)) {
     return (
-      <Surface aria-busy="true" aria-label="Loading queue status">
+      <Surface aria-busy="true" role="status" aria-label="Loading queue status">
         <Skeleton className="h-5 w-40 rounded-md" />
         <Skeleton className="h-[68px] w-full rounded-[14px]" />
       </Surface>
@@ -91,7 +96,7 @@ export function PatientQueueCard({
           />
         </div>
         <Button size="md" className="w-full sm:w-auto sm:self-end" asChild>
-          <Link href="/patient/queue">
+          <Link href={queueHref(checkedInVisit?.id)}>
             <Activity aria-hidden="true" />
             Track live queue
             <ArrowRight aria-hidden="true" />
@@ -117,7 +122,7 @@ export function PatientQueueCard({
           {STEPS.map((step, index) => (
             <li key={step} className="flex items-center gap-2.5 rounded-[14px] bg-well px-3 py-2.5">
               <span
-                className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint text-[11px] font-extrabold text-brand-dark"
+                className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint text-xs font-extrabold text-brand-dark"
                 aria-hidden="true"
               >
                 {index + 1}
@@ -132,7 +137,7 @@ export function PatientQueueCard({
       )}
       {checkedInVisit ? (
         <Button size="md" className="w-full sm:w-auto sm:self-end" asChild>
-          <Link href="/patient/queue">
+          <Link href={queueHref(checkedInVisit.id)}>
             <Activity aria-hidden="true" />
             Track live queue
           </Link>

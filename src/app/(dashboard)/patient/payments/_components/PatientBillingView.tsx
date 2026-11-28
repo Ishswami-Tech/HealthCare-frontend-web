@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import Link from "next/link";
 import { AlertCircle, Receipt } from "lucide-react";
-import { PaymentHistory } from "@/components/billing/PaymentHistory";
+import { PaymentHistory, meaningfulPayments } from "@/components/billing/PaymentHistory";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PageHead, Surface } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import type { BillingPlan, Invoice, Payment } from "@/types/billing.types";
 import { BillingMoreTabs, type PatientBillingTab } from "./BillingMoreTabs";
 import {
   BillingDueCard,
-  BillingPendingInvoicesCard,
   BillingPlanCard,
   BillingSpendCard,
   SeeAllTransactionsLink,
@@ -24,7 +23,6 @@ import {
   buildDueSummary,
   buildSpendSummary,
   invoiceRoute,
-  pendingInvoices,
   type SubscriptionGroups,
 } from "./patientBilling.logic";
 
@@ -97,8 +95,9 @@ export function PatientBillingView({
   children,
 }: PatientBillingViewProps) {
   const due = useMemo(() => buildDueSummary(invoices), [invoices]);
-  const toPay = useMemo(() => pendingInvoices(invoices), [invoices]);
   const spend = useMemo(() => buildSpendSummary(payments, now), [payments, now]);
+  // Real transactions only: superseded / expired attempts hidden, one pending row per invoice.
+  const transactions = useMemo(() => meaningfulPayments(payments), [payments]);
 
   return (
     <DashboardPageShell>
@@ -151,28 +150,22 @@ export function PatientBillingView({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <BillingSpendCard spend={spend} loading={paymentsLoading} failed={paymentsFailed} />
-        <BillingPendingInvoicesCard
-          invoices={toPay}
-          loading={invoicesLoading}
-          failed={invoicesFailed}
-          renderPay={renderPay}
-        />
-      </div>
+      {/* A pending invoice is shown twice only: the "Amount due" card above and the Invoices tab
+          below (both with the countdown); no separate "Invoices to pay" list. */}
+      <BillingSpendCard spend={spend} loading={paymentsLoading} failed={paymentsFailed} />
 
       <PaymentHistory
-        payments={payments}
+        payments={transactions}
         compact
         title="Recent transactions"
         action={<SeeAllTransactionsLink />}
         limit={5}
-        showStatus={false}
+        showStatus
         loading={paymentsLoading}
         failed={paymentsFailed}
         invoiceHref={invoiceRoute}
         emptyTitle="No payments yet"
-        emptyDescription="Completed or pending payments will appear here."
+        emptyDescription="Completed, refunded or failed payments will appear here."
       />
 
       <BillingMoreTabs

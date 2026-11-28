@@ -45,6 +45,7 @@ function LoginPageContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const requestOtpLockRef = useRef(false);
+  const otpAttemptRef = useRef<{ key: string; promise: Promise<AuthResponse> } | null>(null);
   const identifierCacheRef = useRef({ email: "", phone: "" });
 
   const { showOTPInput, otpMethod } = loginFlow;
@@ -132,15 +133,27 @@ function LoginPageContent() {
   const otpMutation = async (
     data: z.infer<typeof otpSchema>,
   ): Promise<AuthResponse> => {
+    // A code works once. A repeat submit of the same code (auto-submit firing again after the card
+    // re-renders, Enter + auto-submit) must reuse the first attempt instead of showing "Invalid OTP"
+    // to someone who is already signed in.
+    const otpKey = `${String(data.identifier ?? "").trim()}:${String(data.otp ?? "").trim()}`;
+    const previous = otpAttemptRef.current;
+    if (previous && previous.key === otpKey) {
+      return previous.promise;
+    }
     setAuthError(null);
+    const attempt = verifyOTP({
+      ...data,
+      clinicId: defaultClinicId,
+    } as OTPFormData);
+    otpAttemptRef.current = { key: otpKey, promise: attempt };
     try {
-      const result = await verifyOTP({
-        ...data,
-        clinicId: defaultClinicId,
-      } as OTPFormData);
+      const result = await attempt;
       triggerSuccessFlow();
       return result;
     } catch (error) {
+      // A failed code may be retyped after a new one is sent: forget the failed attempt.
+      if (otpAttemptRef.current?.key === otpKey) otpAttemptRef.current = null;
       if (error instanceof Error) {
         const errorMsg = error.message;
         const lowerMsg = errorMsg.toLowerCase();
@@ -228,6 +241,13 @@ function LoginPageContent() {
       if (!result.success) {
         // Display the backend error message (e.g., rate limit, validation errors)
         setAuthError(result.message || "Failed to request OTP");
+        // A rate-limit response means a still-valid code was already sent (and may be
+        // sitting unread in the user's email/WhatsApp from an earlier click) rather than
+        // that nothing was sent: still show the OTP box so they can enter it, instead of
+        // stranding them on the identifier screen until the whole cooldown re-expires.
+        if (/code was just sent/i.test(result.message || "")) {
+          setLoginFlow((current) => ({ ...current, showOTPInput: true }));
+        }
         return;
       }
       // Request succeeded - show OTP input

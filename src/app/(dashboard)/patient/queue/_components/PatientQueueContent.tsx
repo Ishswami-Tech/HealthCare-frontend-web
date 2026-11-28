@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
-import { usePatientQueue } from "@/hooks/query/usePatientQueue";
+import { useMyInPersonToday } from "@/hooks/query/useInPerson";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import { toHomeVisit } from "@/components/patient/home/homeData";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useLanguage } from "@/lib/i18n/context";
 import {
   PatientQueueEmptyView,
@@ -11,43 +13,48 @@ import {
   PatientQueueLoadingView,
   PatientQueueView,
 } from "./PatientQueueView";
-import { readAppointments, selectClinicVisits, toQueueTicket, toVisitInfo } from "@/components/patient/queue/queueData";
+import { pickQueuedVisitById, readAppointments, toVisitInfo, toVisitTicket } from "@/components/patient/queue/queueData";
 
 /**
- * Data container for the patient Live Queue. The place comes from `GET queue/me` (it reads
- * again every 30 seconds while the tab is visible); the clinic and doctor come from the
- * patient's own appointment.
+ * Data container for the patient Live Queue (V2). Token, people ahead, ETA and "you're next"
+ * come from `GET in-person/me/today` (polled every 20 s while visible); the clinic address and
+ * phone come from the patient's own appointment.
+ *
+ * `appointmentId`: which of today's (possibly several) checked-in visits to show. Passed by the
+ * visit card's own "Track live queue" link; omitted by the dashboard's generic one, which falls
+ * back to the first checked-in visit.
  */
-export function PatientQueueContent() {
-  const { data: entry, isPending, isFetching, error, refetch } = usePatientQueue();
+export function PatientQueueContent({ appointmentId }: { appointmentId?: string | undefined } = {}) {
+  const { data: visits, isPending, isFetching, error, refetch } = useMyInPersonToday({ live: true });
   const { data: appointmentsData } = useMyAppointments();
   const [now] = useState(() => Date.now());
   const { language } = useLanguage();
+  const { qrCheckInEnabled } = useClinicServiceToggles();
 
   const appointments = useMemo(() => readAppointments(appointmentsData), [appointmentsData]);
+  const queued = pickQueuedVisitById(visits, appointmentId);
+  const ticket = toVisitTicket(queued);
 
   const queueVisit = useMemo(() => {
-    if (!entry) return null;
-    const row = appointments.find((appointment) => String(appointment.id ?? "") === entry.appointmentId) ?? null;
+    if (!queued) return null;
+    const row = appointments.find((appointment) => String(appointment.id ?? "") === queued.appointmentId) ?? null;
     return row ? { row, visit: toHomeVisit(row, now, language) } : null;
-  }, [appointments, entry, now, language]);
+  }, [appointments, queued, now, language]);
 
-  // For the empty state: an in-clinic visit booked for today that is not checked in yet.
-  const visitToCheckIn = useMemo(
-    () =>
-      selectClinicVisits(appointments, now).find(
-        ({ visit }) => visit.isToday && visit.clinicStage === "upcoming"
-      )?.visit ?? null,
-    [appointments, now]
-  );
-
-  if (entry) {
+  if (queued && ticket) {
+    const info = toVisitInfo(queueVisit?.row, queueVisit?.visit);
     return (
       <PatientQueueView
-        ticket={toQueueTicket(entry, queueVisit?.visit.tokenLabel)}
-        info={toVisitInfo(queueVisit?.row, queueVisit?.visit)}
+        appointmentId={queued.appointmentId}
+        ticket={ticket}
+        info={{
+          ...info,
+          doctorName: info.doctorName ?? queued.doctorName,
+          locationLabel: info.locationLabel ?? queued.locationName,
+        }}
         onRefresh={() => void refetch()}
         isRefreshing={isFetching}
+        loadError={error ? sanitizeErrorMessage(error) || "Please check your connection and try again." : null}
       />
     );
   }
@@ -60,16 +67,13 @@ export function PatientQueueContent() {
     return <PatientQueueLoadingView />;
   }
 
+  // For the empty state: an in-clinic visit booked for today that is not checked in yet.
+  const booked = (visits ?? []).find((visit) => visit.stage === "BOOKED") ?? null;
   return (
     <PatientQueueEmptyView
-      canCheckIn={Boolean(visitToCheckIn)}
-      visitLine={
-        visitToCheckIn
-          ? [visitToCheckIn.doctorName, visitToCheckIn.timeLabel ? `Today, ${visitToCheckIn.timeLabel}` : "Today"]
-              .filter(Boolean)
-              .join(" · ")
-          : null
-      }
+      canCheckIn={Boolean(booked)}
+      qrCheckInEnabled={qrCheckInEnabled}
+      visitLine={booked ? [booked.doctorName, `Today, ${booked.time}`, booked.locationName].filter(Boolean).join(" · ") : null}
     />
   );
 }

@@ -25,6 +25,7 @@ import { logger } from '@/lib/utils/logger';
 // prefetch helper all share the same list. Re-exported here to keep call
 // sites within this file readable.
 import { APPOINTMENT_QUERY_FAMILIES } from '@/hooks/query/useAppointments';
+import { refetchClinicSettingsQueries } from '@/lib/clinics/clinic-settings-queries';
 import {
   coalesceRealtimeInvalidation,
 } from '@/hooks/realtime/useRealtimeInvalidationCoalescer';
@@ -60,6 +61,10 @@ export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
  */
 const PHARMACY_QUERY_FAMILIES: readonly (readonly string[])[] = [
   ['prescriptions'],
+  ['prescription'],
+  ['prescriptionHandover'],
+  ['patientPrescriptions'],
+  ['rx-drafts'],
   ['medicineDeskQueue'],
   ['pharmacyStats'],
   ['pharmacySales'],
@@ -315,17 +320,28 @@ function mergeRealtimeAppointmentPayload(payload: unknown, appointment: Appointm
   return changed ? nextRecord : payload;
 }
 
+/** Overlay the fields a realtime snapshot carries; missing (undefined / null) fields keep the cached value. */
+function mergeRealtimeSnapshot(oldData: Appointment, snapshot: Appointment): Appointment {
+  const defined = Object.fromEntries(
+    Object.entries(snapshot as unknown as Record<string, unknown>).filter(([, value]) => value !== undefined && value !== null)
+  );
+  return { ...oldData, ...defined } as Appointment;
+}
+
 function upsertRealtimeAppointmentCaches(queryClient: QueryClient, appointment: Appointment): void {
   const targetId = getRealtimeAppointmentId(appointment);
   if (!targetId) {
     return;
   }
 
+  // A realtime snapshot is partial (no patient, doctor or check-in details), so it only merges into
+  // a detail cache that already holds the full record. Seeding an empty cache with it would make a
+  // detail page that mounts next (for example the walk-in success page) render placeholders.
   queryClient.setQueryData(['appointment', targetId], (oldData: Appointment | undefined) =>
-    oldData ? { ...oldData, ...appointment } : appointment
+    oldData ? mergeRealtimeSnapshot(oldData, appointment) : undefined
   );
   queryClient.setQueryData(['video-appointment', targetId], (oldData: Appointment | undefined) =>
-    oldData ? { ...oldData, ...appointment } : appointment
+    oldData ? mergeRealtimeSnapshot(oldData, appointment) : undefined
   );
   queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
     mergeRealtimeAppointmentPayload(current, appointment)
@@ -754,6 +770,13 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
     if (!resolvedUserId) return;
 
+    // Server pushes are ids-only (`notification` with notificationId/category, no title or body):
+    // re-read the inbox, which owns the text, instead of adding an empty placeholder entry.
+    if (typeof data.title !== 'string' || data.title.length === 0) {
+      void queryClient.invalidateQueries({ queryKey: ['notifications', resolvedUserId] });
+      return;
+    }
+
     const notificationType = (data.type || data.category || 'SYSTEM') as Notification['type'];
     const notification: Notification = {
       id: (data.id as string) || `ws-${Date.now()}-${Math.random()}`,
@@ -778,7 +801,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     }
 
     addNotification(notification);
-  }, [addNotification, resolvedUserId]);
+  }, [addNotification, queryClient, resolvedUserId]);
 
   const handleSystemUpdateEvent = useCallback((rawData: unknown) => {
     const data = rawData as Record<string, unknown>;
@@ -1188,8 +1211,26 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
           invalidateClinicQueryFamilies(queryClient);
           invalidateDashboardQueryFamilies(queryClient);
+          // The clinic switches (QR check-in, video, in-person) live on the clinic: re-read the
+          // ones on screen now, so an open booking or check-in view follows the change.
+          if (!resolvedClinicId || !clinicId || resolvedClinicId === clinicId) {
+            refetchClinicSettingsQueries(queryClient);
+          }
         })
       );
+
+      // Clinic switches changed (QR self check-in, video, in-person, doctor overrides). Sent to the
+      // `clinic:<id>` and `clinic:<id>:public` rooms, which the socket joins on connect. The payload
+      // is slim (ids only once it passes the broadcaster), so the settings are always re-read.
+      const unsubscribeClinicSettingsUpdated = subscribe('clinic.settings.updated', (rawData: unknown) => {
+        const data = (rawData ?? {}) as { clinicId?: string; id?: string };
+        const eventClinicId = String(data.clinicId || data.id || '');
+        if (eventClinicId && clinicId && eventClinicId !== clinicId) {
+          return;
+        }
+        logger.info('Realtime clinic settings updated', { clinicId: eventClinicId });
+        refetchClinicSettingsQueries(queryClient);
+      });
 
       // ✅ Doctor clinic assignment changes (e.g., doctor added/removed from
       // a clinic via the DoctorClinic join table). Drives realtime refresh
@@ -1290,6 +1331,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         ...unsubscribePaymentLifecycleEvents,
         ...unsubscribeUserLifecycleEvents,
         ...unsubscribeClinicLifecycleEvents,
+        unsubscribeClinicSettingsUpdated,
         ...unsubscribeDoctorClinicEvents,
         ...unsubscribeEhrLifecycleEvents
       );
@@ -1398,12 +1440,29 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         }
       );
 
+      // Counter hand-over (code issued / verified / handed over / undone) and the assistant's Rx
+      // drafts change the same pharmacy and prescription lists. Patients get the hand-over and
+      // desk events on their own user room only; drafts are staff-only on the server.
+      const unsubscribePharmacyFollowUps = [
+        'pharmacy.handover.updated',
+        'clinic-ops.rx-draft.submitted',
+        'clinic-ops.rx-draft.approved',
+        'clinic-ops.rx-draft.returned',
+      ].map((eventName) =>
+        subscribe(eventName, () => {
+          coalesceRealtimeInvalidation(queryClient, 'medicine-desk', (qc) => {
+            invalidateMedicineDeskQueries(qc);
+          });
+        })
+      );
+
       unsubscribeCallbacks.push(
         ...queueEventUnsubscribers,
         unsubscribeQueueMetrics,
         unsubscribeQueueMetricsEnterprise,
         unsubscribeQueueHealthChanged,
-        unsubscribeMedicineDeskUpdated
+        unsubscribeMedicineDeskUpdated,
+        ...unsubscribePharmacyFollowUps
       );
     }
 

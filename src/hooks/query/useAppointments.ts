@@ -1,5 +1,5 @@
 "use client";
-import { nowIso, formatDateKeyInIST, parseIstDateTime } from '@/lib/utils/date-time';
+import { nowIso, formatDateInIST, formatDateKeyInIST, parseIstDateTime } from '@/lib/utils/date-time';
 
 // ✅ Appointments Hooks - Backend Integration
 // This file provides hooks that integrate with the backend appointments system
@@ -52,12 +52,8 @@ import {
   testAppointmentContext,
   rescheduleAppointment,
   rejectVideoProposal,
-  reassignAppointmentDoctor,
     getAssistantDoctorCoverage,
     updateAssistantDoctorCoverage,
-    checkInAppointment,
-    forceCheckInAppointment,
-    scanLocationQRAndCheckIn,
 } from '@/lib/actions/appointments.server';
 import { clinicApiClient } from '@/lib/api/client';
 import { fetchAppointmentList } from '@/lib/appointments/fetch-appointment-list';
@@ -455,8 +451,10 @@ const appointmentQueryRetry = (failureCount: number, error: unknown) => {
 };
 
 export const useAppointmentServices = (enabled: boolean = true) => {
+  // Clinic-scoped: `bookable` on each entry follows the clinic's settings.
+  const clinicId = useCurrentClinicId();
   return useQueryData(
-    ['appointment-services'],
+    ['appointment-services', clinicId || 'no-clinic'],
     async () => {
       const result = await getAppointmentServiceCatalogServerAction();
       if (!result.success) {
@@ -502,7 +500,10 @@ export const useAppointment = (appointmentId: string) => {
       enabled: !!appointmentId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 0,
       gcTime: 2 * 60 * 1000,
-      refetchOnMount: !isConnected,
+      // Always read the record when a detail page mounts: a cached entry may be a partial snapshot
+      // (list row or realtime event), and pages such as the walk-in success page open right after
+      // a write. Live updates while mounted still come from the socket.
+      refetchOnMount: true,
       refetchOnWindowFocus: !isConnected && !isAuthRefreshing,
       refetchOnReconnect: false,
       refetchInterval: isConnected || isAuthRefreshing ? false : 30_000,
@@ -604,9 +605,22 @@ export const useCreateAppointment = (clinicId?: string) => {
         }
         void queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(), exact: false });
         if (appointment) {
+          // `date` is an IST-midnight day key serialised in UTC (e.g. 2026-11-02T18:30:00.000Z
+          // for 3 Nov), so render it as the IST calendar date, never the raw ISO string.
+          const istDateLabel = appointment.date
+            ? formatDateInIST(appointment.date, {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '';
+          const timeLabel = appointment.time ? ` at ${appointment.time}` : '';
           toast({
             title: 'Success',
-            description: `Appointment scheduled for ${appointment.date ?? ''} at ${appointment.time ?? ''}`,
+            description: istDateLabel
+              ? `Appointment scheduled for ${istDateLabel}${timeLabel}`
+              : 'Appointment scheduled',
             id: TOAST_IDS.APPOINTMENT.CREATE, // ✅ Prevent duplicates
           });
         }
@@ -720,14 +734,11 @@ export const useCancelAppointment = () => {
       loadingMessage: 'Cancelling appointment...',
       successMessage: 'Appointment cancelled successfully',
       // Single source of truth for post-cancel invalidation across every
-      // appointment-surface query family. Avoids double-invalidation and
-      // ensures counselor/therapist dashboards see the cancellation.
-      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
-      // 27 query-key families invalidated at once here - refetchType: 'none'
-      // marks them stale without forcing every mounted-but-inactive query to
-      // refetch simultaneously on this one mutation (they still refetch
-      // normally next time they're actually used).
-      invalidateRefetchType: 'none',
+      // appointment-surface query family (plus the patient dashboard summary).
+      invalidateQueries: [...APPOINTMENT_QUERY_FAMILIES, ['patientDashboardSummary']],
+      // 'active': the list the patient is looking at (Upcoming) must refetch now so the
+      // cancelled visit leaves it; unmounted families are only marked stale.
+      invalidateRefetchType: 'active',
       onError: (error: Error) => {
         logger.error('Failed to cancel appointment', error, { component: 'useAppointments' });
       },
@@ -858,54 +869,8 @@ export const useCheckInHistory = () => {
   );
 };
 
-// Removed redundant useProcessCheckIn (useCheckInAppointment covers it)
-
-/**
- * Hook for checking in an appointment
- */
-export const useCheckInAppointment = () => {
-  const { hasPermission } = useRBAC();
-  
-  return useMutationOperation<
-    { success: boolean },
-    string | { appointmentId: string; reason?: string; locationId?: string }
-  >(
-    async (
-      payload: string | { appointmentId: string; reason?: string; locationId?: string }
-    ) => {
-      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
-        throw new Error('Insufficient permissions to check in appointment');
-      }
-
-      const appointmentId = typeof payload === 'string' ? payload : payload.appointmentId;
-      
-      const result = await checkInAppointment(
-        appointmentId,
-        typeof payload === 'string'
-          ? undefined
-          : {
-              ...(payload.reason ? { reason: payload.reason } : {}),
-              ...(payload.locationId ? { locationId: payload.locationId } : {}),
-            }
-      );
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to check in appointment');
-      }
-      return { success: true };
-    },
-    {
-      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
-      loadingMessage: 'Checking in patient...',
-      successMessage: 'Patient check-in confirmed successfully',
-      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
-      // 27 query-key families invalidated at once here - refetchType: 'none'
-      // marks them stale without forcing every mounted-but-inactive query to
-      // refetch simultaneously on this one mutation (they still refetch
-      // normally next time they're actually used).
-      invalidateRefetchType: 'none',
-    }
-  );
-};
+// Check-in (patient QR and staff one-click) is `useInPersonCheckIn` in useInPerson.ts
+// (POST /in-person/check-in). There is no second check-in hook here.
 
 /**
  * Shared mutation implementation for starting a consultation or appointment.
@@ -1081,53 +1046,6 @@ export const useCompleteAppointment = () => {
 };
 
 /**
- * Hook for receptionist force check-in
- */
-export const useForceCheckInAppointment = () => {
-  const { hasPermission } = useRBAC();
-
-  return useMutationOperation<
-    { success: boolean },
-    string | { appointmentId: string; reason?: string; locationId?: string }
-  >(
-    async (
-      payload: string | { appointmentId: string; reason?: string; locationId?: string }
-    ) => {
-      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
-        throw new Error('Insufficient permissions to check in appointment');
-      }
-
-      const appointmentId = typeof payload === 'string' ? payload : payload.appointmentId;
-
-      const result = await forceCheckInAppointment(
-        appointmentId,
-        typeof payload === 'string'
-          ? undefined
-          : {
-              ...(payload.reason ? { reason: payload.reason } : {}),
-              ...(payload.locationId ? { locationId: payload.locationId } : {}),
-            }
-      );
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to force check in appointment');
-      }
-      return { success: true };
-    },
-    {
-      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
-      loadingMessage: 'Checking in patient...',
-      successMessage: 'Patient check-in confirmed successfully',
-      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
-      // 27 query-key families invalidated at once here - refetchType: 'none'
-      // marks them stale without forcing every mounted-but-inactive query to
-      // refetch simultaneously on this one mutation (they still refetch
-      // normally next time they're actually used).
-      invalidateRefetchType: 'none',
-    }
-  );
-};
-
-/**
  * Hook for marking an appointment as no-show
  */
 export const useMarkAppointmentNoShow = () => {
@@ -1169,13 +1087,17 @@ export const useMarkAppointmentNoShow = () => {
 export const useUpdateAppointmentStatus = () => {
   const { hasPermission } = useRBAC();
 
-  return useMutationOperation<{ success: boolean }, { appointmentId: string; status: string }>(
-    async ({ appointmentId, status }) => {
+  return useMutationOperation<
+    { success: boolean },
+    { appointmentId: string; status: string; reason?: string }
+  >(
+    async ({ appointmentId, status, reason }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error("Insufficient permissions to update appointment");
       }
 
-      const result = await updateAppointmentStatus(appointmentId, { status });
+      // The API requires a reason when cancelling.
+      const result = await updateAppointmentStatus(appointmentId, reason ? { status, reason } : { status });
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -1245,45 +1167,7 @@ export const useBulkCompleteAppointments = () => {
   );
 };
 
-/**
- * Hook for reassigning appointment doctor
- */
-export const useReassignAppointmentDoctor = () => {
-  const { hasPermission } = useRBAC();
-
-  return useMutationOperation<
-    { success: boolean },
-    { appointmentId: string; doctorId: string; reason?: string }
-  >(
-    async ({ appointmentId, doctorId, reason }) => {
-      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
-        throw new Error("Insufficient permissions to reassign appointment");
-      }
-
-      const result = await reassignAppointmentDoctor(appointmentId, {
-        doctorId,
-        ...(reason ? { reason } : {}),
-      });
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      return { success: true };
-    },
-    {
-      toastId: TOAST_IDS.APPOINTMENT.REASSIGN,
-      loadingMessage: "Reassigning appointment...",
-      successMessage: "Appointment reassigned successfully",
-      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
-      // 27 query-key families invalidated at once here - refetchType: 'none'
-      // marks them stale without forcing every mounted-but-inactive query to
-      // refetch simultaneously on this one mutation (they still refetch
-      // normally next time they're actually used).
-      invalidateRefetchType: 'none',
-      showLoading: false,
-    }
-  );
-};
+// One doctor only (product rule 1): there is no reassign-doctor hook or UI.
   
 /**
  * Hook for fetching queue (Optimized for 100K users with smart polling)
@@ -2184,6 +2068,10 @@ export const useRescheduleAppointment = () => {
       loadingMessage: 'Rescheduling appointment...',
       successMessage: 'Appointment rescheduled successfully',
       invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
+      // Never auto-retry a move: the server action rethrows a plain Error (no HTTP status), so
+      // the default "retry once" would PATCH again after a failure and report the patient's own
+      // new slot as "no longer available".
+      mutationOptions: { retry: false },
       // 27 query-key families invalidated at once here - refetchType: 'none'
       // marks them stale without forcing every mounted-but-inactive query to
       // refetch simultaneously on this one mutation (they still refetch
@@ -2221,74 +2109,6 @@ export const useRejectVideoProposal = () => {
       // refetch simultaneously on this one mutation (they still refetch
       // normally next time they're actually used).
       invalidateRefetchType: 'none',
-    }
-  );
-};
-
-export interface QrCheckInAppointment {
-  appointmentId?: string;
-  locationId?: string;
-  locationName?: string;
-  checkedInAt?: string;
-  queuePosition?: number;
-  totalInQueue?: number;
-  estimatedWaitTime?: number;
-  doctorId?: string;
-  doctorName?: string;
-}
-
-export interface QrCheckInSelectionCandidate {
-  id: string;
-  doctorName?: string;
-  doctor?: {
-    name?: string;
-    firstName?: string;
-    lastName?: string;
-    user?: { name?: string; firstName?: string; lastName?: string };
-  };
-  startTime?: string;
-  time?: string;
-  type?: string;
-}
-
-export interface QrCheckInResult {
-  success: boolean;
-  appointment?: QrCheckInAppointment;
-  requiresSelection?: boolean;
-  appointments?: QrCheckInSelectionCandidate[];
-  message?: string;
-  error?: string;
-  code?: string;
-}
-
-export const useScanLocationQrAndCheckIn = () => {
-  return useMutationOperation<
-    QrCheckInResult,
-    {
-      code: string;
-      locationId?: string;
-      appointmentId?: string;
-      coordinates?: { lat: number; lng: number };
-    }
-  >(
-    async (data) => {
-      const result = (await scanLocationQRAndCheckIn(data)) as QrCheckInResult;
-      if (!result.success && !result.requiresSelection) {
-        throw new Error(result.error || 'QR check-in failed');
-      }
-      return result;
-    },
-    {
-      toastId: TOAST_IDS.APPOINTMENT.CHECK_IN,
-      loadingMessage: 'Checking you in...',
-      successMessage: 'Check-in successful',
-      invalidateQueries: APPOINTMENT_QUERY_FAMILIES,
-      // 27 query-key families invalidated at once here - refetchType: 'none'
-      // marks them stale without forcing every mounted-but-inactive query to
-      // refetch simultaneously on this one mutation (they still refetch
-      // normally next time they're actually used).
-      invalidateRefetchType: 'none',
-      showToast: false,
     }
   );
 };
@@ -2478,7 +2298,8 @@ export async function prefetchAppointments(
  * and rely on realtime cache updates after that, so this intentionally
  * no-ops for patients.
  */
-export function usePrefetchAppointmentsForRole() {
+export function usePrefetchAppointmentsForRole(options?: { skip?: boolean }) {
+  const skip = options?.skip === true;
   const queryClient = useQueryClient();
   const session = useAuthStore((state) => state.session);
   const userId = session?.user?.id;
@@ -2487,7 +2308,10 @@ export function usePrefetchAppointmentsForRole() {
   const { hasPermission } = useRBAC();
 
   useEffect(() => {
-    if (!userId || !hasPermission(Permission.VIEW_APPOINTMENTS)) {
+    // `skip`: the current screen loads its own (bounded) appointment list, e.g. a staff dashboard;
+    // warming the unbounded list there only doubles the first-paint requests. It runs once the
+    // user moves on to another screen.
+    if (skip || !userId || !hasPermission(Permission.VIEW_APPOINTMENTS)) {
       return;
     }
 
@@ -2540,6 +2364,6 @@ export function usePrefetchAppointmentsForRole() {
         doctorId: role === 'DOCTOR' || role === 'ASSISTANT_DOCTOR' ? userId : undefined,
       });
     }
-  }, [queryClient, userId, userRole, clinicId, hasPermission]);
+  }, [queryClient, userId, userRole, clinicId, hasPermission, skip]);
 }
 

@@ -15,12 +15,26 @@ import {
   DollarSign,
   CreditCard,
   ShieldCheck,
-  Leaf,
-  Apple,
-  Bed,
-  Sparkles,
   Star,
-  Bell
+  Bell,
+  UserCog,
+  MapPin,
+  CalendarDays,
+  BarChart3,
+  Boxes,
+  ScanLine,
+  PackageCheck,
+  Package,
+  UserRound,
+  HandHeart,
+  CalendarOff,
+  UserX,
+  FlaskConical,
+  MessageSquareText,
+  UserPlus,
+  Banknote,
+  LifeBuoy,
+  ToggleRight
 } from "lucide-react";
 
 import { Permission } from "@/types/rbac.types";
@@ -42,19 +56,24 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Earnings", href: "/super-admin/earnings", icon: DollarSign, permission: Permission.MANAGE_BILLING },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.MANAGE_BILLING },
+    { title: "Clinic Services", href: "/super-admin/clinic-services", icon: ToggleRight, permission: Permission.UPDATE_CLINICS },
     { title: "System Health", href: "/super-admin/health", icon: Activity, permission: Permission.MANAGE_SYSTEM_SETTINGS },
     { title: "Settings", href: "/super-admin/settings", icon: Settings, permission: Permission.MANAGE_SYSTEM_SETTINGS },
   ],
   CLINIC_ADMIN: [
+    // Clinic admin owns billing, staff, locations, reports and inventory (design: Ca* boards).
     { title: "Dashboard", href: "/clinic-admin/dashboard", icon: LayoutDashboard },
-    { title: "Appointments", href: "/clinic-admin/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "Payment Reconciliation", href: "/clinic-admin/payments", icon: Receipt, permission: Permission.MANAGE_BILLING },
-    { title: "Earnings", href: "/clinic-admin/earnings", icon: DollarSign, permission: Permission.MANAGE_BILLING },
+    { title: "Billing", href: "/clinic-admin/billing", icon: Wallet, permission: Permission.MANAGE_BILLING },
+    { title: "Invoices", href: "/clinic-admin/billing/invoices", icon: Receipt, permission: Permission.MANAGE_BILLING },
     { title: "Staff", href: "/clinic-admin/staff", icon: Users, permission: Permission.MANAGE_CLINIC_STAFF },
-    { title: "Schedule", href: "/clinic-admin/schedule", icon: Calendar, permission: Permission.MANAGE_DOCTOR_SCHEDULE },
+    { title: "Roles", href: "/clinic-admin/roles", icon: UserCog, permission: Permission.MANAGE_ROLE_MATRIX },
+    { title: "Locations", href: "/clinic-admin/locations", icon: MapPin, permission: Permission.VIEW_CLINICS },
+    { title: "Schedule", href: "/clinic-admin/schedule", icon: CalendarDays, permission: Permission.MANAGE_DOCTOR_SCHEDULE },
+    { title: "Reports", href: "/clinic-admin/reports", icon: BarChart3, permission: Permission.VIEW_REPORTS },
+    { title: "Inventory", href: "/clinic-admin/inventory", icon: Boxes, permission: Permission.MANAGE_INVENTORY },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
-    { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.MANAGE_BILLING },
-    { title: "Locations", href: "/clinic-admin/locations", icon: Building2, permission: Permission.VIEW_CLINICS },
+    { title: "Check-in log", href: "/clinic-admin/check-ins", icon: ScanLine, permission: Permission.VIEW_CHECK_IN_LOGS },
+    { title: "Notifications", href: "/clinic-admin/notifications", icon: Bell, permission: Permission.VIEW_NOTIFICATIONS },
     { title: "Settings", href: "/clinic-admin/settings", icon: Settings, permission: Permission.UPDATE_CLINICS },
   ],
   DOCTOR: [
@@ -63,40 +82,74 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Patients", href: "/doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
-    { title: "Reviews", href: "/doctor/reviews", icon: Star },
-    // Earnings are the doctor's own paid consultations only (clinic billing stays with the clinic admin).
-    { title: "Earnings", href: "/doctor/earnings", icon: DollarSign },
+    // Drafts live on the Prescriptions screen (Drafts tab): assistant-prepared rows waiting for
+    // approval. /doctor/drafts still loads and forwards there, so old links keep working.
+    { title: "Investigations", href: "/doctor/investigations", icon: FlaskConical, permission: Permission.VIEW_MEDICAL_RECORDS },
+    // No "Stock hand-over" link: the hand-over from clinic stock (deducts stock, bills) is a tab
+    // of the Prescriptions screen — "Prescriptions · Stock hand-over" (`?tab=handover`). The old
+    // /doctor/dispense route still loads and forwards to that tab, so old links keep working.
+    // No standalone "Follow-ups" link: /doctor/follow-up only works opened with a specific
+    // appointmentId (it books a follow-up from a visit) — clicked bare from this sidebar it
+    // always dead-ended on "Open a visit to book its follow-up". The dashboard's Follow-ups
+    // card and its "Workspace Tools" shortcut (both deep-link into Appointments) replace it.
+    // No "Missed visits" link: the bulk follow-up (message, archive, re-book) now lives on the
+    // Appointments screen's "Missed appointments" view (`?view=NO_SHOW`); /doctor/no-show still
+    // loads and forwards there, so old links keep working.
+    // No "Reviews" link either: patient reviews live on the Profile screen (Reviews tab, fed by
+    // the same useDoctorReviews query); /doctor/reviews forwards to /doctor/profile?tab=reviews.
+    { title: "Schedule", href: "/doctor/leave", icon: CalendarOff, permission: Permission.MANAGE_DOCTOR_LEAVE },
+    // No Earnings / Billing link: the doctor never sees billing amounts (clinic admin owns billing).
     { title: "Notifications", href: "/doctor/notifications", icon: Bell },
+    { title: "Profile", href: "/doctor/profile", icon: UserRound },
   ],
   ASSISTANT_DOCTOR: [
+    // Assistant doctor: drafts and approved history on one Prescriptions screen (the "New
+    // draft" / "Quick Rx" buttons live there); hand-over from clinic stock (no vitals, no check-in desk).
+    // No Billing / Earnings link: the assistant never sees billing amounts.
     { title: "Dashboard", href: "/assistant-doctor/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/assistant-doctor/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "Patients", href: "/assistant-doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
-    { title: "Prescriptions", href: "/assistant-doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
-    { title: "Coverage", href: "/assistant-doctor/coverage", icon: ShieldCheck, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
+    { title: "Patients", href: "/assistant-doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
+    { title: "Prescriptions", href: "/assistant-doctor/drafts", icon: Pill, permission: Permission.DRAFT_PRESCRIPTIONS },
+    { title: "Dispense", href: "/assistant-doctor/dispense", icon: PackageCheck, permission: Permission.DISPENSE_FROM_CLINIC_STOCK },
+    { title: "Stock", href: "/assistant-doctor/stock", icon: Package, permission: Permission.VIEW_STOCK_READONLY },
+    { title: "Notifications", href: "/assistant-doctor/notifications", icon: Bell },
+    { title: "Profile", href: "/assistant-doctor/profile", icon: UserRound },
   ],
   PATIENT: [
     { title: "Home", href: "/patient/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/patient/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Health", href: "/patient/health", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
+    // The live queue (`/patient/queue`) is reached from the visit card and check-in, not the nav.
     { title: "Payments", href: "/patient/payments", icon: Wallet, permission: Permission.VIEW_BILLING },
+    { title: "Lab tests", href: "/patient/lab-booking", icon: FlaskConical },
+    { title: "Family", href: "/patient/family", icon: Users },
     { title: "Notifications", href: "/patient/notifications", icon: Bell },
+    { title: "Help & chat", href: "/patient/help", icon: LifeBuoy },
   ],
   RECEPTIONIST: [
     { title: "Dashboard", href: "/receptionist/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/receptionist/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Patients", href: "/receptionist/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
-    { title: "Billing & Collections", href: "/billing?tab=invoices", icon: Wallet, permission: Permission.MANAGE_BILLING },
     { title: "Check-In", href: "/receptionist/check-in", icon: ClipboardList, permission: Permission.MANAGE_QUEUE },
+    { title: "Walk-in", href: "/receptionist/walk-in", icon: UserPlus, permission: Permission.CREATE_APPOINTMENTS },
+    { title: "Collect payment", href: "/receptionist/collect", icon: Banknote, permission: Permission.PROCESS_PAYMENTS },
+    { title: "Lab bookings", href: "/receptionist/lab-bookings", icon: FlaskConical },
+    { title: "Billing & Collections", href: "/billing?tab=invoices", icon: Wallet, permission: Permission.MANAGE_BILLING },
+    // Patients' help-chat threads (`/support/threads`).
+    { title: "Messages", href: "/receptionist/messages", icon: MessageSquareText },
+    { title: "Notifications", href: "/receptionist/notifications", icon: Bell },
+    { title: "Profile", href: "/receptionist/profile", icon: UserRound },
   ],
   PHARMACIST: [
     { title: "Dashboard", href: "/pharmacist/dashboard", icon: LayoutDashboard },
     { title: "Prescriptions", href: "/pharmacist/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
+    { title: "Hand-over", href: "/pharmacist/handover", icon: HandHeart, permission: Permission.HANDOVER_MEDICINES },
+    { title: "Dispense from stock", href: "/pharmacist/dispense", icon: PackageCheck, permission: Permission.DISPENSE_FROM_CLINIC_STOCK },
     { title: "Inventory", href: "/pharmacy", icon: ClipboardList, permission: Permission.MANAGE_INVENTORY },
-    { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
+    { title: "Billing", href: "/pharmacist/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
+    { title: "Notifications", href: "/pharmacist/notifications", icon: Bell },
   ],
   CLINIC_LOCATION_HEAD: [
     { title: "Dashboard", href: "/clinic-location-head/dashboard", icon: LayoutDashboard },
@@ -123,6 +176,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   LAB_TECHNICIAN: [
     { title: "Dashboard", href: "/lab-technician/dashboard", icon: LayoutDashboard },
     { title: "Test Results", href: "/lab-technician/results", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
+    { title: "Bookings", href: "/lab-technician/bookings", icon: FlaskConical },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
   ],
   SUPPORT_STAFF: [
@@ -133,7 +187,6 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   NURSE: [
     { title: "Dashboard", href: "/nurse/dashboard", icon: LayoutDashboard },
     { title: "Patient Care", href: "/nurse/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
-    { title: "Vitals", href: "/nurse/vitals", icon: Activity, permission: Permission.VIEW_MEDICAL_RECORDS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
   ],
@@ -144,28 +197,31 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
   ],
+  // Ayurveda / diet / IPD: only their dashboards are built. The Prakriti, Nadi, Dosha, Diagnoses,
+  // Diet plans, Food catalog, Diet patients, Admissions, Beds, Wards and Discharge pages do not exist
+  // yet, so they have no links (add them back with the page).
   AYURVEDIST: [
     { title: "Dashboard", href: "/ayurveda/dashboard", icon: LayoutDashboard },
-    { title: "Prakriti Assessment", href: "/ayurveda/prakriti", icon: Leaf, permission: Permission.VIEW_MEDICAL_RECORDS },
-    { title: "Nadi Pariksha", href: "/ayurveda/nadi", icon: Activity, permission: Permission.VIEW_MEDICAL_RECORDS },
-    { title: "Dosha Tracking", href: "/ayurveda/dosha", icon: Sparkles, permission: Permission.VIEW_MEDICAL_RECORDS },
-    { title: "Diagnoses", href: "/ayurveda/diagnoses", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
   ],
   DIETITIAN: [
     { title: "Dashboard", href: "/diet/dashboard", icon: LayoutDashboard },
-    { title: "Diet Plans", href: "/diet/plans", icon: ClipboardList, permission: Permission.VIEW_MEDICAL_RECORDS },
-    { title: "Food Catalog", href: "/diet/catalog", icon: Apple, permission: Permission.VIEW_MEDICAL_RECORDS },
-    { title: "Patients", href: "/diet/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
   ],
   IPD_MANAGER: [
     { title: "Dashboard", href: "/ipd/dashboard", icon: LayoutDashboard },
-    { title: "Admissions", href: "/ipd/admissions", icon: Users, permission: Permission.VIEW_PATIENTS },
-    { title: "Bed Management", href: "/ipd/beds", icon: Bed, permission: Permission.MANAGE_CLINIC_STAFF },
-    { title: "Wards", href: "/ipd/wards", icon: Building2, permission: Permission.VIEW_CLINICS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
-    { title: "Discharge Summary", href: "/ipd/discharge", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
   ],
+};
+
+/**
+ * Routes that still exist but have no sidebar entry any more (the TestByDoctor sidebars are
+ * shorter than the old ones). Builders link to them from inside the screens that replace them:
+ *  - /clinic-admin/appointments, /clinic-admin/payments, /clinic-admin/earnings (CLINIC_ADMIN)
+ *  - /assistant-doctor/coverage, /assistant-doctor/prescriptions (ASSISTANT_DOCTOR)
+ */
+export const SIDEBAR_HIDDEN_ROUTES: Record<string, string[]> = {
+  CLINIC_ADMIN: ["/clinic-admin/appointments", "/clinic-admin/payments", "/clinic-admin/earnings"],
+  ASSISTANT_DOCTOR: ["/assistant-doctor/coverage", "/assistant-doctor/prescriptions"],
 };
 
 export function getSidebarLinksByRole(role: string): SidebarLink[] {

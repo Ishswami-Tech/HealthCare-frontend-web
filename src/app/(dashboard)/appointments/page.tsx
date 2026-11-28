@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/actions/auth.server";
 import { Role } from "@/types/auth.types";
+import { getDashboardByRole, ROUTES } from "@/lib/config/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,9 @@ function getAppointmentsRouteByRole(role?: string): string {
     case Role.SUPER_ADMIN:
       return "/super-admin/dashboard";
     default:
-      return "/patient/appointments";
+      // Roles without an appointments screen (pharmacist, lab, ...) go to their own home so the
+      // proxy never bounces them through /patient/appointments.
+      return role ? getDashboardByRole(normalizedRole) : ROUTES.LOGIN;
   }
 }
 

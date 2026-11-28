@@ -8,8 +8,9 @@ import { IconBox, Note, Pill } from '@/components/tbd';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { useActiveSessions, useRevokeSession, type ActiveSession } from '@/hooks/query/useSessions';
 
-function isPhone(deviceInfo: string) {
-  const lower = deviceInfo.toLowerCase();
+function isPhone(deviceInfo: unknown) {
+  // Sessions from the hook carry a string label, but never trust the wire shape here.
+  const lower = (typeof deviceInfo === 'string' ? deviceInfo : '').toLowerCase();
   return lower.includes('mobile') || lower.includes('android') || lower.includes('iphone');
 }
 

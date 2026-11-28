@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useRecordCashPrescriptionPayment } from "@/hooks/query/usePatientVisits";
 import {
+  useDispenseBatches,
   useDispensePrescription,
   useMedicines,
   usePharmacyBatchAudit,
@@ -14,6 +16,7 @@ import {
   useReversePrescriptionDispense,
 } from "@/hooks/query/usePharmacy";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { PharmacyBatchAuditEntry } from "@/types/pharmacy.types";
 import { buildDeskQueue, type DeskQueueItem } from "../../dashboard/_components/pharmacist-dashboard.logic";
 import { PharmacistPrescriptionsView } from "./PharmacistPrescriptionsView";
@@ -23,14 +26,17 @@ import {
   buildDispensePayload,
   buildMedicineCatalog,
   filterBatchAudit,
+  counterWorkOrder,
   filterPrescriptions,
   isHistoryPrescription,
   normalizePrescription,
   sortNewestFirst,
+  withCatalogStock,
   type PrescriptionRow,
   type PrescriptionsTab,
 } from "./pharmacist-prescriptions.logic";
 import { usePharmacistPrescriptionsState } from "./usePharmacistPrescriptionsState";
+import { usableBatchOptions, type BatchOption } from "./dispense-batches.logic";
 
 function errorText(error: unknown): string | null {
   if (!error) return null;
@@ -50,6 +56,7 @@ export default function PharmacistPrescriptionsContent() {
   useAuth();
   useWebSocketQuerySync();
 
+  const router = useRouter();
   const { clinicId } = useClinicContext();
   const { tab, setTab } = useHashTab<PrescriptionsTab>({ tabs: PRESCRIPTION_TABS, defaultValue: "active" });
   const { state, actions, openDispenseDialog, openReverseDialog } = usePharmacistPrescriptionsState();
@@ -76,6 +83,8 @@ export default function PharmacistPrescriptionsContent() {
     isPending: prescriptionsPending,
     error: prescriptionsError,
     refetch: refetchPrescriptions,
+    dataUpdatedAt: prescriptionsUpdatedAt,
+    isFetching: prescriptionsFetching,
   } = usePrescriptions(clinicId || "", { limit: 100 });
   const { data: medicinesData = [] } = useMedicines(clinicId || "", { limit: 200 });
   // The date inputs give a day ("2026-10-03"). The API compares instants, so the range is
@@ -110,9 +119,41 @@ export default function PharmacistPrescriptionsContent() {
     [medicineCatalog],
   );
 
+  // Lots of every medicine in the open dispense form (the substitute when one is chosen): the
+  // form pre-fills the server's earliest-expiry lots and offers the others.
+  const dispenseMedicineIds = useMemo(
+    () => dispenseLines.map((line) => line.substituteMedicineId || line.medicineId),
+    [dispenseLines],
+  );
+  const { data: dispenseBatchLookups } = useDispenseBatches(
+    selectedPrescription ? clinicId || "" : "",
+    dispenseMedicineIds,
+  );
+  const batchOptions = useMemo(() => {
+    const now = Date.now();
+    return new Map<string, readonly BatchOption[]>(
+      (dispenseBatchLookups ?? []).map((lookup) => [lookup.medicineId, usableBatchOptions(lookup.batches, now)]),
+    );
+  }, [dispenseBatchLookups]);
+  const batchLookupFailed = useMemo(
+    () => new Set((dispenseBatchLookups ?? []).filter((lookup) => lookup.failed).map((lookup) => lookup.medicineId)),
+    [dispenseBatchLookups],
+  );
+  const { prefillBatches } = actions;
+  useEffect(() => {
+    if (batchOptions.size > 0) prefillBatches(batchOptions);
+  }, [batchOptions, prefillBatches]);
+
+  // Today's patients first (longest wait first), then the older backlog; stock read from the
+  // live medicine catalog so a stock receipt shows up on the board right away.
   const allActive = useMemo(
-    () => prescriptions.filter((prescription) => !isHistoryPrescription(prescription)),
-    [prescriptions],
+    () =>
+      counterWorkOrder(
+        prescriptions
+          .filter((prescription) => !isHistoryPrescription(prescription))
+          .map((prescription) => withCatalogStock(prescription, catalogById)),
+      ),
+    [prescriptions, catalogById],
   );
   const allHistory = useMemo(() => prescriptions.filter(isHistoryPrescription), [prescriptions]);
 
@@ -169,7 +210,7 @@ export default function PharmacistPrescriptionsContent() {
   const handleDispense = async () => {
     if (!selectedPrescription) return;
 
-    const payload = buildDispensePayload(dispenseLines, catalogById);
+    const payload = buildDispensePayload(dispenseLines, catalogById, batchOptions);
     if (!payload.medications) {
       actions.setDispenseFormError(payload.error);
       return;
@@ -183,7 +224,18 @@ export default function PharmacistPrescriptionsContent() {
           notes: dispenseNotes.trim() || undefined,
         },
       });
+      const dispensedId = selectedPrescription.id;
       actions.closeDispenseDialog();
+      // Shortcut to the hand-over of this prescription. The hand-over page still requires the
+      // patient's 6-digit code (or QR) before any item can be confirmed.
+      toast.success("Prescription dispensed", {
+        id: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
+        duration: 10_000,
+        action: {
+          label: "Hand over now",
+          onClick: () => router.push(`/pharmacist/handover/${encodeURIComponent(dispensedId)}`),
+        },
+      });
     } catch (error) {
       actions.setDispenseFormError(errorText(error));
     }
@@ -245,6 +297,8 @@ export default function PharmacistPrescriptionsContent() {
       listLoading={Boolean(clinicId) && prescriptionsPending && prescriptions.length === 0}
       listError={errorText(prescriptionsError)}
       onRetryList={() => void refetchPrescriptions()}
+      listUpdatedAt={prescriptionsUpdatedAt}
+      listRefreshing={prescriptionsFetching}
       searchTerm={searchTerm}
       onSearchTermChange={actions.setSearchTerm}
       statusFilter={effectiveStatusFilter}
@@ -270,6 +324,8 @@ export default function PharmacistPrescriptionsContent() {
         errorMessage: dispenseFormError,
         isDispensing: dispensePrescription.isPending,
         catalog: medicineCatalog,
+        batchOptions,
+        batchLookupFailed,
         onBatchChange: actions.updateBatchRow,
         onAddBatch: actions.addBatchRow,
         onRemoveBatch: actions.removeBatchRow,

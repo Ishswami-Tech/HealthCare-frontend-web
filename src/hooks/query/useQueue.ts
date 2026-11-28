@@ -68,6 +68,8 @@ export const useQueue = (clinicId?: string, filters?: {
   treatmentType?: string;
   status?: string;
   doctorId?: string;
+  /** One location's queue (reception: the server-given desk location). */
+  locationId?: string;
   date?: string;
   enabled?: boolean;
 }) => {
@@ -81,6 +83,7 @@ export const useQueue = (clinicId?: string, filters?: {
         ...(canonicalTreatmentType ? { treatmentType: canonicalTreatmentType } : {}),
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.doctorId ? { doctorId: filters.doctorId } : {}),
+        ...(filters.locationId ? { locationId: filters.locationId } : {}),
         ...(filters.date ? { date: filters.date } : {}),
       }
     : undefined;
@@ -116,6 +119,72 @@ export const useQueue = (clinicId?: string, filters?: {
     placeholderData: keepPreviousData,
     retry: queueQueryRetry,
   });
+};
+
+/**
+ * The doctor's live queue at a glance, as GET /appointments/summary/daily returns it in `liveQueue`
+ * for one doctor's today: who is with the doctor and who is next, in GET /queue serving order.
+ */
+export interface DoctorQueueGlance {
+  inProgressAppointmentId: string | null;
+  nextAppointmentId: string | null;
+  nextToken: string | null;
+  nextPatientId: string | null;
+  waiting: number;
+}
+
+const toNullableId = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() !== '' ? value : null;
+
+/** `liveQueue` from the summary payload (bare or inside a `data` envelope); null when absent. */
+export function extractDoctorQueueGlance(payload: unknown): DoctorQueueGlance | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const record = payload as Record<string, unknown>;
+  const raw = record.liveQueue ?? (record.data as Record<string, unknown> | undefined)?.liveQueue;
+  if (!raw || typeof raw !== 'object') return null;
+  const glance = raw as Record<string, unknown>;
+  const waiting = Number(glance.waiting);
+  return {
+    inProgressAppointmentId: toNullableId(glance.inProgressAppointmentId),
+    nextAppointmentId: toNullableId(glance.nextAppointmentId),
+    nextToken: toNullableId(glance.nextToken),
+    nextPatientId: toNullableId(glance.nextPatientId),
+    waiting: Number.isFinite(waiting) && waiting > 0 ? waiting : 0,
+  };
+}
+
+/**
+ * The signed-in doctor's live queue glance for today (GET /appointments/summary/daily).
+ * Keyed under the `queue` family so every queue invalidation (websocket, call-next, check-in)
+ * refreshes it together with GET /queue. Resolves to null when the backend sends no `liveQueue`.
+ */
+export const useDoctorQueueGlance = (clinicId?: string, options?: { enabled?: boolean }) => {
+  const normalizedClinicId = clinicId?.trim();
+  const { isConnected } = useWebSocketStatus();
+  const isAuthRefreshing = useAuthStore((state) => state.isRefreshing);
+
+  return useQueryData<DoctorQueueGlance | null>(
+    ['queue', normalizedClinicId ?? 'none', 'doctor-daily-glance'],
+    async () => {
+      try {
+        const response = await clinicApiClient.get(API_ENDPOINTS.APPOINTMENTS.SUMMARY_DAILY);
+        return extractDoctorQueueGlance(response.data);
+      } catch (error) {
+        if (isSessionInvalidError(error)) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    {
+      enabled: options?.enabled !== false && !!normalizedClinicId,
+      refetchInterval: isConnected || isAuthRefreshing ? false : 30000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      placeholderData: keepPreviousData,
+      retry: queueQueryRetry,
+    }
+  );
 };
 
 /**
@@ -259,6 +328,33 @@ export const useCallNextPatient = () => {
         ['queueAnalytics'],
         ['queuePerformanceMetrics'],
       ],
+    }
+  );
+};
+
+/**
+ * Set the queue priority of a checked-in appointment (front desk, clinic admin; audited by the API,
+ * which also reorders the live queue). Backend: POST /queue-ops/appointments/:appointmentId/priority.
+ */
+export const useSetQueuePriority = () => {
+  return useMutationOperation(
+    async ({ appointmentId, priority, reason }: {
+      appointmentId: string;
+      priority: 'NORMAL' | 'SENIOR' | 'PREGNANT' | 'EMERGENCY';
+      reason?: string;
+    }) => {
+      return (
+        await clinicApiClient.post(API_ENDPOINTS.QUEUE.PRIORITY(appointmentId), {
+          priority,
+          ...(reason ? { reason } : {}),
+        })
+      ).data;
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Setting priority...',
+      successMessage: 'Priority updated',
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -421,10 +517,8 @@ export const useNadiParikshaQueue = (clinicId?: string) => {
  * Hook for queue utilities and calculations
  */
 export const useQueueUtils = () => {
-  const calculateEstimatedWaitTime = (queuePosition: number, averageConsultationTime: number = 15) => {
-    return queuePosition * averageConsultationTime;
-  };
-
+  // No client-side ETA: wait times come from the server (GET /queue/me estimatedWaitTime,
+  // GET /in-person/* etaMinutes), computed with the clinic's in-person visit length.
   const getQueueStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'waiting':
@@ -484,7 +578,6 @@ export const useQueueUtils = () => {
   };
 
   return {
-    calculateEstimatedWaitTime,
     getQueueStatusColor,
     getQueueStatusIcon,
     getPriorityColor,

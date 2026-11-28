@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Loader2, ScanLine, Video } from "lucide-react";
+import { CalendarPlus, Loader2, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { LoadErrorAlert } from "@/components/patient/LoadErrorAlert";
 import { PatientHomeHero } from "@/components/patient/PatientHomeHero";
 import { PatientQuickActions } from "@/components/patient/PatientQuickActions";
 import type { HomeVisitActions } from "./HomeVisitCard";
@@ -27,9 +28,13 @@ export interface PatientHomeViewProps {
   /** Optional card under the profile banner (e.g. linking an earlier clinic record). */
   notice?: ReactNode;
 
-  onBook: () => void;
+  /** Omitted when the clinic has every consultation type switched off. */
+  onBook?: (() => void) | undefined;
+  /** False hides the video-only shortcut while the clinic has video switched off. */
+  videoBookingEnabled?: boolean;
   isBookingOpening: boolean;
-  onScanCheckIn: () => void;
+  /** Omitted when the clinic has QR self check-in switched off. */
+  onScanCheckIn?: (() => void) | undefined;
 
   stats: HomeStat[];
   isStatsLoading: boolean;
@@ -42,6 +47,11 @@ export interface PatientHomeViewProps {
   initialWorkspaceTab?: HomeWorkspaceTab;
 
   library: PatientHomeLibraryProps;
+
+  /** Set when the Home data could not be loaded or refreshed; shows an alert with Retry. */
+  loadError?: string | null;
+  onRetry?: () => void;
+  isRetrying?: boolean;
 }
 
 /**
@@ -58,6 +68,7 @@ export function PatientHomeView({
   onCompleteProfile,
   notice,
   onBook,
+  videoBookingEnabled = true,
   isBookingOpening,
   onScanCheckIn,
   stats,
@@ -69,6 +80,9 @@ export function PatientHomeView({
   visitActions,
   initialWorkspaceTab,
   library,
+  loadError,
+  onRetry,
+  isRetrying = false,
 }: PatientHomeViewProps) {
   const showDoctor = !isVisitsLoading && visits.length === 0 && Boolean(doctor?.name);
 
@@ -88,6 +102,15 @@ export function PatientHomeView({
         </div>
       ) : null}
 
+      {loadError && onRetry ? (
+        <LoadErrorAlert
+          title="We could not refresh your home screen."
+          detail={`${loadError} What you see may be out of date.`}
+          onRetry={onRetry}
+          retrying={isRetrying}
+        />
+      ) : null}
+
       {notice}
 
       <PatientHomeHero
@@ -99,14 +122,18 @@ export function PatientHomeView({
         doctorHref="/patient/appointments?openBooking=1"
         actions={
           <>
-            <Button variant="outline" size="md" className="dark:bg-card" onClick={onScanCheckIn}>
-              <ScanLine aria-hidden="true" />
-              Scan check-in
-            </Button>
-            <Button variant="action" size="md" disabled={isBookingOpening} onClick={onBook}>
-              {isBookingOpening ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Video aria-hidden="true" />}
-              {isBookingOpening ? "Opening…" : "Book video appointment"}
-            </Button>
+            {onScanCheckIn ? (
+              <Button variant="outline" size="md" className="dark:bg-card" onClick={onScanCheckIn}>
+                <ScanLine aria-hidden="true" />
+                Scan check-in
+              </Button>
+            ) : null}
+            {onBook ? (
+              <Button variant="action" size="md" disabled={isBookingOpening} onClick={onBook}>
+                {isBookingOpening ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CalendarPlus aria-hidden="true" />}
+                {isBookingOpening ? "Opening…" : "Book appointment"}
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -124,7 +151,7 @@ export function PatientHomeView({
         initialTab={initialWorkspaceTab}
       />
 
-      <PatientQuickActions />
+      <PatientQuickActions bookingEnabled={Boolean(onBook)} videoBookingEnabled={videoBookingEnabled} />
 
       <PatientHomeLibrary {...library} />
     </DashboardPageShell>

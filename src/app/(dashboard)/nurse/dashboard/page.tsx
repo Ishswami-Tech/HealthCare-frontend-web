@@ -25,10 +25,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import {
-  formatISODateInIST,
-  formatTimeInIST,
-} from "@/lib/utils/date-time";
 
 export default function NurseDashboard() {
   const { session } = useAuth();
@@ -48,17 +44,8 @@ export default function NurseDashboard() {
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
 
-  const stats = useMemo(() => {
-    const todayDate = formatISODateInIST(new Date());
-    const vitalsRecordedToday = patients.filter((p: any) =>
-      p.vitals?.some((v: any) => formatISODateInIST(v.recordedAt) === todayDate)
-    ).length;
-    return {
-      activePatients: patients.length,
-      vitalsRecordedToday,
-      vitalsNeeded: patients.length - vitalsRecordedToday,
-    };
-  }, [patients]);
+  // Product rule: no vitals metrics or capture anywhere.
+  const stats = useMemo(() => ({ activePatients: patients.length }), [patients]);
 
   const columns: ColumnDef<any>[] = [
     {
@@ -88,49 +75,6 @@ export default function NurseDashboard() {
         );
       },
     },
-    {
-      id: "vitals",
-      header: "Latest Vitals",
-      cell: ({ row }) => {
-        const latestVitals = (row.original.vitals as any[])?.[row.original.vitals.length - 1];
-        if (!latestVitals) return <span className="text-xs text-muted-foreground">None recorded</span>;
-        return (
-          <div className="text-xs gap-y-1">
-            <div className="flex gap-2">
-              <span className="text-muted-foreground">BP:</span>
-              <span className="font-medium">{latestVitals.bloodPressure}</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-muted-foreground">Pulse:</span>
-              <span className="font-medium">{latestVitals.heartRate} bpm</span>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: "lastChecked",
-      header: "Last Check",
-      cell: ({ row }) => {
-        const latestVitals = (row.original.vitals as any[])?.[row.original.vitals.length - 1];
-        if (!latestVitals?.recordedAt) return <span className="text-xs text-muted-foreground">Never</span>;
-        return (
-          <span className="text-xs">
-            {formatTimeInIST(latestVitals.recordedAt)}
-          </span>
-        );
-      },
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: () => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="h-8 text-xs">Record</Button>
-          <Button size="sm" variant="ghost" className="h-8 text-xs">History</Button>
-        </div>
-      ),
-    },
   ];
 
   const showSkeleton = isPatientsPending && patients.length === 0;
@@ -142,7 +86,7 @@ export default function NurseDashboard() {
       <DashboardPageHeader
         eyebrow="Nurse"
         title="Nurse Dashboard"
-        description={`Welcome back, ${user?.name || "Nurse"}. Review patient coverage, vitals activity, and care priorities from one dashboard.`}
+        description={`Welcome back, ${user?.name || "Nurse"}. Review patient coverage and care priorities from one dashboard.`}
         meta={headerMeta}
       />
 
@@ -150,9 +94,6 @@ export default function NurseDashboard() {
         {showSkeleton ? (
           <>
             <StatCardSkeleton icon={<Users className="size-4 text-blue-600" />} label="Active Patients" />
-            <StatCardSkeleton icon={<Activity className="size-4 text-green-600" />} label="Vitals Recorded" />
-            <StatCardSkeleton icon={<CheckCircle className="size-4 text-purple-600" />} label="Vitals Updated" />
-            <StatCardSkeleton icon={<Heart className="size-4 text-orange-600" />} label="Vitals Needed" />
           </>
         ) : (
           <>
@@ -163,33 +104,6 @@ export default function NurseDashboard() {
               accentClassName="border-blue-200 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10"
               valueClassName="mt-1 text-2xl font-bold text-blue-600"
               labelClassName="text-blue-700 dark:text-blue-300"
-              compact
-            />
-            <DashboardMetricCard
-              label="Vitals Recorded"
-              value={stats.vitalsRecordedToday}
-              subtext="Patients updated today"
-              accentClassName="border-green-200 bg-green-50 dark:border-green-500/20 dark:bg-green-500/10"
-              valueClassName="mt-1 text-2xl font-bold text-green-600"
-              labelClassName="text-green-700 dark:text-green-300"
-              compact
-            />
-            <DashboardMetricCard
-              label="Vitals Updated"
-              value={stats.vitalsRecordedToday}
-              subtext="Patients updated today"
-              accentClassName="border-purple-200 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10"
-              valueClassName="mt-1 text-2xl font-bold text-purple-600"
-              labelClassName="text-purple-700 dark:text-purple-300"
-              compact
-            />
-            <DashboardMetricCard
-              label="Vitals Needed"
-              value={stats.vitalsNeeded}
-              subtext="Patients pending check"
-              accentClassName="border-orange-200 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10"
-              valueClassName="mt-1 text-2xl font-bold text-orange-600"
-              labelClassName="text-orange-700 dark:text-orange-300"
               compact
             />
           </>
@@ -226,7 +140,7 @@ export default function NurseDashboard() {
         </CardHeader>
         <CardContent>
           {showSkeleton ? (
-            <TableSkeleton columns={["Patient", "Priority", "Latest Vitals", "Last Check", "Actions"]} rows={3} />
+            <TableSkeleton columns={["Patient", "Priority"]} rows={3} />
           ) : (
             <DataTable
               columns={columns}
@@ -239,18 +153,6 @@ export default function NurseDashboard() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-blue-50/50 border-blue-100">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2 text-blue-800">
-              <Stethoscope className="size-4" />
-              Vital Monitoring
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-blue-700/80">Standard rounds: Check vitals for all assigned patients every 4 hours.</p>
-          </CardContent>
-        </Card>
-        
         <Card className="bg-green-50/50 border-green-100">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2 text-green-800">

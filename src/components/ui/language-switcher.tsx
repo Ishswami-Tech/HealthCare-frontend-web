@@ -82,10 +82,10 @@ export function LanguageSwitcher({
               variant="ghost"
               size="icon"
               className={cn(
-                "relative size-10 rounded-xl border border-line bg-card text-xs font-bold text-ink-soft shadow-none transition-colors hover:bg-mint-soft dark:bg-card dark:hover:bg-accent",
+                "relative size-11 rounded-xl border border-line bg-card text-xs font-bold text-ink-soft shadow-none transition-colors hover:bg-mint-soft dark:bg-card dark:hover:bg-accent",
                 isOpen && "bg-mint-soft"
               )}
-              aria-label="Select language"
+              aria-label={`${String(language || "en").slice(0, 2).toUpperCase()}, select language`}
             >
               {/* Language code ("EN"), as in the designs; the full list with flags opens below. */}
               <span className="leading-none select-none">

@@ -380,7 +380,6 @@ export async function updateDoctorProfile(doctorUserId: string, profileData: {
   /** Fixed doctor fees: set by admins only (a doctor gets 403). */
   videoDoctorFee?: number | null;
   inPersonDoctorFee?: number | null;
-  slotDurationMinutes?: number;
   videoConsultationEnabled?: boolean;
   inPersonConsultationEnabled?: boolean;
   qualification?: string;
@@ -390,6 +389,8 @@ export async function updateDoctorProfile(doctorUserId: string, profileData: {
   languages?: string[];
   /** Public name, headline and highlights per language; null clears them. */
   localizedProfile?: LocalizedProfile | null;
+  /** ABDM Health Professional Registry (HPR) id. Scaffolding only. */
+  abdmHprId?: string;
 }) {
   const session = await getServerSession();
   if (!session?.user) return { success: false as const, error: 'Unauthorized' };

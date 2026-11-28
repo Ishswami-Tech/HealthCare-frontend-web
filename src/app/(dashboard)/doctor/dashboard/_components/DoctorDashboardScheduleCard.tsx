@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { CalendarDays, Check, ChevronRight, Clock, HousePlus, Loader2, Pill as PillIcon, Play, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,16 +13,17 @@ import {
   GridRow,
   Pill,
   Surface,
-  statusLabel,
+  appointmentStatusLabel,
   statusTone,
 } from "@/components/tbd";
+import { DoctorCaseSheetDialog } from "./DoctorCaseSheetDialog";
 import type { DoctorAppointmentFilter, DoctorTodayRow, TransformedAppointment } from "./doctor-dashboard.logic";
 
 interface DoctorDashboardScheduleCardProps {
   /** Today's rows after the filter chip is applied. */
   rows: DoctorTodayRow[];
   filter: DoctorAppointmentFilter;
-  counts: { all: number; confirmed: number; completed: number };
+  counts: { all: number; confirmed: number; inProgress: number; completed: number; cancelled: number };
   /** The visit shown in the "Now consulting" card (it is completed there, not in its row). */
   activeConsultId: string | null;
   isLoading: boolean;
@@ -31,7 +33,6 @@ interface DoctorDashboardScheduleCardProps {
   onJoinVideoSession: (appointmentId: string) => void;
   onStartAppointment: (appointmentId: string, doctorId: string) => void | Promise<void>;
   onOpenPrescription: (appointment: TransformedAppointment) => void;
-  onOpenEhr: (patientId: string) => void;
   onCompleteAppointment: (appointmentId: string) => void | Promise<void>;
 }
 
@@ -65,10 +66,13 @@ export function DoctorDashboardScheduleCard({
   onJoinVideoSession,
   onStartAppointment,
   onOpenPrescription,
-  onOpenEhr,
   onCompleteAppointment,
 }: DoctorDashboardScheduleCardProps) {
+  // Opens the case sheet in a dialog instead of navigating to /doctor/patients/[id] — clicking
+  // a patient (or the EHR button) used to take the doctor off this screen entirely.
+  const [caseSheetPatientId, setCaseSheetPatientId] = useState<string | null>(null);
   return (
+    <>
     <Surface as="section" flush aria-label="Today's appointments">
       <div className="flex flex-wrap items-center gap-3 border-b border-hair px-5 py-4">
         <h2 className="m-0 flex-1 whitespace-nowrap text-base font-bold text-ink">Today&apos;s Appointments</h2>
@@ -78,8 +82,10 @@ export function DoctorDashboardScheduleCard({
           onChange={onFilterChange}
           options={[
             { value: "ALL", label: "All", count: counts.all },
-            { value: "CONFIRMED", label: "Confirmed", count: counts.confirmed },
-            { value: "COMPLETED", label: "Completed", count: counts.completed },
+            { value: "CONFIRMED", label: appointmentStatusLabel("CONFIRMED"), count: counts.confirmed },
+            { value: "IN_PROGRESS", label: appointmentStatusLabel("IN_PROGRESS"), count: counts.inProgress },
+            { value: "COMPLETED", label: appointmentStatusLabel("COMPLETED"), count: counts.completed },
+            { value: "CANCELLED", label: "Cancelled", count: counts.cancelled },
           ]}
         />
       </div>
@@ -114,8 +120,30 @@ export function DoctorDashboardScheduleCard({
             <GridRow key={appointment.id} columns={COLUMNS} className="lg:min-h-16">
               <CellTitle
                 left={<VisitIcon isVideo={appointment.isVideo} />}
-                title={appointment.patientName}
-                description={`${appointment.isVideo ? "Video call" : "In-clinic"} · ${appointment.duration}`}
+                title={
+                  <button
+                    type="button"
+                    className="text-left text-ink transition-colors hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline focus-visible:outline-hidden"
+                    aria-label={`${appointment.patientName}, open case sheet`}
+                    title="Open case sheet"
+                    onClick={() => setCaseSheetPatientId(appointment.patientId)}
+                  >
+                    {appointment.patientName}
+                  </button>
+                }
+                description={
+                  <>
+                    <span className="block truncate">
+                      {[appointment.isVideo ? "Video call" : "In-clinic", appointment.duration].filter(Boolean).join(" · ")}
+                    </span>
+                    {appointment.reason ? (
+                      <span className="block truncate text-ink-soft" title={appointment.reason}>
+                        <span className="sr-only">Patient remarks: </span>
+                        {appointment.reason}
+                      </span>
+                    ) : null}
+                  </>
+                }
               />
 
               <div className="flex flex-col gap-[3px]">
@@ -137,7 +165,7 @@ export function DoctorDashboardScheduleCard({
               </div>
 
               <div className="flex flex-row flex-wrap items-start gap-1 lg:flex-col">
-                <Pill tone={statusTone(appointment.statusEnum)}>{statusLabel(appointment.statusEnum)}</Pill>
+                <Pill tone={statusTone(appointment.statusEnum)}>{appointmentStatusLabel(appointment.statusEnum, appointment.type)}</Pill>
                 {appointment.priority === "URGENT" ? <Pill tone="rose">Urgent</Pill> : null}
               </div>
 
@@ -182,8 +210,8 @@ export function DoctorDashboardScheduleCard({
                 ) : null}
                 <Button
                   variant="outline"
-                  aria-label={`Open health record of ${appointment.patientName}`}
-                  onClick={() => onOpenEhr(appointment.patientId)}
+                  aria-label={`EHR for ${appointment.patientName}`}
+                  onClick={() => setCaseSheetPatientId(appointment.patientId)}
                 >
                   EHR
                 </Button>
@@ -206,5 +234,13 @@ export function DoctorDashboardScheduleCard({
         </Link>
       </div>
     </Surface>
+    <DoctorCaseSheetDialog
+      open={caseSheetPatientId !== null}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setCaseSheetPatientId(null);
+      }}
+      patientId={caseSheetPatientId ?? ""}
+    />
+    </>
   );
 }

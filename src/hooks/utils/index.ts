@@ -19,3 +19,6 @@ export {
 } from './useRBAC';
 export { useOptimisticUpdateQueueStatus, useOptimisticCallNextPatient } from './useOptimisticQueue';
 export { useCountdown } from './useCountdown';
+export { useOnlineStatus } from './useOnlineStatus';
+export { useUndoableAction } from './useUndoableAction';
+export { useStaffRole } from './useStaffRole';

@@ -86,6 +86,11 @@ export interface AppointmentServiceDefinition {
   assistantDoctorEligible: boolean;
   active: boolean;
   videoConsultationFee?: number;
+  /**
+   * Patient-bookable in the booking dialog for the current clinic (backend clinic setting
+   * `appointmentSettings.bookableTreatmentTypes`). Absent on older backends.
+   */
+  bookable?: boolean;
 }
 
 export interface AppointmentReassignmentCandidate {
@@ -136,7 +141,8 @@ export interface CreateAppointmentData {
   doctorId: string;
   date: string;
   time: string;
-  duration: number;
+  /** Server-owned (clinic in-person / video visit length); booking screens leave it out. */
+  duration?: number;
   type: AppointmentType; // ✅ Use AppointmentType instead of string
   treatmentType?: TreatmentType;
   notes?: string;
@@ -438,6 +444,8 @@ export interface AppointmentFilters {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   search?: string;
+  /** Only follow-up appointments (true) or only non-follow-up ones (false). */
+  isFollowUp?: boolean;
 }
 
 export interface QueueEntry {

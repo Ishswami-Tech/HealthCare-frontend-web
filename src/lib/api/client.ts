@@ -21,6 +21,7 @@ import { normalizeClinicId } from '@/lib/utils/clinic-id';
 import { useAuthStore } from '@/stores/auth.store';
 import { triggerClientAuthRecovery, refreshClientSessionOnce } from '@/lib/utils/auth-recovery';
 import { dedupeRequest } from '@/hooks/core/requestDeduper';
+import { classifySessionFailure } from '@/lib/utils/session-failure';
 import type { Session } from '@/types/auth.types';
 
 type ClinicRequestInit = RequestInit & {
@@ -30,6 +31,38 @@ type ClinicRequestInit = RequestInit & {
 };
 
 // ✅ Custom Error Classes
+/**
+ * True when a 401 says the session/token itself is no longer valid (revoked,
+ * expired, invalid) - as opposed to a 401 from a credential check such as a
+ * wrong current password, which must not log the user out.
+ */
+async function isDeadSessionResponse(response: Response): Promise<boolean> {
+  try {
+    const body = (await response.clone().json()) as { message?: unknown; error?: unknown };
+    const text = `${String(body?.message ?? '')} ${String(body?.error ?? '')}`.toLowerCase();
+    return ['revoked', 'session', 'token', 'jwt'].some((pattern) => text.includes(pattern));
+  } catch {
+    return false;
+  }
+}
+
+/** True when a non-401 failure still means the session is over (see session-failure.ts). */
+async function isSessionEndedResponse(response: Response, url: string): Promise<boolean> {
+  try {
+    const body = (await response.clone().json()) as { message?: unknown; error?: unknown; code?: unknown };
+    const message = typeof body?.message === 'string' ? body.message : undefined;
+    const code =
+      typeof body?.code === 'string' ? body.code : typeof body?.error === 'string' ? body.error : undefined;
+    const sessionClinicId = useAuthStore.getState().session?.user?.clinicId || undefined;
+    return (
+      classifySessionFailure({ status: response.status, code, message, endpoint: url, sessionClinicId }) ===
+      'session-ended'
+    );
+  } catch {
+    return false;
+  }
+}
+
 export class ApiError extends Error {
   public statusCode: number;
   public code: string;
@@ -326,13 +359,17 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   
   // Parse response based on content type
   let data: any;
+  let isFileBody = false;
   if (contentType?.includes('application/json')) {
     data = await response.json();
   } else if (contentType?.includes('text/')) {
     data = await response.text();
   } else {
     data = await response.blob();
+    isFileBody = true;
   }
+  // File downloads: keep the server-chosen name (readable only when CORS exposes the header).
+  const contentDisposition = isFileBody ? response.headers.get('content-disposition') : null;
   
   // Handle error responses
   if (!response.ok) {
@@ -361,6 +398,7 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     data,
     statusCode: response.status,
     requestId: requestId || undefined,
+    ...(contentDisposition ? { contentDisposition } : {}),
     ...data, // Include any additional fields from the response
   };
 }
@@ -390,6 +428,8 @@ export interface AppointmentListQueryInput {
   locationId?: string | undefined;
   page?: number | undefined;
   limit?: number | undefined;
+  /** Only follow-up appointments (true) or only non-follow-up ones (false). */
+  isFollowUp?: boolean | undefined;
 }
 
 export interface AppointmentListPage {
@@ -419,6 +459,7 @@ export function buildAppointmentListFilterQuery(
   put('clinicId', params?.clinicId);
   put('locationId', params?.locationId);
   put('status', Array.isArray(params?.status) ? params.status.join(',') : params?.status);
+  if (params?.isFollowUp !== undefined) put('isFollowUp', params.isFollowUp);
 
   if (params?.date) {
     // An exact day wins: the backend ignores the range when `date` is present.
@@ -831,7 +872,32 @@ export class ApiClient {
                ) as HeadersInit,
                timeout: this.timeout
            };
-           return fetchWithAbort(url, newConfig);
+           const retried = await fetchWithAbort(url, newConfig);
+           // Refresh "worked" but the API still rejects the session (e.g. it was
+           // revoked by a logout on another device): the session is dead, so
+           // clear auth and send the user to login instead of leaving the
+           // dashboard shell rendered with a stale name.
+           if (
+             retried.status === HTTP_STATUS.UNAUTHORIZED &&
+             typeof window !== 'undefined' &&
+             (await isDeadSessionResponse(retried))
+           ) {
+             await this.clearAuthSession();
+             triggerClientAuthRecovery();
+           }
+           return retried;
+        }
+
+        // A browser request whose user was deleted or removed from the session's
+        // clinic gets a 403 (or 404 on its own profile) that no refresh can fix.
+        if (
+          shouldRequireAuth &&
+          typeof window !== 'undefined' &&
+          (res.status === HTTP_STATUS.FORBIDDEN || res.status === HTTP_STATUS.NOT_FOUND) &&
+          (await isSessionEndedResponse(res, url))
+        ) {
+          await this.clearAuthSession();
+          triggerClientAuthRecovery();
         }
 
         return res;
@@ -964,17 +1030,28 @@ export class ApiClient {
               return refreshedSession;
             })()
           : await (async () => {
-              const response = await fetchWithAbort(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(sessionId ? { 'X-Session-ID': sessionId } : {})
-                },
-                credentials: this.withCredentials ? 'include' : 'omit',
-                timeout: this.timeout,
-                body: JSON.stringify(refreshToken ? { refreshToken } : {})
-              });
+              const transientRefreshError = () =>
+                new ApiError('Session refresh is temporarily unavailable', 503, ERROR_CODES.SYSTEM_ERROR);
+              let response: Response;
+              try {
+                response = await fetchWithAbort(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(sessionId ? { 'X-Session-ID': sessionId } : {})
+                  },
+                  credentials: this.withCredentials ? 'include' : 'omit',
+                  timeout: this.timeout,
+                  body: JSON.stringify(refreshToken ? { refreshToken } : {})
+                });
+              } catch {
+                // Network failure / timeout: the session may be fine, keep the cookies.
+                throw transientRefreshError();
+              }
 
+              if (classifySessionFailure({ status: response.status }) === 'transient') {
+                throw transientRefreshError();
+              }
               if (!response.ok) {
                 throw new Error('Token refresh failed');
               }
@@ -994,6 +1071,10 @@ export class ApiClient {
               503,
               ERROR_CODES.SYSTEM_ERROR
             );
+          }
+          // Server side: a transient refresh failure must not log the user out either.
+          if (!isClient && error instanceof ApiError && error.statusCode >= 500) {
+            throw error;
           }
           // If refresh fails, clear session and throw
           await this.clearAuthSession();
@@ -1334,12 +1415,7 @@ export class ClinicApiClient extends ApiClient {
       case 'google':
         endpoint = API_ENDPOINTS.AUTH.GOOGLE_LOGIN;
         break;
-      case 'facebook':
-        endpoint = API_ENDPOINTS.AUTH.FACEBOOK_LOGIN;
-        break;
-      case 'apple':
-        endpoint = API_ENDPOINTS.AUTH.APPLE_LOGIN;
-        break;
+      // The backend has only Google sign-in (no /auth/facebook or /auth/apple).
       default:
         throw new Error('Invalid provider');
     }
@@ -1356,12 +1432,9 @@ export class ClinicApiClient extends ApiClient {
     return this.get(API_ENDPOINTS.USERS.PROFILE);
   }
 
-  async getUserSessions(userId?: string) {
-    if (userId) {
-      return this.get(API_ENDPOINTS.USERS.SESSIONS.GET_ALL, { userId });
-    }
-    // Fallback to profile endpoint if no userId provided
-    return this.get(API_ENDPOINTS.USERS.PROFILE);
+  /** The signed-in user's sessions (GET /auth/sessions; there is no /user/sessions route). */
+  async getUserSessions() {
+    return this.get(API_ENDPOINTS.AUTH.SESSIONS);
   }
 
   // ✅ Clinic Management Methods
@@ -1538,10 +1611,6 @@ export class ClinicApiClient extends ApiClient {
 
   async checkInAppointment(id: string) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id));
-  }
-
-  async scanLocationQRAndCheckIn(data: { qrCode: string; locationId?: string }) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, data);
   }
 
   async getDoctorAvailability(

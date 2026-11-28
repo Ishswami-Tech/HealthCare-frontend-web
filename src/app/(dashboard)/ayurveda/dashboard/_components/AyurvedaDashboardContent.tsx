@@ -100,27 +100,6 @@ export default function AyurvedaDashboardContent() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Ayurvedic Diagnoses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.recentDiagnoses.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No diagnoses recorded.</p>
-            ) : (
-              <ul className="space-y-3">
-                {data.recentDiagnoses.slice(0, 5).map((d) => (
-                  <li key={d.id} className="rounded border p-3">
-                    <p className="text-sm font-semibold">{d.diagnosisLabel}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Primary dosha: {d.primaryDosha} · Severity: {d.severity}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </DashboardPageShell>
   );

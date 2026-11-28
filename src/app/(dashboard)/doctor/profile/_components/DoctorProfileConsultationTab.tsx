@@ -1,9 +1,9 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Info, Stethoscope } from "lucide-react";
-import { Field, Note } from "@/components/tbd";
+import { Note } from "@/components/tbd";
+import { useClinicVisitDurations } from "@/hooks/query/useClinics";
 import { PROFILE_SWITCH, ProfileCard } from "./DoctorProfileParts";
 import type { DoctorProfileFormState } from "./doctor-profile.types";
 
@@ -17,27 +17,19 @@ export function DoctorProfileConsultationTab({
   updateConsultationSettings,
 }: DoctorProfileConsultationTabProps) {
   const settings = profileData.consultationSettings;
+  const durations = useClinicVisitDurations();
 
   return (
     <ProfileCard icon={Stethoscope} title="Consultation Settings" className="gap-3.5">
       {/* Fees are not shown: a doctor sees no money amounts, and the clinic admin sets them. */}
       <Note tone="blue" icon={Info}>
-        These settings cannot be changed here yet. Your clinic admin sets the visit types and the visit length.
+        These settings cannot be changed here. Your clinic admin sets the visit types and the visit lengths.
       </Note>
 
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <Field labelClassName="min-h-5" label="Duration (minutes)" htmlFor="consultationDuration">
-          <Input
-            id="consultationDuration"
-            type="number"
-            min={0}
-            inputMode="numeric"
-            disabled
-            placeholder="Not set"
-            value={settings.consultationDuration}
-            onChange={(e) => updateConsultationSettings("consultationDuration", e.target.value)}
-          />
-        </Field>
+      {/* Visit lengths are clinic settings (slots and bookings use them); read-only here. */}
+      <div role="group" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2" aria-label="Visit lengths">
+        <VisitLength label="In-clinic visit" minutes={durations.inPersonMinutes} loading={durations.isLoading} />
+        <VisitLength label="Video visit" minutes={durations.videoMinutes} loading={durations.isLoading} />
       </div>
 
       <div className="flex flex-col">
@@ -101,6 +93,17 @@ function SettingRow({ id, label, description, checked, onCheckedChange }: Settin
         disabled
         onCheckedChange={onCheckedChange}
       />
+    </div>
+  );
+}
+
+/** One read-only clinic visit length ("3 min", "Set by clinic admin"). */
+function VisitLength({ label, minutes, loading }: { label: string; minutes: number; loading: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-xl border border-hair bg-well px-3.5 py-3">
+      <span className="text-xs font-bold text-ink-muted">{label}</span>
+      <span className="text-base font-extrabold text-ink">{loading ? "..." : `${minutes} min`}</span>
+      <span className="text-xs text-ink-muted">Set by clinic admin</span>
     </div>
   );
 }

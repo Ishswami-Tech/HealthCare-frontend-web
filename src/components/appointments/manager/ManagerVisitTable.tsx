@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils";
 import { VisitAvatar, VisitTypeChip } from "./ManagerVisitCard";
 import type { ManagerPayRenderer, ManagerVisit, ManagerVisitActions } from "./types";
 
-const PAST_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_180px_180px_110px]";
+// The outcome column was 110px — just narrow enough that "COMPLETED" overflowed into the next
+// column and sat under the "Rate visit" button. Widened along with the actions column next to it.
+const PAST_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_140px_140px_135px_130px]";
 const CLOSED_COLUMNS = "@3xl:grid-cols-[minmax(0,1fr)_120px_120px_110px_150px]";
 const ROW = "flex flex-col gap-2.5 border-b border-hair py-3 text-ink last:border-b-0 @3xl:grid @3xl:items-center @3xl:gap-4";
 
@@ -43,7 +45,7 @@ function Head({ columns, labels }: { columns: string; labels: string[] }) {
   );
 }
 
-/** Completed visits: what it was, video or clinic, when, and a link to the summary. */
+/** Completed and missed visits: what it was, video or clinic, when, its outcome, and a link to the summary. */
 export function ManagerPastTable({
   visits,
   footer,
@@ -56,16 +58,19 @@ export function ManagerPastTable({
 }) {
   return (
     <Surface className="gap-0 pb-2">
-      <Head columns={PAST_COLUMNS} labels={["Visit", "Type", "Date", ""]} />
+      <Head columns={PAST_COLUMNS} labels={["Visit", "Type", "Date", "Outcome", ""]} />
       {visits.map((visit) => {
         const cells = (
           <>
-            <VisitCell visit={visit} description={who(visit)} />
+            <VisitCell visit={visit} description={[who(visit), visit.closedNote].filter(Boolean).join(" · ")} />
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
               <span>
                 <VisitTypeChip visit={visit} short />
               </span>
               <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
+              <span>
+                <Pill tone={visit.statusTone}>{visit.statusLabel}</Pill>
+              </span>
               {visit.summaryHref ? (
                 <span className="ml-auto inline-flex items-center justify-end gap-1 text-[13px] font-bold text-brand @3xl:ml-0">
                   {visit.summaryLabel}
@@ -81,19 +86,22 @@ export function ManagerPastTable({
         if (onRate && visit.canRate) {
           return (
             <div key={visit.id} className={cn(ROW, PAST_COLUMNS)}>
-              <VisitCell visit={visit} description={who(visit)} />
+              <VisitCell visit={visit} description={[who(visit), visit.closedNote].filter(Boolean).join(" · ")} />
               <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @3xl:contents">
                 <span>
                   <VisitTypeChip visit={visit} short />
                 </span>
                 <span className="text-[13px] text-ink-muted">{visit.dateLabel}</span>
+                <span>
+                  <Pill tone={visit.statusTone}>{visit.statusLabel}</Pill>
+                </span>
                 <span className="ml-auto flex items-center justify-end gap-3 @3xl:ml-0">
                   <Button variant="outline" size="sm" onClick={() => onRate(visit.id)}>
                     <Star aria-hidden="true" />
                     Rate visit
                   </Button>
                   {visit.summaryHref ? (
-                    <Link href={visit.summaryHref} className="inline-flex items-center gap-1 text-[13px] font-bold text-brand hover:text-brand-dark">
+                    <Link prefetch={false} href={visit.summaryHref} className="inline-flex items-center gap-1 text-[13px] font-bold text-brand hover:text-brand-dark">
                       {visit.summaryLabel}
                       <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
                     </Link>
@@ -104,7 +112,7 @@ export function ManagerPastTable({
           );
         }
         return visit.summaryHref ? (
-          <Link
+          <Link prefetch={false}
             key={visit.id}
             href={visit.summaryHref}
             className={cn(

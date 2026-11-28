@@ -2,10 +2,15 @@
 
 import { ROUTES } from "@/lib/config/routes";
 import { clearTokens } from "@/lib/utils/token-manager";
-import { refreshToken } from "@/lib/actions/auth.server";
+import { clearSession, refreshToken } from "@/lib/actions/auth.server";
 import { useAuthStore } from "@/stores/auth.store";
 import type { Session } from "@/types/auth.types";
 import { resetAllStores } from "@/stores";
+import {
+  classifySessionFailure,
+  isSessionEndedMessage,
+  toSessionFailureInput,
+} from "@/lib/utils/session-failure";
 
 export const JWT_REFRESH_LEAD_MS = 2 * 60 * 1000;
 
@@ -75,7 +80,23 @@ export function isSessionInvalidError(error: unknown): boolean {
     return true;
   }
 
-  const message = extractAuthErrorMessage(error).toLowerCase();
+  const rawMessage = extractAuthErrorMessage(error);
+  // Server actions hand the browser only the message, so `authenticatedApi`
+  // marks a session it has already ended with this sentinel.
+  if (isSessionEndedMessage(rawMessage)) {
+    return true;
+  }
+
+  // Direct browser API errors keep status + backend code: a 403 for a user who
+  // lost access to the session's clinic (or was deleted) ends the session too.
+  if (status === 403) {
+    const sessionClinicId = useAuthStore.getState().session?.user?.clinicId || undefined;
+    if (classifySessionFailure(toSessionFailureInput(error, { sessionClinicId })) === "session-ended") {
+      return true;
+    }
+  }
+
+  const message = rawMessage.toLowerCase();
   if (!message) {
     return false;
   }
@@ -84,6 +105,7 @@ export function isSessionInvalidError(error: unknown): boolean {
     "no token provided",
     "authentication required",
     "session expired",
+    "session has expired",
     "invalid token",
     "invalid session",
     "unauthorized",
@@ -183,8 +205,33 @@ export function refreshClientSessionOnce(
   return inFlightRefreshPromise;
 }
 
+// ─── Voluntary logout guard ─────────────────────────────────────────────────
+// A request that was in flight when the user pressed "Log out" comes back 401 once the session is
+// gone; its recovery must not race the logout and land on `?reason=session-expired`.
+const VOLUNTARY_LOGOUT_GUARD_MS = 15_000;
+// Redirect even if clearing the server cookies hangs.
+const AUTH_RECOVERY_REDIRECT_FALLBACK_MS = 3_000;
+type LogoutAwareWindow = Window & { __voluntaryLogoutAt?: number; __authRecoveryInProgress?: boolean };
+
+/** Call at the very start of a user-initiated logout. */
+export function markVoluntaryLogout(): void {
+  if (typeof window === "undefined") return;
+  (window as LogoutAwareWindow).__voluntaryLogoutAt = Date.now();
+}
+
+export function isVoluntaryLogoutInProgress(now: number = Date.now()): boolean {
+  if (typeof window === "undefined") return false;
+  const startedAt = (window as LogoutAwareWindow).__voluntaryLogoutAt;
+  return typeof startedAt === "number" && now - startedAt < VOLUNTARY_LOGOUT_GUARD_MS;
+}
+
 export function triggerClientAuthRecovery(): void {
   if (typeof window === "undefined") {
+    return;
+  }
+
+  // The logout flow clears the session and redirects to the plain login page itself.
+  if (isVoluntaryLogoutInProgress()) {
     return;
   }
 
@@ -194,12 +241,21 @@ export function triggerClientAuthRecovery(): void {
 
   (window as Window & { __authRecoveryInProgress?: boolean }).__authRecoveryInProgress = true;
 
+  let redirected = false;
+  const redirectToLogin = () => {
+    if (redirected) return;
+    redirected = true;
+    window.location.replace(`${ROUTES.LOGIN}?reason=session-expired`);
+  };
+
   try {
     clearTokens();
     resetAllStores();
   } finally {
-    window.setTimeout(() => {
-      window.location.replace(`${ROUTES.LOGIN}?reason=session-expired`);
-    }, 150);
+    // The auth cookies are httpOnly, so only the server can drop them. Without this the proxy
+    // still sees access_token + user_role and bounces /auth/login straight back to the
+    // dashboard, which kept rendering the shell for a revoked session.
+    clearSession().then(redirectToLogin, redirectToLogin);
+    window.setTimeout(redirectToLogin, AUTH_RECOVERY_REDIRECT_FALLBACK_MS);
   }
 }

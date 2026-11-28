@@ -20,7 +20,15 @@ import {
   useClinicPaymentConfig,
   enabledProvidersFromConfig,
 } from "@/hooks/query/useClinicPaymentConfig";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { formatAmountFromMinorUnits } from "@/lib/utils";
+import {
+  buildPaymentBridgeLaunchUrl as buildBridgeLaunchUrl,
+  readIntentCashfreeMode,
+  resolvePaymentBridgeBaseUrl,
+  sanitizeBridgePayload,
+  type CashfreeMode,
+} from "@/lib/payments/payment-bridge";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
   createPaymentIntent as createPaymentIntentServerAction,
@@ -127,6 +135,8 @@ type PaymentIntentResponse = {
     paymentIntent?: Record<string, unknown>;
   };
   paymentIntent?: Record<string, unknown>;
+  /** No gateway order was opened - e.g. a zero-amount (free) plan or invoice. Already settled. */
+  alreadyPaid?: boolean;
   error?: string;
   message?: string;
 };
@@ -153,6 +163,8 @@ type PaymentBridgePayload = {
   paymentIntentId?: string;
   handoffToken?: string;
   handoffCallbackUrl?: string;
+  /** Cashfree mode the backend minted this order in, so the bridge opens the matching SDK. */
+  environment?: CashfreeMode;
 };
 
 function isPaymentBridgePayload(
@@ -183,23 +195,6 @@ function encodeBridgePayload(payload: PaymentBridgePayload): string {
     .replace(/=+$/u, "")
     .replace(/\+/gu, "-")
     .replace(/\//gu, "_");
-}
-
-function decodeBridgeUrl(baseUrl: string): URL | null {
-  const trimmed = baseUrl.trim().replace(/\/+$/u, "");
-  if (!trimmed) {
-    return null;
-  }
-
-  try {
-    return new URL(trimmed);
-  } catch {
-    try {
-      return new URL(`https://${trimmed}`);
-    } catch {
-      return null;
-    }
-  }
 }
 
 function ensureBridgePreconnect(targetUrl: string): void {
@@ -234,7 +229,7 @@ export function PaymentButton({
   amount,
   currency = "INR",
   description,
-  clinicId,
+  clinicId: clinicIdProp,
   provider,
   appointmentType,
   autoStart = false,
@@ -248,9 +243,22 @@ export function PaymentButton({
 }: PaymentButtonProps) {
   const queryClient = useQueryClient();
   const { session } = useAuth();
+  // Callers often omit the clinic; the signed-in clinic is the fallback so payment verification
+  // never fails with "Clinic context is required" for a normal patient payment.
+  const sessionClinicId = useCurrentClinicId();
+  const clinicId = clinicIdProp || sessionClinicId || undefined;
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
-  const cashfreeSdkPromiseRef = useRef<Promise<CashfreeCheckoutClient | null> | null>(null);
+  // Cashfree's JS SDK rejects a payment_session_id minted in one environment (sandbox/production)
+  // when loaded in the other — and each clinic configures its OWN Cashfree credentials (see
+  // payment-config.service.ts), independent of this site's own build-time NODE_ENV. A clinic
+  // still testing with sandbox credentials on a production-deployed frontend hit "invalid
+  // payment_session_id" on every single checkout attempt, 100% reproducible: the SDK always
+  // loaded in the frontend's static default mode, never the specific order's actual mode. The
+  // cache now keys on mode so a client loaded for one mode is never handed back for the other.
+  const cashfreeSdkPromiseRef = useRef<Map<"sandbox" | "production", Promise<CashfreeCheckoutClient | null>>>(
+    new Map(),
+  );
   const userRole = (session?.user?.role || "").toUpperCase();
 
   // The clinic's real payment config — the only source of truth for which
@@ -285,7 +293,10 @@ export function PaymentButton({
   )
     ? (resolvedProviderGuess as PaymentProvider)
     : (defaultProvider as PaymentProvider);
-  const cashfreeMode =
+  // Only a fallback/warm-up default — the mode that actually matters is read off each payment
+  // intent's own metadata.environment (see resolveCashfreeMode below), since that is set by
+  // whichever Cashfree credentials the CLINIC configured, not by this site's own build.
+  const defaultCashfreeMode: "sandbox" | "production" =
     process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
       ? "production"
       : process.env.NEXT_PUBLIC_CASHFREE_MODE === "sandbox"
@@ -293,7 +304,15 @@ export function PaymentButton({
         : process.env.NODE_ENV === "production"
           ? "production"
           : "sandbox";
-  const paymentBridgeUrl = APP_CONFIG.PAYMENT.BRIDGE_URL.trim();
+  const resolveCashfreeMode = (
+    paymentIntent?: Record<string, unknown>,
+  ): CashfreeMode => readIntentCashfreeMode(paymentIntent) ?? defaultCashfreeMode;
+  // Bridge only when NEXT_PUBLIC_PAYMENT_BRIDGE_URL is set explicitly, and never from a build
+  // that talks to a local backend while the bridge is a public host (PG-01).
+  const paymentBridgeUrl = resolvePaymentBridgeBaseUrl(
+    APP_CONFIG.PAYMENT.BRIDGE_URL,
+    APP_CONFIG.API.BASE_URL,
+  );
 
   const invalidateSuccessfulPaymentQueries = () => {
     BILLING_QUERY_KEYS.forEach((queryKey) => {
@@ -367,47 +386,39 @@ export function PaymentButton({
     }
   };
 
-  const preloadCashfreeSdk = () => {
+  const preloadCashfreeSdk = (mode: "sandbox" | "production" = defaultCashfreeMode) => {
     if (paymentBridgeUrl) {
       return Promise.resolve(null);
     }
-    if (cashfreeSdkPromiseRef.current) {
-      return cashfreeSdkPromiseRef.current;
+    const cached = cashfreeSdkPromiseRef.current.get(mode);
+    if (cached) {
+      return cached;
     }
 
-    cashfreeSdkPromiseRef.current = import("@cashfreepayments/cashfree-js")
+    const loadPromise = import("@cashfreepayments/cashfree-js")
       .then(async ({ load }) => {
-        const client = await load({ mode: cashfreeMode });
+        const client = await load({ mode });
         return (client as CashfreeCheckoutClient | null) ?? null;
       })
       .catch((error) => {
-        cashfreeSdkPromiseRef.current = null;
+        cashfreeSdkPromiseRef.current.delete(mode);
         throw error;
       });
 
-    return cashfreeSdkPromiseRef.current;
+    cashfreeSdkPromiseRef.current.set(mode, loadPromise);
+    return loadPromise;
   };
 
+  // PG-02: the payload travels in the URL fragment only (never sent to a server or in Referer),
+  // with empty fields and any customer contact data stripped.
   const buildPaymentBridgeLaunchUrl = (
     payload: PaymentBridgePayload,
   ): string => {
-    const bridgeBase = decodeBridgeUrl(paymentBridgeUrl);
-
-    if (!bridgeBase) {
-      return "";
-    }
-
-    bridgeBase.pathname = bridgeBase.pathname.replace(/\/+$/u, "");
-    if (!bridgeBase.pathname || bridgeBase.pathname === "/") {
-      bridgeBase.pathname = "/payments/start";
-    }
     if (!isPaymentBridgePayload(payload)) {
       return "";
     }
-    const encodedPayload = encodeBridgePayload(payload);
-    bridgeBase.searchParams.set("payload", encodedPayload);
-    bridgeBase.hash = `payload=${encodedPayload}`;
-    return bridgeBase.toString();
+    const minimalPayload = sanitizeBridgePayload(payload) as PaymentBridgePayload;
+    return buildBridgeLaunchUrl(paymentBridgeUrl, encodeBridgePayload(minimalPayload));
   };
 
   const launchPaymentBridge = (payload: PaymentBridgePayload): boolean => {
@@ -549,6 +560,7 @@ export function PaymentButton({
         (paymentIntent?.handoffCallbackUrl as string) ||
         (metadata.handoffCallbackUrl as string) ||
         callbackUrl,
+      environment: readIntentCashfreeMode(paymentIntent),
     };
   };
 
@@ -708,7 +720,6 @@ export function PaymentButton({
   const handleCashfreePayment = async (
     paymentIntent: Record<string, unknown>,
     usedProvider: PaymentProvider,
-    preloadedCashfree?: CashfreeCheckoutClient | null,
   ) => {
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const providerResponse =
@@ -742,21 +753,27 @@ export function PaymentButton({
       );
     }
 
+    const orderCashfreeMode = resolveCashfreeMode(paymentIntent);
+
     console.debug("[PaymentButton] Cashfree checkout started", {
       usedProvider,
       hasPaymentSessionId: Boolean(paymentSessionId),
       hasCheckoutUrl: Boolean(checkoutUrl),
+      orderCashfreeMode,
     });
 
     try {
-      const cashfreePromise = preloadedCashfree
-        ? Promise.resolve(preloadedCashfree)
-        : preloadCashfreeSdk();
+      // Always load for THIS order's own environment (see resolveCashfreeMode), never the
+      // hover/focus warm-up's speculative default — a mismatch is exactly what throws "invalid
+      // payment_session_id" (the loaded SDK instance and the session id disagree on sandbox vs
+      // production). preloadCashfreeSdk's per-mode cache makes the already-correct case (the
+      // common one: the warm-up guessed right) a no-op and only actually reloads when it didn't.
+      const cashfreePromise = preloadCashfreeSdk(orderCashfreeMode);
 
       const cashfree = await withTimeout(
         cashfreePromise,
         CASHFREE_LOAD_TIMEOUT_MS,
-        `Cashfree SDK load timed out in ${cashfreeMode} mode`,
+        `Cashfree SDK load timed out in ${orderCashfreeMode} mode`,
       );
 
       if (!cashfree) {
@@ -765,7 +782,7 @@ export function PaymentButton({
           return;
         }
         throw new Error(
-          `Cashfree SDK is not available in ${cashfreeMode} mode`,
+          `Cashfree SDK is not available in ${orderCashfreeMode} mode`,
         );
       }
 
@@ -820,7 +837,7 @@ export function PaymentButton({
       console.error("[PaymentButton] Cashfree checkout failed", {
         error: message,
         usedProvider,
-        cashfreeMode,
+        orderCashfreeMode,
         // orderId, checkoutUrl, redirectUrl omitted to avoid logging sensitive payment identifiers
       });
 
@@ -978,6 +995,18 @@ export function PaymentButton({
     try {
       const paymentResponse = await getPaymentIntent();
       const paymentIntentResponse = paymentResponse as PaymentIntentResponse;
+
+      // A zero-amount plan/invoice (e.g. a free or load-test plan) never opens a gateway order -
+      // the backend settles it directly and there is nothing to redirect to or verify here.
+      if (paymentIntentResponse.success && paymentIntentResponse.alreadyPaid) {
+        invalidateSuccessfulPaymentQueries();
+        showSuccessToast("No payment needed - this plan is free.", {
+          id: TOAST_IDS.PAYMENT.SUCCESS,
+        });
+        onSuccess?.("");
+        return;
+      }
+
       const paymentIntentData =
         paymentIntentResponse.paymentIntent ||
         paymentIntentResponse.data?.paymentIntent;
@@ -1021,8 +1050,7 @@ export function PaymentButton({
 
       switch (usedProvider) {
         case "cashfree": {
-          const cashfreeClient = await preloadCashfreeSdk();
-          await handleCashfreePayment(paymentIntent, usedProvider, cashfreeClient);
+          await handleCashfreePayment(paymentIntent, usedProvider);
           break;
         }
         case "razorpay": {

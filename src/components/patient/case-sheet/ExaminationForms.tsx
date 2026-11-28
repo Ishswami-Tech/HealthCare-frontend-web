@@ -27,19 +27,14 @@ interface FieldDef {
   step?: number;
 }
 
+// Product rule: no vitals capture (BP, pulse, temperature, RR, SpO2 are not recorded here).
 const GENERAL_FIELDS: readonly FieldDef[] = [
   { key: "heightCm", label: "Height", unit: "cm", step: 0.1 },
   { key: "weightKg", label: "Weight", unit: "kg", step: 0.1 },
-  { key: "temperatureC", label: "Temperature", unit: "°C", step: 0.1 },
-  { key: "pulse", label: "Pulse", unit: "/min" },
-  { key: "bpSystolic", label: "BP systolic", unit: "mmHg" },
-  { key: "bpDiastolic", label: "BP diastolic", unit: "mmHg" },
-  { key: "rr", label: "RR", unit: "/min" },
   { key: "painScore", label: "Pain score", unit: "0–10" },
   { key: "fbs", label: "FBS", unit: "mg/dL" },
   { key: "ppbs", label: "PPBS", unit: "mg/dL" },
   { key: "pbs", label: "PBS", unit: "mg/dL" },
-  { key: "spo2", label: "SpO₂", unit: "%" },
 ];
 
 const MEASUREMENT_FIELDS: readonly FieldDef[] = [

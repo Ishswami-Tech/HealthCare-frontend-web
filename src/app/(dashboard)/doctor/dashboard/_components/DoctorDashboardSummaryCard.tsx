@@ -10,6 +10,7 @@ export interface DoctorDashboardCounts {
 interface DoctorDashboardSummaryCardProps {
   /** "Saturday, 3 October" */
   dateLabel: string;
+  /** Already titled: "Dr. Chandrakumar Deshmukh" or "Doctor". */
   doctorName: string;
   counts: DoctorDashboardCounts;
 }
@@ -21,7 +22,7 @@ export function DoctorDashboardSummaryCard({ dateLabel, doctorName, counts }: Do
   return (
     <PageHero
       eyebrow={<span suppressHydrationWarning>{dateLabel || "Today"}</span>}
-      title={`Welcome, Dr. ${doctorName}`}
+      title={`Welcome, ${doctorName}`}
       badge={<LiveTag>Active shift</LiveTag>}
       className="p-[22px] [&>div]:z-[1] [&>div]:items-center"
     >

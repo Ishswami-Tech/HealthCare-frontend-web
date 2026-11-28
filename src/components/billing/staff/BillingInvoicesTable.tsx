@@ -102,7 +102,8 @@ export function InvoiceRowActions({
           {markingPaidId === invoice.id ? "Marking..." : "Mark Paid"}
         </Button>
       ) : null}
-      {onSendWhatsApp ? (
+      {/* The WhatsApp receipt exists only once the invoice is paid; the API refuses it before. */}
+      {onSendWhatsApp && invoice.status === "PAID" ? (
         <Button
           variant="outline"
           onClick={() => onSendWhatsApp(invoice)}

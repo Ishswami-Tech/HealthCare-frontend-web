@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Check, CheckCircle2, CreditCard, Download, FileText, Loader2, RefreshCw, Wallet } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, CreditCard, Download, FileText, Loader2, RefreshCw, Store, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,16 +31,20 @@ import {
   invoiceIssuedAt,
   invoicePaidAt,
   invoiceRoute,
+  invoiceDisplayState,
+  invoiceDisplayStatus,
   invoiceSubject,
   invoiceTotal,
   isPaidInvoice,
-  isPayableInvoice,
+  overdueLabel,
+  pendingPlanInvoice,
   type SubscriptionGroups,
 } from "./patientBilling.logic";
 import { formatRupees } from "@/lib/utils/currency";
+import { PAY_AT_CLINIC_LABEL, payAtClinicText, planCycleNoun } from "@/components/billing/plan-desk-path.logic";
 import { EMPTY_DATE_LABEL, formatDateLabel } from "@/lib/utils/date-time";
 
-export const PATIENT_BILLING_TABS = ["invoices", "plans", "subscriptions"] as const;
+export const PATIENT_BILLING_TABS = ["invoices", "plans"] as const;
 export type PatientBillingTab = (typeof PATIENT_BILLING_TABS)[number];
 
 /** Id of the block, so "View plans" can scroll to it. */
@@ -74,7 +79,9 @@ const AUTO = "@3xl:col-auto @3xl:row-auto";
 
 function invoiceDateLine(invoice: Invoice): string {
   if (isPaidInvoice(invoice)) return `Paid ${formatDateLabel(invoicePaidAt(invoice) ?? invoice.updatedAt, EMPTY_DATE_LABEL)}`;
-  return `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}`;
+  if (invoiceDisplayState(invoice) === "closed") return "No payment needed";
+  const overdue = overdueLabel(invoice);
+  return `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}${overdue ? ` · ${overdue}` : ""}`;
 }
 
 function InvoicesList({
@@ -92,7 +99,7 @@ function InvoicesList({
 
   if (loading) {
     return (
-      <Surface flush aria-busy="true" aria-label="Loading invoices">
+      <Surface flush aria-busy="true" role="status" aria-label="Loading invoices">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="flex items-center gap-4 border-b border-hair px-5 py-4 last:border-b-0">
             <div className="flex flex-1 flex-col gap-1.5">
@@ -134,7 +141,7 @@ function InvoicesList({
         aria-hidden="true"
         className={cn(
           INVOICE_GRID,
-          "hidden border-b border-hair px-5 py-3 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted @3xl:grid",
+          "hidden border-b border-hair px-5 py-3 text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted @3xl:grid",
         )}
       >
         <span>Invoice</span>
@@ -144,12 +151,17 @@ function InvoicesList({
         <span className="text-right">Actions</span>
       </div>
       <ul className="m-0 list-none p-0">
-        {paging.pageRows.map((invoice) => (
+        {paging.pageRows.map((invoice) => {
+          // PENDING -> Pay; PAID -> receipt PDF; VOID / EXPIRED / CANCELLED -> muted, no action.
+          const state = invoiceDisplayState(invoice);
+          const displayStatus = invoiceDisplayStatus(invoice);
+          return (
           <li
             key={invoice.id}
             className={cn(
               INVOICE_GRID,
               "grid items-start gap-y-2.5 border-b border-hair px-5 py-3.5 text-sm last:border-b-0 @3xl:min-h-[62px] @3xl:py-2",
+              state === "closed" && "opacity-60",
             )}
           >
             <Link
@@ -164,25 +176,28 @@ function InvoicesList({
               <span className="text-xs text-ink-muted">{invoiceDateLine(invoice)}</span>
             </span>
             <span className={cn("col-[2] row-[2] flex justify-self-end @3xl:justify-self-start", AUTO)}>
-              <Pill tone={statusTone(invoice.status)}>{statusLabel(invoice.status)}</Pill>
+              <Pill tone={state === "closed" ? "slate" : statusTone(displayStatus)}>{statusLabel(displayStatus)}</Pill>
             </span>
             <span className={cn("col-[2] row-[1] text-right font-bold text-ink @3xl:text-left", AUTO)}>
               {formatRupees(invoiceTotal(invoice), { currency: invoice.currency })}
             </span>
             <span className={cn("col-span-2 row-[3] flex flex-wrap items-center gap-2 @3xl:justify-end", AUTO)}>
-              <Button
-                variant="outline"
-                disabled={downloadingPdfId === invoice.id}
-                onClick={() => onDownloadPdf(invoice.id)}
-                aria-label={`Download PDF of invoice ${invoiceNumberLabel(invoice)}`}
-              >
-                {downloadingPdfId === invoice.id ? <Loader2 className="animate-spin" /> : <Download />}
-                PDF
-              </Button>
-              {isPayableInvoice(invoice) ? renderPay(invoice, "row") : null}
+              {state === "paid" ? (
+                <Button
+                  variant="outline"
+                  disabled={downloadingPdfId === invoice.id}
+                  onClick={() => onDownloadPdf(invoice.id)}
+                  aria-label={`Download receipt for invoice ${invoiceNumberLabel(invoice)}`}
+                >
+                  {downloadingPdfId === invoice.id ? <Loader2 className="animate-spin" /> : <Download />}
+                  Receipt
+                </Button>
+              ) : null}
+              {state === "pending" ? renderPay(invoice, "row") : null}
             </span>
           </li>
-        ))}
+          );
+        })}
       </ul>
       {paging.total > 10 ? <Pager paging={paging} noun="row(s)" pageSizeOptions={PAGE_SIZE_OPTIONS} id="patient-invoices" /> : null}
     </Surface>
@@ -198,14 +213,23 @@ function PlansGrid({
   currentPlanId,
   onChoosePlan,
   onReloadPlans,
+  pendingInvoice,
+  onOpenInvoices,
 }: Pick<BillingMoreTabsProps, "plans" | "onChoosePlan" | "onReloadPlans"> & {
   loading: boolean;
   current: Subscription | undefined;
   currentPlanId: string | undefined;
+  /** A plan purchase still waiting for its payment: the patient finishes that one first. */
+  pendingInvoice: Invoice | null;
+  /** Opens the Invoices tab, where the pending invoice is paid. */
+  onOpenInvoices: () => void;
 }) {
+  // "Pay at the clinic": which plan's desk note is open. Nothing is created; reception sells the
+  // plan at the desk and it starts once that payment is recorded.
+  const [deskPlanId, setDeskPlanId] = useState<string | null>(null);
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading plans">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" role="status" aria-label="Loading plans">
         {Array.from({ length: 3 }).map((_, index) => (
           <Skeleton key={index} className="h-[212px] rounded-[20px]" />
         ))}
@@ -238,7 +262,17 @@ function PlansGrid({
           <strong className="font-bold">
             {current.plan?.name ? `${current.plan.name} is active.` : "You have an active subscription."}
           </strong>{" "}
-          You can still review or switch plans below.
+          Only one plan can be active at a time. You can choose a plan again when this one ends.
+        </Note>
+      ) : pendingInvoice ? (
+        <Note tone="amber" icon={AlertCircle} className="flex-wrap items-center">
+          <span className="min-w-0 flex-1">
+            <strong className="font-bold">A plan payment is pending.</strong> Complete it in Invoices, or let it
+            expire, before choosing another plan.
+          </span>
+          <Button variant="outline" onClick={onOpenInvoices}>
+            View invoice to pay
+          </Button>
         </Note>
       ) : null}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -282,9 +316,40 @@ function PlansGrid({
                     <Pill tone="green">Current plan</Pill>
                   </div>
                 ) : (
-                  <Button size="md" className="w-full" onClick={() => onChoosePlan(plan)}>
-                    Subscribe
-                  </Button>
+                  <div className="flex flex-col gap-2.5">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Button
+                        size="md"
+                        className="w-full"
+                        disabled={Boolean(current) || Boolean(pendingInvoice)}
+                        onClick={() => onChoosePlan(plan)}
+                      >
+                        <CreditCard aria-hidden="true" /> Pay online
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="md"
+                        className="w-full"
+                        disabled={Boolean(current)}
+                        aria-expanded={deskPlanId === plan.id}
+                        aria-controls={`pay-at-clinic-${plan.id}`}
+                        onClick={() => setDeskPlanId((open) => (open === plan.id ? null : plan.id))}
+                      >
+                        <Store aria-hidden="true" /> {PAY_AT_CLINIC_LABEL}
+                      </Button>
+                    </div>
+                    {deskPlanId === plan.id ? (
+                      <Note tone="blue" icon={Store}>
+                        <span id={`pay-at-clinic-${plan.id}`} role="status">
+                          {payAtClinicText({
+                            name: plan.name,
+                            priceLabel: formatRupees(plan.price, { currency: plan.currency }),
+                            cycle: planCycleNoun(plan.billingCycle),
+                          })}
+                        </span>
+                      </Note>
+                    ) : null}
+                  </div>
                 )}
               </div>
             </Surface>
@@ -303,21 +368,22 @@ function SubscriptionsList({
   failed,
   showHistory,
   onToggleHistory,
-  onOpenPlans,
+  /** Shown inline above the Plans grid, where "no subscriptions" and "view plans" are redundant. */
+  embedded = false,
 }: {
   groups: SubscriptionGroups;
   loading: boolean;
   failed: boolean;
   showHistory: boolean;
   onToggleHistory: () => void;
-  onOpenPlans: () => void;
+  embedded?: boolean;
 }) {
   if (loading) {
-    return <Skeleton className="h-[76px] w-full rounded-[20px]" aria-busy="true" aria-label="Loading subscriptions" />;
+    return <Skeleton className="h-[76px] w-full rounded-[20px]" aria-busy="true" role="status" aria-label="Loading subscriptions" />;
   }
 
   if (groups.all.length === 0 && failed) {
-    return (
+    return embedded ? null : (
       <Surface flush>
         <EmptyBlock
           icon={AlertCircle}
@@ -330,20 +396,7 @@ function SubscriptionsList({
   }
 
   if (groups.all.length === 0) {
-    return (
-      <Surface flush>
-        <EmptyBlock
-          icon={Wallet}
-          title="You do not have any subscriptions yet"
-          description="Pick a plan to start using subscription benefits."
-          action={
-            <Button size="md" onClick={onOpenPlans}>
-              View plans
-            </Button>
-          }
-        />
-      </Surface>
-    );
+    return null;
   }
 
   const hasActive = groups.active.length > 0;
@@ -355,7 +408,7 @@ function SubscriptionsList({
     <div className="flex flex-col gap-4">
       {!hasActive && hasEnded ? (
         <Note tone="amber" icon={AlertCircle} className="flex-wrap">
-          <strong className="font-bold">Your subscription has ended.</strong> You can buy a plan again from the Plans tab.
+          <strong className="font-bold">Your subscription has ended.</strong> Pick a plan below to subscribe again.
         </Note>
       ) : null}
       <Surface flush as="section" aria-label="Subscriptions">
@@ -388,16 +441,13 @@ function SubscriptionsList({
           })}
         </ul>
       </Surface>
-      <div className="flex flex-wrap items-center gap-2.5">
-        <Button variant="outline" size="md" onClick={onOpenPlans}>
-          View plans
-        </Button>
-        {hasActive && hasEnded ? (
+      {hasActive && hasEnded ? (
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button variant="ghost" size="md" onClick={onToggleHistory} aria-expanded={showHistory}>
             {showHistory ? "Hide subscription history" : `View subscription history (${groups.ended.length})`}
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -427,13 +477,12 @@ export function BillingMoreTabs({
 }: BillingMoreTabsProps) {
   return (
     <Tabs id={BILLING_TABS_ID} value={tab} onValueChange={onTabChange} className="scroll-mt-24 gap-4">
-      <TabsList aria-label="Invoices, plans and subscriptions">
+      <TabsList aria-label="Invoices and plans">
         <TabsTrigger value="invoices">
           Invoices
           {invoicesLoading ? null : <TabsCount>{invoices.length}</TabsCount>}
         </TabsTrigger>
         <TabsTrigger value="plans">Plans</TabsTrigger>
-        <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
       </TabsList>
 
       <TabsContent value="invoices">
@@ -447,7 +496,15 @@ export function BillingMoreTabs({
         />
       </TabsContent>
 
-      <TabsContent value="plans">
+      <TabsContent value="plans" className="flex flex-col gap-4">
+        <SubscriptionsList
+          groups={subscriptions}
+          loading={subscriptionsLoading}
+          failed={subscriptionsFailed}
+          showHistory={showSubscriptionHistory}
+          onToggleHistory={onToggleSubscriptionHistory}
+          embedded
+        />
         <PlansGrid
           plans={plans}
           loading={plansLoading}
@@ -455,17 +512,8 @@ export function BillingMoreTabs({
           currentPlanId={subscriptions.currentPlanId}
           onChoosePlan={onChoosePlan}
           onReloadPlans={onReloadPlans}
-        />
-      </TabsContent>
-
-      <TabsContent value="subscriptions">
-        <SubscriptionsList
-          groups={subscriptions}
-          loading={subscriptionsLoading}
-          failed={subscriptionsFailed}
-          showHistory={showSubscriptionHistory}
-          onToggleHistory={onToggleSubscriptionHistory}
-          onOpenPlans={() => onTabChange("plans")}
+          pendingInvoice={pendingPlanInvoice(invoices)}
+          onOpenInvoices={() => onTabChange("invoices")}
         />
       </TabsContent>
     </Tabs>

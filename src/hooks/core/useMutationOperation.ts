@@ -48,6 +48,11 @@ export interface MutationOperationOptions<TData, TVariables, TError = Error> {
   onSuccess?: (data: TData, variables: TVariables) => void | Promise<void>;
   /** Callback on error */
   onError?: (error: TError, variables: TVariables) => void;
+  /**
+   * An expected refusal the caller shows in its own UI (e.g. "already registered"): no error toast,
+   * the loading toast is dismissed, `onError` still runs and the promise still rejects.
+   */
+  isHandledError?: (error: TError) => boolean;
   /** Whether to show toast */
   showToast?: boolean;
   /** Whether to show loading toast */
@@ -88,6 +93,7 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
     invalidateRefetchType,
     onSuccess,
     onError,
+    isHandledError,
     showToast = true,
     showLoading = true,
     mutationOptions,
@@ -123,15 +129,14 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
         );
       }
 
-      // ✅ Always clear a loading toast for this operation, even when success
-      // and error toasts are intentionally suppressed.
-      if (showLoading || showToast) {
-        dismissToast(toastId);
-      }
-
-      // ✅ Handle success toast
+      // ✅ The success toast reuses the loading toast's id, so Sonner turns the loading toast into
+      // it in place. Dismissing first would race the update: Sonner applies the dismiss a frame
+      // later and deletes the new toast too (the toast "vanished"). Only clear the loading toast
+      // when no success toast follows.
       if (showToast) {
         showSuccessToast(successMessage, { id: toastId });
+      } else if (showLoading) {
+        dismissToast(toastId);
       }
 
       // ✅ Call success callback
@@ -140,11 +145,8 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
       }
     },
     onError: (error, variables) => {
-      // ✅ Consistent error handling
-      if (showLoading || showToast) {
-        dismissToast(toastId);
-      }
-
+      // ✅ Consistent error handling. The error toast replaces the loading toast in place (same
+      // id); see onSuccess for why it is not dismissed first.
       const sanitizedError = sanitizeErrorMessage(error);
       const finalErrorMessage =
         sanitizedError && sanitizedError.trim().length > 0
@@ -152,14 +154,23 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
           : errorMessage || ERROR_MESSAGES.UNKNOWN_ERROR;
 
       if (isSessionInvalidError(error)) {
+        if (showLoading || showToast) {
+          dismissToast(toastId);
+        }
         triggerClientAuthRecovery();
         return;
       }
 
-      if (showToast) {
+      if (isHandledError?.(error)) {
+        if (showLoading || showToast) {
+          dismissToast(toastId);
+        }
+      } else if (showToast) {
         showErrorToast(finalErrorMessage, {
           id: toastId,
         });
+      } else if (showLoading) {
+        dismissToast(toastId);
       }
 
       // ✅ Call error callback
@@ -179,9 +190,11 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
       if (showLoading && !hasInflightRequest("mutation-operation", requestKey)) {
         showLoadingToast(loadingMessage, toastId);
       }
-      void dedupeRequest("mutation-operation", requestKey, () =>
+      // Fire-and-forget: onError already reports the failure, so the rejection is consumed here
+      // instead of surfacing as an unhandled promise rejection (an unhandled ApiError).
+      dedupeRequest("mutation-operation", requestKey, () =>
         mutation.mutateAsync(variables, customOptions)
-      );
+      ).catch(() => undefined);
       return undefined;
     },
     [mutation, loadingMessage, toastId, showLoading]

@@ -222,8 +222,8 @@ export default function SuperAdminUsers() {
 
     return usersArray.map((user: any) => ({
       id: user.id,
-      name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-      email: user.email,
+      name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email || "Unknown",
+      email: user.email || "N/A",
       phone: user.phone || "N/A",
       role: user.role || user.roles?.[0]?.name || "UNKNOWN",
       status: user.isActive !== false ? "Active" : "Inactive",
@@ -269,6 +269,17 @@ export default function SuperAdminUsers() {
         city: createForm.city || undefined,
         state: createForm.state || undefined,
         zipCode: createForm.zipCode || undefined,
+        // These four are flat strings in form state but the backend DTO wants an
+        // EmergencyContactDto object and string[] arrays (or the field doesn't exist
+        // on the DTO at all, for emergencyPhone/currentMedications). Clear the raw
+        // spread's string values so forbidNonWhitelisted/shape validation doesn't
+        // reject every submission; the blocks below add correctly-shaped values back
+        // in when the admin actually filled them.
+        emergencyContact: undefined,
+        emergencyPhone: undefined,
+        medicalHistory: undefined,
+        allergies: undefined,
+        currentMedications: undefined,
         ...(createForm.emergencyContact.trim() && createForm.emergencyPhone.trim()
           ? {
               emergencyContact: {

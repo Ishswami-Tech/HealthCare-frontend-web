@@ -1,0 +1,239 @@
+"use client";
+
+import { useId } from "react";
+import { Check, CircleAlert, Info, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FIELD_LABEL_SMALL } from "@/components/tbd";
+import { cn } from "@/lib/utils";
+import type { Medicine } from "@/types/pharmacy.types";
+import {
+  frequencyOptionsFor,
+  quantityOf,
+  stockLine,
+  stockOf,
+  type PrescriptionFormAction,
+  type PrescriptionMedicationRow,
+} from "./rx-form.logic";
+import { STOCK_TONE_CLASS } from "./MedicineCatalogue";
+import { DoseField } from "./DoseField";
+import { doseAmountWarning, doseConflictWarning, quantityUnitLabel } from "./dose-units.logic";
+
+const SMALL_FIELD = "h-[38px] rounded-[10px] px-2.5 text-[13px] font-semibold md:text-[13px]";
+
+type RowField = Extract<PrescriptionFormAction, { type: "updateMedication" }>["field"];
+
+/**
+ * The medicine lines of a prescription: dose (amount + a unit that fits the medicine's form), one "How often" choice (how many times a day and
+ * when), days and quantity. Stock sits on the same line as the name. The quantity says what it
+ * counts (tablets, packs, bottles) and the stock medicine's price per sale unit, so the bill is clear.
+ */
+export function PrescriptionLines({
+  medications,
+  medicinesById,
+  stockTracked,
+  locked = false,
+  onUpdate,
+  onRemove,
+}: {
+  medications: PrescriptionMedicationRow[];
+  medicinesById: ReadonlyMap<string, Medicine>;
+  stockTracked: boolean;
+  locked?: boolean;
+  onUpdate: (id: string, field: RowField, value: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const fieldId = useId();
+
+  if (medications.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-muted">
+        No medicines added yet. Press Add next to a medicine in the pharmacy stock, add a kit, or speak them.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      {medications.map((medication, index) => {
+        const medicine = medication.medicineId ? medicinesById.get(medication.medicineId) : undefined;
+        const stock = medicine ? stockOf(medicine) : 0;
+        const left = stock - quantityOf(medication);
+        const line = medication.medicineId && !medicine ? { label: "", tone: "none" as const } : stockLine(medicine, stockTracked);
+        const rowId = `${fieldId}-${medication.id}`;
+        const update = (field: RowField) => (value: string) => onUpdate(medication.id, field, value);
+        const doseWarning = medicine ? doseConflictWarning(medication.dosage, medicine.dosageForm) : null;
+        // Soft only: the dose is saved and shown to the patient exactly as the doctor wrote it.
+        const amountWarning = doseAmountWarning(medication.dosage);
+        const dosageForm = medicine?.dosageForm ?? medication.dosageForm;
+        const saleUnit = medicine?.unit ?? medication.saleUnit;
+        const qtyUnit = quantityUnitLabel(medication.dosage, dosageForm, saleUnit, quantityOf(medication));
+        const unitPrice = medicine ? Number(medicine.unitPrice) : 0;
+        const priceNote =
+          unitPrice > 0
+            ? `₹${unitPrice.toLocaleString("en-IN", { maximumFractionDigits: 2 })} per ${quantityUnitLabel(medication.dosage, dosageForm, saleUnit, 1) || "unit"}`
+            : "";
+
+        return (
+          <fieldset
+            key={medication.id}
+            disabled={locked}
+            className="m-0 flex min-w-0 flex-col gap-2.5 rounded-2xl border border-line bg-[#fbfdfc] p-3.5 dark:bg-white/5"
+          >
+            <legend className="sr-only">Medicine {index + 1}</legend>
+            <div className="flex items-start gap-2.5">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#d1fae5] text-xs font-extrabold text-[#065f46] dark:bg-emerald-500/15 dark:text-emerald-300">
+                {index + 1}
+              </span>
+              {medication.medicineId ? (
+                <span className="min-w-0 flex-1 break-words text-[15px] font-extrabold leading-snug text-ink">
+                  {medication.name}
+                  {line.label ? (
+                    <span className={cn("ml-1.5 whitespace-nowrap text-xs font-bold", STOCK_TONE_CLASS[line.tone])}>· {line.label}</span>
+                  ) : null}
+                </span>
+              ) : (
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <Input
+                    aria-label={`Name of outside medicine ${index + 1}`}
+                    className="h-[38px] min-w-0 flex-1 rounded-[10px] px-2.5 text-sm font-bold"
+                    placeholder="Medicine name and strength"
+                    value={medication.name}
+                    onChange={(event) => update("name")(event.target.value)}
+                  />
+                  <span className="whitespace-nowrap text-xs text-ink-muted">Outside medicine</span>
+                </span>
+              )}
+              <button
+                type="button"
+                aria-label={`Remove ${medication.name || `medicine ${index + 1}`}`}
+                className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-[9px] border border-line bg-card text-ink-soft hover:bg-well focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 disabled:opacity-50"
+                onClick={() => onRemove(medication.id)}
+              >
+                <X className="size-[13px]" strokeWidth={2.6} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[1.5fr_1.5fr_0.55fr_0.55fr]">
+              <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
+                <label htmlFor={`${rowId}-dose`} className={FIELD_LABEL_SMALL}>
+                  Dose
+                </label>
+                <DoseField
+                  id={`${rowId}-dose`}
+                  dosage={medication.dosage}
+                  dosageForm={medicine?.dosageForm}
+                  fieldClassName={SMALL_FIELD}
+                  warningId={`${rowId}-dose-warning`}
+                  onChange={update("dosage")}
+                />
+              </div>
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor={`${rowId}-frequency`} className={FIELD_LABEL_SMALL}>
+                  How often
+                </label>
+                <Select value={medication.frequency} onValueChange={update("frequency")}>
+                  <SelectTrigger id={`${rowId}-frequency`} className={cn(SMALL_FIELD, "w-full data-[size=default]:h-[38px]")}>
+                    <SelectValue placeholder="Choose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {frequencyOptionsFor(medication.frequency).map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor={`${rowId}-days`} className={FIELD_LABEL_SMALL}>
+                  Days
+                </label>
+                <Input
+                  id={`${rowId}-days`}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  className={SMALL_FIELD}
+                  placeholder="10"
+                  value={medication.days}
+                  onChange={(event) => update("days")(event.target.value)}
+                />
+              </div>
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor={`${rowId}-quantity`} className={FIELD_LABEL_SMALL}>
+                  Qty{qtyUnit ? ` (${qtyUnit})` : ""}
+                </label>
+                <Input
+                  id={`${rowId}-quantity`}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  className={SMALL_FIELD}
+                  placeholder="1"
+                  value={medication.quantity}
+                  aria-describedby={priceNote ? `${rowId}-quantity-price` : undefined}
+                  onChange={(event) => update("quantity")(event.target.value)}
+                />
+                {priceNote ? (
+                  <span id={`${rowId}-quantity-price`} className="text-[11px] font-semibold text-ink-muted">
+                    {priceNote}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            {doseWarning ? (
+              <span
+                id={`${rowId}-dose-warning`}
+                role="status"
+                className="inline-flex items-start gap-[5px] rounded-[10px] bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-[#b45309] dark:bg-amber-500/10 dark:text-amber-300"
+              >
+                <CircleAlert className="mt-px size-3 shrink-0" strokeWidth={2.6} aria-hidden="true" />
+                {doseWarning}
+              </span>
+            ) : null}
+
+            {amountWarning ? (
+              <span
+                role="status"
+                className="inline-flex items-start gap-[5px] rounded-[10px] bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-[#b45309] dark:bg-amber-500/10 dark:text-amber-300"
+              >
+                <CircleAlert className="mt-px size-3 shrink-0" strokeWidth={2.6} aria-hidden="true" />
+                {amountWarning}
+              </span>
+            ) : null}
+
+            {medicine ? (
+              !stockTracked ? (
+                <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-ink-muted">
+                  <Info className="size-3" strokeWidth={2.6} aria-hidden="true" />
+                  The pharmacy has not recorded stock for this medicine yet. It is saved on the prescription.
+                </span>
+              ) : left >= 0 ? (
+                <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-brand">
+                  <Check className="size-3" strokeWidth={2.8} aria-hidden="true" />
+                  {left} left in stock after this
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-[#b45309] dark:text-amber-300">
+                  <CircleAlert className="size-3" strokeWidth={2.6} aria-hidden="true" />
+                  {stock <= 0
+                    ? "Not in stock. It is saved on the prescription; the pharmacy can give it once stock is added."
+                    : `Only ${stock} in stock. The pharmacy cannot give ${quantityOf(medication)} yet.`}
+                </span>
+              )
+            ) : !medication.medicineId ? (
+              <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-ink-muted">
+                <Info className="size-3" strokeWidth={2.6} aria-hidden="true" />
+                Not sent to the pharmacy. It is saved in the visit notes for the patient to buy outside.
+              </span>
+            ) : null}
+          </fieldset>
+        );
+      })}
+    </div>
+  );
+}

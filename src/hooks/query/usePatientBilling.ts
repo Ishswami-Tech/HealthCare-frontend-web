@@ -5,6 +5,7 @@ import {
   getPatientBills,
   recordInvoicePayment,
 } from "@/lib/actions/patient-billing.server";
+import { dataOrThrow } from "@/lib/utils/action-result";
 import type {
   CreateConsultationInvoiceInput,
   PatientBillFilters,
@@ -66,7 +67,7 @@ export const useRecordInvoicePayment = () =>
       clinicId: string;
       invoiceId: string;
       input: RecordInvoicePaymentInput;
-    }) => recordInvoicePayment(clinicId, invoiceId, input),
+    }) => dataOrThrow(await recordInvoicePayment(clinicId, invoiceId, input)),
     {
       toastId: "invoice-record-payment",
       loadingMessage: "Recording payment...",
@@ -75,6 +76,11 @@ export const useRecordInvoicePayment = () =>
         ...BILLING_INVALIDATE_KEYS,
         ["prescriptions"],
         ["medicineDeskQueue"],
+        // A desk payment on a plan bill starts the plan.
+        ["active-subscription"],
+        ["subscriptions"],
+        // A desk fee leaves the reception "fee due" lists (inPersonKeys.deskFees).
+        ["inPerson"],
       ],
     },
   );

@@ -26,4 +26,3 @@ export {
 } from './DashboardStatusBar';
 
 // Enhanced Dashboard
-export { default as EnhancedDoctorDashboard } from './enhanced-doctor-dashboard';

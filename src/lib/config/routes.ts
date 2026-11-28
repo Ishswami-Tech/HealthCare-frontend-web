@@ -163,10 +163,42 @@ export function getRouteGuardPolicy(path: string): RouteGuardPolicy {
   return { kind: 'protected' };
 }
 
+function matchesPrefix(path: string, prefix: string): boolean {
+  return path === prefix || path.startsWith(`${prefix}/`);
+}
+
+/**
+ * Product rule: the doctor and the assistant never see billing amounts. The doctor's old
+ * earnings page stays in the code base but no clinic role may open it any more
+ * (only SUPER_ADMIN, who has no doctor earnings of their own).
+ */
+const DOCTOR_EARNINGS_PREFIX = '/doctor/earnings';
+
+/**
+ * `/doctor/*` pages the ASSISTANT_DOCTOR may still open. They are the shared screens the
+ * assistant's own stubs link to until the assistant tree (`/assistant-doctor/*`) has its own
+ * version of each; remove an entry here when its in-role replacement ships.
+ */
+export const ASSISTANT_SHARED_DOCTOR_PREFIXES: readonly string[] = [
+  // Appointments, patients, EHR, drafts, notifications and profile now live under
+  // /assistant-doctor/*. The patient record stays shared because the queue's case-sheet link
+  // and the diet-chart print link still point at /doctor/patients/[id].
+  '/doctor/patients',
+];
+
+/** Everything else under `/doctor` is for the doctor alone (the one clinical decision maker). */
+function doctorRouteRoles(path: string): Role[] {
+  if (matchesPrefix(path, DOCTOR_EARNINGS_PREFIX)) return [Role.SUPER_ADMIN];
+  // Sub-pages of prescriptions (new, [id], edit, print, sent) are authoring screens: doctor only.
+  if (path.startsWith('/doctor/prescriptions/')) return [Role.DOCTOR];
+  const sharedWithAssistant = ASSISTANT_SHARED_DOCTOR_PREFIXES.some((prefix) => matchesPrefix(path, prefix));
+  return sharedWithAssistant ? [Role.DOCTOR, Role.ASSISTANT_DOCTOR] : [Role.DOCTOR];
+}
+
 export function getProtectedRouteRoles(path: string): Role[] {
   if (path.startsWith('/super-admin')) return [Role.SUPER_ADMIN];
   if (path.startsWith('/clinic-admin')) return [Role.CLINIC_ADMIN];
-  if (path.startsWith('/doctor')) return [Role.DOCTOR, Role.ASSISTANT_DOCTOR];
+  if (matchesPrefix(path, '/doctor')) return doctorRouteRoles(path);
   if (path.startsWith('/assistant-doctor')) return [Role.ASSISTANT_DOCTOR];
   if (path.startsWith('/patient')) return [Role.PATIENT];
   if (path.startsWith('/receptionist')) return [Role.RECEPTIONIST];
@@ -185,13 +217,37 @@ export function getProtectedRouteRoles(path: string): Role[] {
     Role.DOCTOR, Role.ASSISTANT_DOCTOR,
     Role.RECEPTIONIST, Role.CLINIC_LOCATION_HEAD,
     Role.THERAPIST, Role.NURSE, Role.COUNSELOR,
-    Role.PATIENT,
+  ];
+
+  // Staff clinical / analytics shells. Role lists mirror the backend @Roles of the matching
+  // controllers (analytics, ehr, ayurveda, diet, ipd). The backend stays the real boundary; this
+  // only stops roles that can never load the data from opening an empty staff screen.
+  // Patients read their own record through /patient/*, never through these shells.
+  if (matchesPrefix(path, '/analytics')) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.RECEPTIONIST, Role.NURSE, Role.FINANCE_BILLING,
+  ];
+  if (matchesPrefix(path, '/ehr')) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.NURSE,
+    Role.LAB_TECHNICIAN, Role.THERAPIST, Role.COUNSELOR,
+  ];
+  // Note: RECEPTIONIST is deliberately absent from /ehr. The controllers list it in @Roles for a few
+  // routes, but the RBAC matrix has no 'ehr:read' for it, so every call is a 403.
+  if (
+    matchesPrefix(path, '/ayurveda') ||
+    matchesPrefix(path, '/diet') ||
+    matchesPrefix(path, '/ipd')
+  ) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.NURSE,
   ];
 
   // API route exception for invoice PDF streaming
   if (path.startsWith('/api/billing/invoices/') && path.endsWith('/download')) return [
     Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
-    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
     Role.RECEPTIONIST, Role.PHARMACIST,
     Role.CLINIC_LOCATION_HEAD, Role.THERAPIST,
     Role.NURSE, Role.COUNSELOR,
@@ -199,9 +255,9 @@ export function getProtectedRouteRoles(path: string): Role[] {
     Role.FINANCE_BILLING, Role.PATIENT,
   ];
 
+  // Billing amounts: not for the doctor or the assistant doctor (clinic admin owns billing).
   if (path.startsWith('/billing')) return [
     Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
-    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
     Role.RECEPTIONIST, Role.PHARMACIST,
     Role.CLINIC_LOCATION_HEAD, Role.THERAPIST,
     Role.NURSE, Role.COUNSELOR,

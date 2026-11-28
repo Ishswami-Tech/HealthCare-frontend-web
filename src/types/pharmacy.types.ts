@@ -12,6 +12,8 @@ export interface Medicine {
   strength: string;
   packSize: number;
   unitPrice: number;
+  /** Stock / sale unit as recorded (`Medicine.unit`: "tablet", "pack", "bottle", "100 g" ...). */
+  unit?: string | null;
   stockQuantity: number;
   minStockLevel: number;
   maxStockLevel: number;
@@ -479,8 +481,10 @@ export interface DispensePrescriptionMedication {
   substituteMedicineId?: string;
   substitutionReason?: string;
   quantityDispensed: number;
-  batchNumber: string;
-  expiryDate: string;
+  /** The lot handed over; omitted to let the server pick earliest expiry first (FEFO). */
+  batchNumber?: string;
+  /** yyyy-mm-dd; only typed for a medicine with no tracked batch (else the lot's own expiry). */
+  expiryDate?: string;
 }
 
 export interface DispensePrescriptionData {

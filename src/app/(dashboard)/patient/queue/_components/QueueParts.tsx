@@ -10,63 +10,14 @@ import {
   type QueueVisitInfo,
 } from "@/components/patient/queue/queueData";
 import { plural } from "@/lib/utils/labels";
+import { ClinicMapArt } from "@/components/patient/queue/ClinicMapArt";
 
 /**
  * Pieces shared by the checked-in screen and the live queue. Props-driven: no data hooks here.
  */
 
-// ── Map drawing ────────────────────────────────────────────────────────────
-
-/**
- * A drawn street map with the clinic pin. Decoration only: it is not a live map.
- * Cropped from the left on narrow cards, so the pin stays in view.
- */
-export function ClinicMapArt({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 680 224"
-      preserveAspectRatio="xMaxYMid slice"
-      className={cn("block size-full", className)}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <rect width="680" height="224" className="fill-[#e9f0ea] dark:fill-[#1c2a26]" />
-      <g className="fill-[#dde6de] dark:fill-[#24352f]">
-        <rect x="18" y="22" width="170" height="100" rx="12" />
-        <rect x="224" y="22" width="190" height="78" rx="12" />
-        <rect x="470" y="22" width="190" height="118" rx="12" />
-        <rect x="18" y="164" width="330" height="60" rx="12" />
-        <rect x="384" y="196" width="276" height="40" rx="12" />
-      </g>
-      <ellipse cx="566" cy="88" rx="58" ry="34" className="fill-[#c5e3cd] dark:fill-[#2c4a3d]" />
-      <g className="fill-white dark:fill-[#3a4b46]">
-        <rect x="0" y="140" width="680" height="16" />
-        <rect x="200" y="0" width="16" height="224" />
-        <rect x="446" y="0" width="16" height="224" />
-      </g>
-      <path
-        d="M366 0C352 76 300 150 150 224"
-        fill="none"
-        strokeWidth="18"
-        strokeLinecap="round"
-        className="stroke-[#fbe38e] dark:stroke-[#7a6a2c]"
-      />
-      <path
-        d="M232 216C300 176 372 148 452 118"
-        fill="none"
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeDasharray="2 14"
-        className="stroke-[#2563eb] dark:stroke-[#60a5fa]"
-      />
-      <g transform="translate(456 20)">
-        <path d="M0 38C0 17 17 0 38 0s38 17 38 38c0 26-38 62-38 62S0 64 0 38z" fill="#dc2626" />
-        <circle cx="38" cy="38" r="17" fill="#ffffff" />
-        <path d="M38 28v20M28 38h20" stroke="#dc2626" strokeWidth="6" strokeLinecap="round" />
-      </g>
-    </svg>
-  );
-}
+// The map drawing lives in components/patient/queue (shared with Home).
+export { ClinicMapArt };
 
 // ── Ticket ─────────────────────────────────────────────────────────────────
 
@@ -99,6 +50,7 @@ function aheadText(ticket: QueueTicket): string {
 
 function doctorText(ticket: QueueTicket): string {
   if (ticket.isWithDoctor) return "Your visit is in progress";
+  if (ticket.nowServingToken) return `Now serving ${ticket.nowServingToken}`;
   if (ticket.doctorBusy === true) return "The doctor is with a patient";
   if (ticket.doctorBusy === false) return "No one is with the doctor yet";
   return ticket.position !== null && ticket.totalInQueue !== null
@@ -151,18 +103,7 @@ export function QueueTokenCard({
 
         {layout === "tiles" ? (
           <div className="grid grid-cols-3 rounded-2xl bg-white/[0.72] py-3.5 dark:bg-white/5">
-            <Tile
-              label={ticket.tokenLabel ? "Your place" : "In the queue"}
-              value={
-                ticket.tokenLabel
-                  ? ticket.position !== null
-                    ? `#${ticket.position}`
-                    : "—"
-                  : ticket.totalInQueue !== null
-                    ? String(ticket.totalInQueue)
-                    : "—"
-              }
-            />
+            <Tile label="Now serving" value={ticket.isWithDoctor ? "You" : (ticket.nowServingToken ?? "—")} />
             <Tile label="Ahead of you" value={ticket.patientsAhead !== null ? String(ticket.patientsAhead) : "—"} />
             <Tile label="Checked in" value={ticket.checkedInLabel ?? "—"} last />
           </div>

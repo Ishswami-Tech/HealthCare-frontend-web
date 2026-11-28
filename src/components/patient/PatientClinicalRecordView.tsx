@@ -9,7 +9,6 @@ import {
   ClipboardPlus,
   FileText,
   FlaskConical,
-  Heart,
   History,
   Pill as PillIcon,
   Receipt,
@@ -41,6 +40,7 @@ import { canViewCaseSheet } from "@/lib/utils/case-sheet-access";
 import type { AppointmentHistoryTab } from "./PatientAppointmentHistory";
 import { cn } from "@/lib/utils";
 import { EMPTY_DATE_LABEL, ageInYears, formatDateLabel, formatDateTimeLabel } from "@/lib/utils/date-time";
+import { getAppointmentDateTimeValue } from "@/lib/utils/clock";
 import { useAuthStore } from "@/stores/auth.store";
 import { Role } from "@/types/auth.types";
 import { asRecordOrEmpty, firstIsoDate, firstText, unwrapList } from "@/lib/utils/coerce";
@@ -54,7 +54,6 @@ export interface PatientClinicalRecordViewProps {
   ehr: RecordLike;
   appointments: RecordLike[];
   history: RecordLike[];
-  vitals: RecordLike[];
   labs: RecordLike[];
   carePlan: RecordLike[];
   prescriptions?: RecordLike[];
@@ -82,10 +81,20 @@ export interface PatientClinicalRecordViewProps {
   showBills?: boolean;
   /** The record is still loading: numbers and table rows show placeholders. */
   loading?: boolean;
+  /**
+   * Leaves out the identity (name / email / phone) and demographic (age / blood group / gender)
+   * tiles from the Overview snapshot, when the header already shows them (the doctor's EHR
+   * workspace does — its header band is where those details live and get edited).
+   */
+  hideHeaderDuplicates?: boolean;
   className?: string;
 }
 
-const TAB_IDS = ["overview", "timeline", "appointments", "history", "vitals", "reports", "prescriptions", "medications", "bills"] as const;
+// The plain "appointments" table tab was merged into the "Visits" timeline (`timeline`):
+// every appointment already renders there with its case summary, medicines and prescriptions
+// inlined, so a second status-only table of the same rows was dropped. Legacy `#appointments`
+// deep links are aliased to the timeline tab below.
+const TAB_IDS = ["overview", "timeline", "history", "reports", "prescriptions", "medications", "bills"] as const;
 type TabId = (typeof TAB_IDS)[number];
 
 const PAGE_SIZE = 10;
@@ -125,10 +134,12 @@ function summaryValue(value: unknown): string {
   return String(value);
 }
 
-const appointmentDate = (row: RecordLike) => dateValue(row.startTime, row.appointmentDate, row.date);
+/** Visit start: `date` is the IST day key and the slot is in `time`, so the two are combined. */
+const appointmentDate = (row: RecordLike) =>
+  getAppointmentDateTimeValue(row as Parameters<typeof getAppointmentDateTimeValue>[0])?.toISOString() ??
+  dateValue(row.startTime, row.appointmentDate, row.date);
 const historyDate = (row: RecordLike) => dateValue(row.date, row.createdAt, row.startDate);
 const labDate = (row: RecordLike) => dateValue(row.date, row.testDate, row.reportedDate);
-const vitalDate = (row: RecordLike) => dateValue(row.recordedAt, row.date, row.createdAt);
 const prescriptionDate = (row: RecordLike) => dateValue(row.date, row.createdAt);
 
 /** A medicine the patient is taking now: not switched off and not marked stopped. */
@@ -219,7 +230,7 @@ function RecordTable({
             <GridRow key={firstText(row.id) || `${currentPage}-${index}`} columns={grid}>
               {columns.map((column) => (
                 <div key={column.label} role="cell">
-                  <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:hidden">
+                  <span className="mb-1 block text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:hidden">
                     {column.label}
                   </span>
                   {column.cell(row)}
@@ -238,18 +249,8 @@ function RecordTable({
 const muted = (value: string) => <span className="text-ink-muted">{value || "-"}</span>;
 const strong = (value: string) => <span className="font-bold text-ink">{value || "-"}</span>;
 
-const APPOINTMENT_COLUMNS: RecordColumn[] = [
-  { label: "When", cell: (row) => strong(formatDateTimeLabel(appointmentDate(row), EMPTY_DATE_LABEL)) },
-  { label: "Status", cell: (row) => <StatusPill status={firstText(row.status)} /> },
-  {
-    label: "Doctor",
-    cell: (row) => {
-      const doctor = asRecordOrEmpty(row.doctor);
-      return muted(firstText(row.doctorName, doctor.name, asRecordOrEmpty(doctor.user).name) || "Not recorded");
-    },
-  },
-  { label: "Type", cell: (row) => <VisitTypePill row={row} /> },
-];
+// (The plain "Appointments" status table was merged into the "Visits" timeline, so its
+//  `APPOINTMENT_COLUMNS` and the `sortedAppointments` list it fed are no longer used.)
 
 const HISTORY_COLUMNS: RecordColumn[] = [
   { label: "Date", cell: (row) => muted(formatDateLabel(historyDate(row), EMPTY_DATE_LABEL)) },
@@ -258,18 +259,6 @@ const HISTORY_COLUMNS: RecordColumn[] = [
   { label: "Status", cell: (row) => <StatusPill status={firstText(row.status)} /> },
 ];
 
-const VITAL_COLUMNS: RecordColumn[] = [
-  { label: "Recorded", cell: (row) => muted(formatDateTimeLabel(vitalDate(row), EMPTY_DATE_LABEL)) },
-  { label: "Vital", cell: (row) => strong(sentenceCase(firstText(row.type, row.vitalType, row.name)) || "Vital") },
-  {
-    label: "Value",
-    cell: (row) => {
-      const value = firstText(row.value);
-      return strong(value ? [value, firstText(row.unit)].filter(Boolean).join(" ") : "");
-    },
-  },
-  { label: "Notes", cell: (row) => muted(firstText(row.notes)) },
-];
 
 const LAB_COLUMNS: RecordColumn[] = [
   { label: "Date", cell: (row) => muted(formatDateLabel(labDate(row), EMPTY_DATE_LABEL)) },
@@ -351,16 +340,16 @@ const MEDICATION_COLUMNS: RecordColumn[] = [
 // ── Small blocks of the overview ───────────────────────────────────────────
 
 const TILE = "rounded-[14px] border border-line bg-[#fbfdfc] dark:bg-white/[0.03]";
-const TILE_LABEL = "text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted";
+const TILE_LABEL = "text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted";
 
 const numberSkeleton = <Skeleton className="my-1 h-6 w-10 rounded" />;
 
 const TABS: Array<{ id: TabId; label: string; icon: TbdIcon }> = [
   { id: "overview", label: "Overview", icon: UserRound },
-  { id: "timeline", label: "History", icon: History },
-  { id: "appointments", label: "Appointments", icon: Calendar },
+  // One visits tab: every appointment of the patient, newest first, each row expandable to its
+  // case summary, medicines and prescriptions (the old separate "Appointments" table was redundant).
+  { id: "timeline", label: "Visits", icon: Calendar },
   { id: "history", label: "History", icon: FileText },
-  { id: "vitals", label: "Vitals", icon: Heart },
   { id: "reports", label: "Reports", icon: FlaskConical },
   { id: "prescriptions", label: "Prescriptions", icon: ClipboardPlus },
   { id: "medications", label: "Medications", icon: PillIcon },
@@ -372,7 +361,6 @@ export function PatientClinicalRecordView({
   ehr,
   appointments,
   history,
-  vitals,
   labs,
   carePlan,
   prescriptions = [],
@@ -382,6 +370,7 @@ export function PatientClinicalRecordView({
   header,
   showBills,
   loading = false,
+  hideHeaderDuplicates = false,
   className,
 }: PatientClinicalRecordViewProps) {
   const patientRecord = asRecordOrEmpty(patient);
@@ -404,7 +393,13 @@ export function PatientClinicalRecordView({
     [billsVisible, timelineVisible],
   );
   const tabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
-  const { tab, setTab } = useHashTab<TabId>({ tabs: tabIds, defaultValue: "overview" });
+  const { tab, setTab } = useHashTab<TabId>({
+    tabs: tabIds,
+    defaultValue: "overview",
+    // The standalone "Appointments" tab was merged into the Visits timeline; forward legacy
+    // `#appointments` links to it instead of dropping them.
+    aliases: { appointments: "timeline" },
+  });
 
   const patientDisplayName = patientRecordName(patientRecord) || "Patient Record";
   const currentMedications = useMemo(
@@ -412,9 +407,7 @@ export function PatientClinicalRecordView({
     [ehrRecord.medications],
   );
   const allergies = useMemo(() => toArray(ehrRecord.allergies), [ehrRecord.allergies]);
-  const sortedAppointments = useMemo(() => newestFirst(appointments, appointmentDate), [appointments]);
   const sortedHistory = useMemo(() => newestFirst(history, historyDate), [history]);
-  const sortedVitals = useMemo(() => newestFirst(vitals, vitalDate), [vitals]);
   const sortedLabs = useMemo(() => newestFirst(labs, labDate), [labs]);
   const sortedPrescriptions = useMemo(() => newestFirst(prescriptions, prescriptionDate), [prescriptions]);
   const upcomingAppointments = useMemo(
@@ -442,13 +435,21 @@ export function PatientClinicalRecordView({
     setTab(next);
   };
 
+  // The patient's identity (name / email / phone) and demographics (age / blood group /
+  // gender) are left out when the header already shows them (the doctor's EHR header
+  // band owns them now and they are edited from there), so the snapshot stays
+  // clinical: allergies and active medications.
   const snapshot: Array<[string, string]> = [
-    ["Name", patientDisplayName],
-    ["Email", firstText(patientRecord.email, patientUser.email)],
-    ["Phone", firstText(patientRecord.phone, patientUser.phone)],
-    ["Age", getAge(patientRecord)],
-    ["Blood group", firstText(patientRecord.bloodGroup, ehrRecord.bloodGroup)],
-    ["Gender", sentenceCase(firstText(patientRecord.gender, patientUser.gender))],
+    ...(hideHeaderDuplicates
+      ? []
+      : ([
+          ["Name", patientDisplayName],
+          ["Email", firstText(patientRecord.email, patientUser.email)],
+          ["Phone", firstText(patientRecord.phone, patientUser.phone)],
+          ["Age", getAge(patientRecord)],
+          ["Blood group", firstText(patientRecord.bloodGroup, ehrRecord.bloodGroup)],
+          ["Gender", sentenceCase(firstText(patientRecord.gender, patientUser.gender))],
+        ] as Array<[string, string]>)),
     ["Allergies", String(allergies.length)],
     ["Active medications", String(currentMedications.length)],
   ];
@@ -457,7 +458,6 @@ export function PatientClinicalRecordView({
     ["Upcoming appointments", upcomingAppointments.length],
     ["History entries", historyCount],
     ["Lab reports", labs.length],
-    ["Vitals", vitals.length],
     ["Care plan items", carePlan.length],
   ];
 
@@ -465,7 +465,6 @@ export function PatientClinicalRecordView({
     { label: "Medical history", value: historyCount, tab: "history", ...(caseSheet ? { section: "past-history" } : {}) },
     { label: "Lab reports", value: summaryValue(ehrRecord.labReports || labs), tab: "reports" },
     { label: "Prescriptions", value: summaryValue(prescriptions), tab: "prescriptions" },
-    { label: "Vitals", value: summaryValue(ehrRecord.vitals || vitals), tab: "vitals" },
   ];
 
   return (
@@ -603,20 +602,6 @@ export function PatientClinicalRecordView({
         <TabsContent value="timeline">{renderAppointmentHistory((next) => openTab(next))}</TabsContent>
       ) : null}
 
-      <TabsContent value="appointments">
-        <RecordTable
-          title="Appointments"
-          description="Every appointment this patient has had at the clinic, newest first."
-          grid="1.3fr 1fr 1.6fr 1fr"
-          columns={APPOINTMENT_COLUMNS}
-          rows={sortedAppointments}
-          loading={loading}
-          emptyIcon={Calendar}
-          emptyTitle="No appointments yet"
-          emptyDescription="Appointments booked for this patient at the clinic will show here."
-        />
-      </TabsContent>
-
       <TabsContent value="history">
         {caseSheet ?? (
           <RecordTable
@@ -630,22 +615,6 @@ export function PatientClinicalRecordView({
             emptyTitle="No treatment history yet"
           />
         )}
-      </TabsContent>
-
-      <TabsContent value="vitals" className="flex flex-col gap-5">
-        <RecordTable
-          title="Vitals"
-          description="Readings recorded for this patient, newest first."
-          grid="1.3fr 1.2fr 1fr 1.6fr"
-          columns={VITAL_COLUMNS}
-          rows={sortedVitals}
-          loading={loading}
-          emptyIcon={Heart}
-          emptyTitle="No vitals recorded yet"
-        />
-        {caseSheet ? (
-          <Note tone="green">Vitals are entered for each OPD visit in Case Sheet, under General Exam.</Note>
-        ) : null}
       </TabsContent>
 
       <TabsContent value="reports" className="flex flex-col gap-5">

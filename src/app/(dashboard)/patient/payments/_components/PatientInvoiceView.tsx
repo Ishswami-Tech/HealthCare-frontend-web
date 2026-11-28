@@ -23,6 +23,7 @@ import {
   invoiceTotal,
   isPaidInvoice,
   isPayableInvoice,
+  overdueLabel,
   type InvoicePaymentInfo,
 } from "./patientBilling.logic";
 import { formatRupees } from "@/lib/utils/currency";
@@ -35,6 +36,8 @@ export interface PatientInvoiceViewProps {
   invoice?: Invoice | undefined;
   /** The patient's name. */
   billedTo: string;
+  /** The issuing clinic's name (from the backend; neutral fallback while it loads). */
+  clinicName: string;
   /** How the invoice was paid, when it is paid and the payment is known. */
   payment: InvoicePaymentInfo | null;
   /** The pay control for a pending invoice (the container supplies the real payment button). */
@@ -64,6 +67,7 @@ export function PatientInvoiceView({
   state,
   invoice,
   billedTo,
+  clinicName,
   payment,
   renderPay,
   onDownloadPdf,
@@ -73,7 +77,7 @@ export function PatientInvoiceView({
   if (state === "loading") {
     return (
       <Shell>
-        <Surface flush className="rounded-[24px]" aria-busy="true" aria-label="Loading invoice">
+        <Surface flush className="rounded-[24px]" aria-busy="true" role="status" aria-label="Loading invoice">
           <div className="flex flex-col gap-4 bg-mint-soft px-6 py-7 sm:px-8">
             <Skeleton className="h-9 w-44 rounded-xl" />
             <Skeleton className="h-9 w-40 rounded-lg" />
@@ -160,7 +164,7 @@ export function PatientInvoiceView({
               <span className="flex size-[38px] items-center justify-center rounded-xl bg-white dark:bg-white/10">
                 <Activity className="size-5 text-brand" strokeWidth={2.4} aria-hidden="true" />
               </span>
-              <span className="text-[17px] font-extrabold text-ink">{APP_CONFIG.CLINIC.BRAND_NAME}</span>
+              <span className="text-[17px] font-extrabold text-ink">{clinicName || APP_CONFIG.CLINIC.BRAND_NAME}</span>
             </span>
             <span
               className={cn(
@@ -182,7 +186,9 @@ export function PatientInvoiceView({
                   ? formatDateTimeLabel(paidWhen, EMPTY_DATE_LABEL)
                   : "Paid"
                 : payable
-                  ? `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}`
+                  ? `Due ${formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}${
+                      overdueLabel(invoice) ? ` · ${overdueLabel(invoice)}` : ""
+                    }`
                   : `Issued ${formatDateLabel(invoiceIssuedAt(invoice), EMPTY_DATE_LABEL)}`}
             </span>
           </div>
@@ -257,15 +263,13 @@ export function PatientInvoiceView({
 
       <div className="flex flex-wrap items-center gap-3">
         {payable ? renderPay(invoice, "page") : null}
-        <Button
-          variant={payable ? "outline" : "default"}
-          size="md"
-          onClick={() => onDownloadPdf(invoice.id)}
-          disabled={downloadingPdf}
-        >
-          {downloadingPdf ? <Loader2 className="animate-spin" /> : <Download aria-hidden="true" />}
-          Download PDF
-        </Button>
+        {/* The PDF is the receipt of a paid invoice; an unpaid or cancelled one has none. */}
+        {paid ? (
+          <Button size="md" onClick={() => onDownloadPdf(invoice.id)} disabled={downloadingPdf}>
+            {downloadingPdf ? <Loader2 className="animate-spin" /> : <Download aria-hidden="true" />}
+            Download receipt
+          </Button>
+        ) : null}
         <span className="flex-1" />
         <Link
           href={HELP_ROUTE}
@@ -274,7 +278,9 @@ export function PatientInvoiceView({
           Need help with this bill?
         </Link>
       </div>
-      <p className="m-0 text-xs text-ink-muted">To send this bill to someone, download the PDF and share the file.</p>
+      {paid ? (
+        <p className="m-0 text-xs text-ink-muted">To send this receipt to someone, download the PDF and share the file.</p>
+      ) : null}
     </Shell>
   );
 }

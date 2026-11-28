@@ -58,6 +58,8 @@ export interface PatientProfileHubViewProps {
   notificationsLabel?: string | undefined;
   appVersion?: string | undefined;
 
+  /** The clinic's name from the backend (neutral fallback while it loads). */
+  clinicName?: string;
   logoutOpen: boolean;
   onLogoutOpenChange: (open: boolean) => void;
   onLogout: () => void;
@@ -78,6 +80,7 @@ export function PatientProfileHubView({
   languageLabel,
   notificationsLabel,
   appVersion,
+  clinicName = "",
   logoutOpen,
   onLogoutOpenChange,
   onLogout,
@@ -94,7 +97,7 @@ export function PatientProfileHubView({
       <Surface as="section" className="p-6" aria-label="Your account">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-5">
           {loading ? (
-            <div className="flex min-w-0 flex-1 items-center gap-4 sm:min-w-[280px]" aria-busy="true" aria-label="Loading profile">
+            <div className="flex min-w-0 flex-1 items-center gap-4 sm:min-w-[280px]" aria-busy="true" role="status" aria-label="Loading profile">
               <Skeleton className="size-[72px] shrink-0 rounded-full" />
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-6 w-44 rounded" />
@@ -191,7 +194,11 @@ export function PatientProfileHubView({
           <LogOut strokeWidth={2.4} aria-hidden="true" />
           Log out
         </Button>
-        {appVersion ? <span className="text-xs text-ink-muted">{APP_CONFIG.CLINIC.BRAND_NAME} · Version {appVersion}</span> : null}
+        {appVersion ? (
+          <span className="text-xs text-ink-muted">
+            {[clinicName || APP_CONFIG.CLINIC.BRAND_NAME, `Version ${appVersion}`].join(" · ")}
+          </span>
+        ) : null}
       </div>
 
       <Dialog open={logoutOpen} onOpenChange={(open) => (loggingOut ? undefined : onLogoutOpenChange(open))}>

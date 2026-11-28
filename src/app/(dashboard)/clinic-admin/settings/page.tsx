@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinic, useUpdateClinic } from "@/hooks/query/useClinics";
+import { DEFAULT_IN_PERSON_VISIT_MINUTES, DEFAULT_VIDEO_VISIT_MINUTES } from "@/lib/utils/visit-duration";
 import { useDoctors } from "@/hooks/query/useDoctors";
+import { useStaffMembers } from "@/hooks/query/useClinicStaffAdmin";
 import {
   useAssistantDoctorCoverage,
   useUpdateAssistantDoctorCoverage,
@@ -30,10 +32,16 @@ import {
   DashboardPageHeader as PatientPageHeader,
   DashboardPageShell as PatientPageShell,
 } from "@/components/dashboard/DashboardPageShell";
+import { ClinicAdminShortcuts } from "@/components/clinic-admin/ClinicAdminShortcuts";
 import { OperatingWindowsEditor } from "@/components/dashboard/OperatingWindowsEditor";
 import { PaymentProviderSettings } from "@/components/clinic-admin/PaymentProviderSettings";
+import { AbdmSettings } from "./_components/AbdmSettings";
+import { BookableServicesSettings } from "./_components/BookableServicesSettings";
+import { BookingDaysWalkInSettings } from "./_components/BookingDaysWalkInSettings";
+import { OpdServiceToggleList } from "@/components/clinic/OpdServiceToggleList";
 import { AlertTriangle, Loader2, Save, Plus, Stethoscope, Trash2, Video, Ban } from "lucide-react";
 import { showErrorToast } from "@/hooks/utils/use-toast";
+import { plural } from "@/lib/utils/labels";
 import type {
   Clinic,
   ClinicDoctorConsultationControl,
@@ -49,7 +57,12 @@ type DoctorListItem = {
   role: string;
 };
 type AssistantCoverageState = Record<string, AssistantDoctorCoverageAssignment>;
-type ClinicForm = { name: string; address: string; city: string; state: string; country: string; zipCode: string; phone: string; email: string; website: string; description: string; timezone: string; currency: string; language: string; operatingHours: string };
+type ClinicForm = { name: string; address: string; city: string; state: string; country: string; zipCode: string; phone: string; email: string; website: string; description: string; timezone: string; currency: string; language: string; operatingHours: string; supportPhone: string; supportEmail: string };
+/** Clinic visit lengths (appointmentSettings.inPersonDurationMinutes / videoDurationMinutes); the server
+ *  books and builds slots with them. Defaults shared with the doctor's read-only view (lib/utils/visit-duration). */
+function clampVisitMinutes(value: number, fallback: number): number {
+  return Number.isFinite(value) && value >= 1 ? Math.min(120, Math.round(value)) : fallback;
+}
 /** Doctor WhatsApp summary timing (appointmentSettings.doctorSummary); same defaults and range as the API. */
 const DOCTOR_SUMMARY_DEFAULTS = { morningTime: "07:00", beforeWindowMinutes: 15, minBeforeWindowMinutes: 5, maxBeforeWindowMinutes: 180 } as const;
 
@@ -59,7 +72,7 @@ function clampBeforeWindowMinutes(value: number | ""): number {
   return Math.min(DOCTOR_SUMMARY_DEFAULTS.maxBeforeWindowMinutes, Math.max(DOCTOR_SUMMARY_DEFAULTS.minBeforeWindowMinutes, minutes));
 }
 
-type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; videoCallWindowStart: string; videoCallWindowEnd: string; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean; doctorSummaryMorningEnabled: boolean; doctorSummaryMorningTime: string; doctorSummaryBeforeWindowEnabled: boolean; doctorSummaryBeforeWindowMinutes: number | "" };
+type SettingsForm = { appointmentDuration: number; inPersonDurationMinutes: number; videoDurationMinutes: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; videoCallWindowStart: string; videoCallWindowEnd: string; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean; labBookingEnabled: boolean; qrCheckInEnabled: boolean; doctorSummaryMorningEnabled: boolean; doctorSummaryMorningTime: string; doctorSummaryBeforeWindowEnabled: boolean; doctorSummaryBeforeWindowMinutes: number | "" };
 type ClinicAdminSettingsState = {
   clinicForm: ClinicForm;
   settings: SettingsForm;
@@ -276,6 +289,16 @@ export default function ClinicAdminSettingsPage() {
     }, []);
   }, [doctorsData]);
   const primaryDoctors = useMemo(() => doctors.filter((doctor) => doctor.role === "DOCTOR"), [doctors]);
+  // Header counts come from the staff directory (every staff link of the clinic), not the doctor
+  // list, which only holds doctors attached through DoctorClinic.
+  const { data: staffMembers } = useStaffMembers();
+  const staffCounts = useMemo(() => {
+    const active = (staffMembers ?? []).filter((member) => member.isActive);
+    return {
+      doctors: active.filter((member) => member.role === "DOCTOR").length,
+      assistants: active.filter((member) => member.role === "ASSISTANT_DOCTOR").length,
+    };
+  }, [staffMembers]);
   const assistantDoctors = useMemo(() => doctors.filter((doctor) => doctor.role === "ASSISTANT_DOCTOR"), [doctors]);
   const baseDoctorCtrl = useMemo(() => buildDoctorControls(clinic, doctors), [clinic, doctors]);
   const baseAssistantCoverage = useMemo(
@@ -284,8 +307,8 @@ export default function ClinicAdminSettingsPage() {
   );
 
   const [editorState, setEditorState] = useState<ClinicAdminSettingsState>(() => ({
-    clinicForm: { name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" },
-    settings: { appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,videoCallWindowStart:"",videoCallWindowEnd:"",noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false,doctorSummaryMorningEnabled:true,doctorSummaryMorningTime:DOCTOR_SUMMARY_DEFAULTS.morningTime,doctorSummaryBeforeWindowEnabled:true,doctorSummaryBeforeWindowMinutes:DOCTOR_SUMMARY_DEFAULTS.beforeWindowMinutes },
+    clinicForm: { name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD",supportPhone:"",supportEmail:"" },
+    settings: { appointmentDuration:30,inPersonDurationMinutes:DEFAULT_IN_PERSON_VISIT_MINUTES,videoDurationMinutes:DEFAULT_VIDEO_VISIT_MINUTES,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,videoCallWindowStart:"",videoCallWindowEnd:"",noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false,labBookingEnabled:true,qrCheckInEnabled:true,doctorSummaryMorningEnabled:true,doctorSummaryMorningTime:DOCTOR_SUMMARY_DEFAULTS.morningTime,doctorSummaryBeforeWindowEnabled:true,doctorSummaryBeforeWindowMinutes:DOCTOR_SUMMARY_DEFAULTS.beforeWindowMinutes },
     sessions: defaultSessions(),
   }));
   const { clinicForm, settings, sessions } = editorState;
@@ -317,7 +340,7 @@ export default function ClinicAdminSettingsPage() {
     }
     const startMinutes = timeToMinutes(start);
     const endMinutes = timeToMinutes(end);
-    const slotDuration = Math.max(1, settings.appointmentDuration);
+    const slotDuration = Math.max(1, settings.videoDurationMinutes);
     const validTimes =
       /^([01]\d|2[0-3]):([0-5]\d)$/.test(start) && /^([01]\d|2[0-3]):([0-5]\d)$/.test(end) && startMinutes < endMinutes;
     const totalMinutes = validTimes ? endMinutes - startMinutes : 0;
@@ -338,7 +361,7 @@ export default function ClinicAdminSettingsPage() {
           ? `${slotCount} ${slotCount === 1 ? "slot" : "slots"} of ${slotDuration} minutes fit inside this window.`
           : "The end time must be after the start time and the window must be long enough for one video slot.",
     };
-  }, [settings.appointmentDuration, settings.videoCallWindowEnd, settings.videoCallWindowStart]);
+  }, [settings.videoDurationMinutes, settings.videoCallWindowEnd, settings.videoCallWindowStart]);
 
   useEffect(() => {
     if (!clinic || hasInitializedRef.current) return;
@@ -353,8 +376,8 @@ export default function ClinicAdminSettingsPage() {
     const doctorSummary = isRecord(appt.doctorSummary) ? appt.doctorSummary : {};
     const dayWin = isRecord(appt.operatingWindowsByDay) ? appt.operatingWindowsByDay : {};
     const parsed = defaultSessions(); DAYS.forEach(d => { if (dayWin[d] !== undefined) parsed[d] = parseSessions(dayWin[d]); });
-    const newClinicForm: ClinicForm = { name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD" };
-    const newSettings: SettingsForm = { appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), videoCallWindowStart: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.start : undefined, ""), videoCallWindowEnd: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.end : undefined, ""), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false), doctorSummaryMorningEnabled: typeof doctorSummary.morningEnabled==="boolean"?doctorSummary.morningEnabled:true, doctorSummaryMorningTime: normalizeTime(doctorSummary.morningTime, DOCTOR_SUMMARY_DEFAULTS.morningTime), doctorSummaryBeforeWindowEnabled: typeof doctorSummary.beforeWindowEnabled==="boolean"?doctorSummary.beforeWindowEnabled:true, doctorSummaryBeforeWindowMinutes: clampBeforeWindowMinutes(toNumber(doctorSummary.beforeWindowMinutes, DOCTOR_SUMMARY_DEFAULTS.beforeWindowMinutes)) };
+    const newClinicForm: ClinicForm = { name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD", supportPhone: (clinic as any).supportPhone||"", supportEmail: (clinic as any).supportEmail||"" };
+    const newSettings: SettingsForm = { appointmentDuration: toNumber(appt.appointmentDuration,30), inPersonDurationMinutes: toNumber(appt.inPersonDurationMinutes,DEFAULT_IN_PERSON_VISIT_MINUTES), videoDurationMinutes: toNumber(appt.videoDurationMinutes,DEFAULT_VIDEO_VISIT_MINUTES), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), videoCallWindowStart: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.start : undefined, ""), videoCallWindowEnd: normalizeTime(isRecord(appt.videoCallWindow) ? appt.videoCallWindow.end : undefined, ""), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false), labBookingEnabled: Boolean(opd.labBookingEnabled ?? true), qrCheckInEnabled: Boolean(opd.qrCheckInEnabled ?? true), doctorSummaryMorningEnabled: typeof doctorSummary.morningEnabled==="boolean"?doctorSummary.morningEnabled:true, doctorSummaryMorningTime: normalizeTime(doctorSummary.morningTime, DOCTOR_SUMMARY_DEFAULTS.morningTime), doctorSummaryBeforeWindowEnabled: typeof doctorSummary.beforeWindowEnabled==="boolean"?doctorSummary.beforeWindowEnabled:true, doctorSummaryBeforeWindowMinutes: clampBeforeWindowMinutes(toNumber(doctorSummary.beforeWindowMinutes, DOCTOR_SUMMARY_DEFAULTS.beforeWindowMinutes)) };
     setEditorState({
       clinicForm: newClinicForm,
       settings: newSettings,
@@ -380,10 +403,10 @@ export default function ClinicAdminSettingsPage() {
       return trimmed ? [trimmed] : [];
     });
     const payload: UpdateClinicData = {
-      name: clinicForm.name.trim(), address: clinicForm.address.trim(), city: clinicForm.city.trim(), state: clinicForm.state.trim(), country: clinicForm.country.trim(), zipCode: clinicForm.zipCode.trim(), phone: clinicForm.phone.trim(), email: clinicForm.email.trim(), website: clinicForm.website.trim(), description: clinicForm.description.trim(), timezone: clinicForm.timezone.trim() || "Asia/Kolkata", currency: clinicForm.currency.trim() || "INR", language: clinicForm.language.trim() || "en", operatingHours: clinicForm.operatingHours.trim(),
+      name: clinicForm.name.trim(), address: clinicForm.address.trim(), city: clinicForm.city.trim(), state: clinicForm.state.trim(), country: clinicForm.country.trim(), zipCode: clinicForm.zipCode.trim(), phone: clinicForm.phone.trim(), email: clinicForm.email.trim(), website: clinicForm.website.trim(), description: clinicForm.description.trim(), timezone: clinicForm.timezone.trim() || "Asia/Kolkata", currency: clinicForm.currency.trim() || "INR", language: clinicForm.language.trim() || "en", operatingHours: clinicForm.operatingHours.trim(), supportPhone: clinicForm.supportPhone.trim(), supportEmail: clinicForm.supportEmail.trim(),
       settings: {
         ...base,
-        appointmentSettings: { ...appt, appointmentDuration: settings.appointmentDuration, maxAdvanceBooking: settings.maxAdvanceBooking, minAdvanceBooking: settings.minAdvanceBooking, cancellationWindow: settings.cancellationWindow, videoCallWindow: videoCallPreview.configured ? { start: videoCallPreview.start, end: videoCallPreview.end } : null, noShowWindowMinutes: settings.noShowWindowMinutes, allowRescheduling: settings.allowRescheduling, allowCancellation: settings.allowCancellation, autoConfirmation: settings.autoConfirmation, walkInAllowed: settings.walkInAllowed, operatingWindowsByDay: sessions, dailyOperatingWindow: sessions.monday[0] || { start:"11:00", end:"14:00" }, opdControls: { isOpdPaused: settings.clinicPaused, pauseReason: settings.pauseReason.trim(), generalConsultationEnabled: settings.generalConsultationEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, emergencyOnly: settings.emergencyOnly }, doctorConsultationControls: doctorCtrl, doctorSummary: { morningEnabled: settings.doctorSummaryMorningEnabled, morningTime: settings.doctorSummaryMorningTime, beforeWindowEnabled: settings.doctorSummaryBeforeWindowEnabled, beforeWindowMinutes: clampBeforeWindowMinutes(settings.doctorSummaryBeforeWindowMinutes) } },
+        appointmentSettings: { ...appt, appointmentDuration: settings.appointmentDuration, inPersonDurationMinutes: clampVisitMinutes(settings.inPersonDurationMinutes, DEFAULT_IN_PERSON_VISIT_MINUTES), videoDurationMinutes: clampVisitMinutes(settings.videoDurationMinutes, DEFAULT_VIDEO_VISIT_MINUTES), maxAdvanceBooking: settings.maxAdvanceBooking, minAdvanceBooking: settings.minAdvanceBooking, cancellationWindow: settings.cancellationWindow, videoCallWindow: videoCallPreview.configured ? { start: videoCallPreview.start, end: videoCallPreview.end } : null, noShowWindowMinutes: settings.noShowWindowMinutes, allowRescheduling: settings.allowRescheduling, allowCancellation: settings.allowCancellation, autoConfirmation: settings.autoConfirmation, walkInAllowed: settings.walkInAllowed, operatingWindowsByDay: sessions, dailyOperatingWindow: sessions.monday[0] || { start:"11:00", end:"14:00" }, opdControls: { isOpdPaused: settings.clinicPaused, pauseReason: settings.pauseReason.trim(), generalConsultationEnabled: settings.generalConsultationEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, emergencyOnly: settings.emergencyOnly, labBookingEnabled: settings.labBookingEnabled, qrCheckInEnabled: settings.qrCheckInEnabled }, doctorSummary: { morningEnabled: settings.doctorSummaryMorningEnabled, morningTime: settings.doctorSummaryMorningTime, beforeWindowEnabled: settings.doctorSummaryBeforeWindowEnabled, beforeWindowMinutes: clampBeforeWindowMinutes(settings.doctorSummaryBeforeWindowMinutes) }, doctorConsultationControls: doctorCtrl },
         notificationSettings: { ...notifSet, appointmentReminders: settings.appointmentReminders, cancellationAlerts: settings.cancellationAlerts, emailNotifications: settings.emailNotifications, smsNotifications: settings.smsNotifications, pushNotifications: settings.pushNotifications },
         notifications: { ...notif, email: settings.emailNotifications, sms: settings.smsNotifications, push: settings.pushNotifications },
         paymentSettings: { ...pay, currency: clinicForm.currency.trim() || "INR", paymentMethods, autoBilling: settings.autoBilling },
@@ -544,7 +567,7 @@ export default function ClinicAdminSettingsPage() {
         eyebrow="Clinic Admin"
         title="Clinic Settings"
         description="Manage clinic profile, OPD sessions, booking policies, notifications, billing, and doctor controls."
-        meta={`${doctors.length} doctors • ${assistantDoctors.length} assistant doctors`}
+        meta={`${plural(staffMembers ? staffCounts.doctors : doctors.length - assistantDoctors.length, "doctor")} • ${plural(staffMembers ? staffCounts.assistants : assistantDoctors.length, "assistant doctor")}`}
         actions={[
           {
             label: isSaving ? "Saving…" : "Save Changes",
@@ -554,6 +577,9 @@ export default function ClinicAdminSettingsPage() {
           },
         ]}
       />
+
+      {/* B2: print settings, roles, holidays, locations and fees */}
+      <ClinicAdminShortcuts />
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex flex-col gap-y-3">
@@ -574,6 +600,12 @@ export default function ClinicAdminSettingsPage() {
             </SettingField>
             <SettingField label="Website">
               <Input className={FORM_INPUT_CLASS} value={clinicForm.website} onChange={(e) => setCF("website", e.target.value)} />
+            </SettingField>
+            <SettingField label="Technical Support Phone (shown to patients)">
+              <Input className={FORM_INPUT_CLASS} value={clinicForm.supportPhone} onChange={(e) => setCF("supportPhone", e.target.value)} />
+            </SettingField>
+            <SettingField label="Technical Support Email (shown to patients)">
+              <Input className={FORM_INPUT_CLASS} type="email" value={clinicForm.supportEmail} onChange={(e) => setCF("supportEmail", e.target.value)} />
             </SettingField>
             <SettingField label="City">
               <Input className={FORM_INPUT_CLASS} value={clinicForm.city} onChange={(e) => setCF("city", e.target.value)} />
@@ -626,8 +658,11 @@ export default function ClinicAdminSettingsPage() {
             </CardHeader>
             <CardContent className={`${COMPACT_CARD_CONTENT} flex flex-col gap-y-3`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                <SettingField label="Duration (minutes)">
-                  <Input className={FORM_INPUT_CLASS} type="number" value={settings.appointmentDuration} onChange={(e) => setSF("appointmentDuration", toNumber(e.target.value, 30))} />
+                <SettingField label="In-person visit length (min)">
+                  <Input className={FORM_INPUT_CLASS} type="number" min={1} max={120} value={settings.inPersonDurationMinutes} onChange={(e) => setSF("inPersonDurationMinutes", toNumber(e.target.value, DEFAULT_IN_PERSON_VISIT_MINUTES))} />
+                </SettingField>
+                <SettingField label="Video visit length (min)">
+                  <Input className={FORM_INPUT_CLASS} type="number" min={1} max={120} value={settings.videoDurationMinutes} onChange={(e) => setSF("videoDurationMinutes", toNumber(e.target.value, DEFAULT_VIDEO_VISIT_MINUTES))} />
                 </SettingField>
                 <SettingField label="No-show Window (minutes)">
                   <Input className={FORM_INPUT_CLASS} type="number" value={settings.noShowWindowMinutes} onChange={(e) => setSF("noShowWindowMinutes", toNumber(e.target.value, 15))} />
@@ -697,15 +732,23 @@ export default function ClinicAdminSettingsPage() {
           <Card className={ALERT_CARD_CLASS}>
             <CardHeader className={COMPACT_CARD_HEADER}>
               <CardTitle>Emergency / OPD Controls</CardTitle>
-              <CardDescription>Temporarily restrict clinic consultations.</CardDescription>
+              <CardDescription>Turn clinic services on or off, or temporarily restrict consultations. Changes apply after Save.</CardDescription>
             </CardHeader>
             <CardContent className={`${COMPACT_CARD_CONTENT} flex flex-col gap-y-3`}>
               <ToggleRow label="Pause Clinic OPD" checked={settings.clinicPaused} onCheckedChange={(value) => setSF("clinicPaused", value)} />
               <SettingField label="Pause Reason">
                 <Input className={FORM_INPUT_CLASS} value={settings.pauseReason} onChange={(e) => setSF("pauseReason", e.target.value)} />
               </SettingField>
-              <ToggleRow label="General Consultation Enabled" checked={settings.generalConsultationEnabled} onCheckedChange={(value) => setSF("generalConsultationEnabled", value)} />
-              <ToggleRow label="Video Consultation Enabled" checked={settings.videoConsultationEnabled} onCheckedChange={(value) => setSF("videoConsultationEnabled", value)} />
+              <OpdServiceToggleList
+                value={{ qrCheckInEnabled: settings.qrCheckInEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, generalConsultationEnabled: settings.generalConsultationEnabled }}
+                onChange={(key, value) => setSF(key, value)}
+              />
+              {!settings.videoConsultationEnabled && !settings.generalConsultationEnabled ? (
+                <p role="status" className="text-xs text-amber-700 dark:text-amber-400">
+                  Both consultation types are off: patients will see that online booking is paused.
+                </p>
+              ) : null}
+              <ToggleRow label="Lab Reports Enabled" checked={settings.labBookingEnabled} onCheckedChange={(value) => setSF("labBookingEnabled", value)} />
               <ToggleRow label="Emergency Only Mode" checked={settings.emergencyOnly} onCheckedChange={(value) => setSF("emergencyOnly", value)} />
             </CardContent>
           </Card>
@@ -761,6 +804,13 @@ export default function ClinicAdminSettingsPage() {
             </CardContent>
           </Card>
           {clinic?.id ? <PaymentProviderSettings clinicId={clinic.id} currency={clinicForm.currency} /> : null}
+          {clinic?.id ? <AbdmSettings clinicId={clinic.id} abdmHipId={clinic.abdmHipId} /> : null}
+          {clinic?.id ? (
+            <BookableServicesSettings clinicId={clinic.id} clinicSettings={clinic.settings} className={PROFILE_CARD_CLASS} />
+          ) : null}
+          {clinic?.id ? (
+            <BookingDaysWalkInSettings clinicId={clinic.id} clinicSettings={clinic.settings} className={PROFILE_CARD_CLASS} />
+          ) : null}
         </div>
       </div>
 
@@ -794,12 +844,12 @@ export default function ClinicAdminSettingsPage() {
                       </IconTableHead>
                     </TableHead>
                     <TableHead className="w-[68px] px-2 text-center">
-                      <IconTableHead label="General Consultation">
+                      <IconTableHead label="In-person consultations">
                         <Stethoscope className="size-4" />
                       </IconTableHead>
                     </TableHead>
                     <TableHead className="w-[68px] px-2 text-center">
-                      <IconTableHead label="Video Consultation">
+                      <IconTableHead label="Video consultations">
                         <Video className="size-4" />
                       </IconTableHead>
                     </TableHead>
@@ -827,10 +877,10 @@ export default function ClinicAdminSettingsPage() {
                           <Switch checked={control.isPaused} onCheckedChange={(value) => updDoc(doctor.id, "isPaused", value)} aria-label={`Pause ${doctor.name}`} />
                         </TableCell>
                         <TableCell className="px-2 text-center">
-                          <Switch checked={control.generalConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "generalConsultationEnabled", value)} aria-label={`General consultation for ${doctor.name}`} />
+                          <Switch checked={control.generalConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "generalConsultationEnabled", value)} aria-label={`In-person consultations for ${doctor.name}`} />
                         </TableCell>
                         <TableCell className="px-2 text-center">
-                          <Switch checked={control.videoConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "videoConsultationEnabled", value)} aria-label={`Video consultation for ${doctor.name}`} />
+                          <Switch checked={control.videoConsultationEnabled} onCheckedChange={(value) => updDoc(doctor.id, "videoConsultationEnabled", value)} aria-label={`Video consultations for ${doctor.name}`} />
                         </TableCell>
                         <TableCell className="px-2 text-center">
                           <Switch checked={control.emergencyOnly} onCheckedChange={(value) => updDoc(doctor.id, "emergencyOnly", value)} aria-label={`Emergency only for ${doctor.name}`} />

@@ -62,9 +62,8 @@ export const queryClientConfig: QueryClientConfig = {
       networkMode: 'online', // Only fetch when online
     },
     mutations: {
-      // Retry mutations once on failure
-      retry: 1,
-      retryDelay: 1000,
+      // Never auto-retry mutations: they are not idempotent (see QueryProvider).
+      retry: false,
       networkMode: 'online',
     },
   },

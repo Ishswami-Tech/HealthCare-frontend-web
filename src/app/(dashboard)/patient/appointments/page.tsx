@@ -10,11 +10,15 @@ import { PageHead } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { useMyAppointments, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { APP_CONFIG } from "@/lib/config/config";
 
 function PatientAppointmentsContent() {
   useWebSocketQuerySync();
+  // No Book button while the clinic has every consultation type switched off (a request that
+  // still opens the wizard shows its "booking paused" state).
+  const { onlineBookingEnabled } = useClinicServiceToggles();
   const searchParams = useSearchParams();
   const getSearchParam = useMemo(() => searchParams.get.bind(searchParams), [searchParams]);
   const queryClinicId = getSearchParam("clinicId") || undefined;
@@ -27,8 +31,11 @@ function PatientAppointmentsContent() {
   const initialTab = tabParam === "past" || tabParam === "cancelled" ? tabParam : undefined;
   // `&familyMemberId=<id>`: open the booking wizard for that family member.
   const queryFamilyMemberId = getSearchParam("familyMemberId") || undefined;
+  const normalizedBookingMode = bookingMode?.toUpperCase();
   const defaultConsultationMode =
-    bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
+    normalizedBookingMode === "VIDEO" || normalizedBookingMode === "IN_PERSON"
+      ? normalizedBookingMode
+      : undefined;
   const currentClinicId = useCurrentClinicId();
   const resolvedClinicId =
     queryClinicId ||
@@ -72,18 +79,27 @@ function PatientAppointmentsContent() {
   const isBookingDialogOpening =
     shouldOpenBooking && !isBookingRequestHandled && !isBookingDialogOpen;
 
+  // Opening the dialog and stripping the query string used to happen in the same effect. Next's
+  // App Router patches history.replaceState to keep useSearchParams() in sync, so that call could
+  // itself trigger a re-render of this searchParams-subscribed, Suspense-wrapped component before
+  // setIsBookingDialogOpen(true) had committed — losing the open state and leaving the dialog
+  // stuck on "Opening booking..." forever (reproduced live: the banner never cleared and no
+  // dialog ever mounted). Splitting these into two effects, with the URL strip gated on the
+  // dialog actually being open, guarantees the open-state commit lands first.
   useEffect(() => {
     if (shouldOpenBooking) {
       setIsBookingDialogOpen(true);
       setIsBookingRequestHandled(true);
       setBookingFamilyMemberId(queryFamilyMemberId);
     }
+  }, [shouldOpenBooking, queryFamilyMemberId]);
 
-    if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
+  useEffect(() => {
+    if (queryClinicId || queryLocationId || queryClinicName || bookingMode || isBookingDialogOpen) {
       document.getElementById("appointment-manager")?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
-  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking, queryFamilyMemberId]);
+  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, isBookingDialogOpen]);
 
   // Closing the wizard forgets the family member, so the next booking starts with "Myself".
   const handleBookingDialogOpenChange = (open: boolean) => {
@@ -99,10 +115,12 @@ function PatientAppointmentsContent() {
         title="Appointments"
         description="Manage your consultations"
         actions={
-          <Button variant="action" size="md" onClick={() => setIsBookingDialogOpen(true)}>
-            <Plus aria-hidden="true" />
-            Book appointment
-          </Button>
+          onlineBookingEnabled ? (
+            <Button variant="action" size="md" onClick={() => setIsBookingDialogOpen(true)}>
+              <Plus aria-hidden="true" />
+              Book appointment
+            </Button>
+          ) : undefined
         }
       />
 
@@ -110,6 +128,7 @@ function PatientAppointmentsContent() {
         open={isBookingDialogOpen}
         onOpenChange={handleBookingDialogOpenChange}
         hideTrigger
+        videoOnly={false}
         {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
         {...(resolvedClinicId ? { clinicId: resolvedClinicId } : {})}
         {...(queryLocationId ? { locationId: queryLocationId } : {})}

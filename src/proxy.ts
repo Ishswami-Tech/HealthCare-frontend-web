@@ -24,9 +24,8 @@ import {
   getRouteGuardPolicy,
 } from "@/lib/config/routes";
 import {
-  buildConnectSrcSources,
-  buildOriginConnectSrc,
-  normalizeOrigin,
+  buildContentSecurityPolicy,
+  PERMISSIONS_POLICY_VALUE,
 } from "./lib/config/csp";
 
 /** Next.js server action IDs are hex strings (42 characters in Next 16). */
@@ -164,6 +163,70 @@ function extractUserDataFromToken(
  * @returns NextResponse
  */
 export default async function proxy(request: NextRequest) {
+  const response = await routeRequest(request);
+  return applySecurityHeaders(response, request);
+}
+
+/**
+ * The policy only depends on build-time NEXT_PUBLIC_* values and whether the request is HTTPS, so
+ * each of the two variants is built once per server instance instead of on every request.
+ */
+const cachedContentSecurityPolicies = new Map<boolean, string>();
+
+function contentSecurityPolicy(isProduction: boolean, enforceHttps: boolean): string {
+  let policy = cachedContentSecurityPolicies.get(enforceHttps);
+  if (policy === undefined) {
+    policy = buildContentSecurityPolicy({
+      appUrl: process.env.NEXT_PUBLIC_APP_URL,
+      apiUrl:
+        process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
+      websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL,
+      isDevelopment: !isProduction,
+      enforceHttps,
+    });
+    cachedContentSecurityPolicies.set(enforceHttps, policy);
+  }
+  return policy;
+}
+
+/**
+ * Security headers for EVERY proxied response - public pages, protected pages
+ * and redirects alike (they used to be added only on the final protected-page
+ * branch, so public pages and redirects carried the weak next.config policy).
+ */
+function applySecurityHeaders(
+  response: NextResponse,
+  request: NextRequest,
+): NextResponse {
+  // HSTS and upgrade-insecure-requests only for production HTTPS: sent over http://localhost they
+  // make the browser pin the dev host to https://localhost (which nothing serves).
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim();
+  const isProduction = process.env.NODE_ENV === "production";
+  const enforceHttps =
+    isProduction &&
+    (request.nextUrl.protocol === "https:" || forwardedProto === "https");
+
+  response.headers.set(
+    "Content-Security-Policy",
+    contentSecurityPolicy(isProduction, enforceHttps),
+  );
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", PERMISSIONS_POLICY_VALUE);
+  if (enforceHttps) {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains",
+    );
+  }
+  return response;
+}
+
+async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // Malformed server action IDs (see the second matcher entry in `config`): reject outright.
@@ -356,75 +419,7 @@ export default async function proxy(request: NextRequest) {
     }
   }
 
-  // =========================================================================
-  // STEP 9: Add Security Headers (CSP, HSTS, etc.)
-  // =========================================================================
-
-  response.headers.set("Content-Security-Policy", contentSecurityPolicy());
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(self), microphone=(self), geolocation=()",
-  );
-  response.headers.set(
-    "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains",
-  );
-
   return response;
-}
-
-/**
- * The CSP only depends on build-time NEXT_PUBLIC_* values, so it is built once per server
- * instance instead of on every request.
- */
-let cachedContentSecurityPolicy: string | null = null;
-
-function buildContentSecurityPolicy(): string {
-  // ✅ Dynamically build allowed hosts from environment variables
-  const apiHost = normalizeOrigin(
-    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL,
-  );
-  const wsHost =
-    normalizeOrigin(process.env.NEXT_PUBLIC_WEBSOCKET_URL) || apiHost;
-  const appHost = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
-
-  // Build connect-src dynamically from environment
-  const connectSources = Array.from(
-    new Set([
-      ...buildConnectSrcSources(undefined),
-      ...buildOriginConnectSrc(appHost || undefined),
-      ...buildOriginConnectSrc(apiHost || undefined),
-      ...buildOriginConnectSrc(wsHost || undefined),
-    ]),
-  ).join(" ");
-
-  // Strict Content Security Policy
-  return `
-    default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.facebook.com https://connect.facebook.net https://sdk.cashfree.com https://checkout.razorpay.com https://payments.zoho.com https://static.zohocdn.com https://c.daily.co https://*.daily.co;
-    worker-src 'self' blob:;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' blob: data: https://lh3.googleusercontent.com https://graph.facebook.com https://platform-lookaside.fbsbx.com https://storage.googleapis.com https://ui-avatars.com https://flagcdn.com https://www.charabibhasma.com https://charabibhasma.com https://i.ytimg.com https://ytimg.com https://img.youtube.com https://www.youtube.com https://youtube.com https://m.youtube.com https://youtu.be;
-    font-src 'self' https://fonts.gstatic.com;
-    connect-src ${connectSources};
-    frame-src 'self' blob: https://accounts.google.com https://www.facebook.com https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://checkout.razorpay.com https://*.razorpay.com https://payments.zoho.com https://static.zohocdn.com https://*.daily.co;
-    media-src 'self' blob: mediastream: https://*.daily.co;
-    object-src 'none';
-    base-uri 'self';
-    form-action 'self' https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://checkout.razorpay.com https://*.razorpay.com https://payments.zoho.com https://static.zohocdn.com;
-    frame-ancestors 'none';
-    upgrade-insecure-requests;
-  `
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
-function contentSecurityPolicy(): string {
-  cachedContentSecurityPolicy ??= buildContentSecurityPolicy();
-  return cachedContentSecurityPolicy;
 }
 
 // ============================================================================

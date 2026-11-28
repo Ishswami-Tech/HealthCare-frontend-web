@@ -2,22 +2,32 @@ import Link from "next/link";
 import { Activity, Home, RefreshCw, ScanLine, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadErrorAlert } from "@/components/patient/LoadErrorAlert";
 import { EmptyBlock, IconBox, PageHead, Surface, LoadError } from "@/components/tbd";
 import { cn } from "@/lib/utils";
 import { QueueClinicCard, QueueTokenCard } from "./QueueParts";
-import { formatWait, ticketHeadline, type QueueTicket, type QueueVisitInfo } from "@/components/patient/queue/queueData";
+import {
+  formatWait,
+  isNextInLine,
+  ticketHeadline,
+  tokensAhead,
+  type QueueTicket,
+  type QueueVisitInfo,
+} from "@/components/patient/queue/queueData";
+import { YoureNextNote } from "../../check-in/_components/CheckInViews";
 import { plural } from "@/lib/utils/labels";
+import { NotifyWhenNearToggle } from "./NotifyWhenNearToggle";
 
 /**
  * Live Queue (patient): the patient's own token, place, people ahead and estimated wait.
- * Props-driven. It draws only what `GET queue/me` returns: no other patient is ever listed.
+ * Props-driven. Other people in the line appear only as token numbers (never names or phones).
  */
 
 const BACK_HREF = "/patient/dashboard";
 
 function LiveBadge() {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-2.5 py-[5px] text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-white">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-2.5 py-[5px] text-xs font-extrabold uppercase leading-none tracking-[0.4px] text-white">
       <span className="tbd-pulse size-1.5 rounded-full bg-[#a7f3d0]" aria-hidden="true" />
       Live
     </span>
@@ -36,15 +46,22 @@ type LineRow = {
 
 function buildLine(ticket: QueueTicket): LineRow[] {
   const rows: LineRow[] = [];
-  if (!ticket.isWithDoctor && ticket.doctorBusy) {
-    rows.push({ key: "now", dot: "now", label: "Now", status: "A patient is with the doctor" });
+  if (!ticket.isWithDoctor && ticket.nowServingToken) {
+    rows.push({ key: "now", dot: "now", label: ticket.nowServingToken, status: "In consultation" });
+  } else if (!ticket.isWithDoctor && ticket.doctorBusy) {
+    rows.push({ key: "now", dot: "now", label: "Now", status: "In consultation" });
   }
-  if (!ticket.isWithDoctor && ticket.patientsAhead !== null && ticket.patientsAhead > 0) {
+  const between = tokensAhead(ticket);
+  if (between && between.length > 0) {
+    between.forEach((token, index) => {
+      rows.push({ key: `ahead-${token}`, dot: "open", label: token, status: index === 0 ? "Next" : "Waiting" });
+    });
+  } else if (!ticket.isWithDoctor && ticket.patientsAhead !== null && ticket.patientsAhead > 0) {
     rows.push({
       key: "ahead",
       dot: "open",
       label: `${ticket.patientsAhead} ahead`,
-      status: "Waiting before you",
+      status: ticket.patientsAhead === 1 ? "Next · waiting before you" : "Waiting before you",
     });
   }
   rows.push({
@@ -82,12 +99,14 @@ function LineDot({ kind }: { kind: LineRow["dot"] }) {
   );
 }
 
-function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: string | null }) {
+function QueueLine({ ticket, info }: { ticket: QueueTicket; info: QueueVisitInfo }) {
   const rows = buildLine(ticket);
   return (
     <Surface as="section" className="gap-2" aria-label="Your queue">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h2 className="m-0 text-base font-bold text-ink">{doctorName ? `Queue for ${doctorName}` : "Your queue"}</h2>
+        <h2 className="m-0 text-base font-bold text-ink">
+          {info.locationLabel ? `Queue at ${info.locationLabel}` : info.doctorName ? `Queue for ${info.doctorName}` : "Your queue"}
+        </h2>
         {ticket.totalInQueue !== null ? (
           <span className="text-[13px] text-ink-muted">{plural(ticket.totalInQueue, "patient")} in the queue</span>
         ) : null}
@@ -142,7 +161,7 @@ function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: st
           );
         })}
       </ol>
-      <p className="m-0 pt-1 text-xs text-ink-muted">Other patients are not shown here, to keep visits private.</p>
+      <p className="m-0 pt-1 text-xs text-ink-muted">Only token numbers are shown, to keep every visit private.</p>
     </Surface>
   );
 }
@@ -150,33 +169,65 @@ function QueueLine({ ticket, doctorName }: { ticket: QueueTicket; doctorName: st
 // ── Screens ────────────────────────────────────────────────────────────────
 
 export interface PatientQueueViewProps {
+  /** The queued visit, for the per-visit "Notify me" choice. */
+  appointmentId: string;
   ticket: QueueTicket;
   info: QueueVisitInfo;
   /** Reads the place again now. */
   onRefresh: () => void;
   isRefreshing: boolean;
+  /** Set when the last refresh failed: the place shown may be out of date, so no Live badge. */
+  loadError?: string | null | undefined;
 }
 
-export function PatientQueueView({ ticket, info, onRefresh, isRefreshing }: PatientQueueViewProps) {
+function OfflineBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-200 px-2.5 py-[5px] text-xs font-extrabold uppercase leading-none tracking-[0.4px] text-slate-800">
+      Offline
+    </span>
+  );
+}
+
+export function PatientQueueView({
+  appointmentId,
+  ticket,
+  info,
+  onRefresh,
+  isRefreshing,
+  loadError,
+}: PatientQueueViewProps) {
   return (
     <div className="flex flex-col gap-5">
-      <PageHead title="Live Queue" backHref={BACK_HREF} actions={<LiveBadge />} />
+      <PageHead title="Live Queue" backHref={BACK_HREF} actions={loadError ? <OfflineBadge /> : <LiveBadge />} />
+
+      {loadError ? (
+        <LoadErrorAlert
+          title="We could not refresh your place in the queue."
+          detail={`${loadError} Showing the last place we loaded.`}
+          onRetry={onRefresh}
+          retrying={isRefreshing}
+        />
+      ) : null}
 
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-5">
+          {isNextInLine(ticket) ? <YoureNextNote /> : null}
           <QueueTokenCard ticket={ticket} layout="progress" />
-          <QueueLine ticket={ticket} doctorName={info.doctorName} />
+          <QueueLine ticket={ticket} info={info} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
+          {!ticket.isWithDoctor ? (
+            <NotifyWhenNearToggle appointmentId={appointmentId} patientsAhead={ticket.patientsAhead} />
+          ) : null}
           <Surface className="p-4">
             <div className="flex items-center gap-3.5">
               <IconBox icon={RefreshCw} tone="mint" size={40} />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="text-sm font-bold text-ink">Updates by itself</span>
-                <span className="text-xs text-ink-muted">Every 30 seconds</span>
+                <span className="text-xs text-ink-muted">Every 20 seconds</span>
               </span>
-              <Button variant="outline" onClick={onRefresh} disabled={isRefreshing} aria-busy={isRefreshing}>
+              <Button variant="outline" size="md" onClick={onRefresh} disabled={isRefreshing} aria-busy={isRefreshing}>
                 <RefreshCw className={cn(isRefreshing && "animate-spin")} aria-hidden="true" />
                 Refresh
               </Button>
@@ -195,12 +246,16 @@ export function PatientQueueView({ ticket, info, onRefresh, isRefreshing }: Pati
 export function PatientQueueEmptyView({
   canCheckIn,
   visitLine,
+  qrCheckInEnabled = true,
 }: {
   /** An in-clinic visit is booked for today and not checked in yet. */
   canCheckIn: boolean;
   /** "Dr. Deshmukh · Today, 02:00 PM", for that visit. */
   visitLine?: string | null;
+  /** Clinic switch: when off, reception checks the patient in and no scan is offered. */
+  qrCheckInEnabled?: boolean;
 }) {
+  const canSelfCheckIn = canCheckIn && qrCheckInEnabled;
   return (
     <div className="flex flex-col gap-5">
       <PageHead title="Live Queue" backHref={BACK_HREF} />
@@ -210,11 +265,15 @@ export function PatientQueueEmptyView({
           title="You are not in a queue right now"
           description={
             canCheckIn
-              ? `${visitLine ? `Your in-clinic visit: ${visitLine}. ` : ""}Check in at the clinic and your place in the queue will show here.`
+              ? `${visitLine ? `Your in-clinic visit: ${visitLine}. ` : ""}${
+                  qrCheckInEnabled
+                    ? "Check in at the clinic and your place in the queue will show here."
+                    : "Reception will check you in when you arrive, and your place in the queue will show here."
+                }`
               : "The queue is for in-clinic visits. Your place will show here after you check in at the clinic on the day of your visit."
           }
           action={
-            canCheckIn ? (
+            canSelfCheckIn ? (
               <Button size="md" asChild>
                 <Link href="/patient/check-in">
                   <ScanLine aria-hidden="true" />
@@ -259,7 +318,7 @@ export function PatientQueueErrorView({ onRetry, isRetrying }: { onRetry: () => 
 
 export function PatientQueueLoadingView() {
   return (
-    <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading your queue">
+    <div className="flex flex-col gap-5" aria-busy="true" role="status" aria-label="Loading your queue">
       <PageHead title="Live Queue" backHref={BACK_HREF} />
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-5">

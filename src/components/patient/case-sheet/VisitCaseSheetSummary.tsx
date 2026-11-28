@@ -4,21 +4,8 @@ import { AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Kv, Note } from "@/components/tbd";
 import { useVisitCaseSheet } from "@/hooks/query/usePatientVisits";
-import type { VisitVitalsExamination } from "@/types/patient-visit.types";
 import { buildFindingSections } from "./case-sheet-summary-model";
 import { useLocalizedLabel, useLocalizedOption } from "./use-localized-option";
-
-function vitalsLine(vitals: VisitVitalsExamination | null): string {
-  if (!vitals) return "";
-  const parts = [
-    vitals.bpSystolic !== null && vitals.bpDiastolic !== null ? `BP ${vitals.bpSystolic}/${vitals.bpDiastolic}` : "",
-    vitals.pulse !== null ? `Pulse ${vitals.pulse}` : "",
-    vitals.temperatureC !== null ? `Temp ${vitals.temperatureC} C` : "",
-    vitals.spo2 !== null ? `SpO2 ${vitals.spo2}%` : "",
-    vitals.weightKg !== null ? `Weight ${vitals.weightKg} kg` : "",
-  ];
-  return parts.filter(Boolean).join(" · ");
-}
 
 /**
  * Read-only summary of one OPD case sheet. Clinical notes: render this only for roles that may
@@ -47,12 +34,10 @@ export function VisitCaseSheetSummary({ clinicId, visitId }: { clinicId: string;
   }
 
   const { visit } = data;
-  const vitals = vitalsLine(data.vitalsExamination);
   const entries: Array<[string, string]> = [
     ["Present complaints", visit.presentComplaints ?? ""],
     ["Present illness", visit.presentIllness ?? ""],
     ["Known case of", visit.knownCaseOf ?? ""],
-    ["Vitals", vitals],
     ["Past history notes", visit.pastHistoryNotes ?? ""],
   ];
   const filled = entries.filter(([, value]) => value.trim().length > 0);

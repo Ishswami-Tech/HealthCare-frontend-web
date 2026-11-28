@@ -60,7 +60,7 @@ export function PatientHomeLibrary({ tab, onTabChange, items, isLoading = false 
         <h2 id="patient-home-library" className="m-0 text-base font-bold text-ink">
           Health Library
         </h2>
-        <Link
+        <Link prefetch={false}
           href="/patient/library"
           className="inline-flex items-center gap-1 rounded-md text-[13px] font-bold text-brand hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
         >
@@ -72,7 +72,7 @@ export function PatientHomeLibrary({ tab, onTabChange, items, isLoading = false 
       <SegTabs options={TABS} value={tab} onChange={onTabChange} ariaLabel="Health library sections" />
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4" aria-busy="true" aria-label="Loading the health library">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4" aria-busy="true" role="status" aria-label="Loading the health library">
           {[0, 1, 2].map((index) => (
             <div key={index} className={CARD}>
               <Skeleton className="h-16 w-[84px] shrink-0 rounded-xl" />
@@ -87,7 +87,7 @@ export function PatientHomeLibrary({ tab, onTabChange, items, isLoading = false 
         <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
           {items.map((item) => (
             <li key={item.id} className="min-w-0">
-              <Link
+              <Link prefetch={false}
                 href={`/patient/library/${encodeURIComponent(item.id)}`}
                 className={`${CARD} transition-shadow hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40`}
               >

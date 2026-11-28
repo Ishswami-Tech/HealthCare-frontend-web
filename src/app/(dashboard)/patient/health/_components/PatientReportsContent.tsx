@@ -7,8 +7,14 @@ import { useLabReports, useRadiologyReports } from "@/hooks/query/useMedicalReco
 import { usePrescriptions } from "@/hooks/query/usePharmacy";
 import { PatientReportsView } from "./PatientReportsView";
 import { ReportUploadDialog } from "@/components/patient/health/ReportUploadDialog";
-import { buildPrescriptions, buildReportRows, type UploadType } from "@/components/patient/health/patient-health.logic";
-import { usePatientUploads, useUploadPatientFile } from "@/hooks/query/usePatientUploads";
+import {
+  buildPrescriptions,
+  buildReportRows,
+  type ReportRow,
+  type UploadType,
+} from "@/components/patient/health/patient-health.logic";
+import { useDeletePatientFile, usePatientUploads, useUploadPatientFile } from "@/hooks/query/usePatientUploads";
+import { ConfirmDialog } from "@/components/tbd";
 
 /** Reports & Lab: loads the patient's lab reports, imaging, prescriptions and uploaded files. */
 export default function PatientReportsContent() {
@@ -28,6 +34,18 @@ export default function PatientReportsContent() {
     enabled: canLoadPrescriptions,
   });
   const uploadFile = useUploadPatientFile();
+  const deleteFile = useDeletePatientFile();
+  const [pendingDelete, setPendingDelete] = useState<ReportRow | null>(null);
+
+  const confirmDelete = () => {
+    const documentId = pendingDelete?.uploadId;
+    if (!documentId || !userId) return;
+    deleteFile
+      .mutateAsync({ clinicId, patientId: userId, documentId })
+      .then(() => setPendingDelete(null))
+      // The hook already tells the patient what went wrong; the dialog stays open to retry.
+      .catch(() => undefined);
+  };
 
   const rows = useMemo(
     () =>
@@ -73,6 +91,18 @@ export default function PatientReportsContent() {
         partlyFailed={failedCount > 0 && failedCount < queries.length}
         onRetry={retry}
         onUpload={() => setUploadOpen(true)}
+        onDelete={setPendingDelete}
+      />
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        title="Delete this report?"
+        description={`"${pendingDelete?.title ?? "This report"}" will be removed from your health record. This cannot be undone.`}
+        confirmLabel="Delete report"
+        busyLabel="Deleting…"
+        tone="danger"
+        busy={deleteFile.isPending}
+        onConfirm={confirmDelete}
       />
       <ReportUploadDialog
         open={uploadOpen}

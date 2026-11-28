@@ -30,6 +30,7 @@ export async function fetchAppointmentList(filters: AppointmentFilters): Promise
     ...(filters.endDate ? { endDate: filters.endDate } : {}),
     ...(filters.page ? { page: filters.page } : {}),
     ...(filters.limit ? { limit: filters.limit } : {}),
+    ...(filters.isFollowUp !== undefined ? { isFollowUp: filters.isFollowUp } : {}),
   });
 
   if (!response.success) {

@@ -16,6 +16,7 @@ export type QueueListFilters = {
   treatmentType?: string;
   status?: string;
   doctorId?: string;
+  locationId?: string;
   date?: string;
 };
 

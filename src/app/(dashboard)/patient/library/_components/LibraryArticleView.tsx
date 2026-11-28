@@ -208,7 +208,7 @@ function RelatedCard({ item }: { item: LibraryCardItem }) {
 
 function ArticleSkeleton() {
   return (
-    <div className={LAYOUT} aria-busy="true" aria-label="Loading this item">
+    <div className={LAYOUT} aria-busy="true" role="status" aria-label="Loading this item">
       <div className={ARTICLE_SHELL}>
         <Skeleton className="aspect-[720/410] w-full rounded-none" />
         <div className="flex flex-col gap-5 px-5 pb-7 pt-6 sm:px-9">

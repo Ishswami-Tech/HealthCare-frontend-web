@@ -12,7 +12,6 @@ export {
   useUpdateAppointment,
   useCancelAppointment,
   useConfirmAppointment,
-  useCheckInAppointment,
   useStartAppointment,
   useCompleteAppointment,
   useMyAppointments,
@@ -93,13 +92,7 @@ export {
   useUsersByClinic,
   useSearchUsers,
   useUserStats,
-  useBulkUpdateUsers,
-  useExportUsers,
-  useChangeUserPassword,
-  useToggleUserVerification,
   useUserActivityLogs,
-  useUserSessions,
-  useTerminateUserSession,
 } from './useUsers';
 
 // Medical Records - export specific, excluding medicine/prescription functions (exported from usePharmacy)
@@ -194,22 +187,10 @@ export {
   useAppointmentAnalytics,
   usePatientAnalytics,
   useRevenueAnalytics,
-  useDoctorPerformanceAnalytics,
   useClinicPerformanceAnalytics,
   useServiceUtilizationAnalytics,
   useWaitTimeAnalytics,
   usePatientSatisfactionAnalytics,
-  useGenerateAppointmentReport,
-  useGeneratePatientReport,
-  useGenerateRevenueReport,
-  useGenerateDoctorPerformanceReport,
-  useGenerateClinicSummaryReport,
-  useReportHistory,
-  useDownloadReport,
-  useDeleteReport,
-  useCustomAnalytics,
-  useSaveCustomAnalyticsQuery,
-  useSavedAnalyticsQueries,
 } from './useAnalytics';
 
 // EHR

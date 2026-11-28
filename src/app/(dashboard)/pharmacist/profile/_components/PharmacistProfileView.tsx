@@ -31,6 +31,9 @@ export interface PharmacistProfileViewProps {
   passwordDialogOpen: boolean;
   onPasswordDialogChange: (open: boolean) => void;
   changePasswordForm: ReactNode;
+  /** Page title and role tag; default the pharmacist's (the assistant doctor's profile reuses this). */
+  title?: string;
+  roleLabel?: string;
 }
 
 /** Pharmacist profile layout. Props only — data and the save live in the page. */
@@ -49,6 +52,8 @@ export function PharmacistProfileView({
   passwordDialogOpen,
   onPasswordDialogChange,
   changePasswordForm,
+  title = "Pharmacist Profile",
+  roleLabel = "Pharmacist",
 }: PharmacistProfileViewProps) {
   const unavailable = Boolean(loadError) && !loading;
 
@@ -56,7 +61,7 @@ export function PharmacistProfileView({
     <DashboardPageShell>
       <DashboardPageHeader
         eyebrow="Account"
-        title="Pharmacist Profile"
+        title={title}
         description="Manage your personal information and account settings"
       />
 
@@ -104,7 +109,7 @@ export function PharmacistProfileView({
         </Tabs>
 
         {unavailable ? null : (
-          <PharmacistProfileSummaryCard form={form} photoUrl={photoUrl} isVerified={isVerified} loading={loading} />
+          <PharmacistProfileSummaryCard form={form} photoUrl={photoUrl} isVerified={isVerified} loading={loading} roleLabel={roleLabel} />
         )}
       </div>
     </DashboardPageShell>

@@ -15,6 +15,8 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   useCreateSubscription,
+  useCancelSubscription,
+  useRenewSubscription,
   useCreateBillingPlan,
   useGenerateInvoicePDF,
   useSendInvoiceViaWhatsApp,
@@ -27,6 +29,8 @@ import { cn } from "@/lib/utils";
 import { InvoiceForm } from "./InvoiceForm";
 import { BillingDashboardView } from "./staff/BillingDashboardView";
 import {
+  ConfirmCancelSubscriptionDialog,
+  ConfirmRenewSubscriptionDialog,
   ConfirmSubscriptionDialog,
   CreateInvoiceDialog,
   CreatePlanDialog,
@@ -59,9 +63,16 @@ interface RoleBasedBillingDashboardProps {
   analytics?: BillingAnalytics;
   ledger?: ClinicLedgerResponse;
   onRefetch?: () => void;
+  /**
+   * The caller loaded lists this role may read although the shared screen closes them to it
+   * (pharmacist: the API scopes the clinic lists to pharmacy invoices). Skips the closed notice.
+   */
+  listsOpen?: boolean;
+  /** Replaces the title block, for a role screen with its own wording. */
+  headerOverride?: { eyebrow: string; title: string; description: string };
 }
 
-const PATIENT_TABS = ["plans", "subscriptions", "payments", "invoices"] as const;
+const PATIENT_TABS = ["plans", "payments", "invoices"] as const;
 const STAFF_TABS = ["overview", "invoices", "payments"] as const;
 const ADMIN_TABS = ["overview", "invoices", "payments", "ledger"] as const;
 
@@ -87,6 +98,8 @@ export function RoleBasedBillingDashboard({
   analytics,
   ledger,
   onRefetch,
+  listsOpen = false,
+  headerOverride,
 }: RoleBasedBillingDashboardProps) {
   const { session } = useAuth();
   const clinicId = useCurrentClinicId();
@@ -104,6 +117,8 @@ export function RoleBasedBillingDashboard({
     // `POST /billing/invoices/:id/mark-paid` needs `invoices:update`, which reception lacks.
     canMarkInvoicesPaid: isAdmin,
     showLedgerTab: isAdmin,
+    // `POST /billing/plans` is clinic-admin and super-admin only; finance holds no `billing:create`.
+    canCreatePlans: [Role.SUPER_ADMIN, Role.CLINIC_ADMIN].includes(userRole),
   };
   // What the API allows: `POST /billing/invoices` needs `invoices:create` (admins and finance;
   // reception is named on the route but lacks the permission, so the server answers 403);
@@ -111,7 +126,7 @@ export function RoleBasedBillingDashboard({
   // Other roles are not offered a control the server would refuse.
   const canCreateInvoices = isAdmin;
   // Staff roles the billing lists are not open to (pharmacist, nurse …) get a note, not tables.
-  const closed = billingClosedNotice(userRole);
+  const closed = listsOpen ? null : billingClosedNotice(userRole);
   const canSendWhatsApp = [Role.SUPER_ADMIN, Role.CLINIC_ADMIN].includes(userRole);
 
   const [filters, setFilters] = useState<BillingFilterState>(EMPTY_BILLING_FILTERS);
@@ -124,8 +139,12 @@ export function RoleBasedBillingDashboard({
   const [subscribeError, setSubscribeError] = useState("");
   const [isSubscriptionPaymentOpen, setIsSubscriptionPaymentOpen] = useState(false);
   const [pendingSubscriptionPayment, setPendingSubscriptionPayment] = useState<PendingSubscriptionPayment | null>(null);
+  const [subscriptionToCancel, setSubscriptionToCancel] = useState<Subscription | null>(null);
+  const [subscriptionToRenew, setSubscriptionToRenew] = useState<Subscription | null>(null);
 
   const createSubscriptionMutation = useCreateSubscription();
+  const cancelSubscriptionMutation = useCancelSubscription();
+  const renewSubscriptionMutation = useRenewSubscription();
   const createPlanMutation = useCreateBillingPlan();
   const sendInvoiceWhatsAppMutation = useSendInvoiceViaWhatsApp();
   const generateInvoicePDFMutation = useGenerateInvoicePDF();
@@ -166,6 +185,26 @@ export function RoleBasedBillingDashboard({
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!subscriptionToCancel) return;
+    try {
+      await cancelSubscriptionMutation.mutateAsync({ id: subscriptionToCancel.id });
+      setSubscriptionToCancel(null);
+    } catch {
+      // Error toast is already handled by the mutation wrapper.
+    }
+  };
+
+  const handleRenewSubscription = async () => {
+    if (!subscriptionToRenew) return;
+    try {
+      await renewSubscriptionMutation.mutateAsync(subscriptionToRenew.id);
+      setSubscriptionToRenew(null);
+    } catch {
+      // Error toast is already handled by the mutation wrapper.
+    }
+  };
+
   const handleCreatePlan = async () => {
     const fail = (error: string) => setPlanForm((current) => ({ ...current, error }));
     if (!session?.user?.profileComplete) {
@@ -192,6 +231,7 @@ export function RoleBasedBillingDashboard({
         isActive: true,
         isUnlimitedAppointments: planForm.unlimited,
         ...(planForm.unlimited ? {} : { appointmentsIncluded: Math.max(1, parsedAppointments || 1) }),
+        allowFamilyBooking: planForm.allowFamilyBooking,
         description: `${name} (${planForm.cycle.toLowerCase()})`,
       });
 
@@ -213,7 +253,7 @@ export function RoleBasedBillingDashboard({
     aliases: tabAliases,
   });
 
-  const header = {
+  const header = headerOverride ?? {
     eyebrow: isPatient ? "BILLING" : isReceptionist ? "COLLECTIONS" : "BILLING DASHBOARD",
     title: isPatient ? "My Billing" : isReceptionist ? "Collections & Payments" : "Billing Dashboard",
     description: closed
@@ -306,6 +346,7 @@ export function RoleBasedBillingDashboard({
       syncing={isSyncing}
       onRefetch={() => onRefetch?.()}
       onNewInvoice={canCreateInvoices ? () => setIsCreateInvoiceOpen(true) : undefined}
+      onNewPlan={access.canCreatePlans ? () => setIsCreatePlanOpen(true) : undefined}
       plans={plans}
       subscriptions={subscriptions}
       invoices={invoices}
@@ -322,6 +363,10 @@ export function RoleBasedBillingDashboard({
       openInvoicePdfPending={generateInvoicePDFMutation.isPending}
       onChoosePlan={setPlanToConfirm}
       subscribeError={subscribeError}
+      onCancelSubscription={setSubscriptionToCancel}
+      onRenewSubscription={setSubscriptionToRenew}
+      cancellingSubscription={cancelSubscriptionMutation.isPending}
+      renewingSubscription={renewSubscriptionMutation.isPending}
     >
       <CreateInvoiceDialog open={isCreateInvoiceOpen} onOpenChange={setIsCreateInvoiceOpen}>
         <InvoiceForm
@@ -351,6 +396,20 @@ export function RoleBasedBillingDashboard({
         pending={createSubscriptionMutation.isPending}
         onConfirm={() => void handleSubscribePlan()}
         onClose={() => setPlanToConfirm(null)}
+      />
+
+      <ConfirmCancelSubscriptionDialog
+        subscription={subscriptionToCancel}
+        pending={cancelSubscriptionMutation.isPending}
+        onConfirm={() => void handleCancelSubscription()}
+        onClose={() => setSubscriptionToCancel(null)}
+      />
+
+      <ConfirmRenewSubscriptionDialog
+        subscription={subscriptionToRenew}
+        pending={renewSubscriptionMutation.isPending}
+        onConfirm={() => void handleRenewSubscription()}
+        onClose={() => setSubscriptionToRenew(null)}
       />
 
       <SubscriptionPaymentDialog

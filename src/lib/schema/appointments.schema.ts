@@ -2,13 +2,6 @@ import { z } from 'zod';
 
 export const appointmentTypeSchema = z.enum(['IN_PERSON', 'VIDEO_CALL', 'HOME_VISIT']);
 
-export const scanQRSchema = z.object({
-  code: z.string().min(1, 'QR code is required'),
-  locationId: z.string().uuid().optional(),
-  appointmentId: z.string().uuid().optional(),
-  coordinates: z.object({ lat: z.number(), lng: z.number() }).optional(),
-});
-
 /** Longest reason-for-visit text a booking accepts; the booking form enforces the same limit. */
 export const APPOINTMENT_NOTES_MAX_LENGTH = 1000;
 
@@ -17,7 +10,8 @@ export const createAppointmentSchema = z.object({
   doctorId: z.string().uuid(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
-  duration: z.number().min(3).max(480),
+  // Visit length is clinic-specific and set by the server (clinic settings); bookings omit it.
+  duration: z.number().min(3).max(480).optional(),
   type: appointmentTypeSchema,
   notes: z
     .string()

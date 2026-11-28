@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointment } from "@/hooks/query/useAppointments";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import { usePatientPrescriptions } from "@/hooks/query/useMedicalRecords";
 import {
   useConsultationSummary,
@@ -160,6 +161,7 @@ function bannerTitleFor(status: string): string {
  */
 export function CallSummaryContent({ appointmentId }: { appointmentId: string }) {
   const { session } = useAuth();
+  const { videoConsultationEnabled } = useClinicServiceToggles();
   const role = normalizeVideoViewerRole(session?.user?.role);
   const viewerIsPatient = role === "" || role === "PATIENT";
 
@@ -307,7 +309,9 @@ export function CallSummaryContent({ appointmentId }: { appointmentId: string })
       {...(viewerIsPatient ? { medicinesHref: "/patient/health/medicines" } : {})}
       notes={blocks}
       {...(followUp ? { followUp } : {})}
-      {...(viewerIsPatient ? { followUpHref: "/patient/appointments?openBooking=1&mode=VIDEO" } : {})}
+      {...(viewerIsPatient && videoConsultationEnabled
+        ? { followUpHref: "/patient/appointments?openBooking=1&mode=VIDEO" }
+        : {})}
       rating={rating}
     />
   );

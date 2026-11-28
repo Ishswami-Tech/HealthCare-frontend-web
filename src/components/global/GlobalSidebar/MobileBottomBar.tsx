@@ -63,7 +63,7 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
     >
       <div className="rounded-t-[26px] border-t border-hair bg-card/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,27,45,0.08)]">
         <div
-          className="grid items-stretch gap-1 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+          className="grid items-stretch gap-1 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] [@media(max-height:600px)]:py-1 [@media(max-height:600px)]:pb-[calc(env(safe-area-inset-bottom)+0.25rem)]"
           style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
         >
           {visibleLinks.map((link) => {
@@ -82,14 +82,21 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
                 scroll={false}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-semibold transition-colors",
-                  isActive
-                    ? "bg-mint text-brand font-bold"
-                    : "text-ink-muted hover:bg-mint-soft hover:text-ink"
+                  "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-xs font-semibold [@media(max-height:600px)]:py-1 transition-colors",
+                  isActive ? "text-brand font-bold" : "text-ink-muted hover:text-ink"
                 )}
               >
-                <Icon className="size-4.5 shrink-0" />
-                <span className="whitespace-nowrap text-center leading-none">
+                {/* Small solid pill behind just the icon when active — same treatment as the
+                    mobile app's bottom tab bar, instead of a background filling the whole tab. */}
+                <span
+                  className={cn(
+                    "flex h-8 w-14 items-center justify-center rounded-2xl transition-colors",
+                    isActive ? "bg-brand shadow-[0_6px_14px_-4px_rgba(16,185,129,0.45)]" : "bg-transparent"
+                  )}
+                >
+                  <Icon className={cn("size-4.5 shrink-0", isActive ? "text-white" : "text-ink-muted")} />
+                </span>
+                <span className="whitespace-nowrap text-center leading-none [@media(max-height:600px)]:sr-only">
                   {link.title}
                 </span>
               </Link>
@@ -100,10 +107,10 @@ export function MobileBottomBar({ links }: MobileBottomBarProps) {
             <button
               type="button"
               onClick={() => setOpenMobile(true)}
-              className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 min-h-11 text-xs font-medium [@media(max-height:600px)]:py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Menu className="size-4.5 shrink-0" />
-              <span className="whitespace-nowrap text-center leading-none">More</span>
+              <span className="whitespace-nowrap text-center leading-none [@media(max-height:600px)]:sr-only">More</span>
             </button>
           ) : null}
         </div>

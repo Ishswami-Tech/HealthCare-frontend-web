@@ -26,15 +26,27 @@ import { useLayoutStore } from "@/stores/layout.store";
 import { useAuthStore } from "@/stores";
 import { PatientQrGateHost } from "@/components/patient/PatientQrGateHost";
 import { useUserProfile } from "@/hooks/query/useUsers";
+import { useOwnDoctorName } from "@/hooks/query/useDoctors";
 import { usePrefetchAppointmentsForRole } from "@/hooks/query/useAppointments";
 import { usePrefetchPatientDashboardSummary } from "@/hooks/query/usePatientDashboardSummary";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardLoadingSkeletons";
 import { resolveDisplayNameAndInitials } from "@/lib/utils/display-name";
 import { washToneForPath } from "@/components/tbd/wash";
+import { titleForRegisteredPath } from "@/lib/config/tbdRoutes";
+import { buildStaffDocumentTitle } from "@/lib/utils/document-title";
+import { useDocumentTitle } from "@/hooks/utils/useDocumentTitle";
+import { useClinicBrandName } from "@/hooks/query/useClinicBrandName";
 const DashboardShellContext = createContext<boolean>(false);
 
 const DASHBOARD_ROUTE_TITLES: Record<string, string> = {
   "/clinic-admin/staff": "Staff Directory",
+  "/clinic-admin/payments": "Payment Reconciliation",
+  "/clinic-admin/earnings": "Earnings",
+  "/clinic-admin/locations": "Locations",
+  "/clinic-admin/schedule": "Schedule",
+  "/assistant-doctor/coverage": "Coverage",
+  "/assistant-doctor/dashboard": "Dashboard",
+  "/receptionist/check-in": "Check-In",
   "/patient/payments": "My Billing & Payments",
   "/patient/appointments": "Appointments",
   "/patient/check-in": "Location Check-In",
@@ -50,6 +62,10 @@ const ROUTE_TITLE_RULES: Array<[RegExp, string]> = [
   [/\/patients\/[^/]+\/visits\/[^/]+\/diet-chart/, "Diet Chart"],
   [/^\/doctor\/patients\/[^/]+/, "EHR"],
   [/\/settings\/sessions/, "Sessions"],
+  [/\/check-ins?(\/|$)/, "Check-In"],
+  [/\/locations(\/|$)/, "Locations"],
+  [/\/schedule(\/|$)/, "Schedule"],
+  [/\/coverage(\/|$)/, "Coverage"],
   [/\/(no-show)(\/|$)/, "Missed Appointments"],
   [/\/appointments(\/|$)/, "Appointments"],
   [/\/patients(\/|$)/, "Patients"],
@@ -158,10 +174,24 @@ export function DashboardLayout({
 
   // Get current path for route-based protection
   const pathname = usePathname();
-  const resolvedPageTitle =
-    title !== "Dashboard"
-      ? title
-      : DASHBOARD_ROUTE_TITLES[pathname] || titleForPath(pathname) || title;
+  const routePageTitle =
+    DASHBOARD_ROUTE_TITLES[pathname] || titleForRegisteredPath(pathname) || titleForPath(pathname);
+  const resolvedPageTitle = title !== "Dashboard" ? title : routePageTitle || title;
+
+  // Browser-tab title for staff routes ("Queue - Reception - Clinic"); patient routes set their
+  // own through segment metadata. Only the outer shell sets it.
+  const clinicBrand = useClinicBrandName();
+  const isPatientRoute = Boolean(pathname?.startsWith("/patient"));
+  const staffDocumentTitle =
+    !isInsideShell && user && !isPatientRoute && pathname
+      ? buildStaffDocumentTitle({
+          pathname,
+          pageName: title !== "Dashboard" ? title : routePageTitle,
+          role: normalizedUserRole,
+          clinicName: clinicBrand.isKnown ? clinicBrand.name : null,
+        })
+      : null;
+  useDocumentTitle(staffDocumentTitle);
 
   // Check role access (Component Props)
   const hasRoleAccess = useMemo(() => {
@@ -231,12 +261,19 @@ export function DashboardLayout({
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
+  // A doctor's profile may have only `users.name` (no first/last name); the profile endpoint does
+  // not return it, the clinic doctor list does.
+  const ownDoctorName = useOwnDoctorName(
+    normalizedUserRole === Role.DOCTOR || normalizedUserRole === Role.ASSISTANT_DOCTOR
+  );
   const userDisplayData = useMemo(() => {
     if (!user) return null;
-    const mergedUser = {
+    const merged: Record<string, unknown> = {
       ...(user as unknown as Record<string, unknown>),
       ...(currentUserProfile as unknown as Record<string, unknown> | undefined),
     };
+    const hasOwnName = typeof merged.name === "string" && merged.name.trim().length > 0;
+    const mergedUser = !hasOwnName && ownDoctorName ? { ...merged, name: ownDoctorName } : merged;
     const { displayName, initials } = resolveDisplayNameAndInitials(mergedUser);
 
     const avatar = user.profilePicture || "";
@@ -248,7 +285,7 @@ export function DashboardLayout({
       avatar,
       email: user.email || "",
     };
-  }, [user, currentUserProfile, normalizedUserRole]);
+  }, [user, currentUserProfile, normalizedUserRole, ownDoctorName]);
 
   // ─── Role-aware prefetch for every dashboard scope ───────────────────────
   // Warms staff appointment lists as soon as the dashboard mounts. Patients
@@ -259,7 +296,9 @@ export function DashboardLayout({
   // Previously this layout also called `usePrefetchMyAppointments()` (no
   // clinicId), which used the no-filter key and produced a duplicate fetch
   // with a different cache slot.
-  usePrefetchAppointmentsForRole();
+  // Staff dashboards fetch their own day-bounded appointment list; skip the unbounded warm-up
+  // there so the dashboard's first paint does not wait behind a duplicate request.
+  usePrefetchAppointmentsForRole({ skip: /^\/[a-z-]+\/dashboard\/?$/.test(pathname ?? "") });
 
   // Prefetch the composed dashboard summary so the first paint of
   // /patient/dashboard reads from cache. Patient-only; the hook itself
@@ -352,6 +391,12 @@ export function DashboardLayout({
   return (
     <DashboardShellContext.Provider value={true}>
       <div className="relative min-h-screen bg-background">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:min-h-11 focus:rounded-xl focus:bg-card focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-ink focus:shadow-lg focus:ring-2 focus:ring-brand"
+        >
+          Skip to main content
+        </a>
         <Sidebar
           links={sidebarLinks}
           user={{
@@ -366,7 +411,7 @@ export function DashboardLayout({
             data-tone={washToneForPath(pathname)}
           >
             <Header className="bg-transparent transition-none" />
-            <main className="flex-1 overflow-auto">
+            <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto focus:outline-none">
               <div className="mx-auto w-full max-w-[1160px] px-4 pt-1 pb-24 sm:px-6 md:px-8 lg:pb-10">
                 {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
                   <Alert className="mb-4 bg-yellow-50 border-yellow-200">

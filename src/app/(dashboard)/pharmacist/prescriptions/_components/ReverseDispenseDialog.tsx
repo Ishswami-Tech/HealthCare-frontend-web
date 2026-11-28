@@ -109,6 +109,10 @@ export function ReverseDispenseDialog({
               <p className="m-0 text-[13px] text-ink-muted">
                 Handed over on {formatDateTimeLabel(prescription.handedOverAt)}.
               </p>
+            ) : prescription.dispensedAt ? (
+              <p className="m-0 text-[13px] text-ink-muted">
+                Dispensed at {formatDateTimeLabel(prescription.dispensedAt)}. Not handed over yet.
+              </p>
             ) : null}
 
             <Field

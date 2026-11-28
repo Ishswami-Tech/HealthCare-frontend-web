@@ -18,6 +18,7 @@ import {
   type DispenseLineState,
 } from "./pharmacist-prescriptions.logic";
 import type { LineField } from "./usePharmacistPrescriptionsState";
+import { findBatchOption, type BatchOption } from "./dispense-batches.logic";
 import { formatDateLabel } from "@/lib/utils/date-time";
 
 interface DispenseLineCardProps {
@@ -28,6 +29,10 @@ interface DispenseLineCardProps {
   showGiven: boolean;
   catalog: CatalogMedicine[];
   catalogById: Map<string, CatalogMedicine>;
+  /** Usable lots of the medicine given, earliest expiry first; undefined while loading. */
+  batchOptions?: readonly BatchOption[] | undefined;
+  /** The lots could not be loaded: the batch is typed from the pack. */
+  batchLookupFailed?: boolean;
   disabled?: boolean;
   onBatchChange: (batchIndex: number, field: keyof Omit<DispenseBatchRow, "id">, value: string) => void;
   onAddBatch: () => void;
@@ -37,6 +42,8 @@ interface DispenseLineCardProps {
 }
 
 const FIELD_INPUT = "h-[42px] rounded-[11px] px-3 text-sm font-bold md:text-sm";
+/** Select value for "let the server pick the earliest-expiry batch". */
+const FEFO_CHOICE = "__fefo__";
 const CHECK_TONE = {
   ok: "text-brand",
   warn: "text-[#b45309] dark:text-amber-300",
@@ -62,6 +69,8 @@ export function DispenseLineCard({
   showGiven,
   catalog,
   catalogById,
+  batchOptions,
+  batchLookupFailed = false,
   disabled = false,
   onBatchChange,
   onAddBatch,
@@ -81,6 +90,8 @@ export function DispenseLineCard({
   const substitute = substituted ? catalogById.get(line.substituteMedicineId) : undefined;
   const given = line.dispensedQuantity > 0 ? (line.dispenseBatchHistory ?? []) : [];
   const several = line.batches.length > 1;
+  const tracked = (batchOptions?.length ?? 0) > 0;
+  const loadingLots = batchOptions === undefined && !batchLookupFailed;
   const CheckIcon = check.tone === "ok" ? Check : check.tone === "muted" ? Clock : CircleAlert;
 
   return (
@@ -243,31 +254,90 @@ export function DispenseLineCard({
                 </div>
                 <div className="flex min-w-0 flex-col gap-1">
                   <label htmlFor={`batch-number-${index}-${batchIndex}`} className={labelClass}>
-                    Batch number
+                    {tracked ? "Batch (earliest expiry first)" : "Batch number"}
                   </label>
-                  <Input
-                    id={`batch-number-${index}-${batchIndex}`}
-                    value={batch.batchNumber}
-                    onChange={(event) => onBatchChange(batchIndex, "batchNumber", event.target.value)}
-                    placeholder="Enter batch number"
-                    autoComplete="off"
-                    disabled={disabled}
-                    className={FIELD_INPUT}
-                  />
+                  {loadingLots ? (
+                    <Input
+                      id={`batch-number-${index}-${batchIndex}`}
+                      value=""
+                      placeholder="Loading batches in stock…"
+                      readOnly
+                      disabled
+                      className={FIELD_INPUT}
+                    />
+                  ) : tracked ? (
+                    <Select
+                      value={batch.batchNumber || FEFO_CHOICE}
+                      onValueChange={(value) => {
+                        const option = value === FEFO_CHOICE ? undefined : findBatchOption(batchOptions, value);
+                        onBatchChange(batchIndex, "batchNumber", option?.lotNumber ?? "");
+                        onBatchChange(batchIndex, "expiryDate", option?.expiryDate ?? "");
+                      }}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger
+                        id={`batch-number-${index}-${batchIndex}`}
+                        aria-label={`Change batch of ${line.name}`}
+                        className="h-[42px] w-full rounded-[11px] px-3 text-sm font-bold data-[size=default]:h-[42px]"
+                      >
+                        <SelectValue placeholder="Choose a batch" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="max-h-72">
+                        <SelectItem value={FEFO_CHOICE} description="The server takes the earliest expiry">
+                          Earliest expiry (auto)
+                        </SelectItem>
+                        {(batchOptions ?? []).map((option) => (
+                          <SelectItem
+                            key={option.lotNumber}
+                            value={option.lotNumber}
+                            description={`exp ${formatDateLabel(option.expiryDate)} · ${option.quantityOnHand} in batch`}
+                          >
+                            {option.lotNumber}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id={`batch-number-${index}-${batchIndex}`}
+                      value={batch.batchNumber}
+                      onChange={(event) => onBatchChange(batchIndex, "batchNumber", event.target.value)}
+                      placeholder="Batch number on the pack"
+                      autoComplete="off"
+                      disabled={disabled}
+                      className={FIELD_INPUT}
+                    />
+                  )}
                 </div>
                 <div className="col-span-2 flex min-w-0 items-end gap-2.5 sm:contents">
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <label htmlFor={`batch-expiry-${index}-${batchIndex}`} className={labelClass}>
-                      Expiry date
+                      {tracked ? "Expiry (stock record)" : "Expiry date"}
                     </label>
-                    <Input
-                      id={`batch-expiry-${index}-${batchIndex}`}
-                      type="date"
-                      value={batch.expiryDate}
-                      onChange={(event) => onBatchChange(batchIndex, "expiryDate", event.target.value)}
-                      disabled={disabled}
-                      className={FIELD_INPUT}
-                    />
+                    {tracked || loadingLots ? (
+                      <Input
+                        id={`batch-expiry-${index}-${batchIndex}`}
+                        value={
+                          batch.batchNumber
+                            ? formatDateLabel(findBatchOption(batchOptions, batch.batchNumber)?.expiryDate ?? "")
+                            : loadingLots
+                              ? ""
+                              : "Earliest in stock"
+                        }
+                        readOnly
+                        disabled
+                        className={cn(FIELD_INPUT, "bg-well")}
+                      />
+                    ) : (
+                      <Input
+                        id={`batch-expiry-${index}-${batchIndex}`}
+                        type="date"
+                        value={batch.expiryDate}
+                        onChange={(event) => onBatchChange(batchIndex, "expiryDate", event.target.value)}
+                        disabled={disabled}
+                        className={FIELD_INPUT}
+                      />
+                    )}
                   </div>
                   {several ? (
                     <Button
@@ -287,6 +357,14 @@ export function DispenseLineCard({
             );
           })}
         </div>
+      ) : null}
+
+      {remaining > 0 && !loadingLots && !tracked ? (
+        <span className="text-xs font-semibold text-ink-muted">
+          {batchLookupFailed
+            ? "The batches in stock could not be loaded. Type the batch number and expiry from the pack."
+            : "No batch of this medicine is tracked in stock. Type the batch number and expiry from the pack."}
+        </span>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">

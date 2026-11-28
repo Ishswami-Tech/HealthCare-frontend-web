@@ -42,10 +42,16 @@ export default function QueryProvider({
     () =>
       new QueryClient({
         ...queryClientConfig,
-        // A tab from an older deploy calls server actions the server no longer has; every query
-        // and mutation then fails the same way. Reload once to load the current build.
+        // A query that finds the session ended (user deleted, removed from the clinic, token
+        // dead) sends the user to login once. A tab from an older deploy calls server actions
+        // the server no longer has; every query and mutation then fails the same way, so it
+        // reloads once to load the current build. Any other failure stays with its screen.
         queryCache: new QueryCache({
           onError: (error) => {
+            if (isSessionInvalidError(error)) {
+              triggerClientAuthRecovery();
+              return;
+            }
             reloadIfStaleDeployment(error);
           },
         }),
@@ -60,8 +66,9 @@ export default function QueryProvider({
             retry: (failureCount, error) => {
               const apiError = error as ApiError;
 
-              // Retrying can't fix a server action from an older deploy; the reload will.
-              if (isStaleServerActionError(error)) {
+              // Retrying cannot revive an ended session, nor fix a server action from an older
+              // deploy (the reload will).
+              if (isSessionInvalidError(error) || isStaleServerActionError(error)) {
                 return false;
               }
 
@@ -80,37 +87,11 @@ export default function QueryProvider({
           },
           mutations: {
             ...queryClientConfig.defaultOptions?.mutations,
-            retry: (failureCount, error) => {
-              const apiError = error as ApiError;
-
-              if (isStaleServerActionError(error)) {
-                return false;
-              }
-
-              // Don't retry on client errors
-              if (
-                apiError?.response?.status &&
-                apiError.response.status >= 400 &&
-                apiError.response.status < 500
-              ) {
-                return false;
-              }
-
-              // A client-side timeout (fetchWithAbort) throws a plain
-              // TimeoutError with no `.response.status`, so it fell through
-              // the 4xx check above and retried like any other network
-              // error - even though the original request may already have
-              // been processed server-side (e.g. an appointment-create POST
-              // that succeeded but responded slowly). Retrying blindly here
-              // is what produced "Duplicate appointment creation detected"
-              // in production. Timeouts on mutations must not auto-retry.
-              if (error instanceof Error && error.name === "TimeoutError") {
-                return false;
-              }
-
-              // Retry once for server errors
-              return failureCount < 1;
-            },
+            // Mutations are never retried automatically. Bookings, payments, invoices, dispenses and
+            // messages are not idempotent: a failed-looking request (timeout, success:false payload,
+            // business refusal thrown as a plain Error) may already have been processed server-side,
+            // and a silent retry created duplicates (appointments, WhatsApp sends). The user can retry.
+            retry: false,
             onError: (error) => {
               const apiError = error as ApiError;
 

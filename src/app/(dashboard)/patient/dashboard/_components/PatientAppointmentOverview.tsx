@@ -29,7 +29,7 @@ export function PatientAppointmentOverview({ clinicId }: { clinicId: string }) {
   return (
     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Appointment overview">
       {metrics.map(({ label, value, icon: Icon, style, badge }) => (
-        <Link key={label} href="/patient/appointments" className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:p-4 ${style}`}>
+        <Link prefetch={false} key={label} href="/patient/appointments" className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:p-4 ${style}`}>
           <span className={`flex size-11 shrink-0 items-center justify-center rounded-full sm:size-14 ${badge}`}><Icon className="size-6" aria-hidden="true" /></span>
           <span className="min-w-0 flex-1">
             {isPending ? <Skeleton className="mb-2 h-6 w-10" /> : <span className="block text-2xl font-bold text-foreground">{error || !data || value === null ? "—" : value}</span>}

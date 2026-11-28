@@ -91,7 +91,7 @@ export function PatientPersonalDetailsView({
 
       <Surface as="section" className="p-5 sm:p-7" aria-label="Personal details">
         {loading ? (
-          <div className="flex flex-col gap-7 lg:flex-row" aria-busy="true" aria-label="Loading your details">
+          <div className="flex flex-col gap-7 lg:flex-row" aria-busy="true" role="status" aria-label="Loading your details">
             <div className="flex shrink-0 flex-col items-center justify-center gap-4 lg:w-[232px] lg:border-r lg:border-hair lg:pr-7">
               <Skeleton className="size-32 rounded-full" />
               <Skeleton className="h-4 w-28 rounded" />
@@ -150,7 +150,7 @@ export function PatientPersonalDetailsView({
                 <Field htmlFor={profileFieldId("email")} labelClassName="min-h-5" label="Email" error={errors.email}>
                   <Input {...bind("email")} type="email" inputMode="email" autoComplete="email" />
                 </Field>
-                <Field htmlFor={profileFieldId("dateOfBirth")} labelClassName="min-h-5" label="Date of birth" error={errors.dateOfBirth}>
+                <Field htmlFor={profileFieldId("dateOfBirth")} labelClassName="min-h-5" label="Date of birth (optional)" error={errors.dateOfBirth}>
                   <Input {...bind("dateOfBirth")} type="date" autoComplete="bday" />
                 </Field>
 

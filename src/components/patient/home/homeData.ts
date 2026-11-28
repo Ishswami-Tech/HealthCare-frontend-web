@@ -11,6 +11,7 @@ import {
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
   getVideoSessionDecision,
+  isPaymentDeadlinePassed,
   isTerminalAppointment,
   normalizePatientAppointment,
   shouldShowAppointmentOnPatientDashboard,
@@ -171,7 +172,9 @@ function doctorPhoto(appointment: Row): string | undefined {
   return /^(https?:)?\/\//.test(url) || url.startsWith("/") ? url : undefined;
 }
 
-function clinicContact(appointment: Row): Pick<HomeVisit, "locationLabel" | "clinicPhone" | "directionsUrl"> {
+function clinicContact(
+  appointment: Row,
+): Pick<HomeVisit, "locationLabel" | "addressLine" | "clinicPhone" | "directionsUrl" | "clinicPoint"> {
   const location = asRow(appointment.location);
   const clinic = asRow(appointment.clinic);
   const name = getAppointmentLocationName(appointment);
@@ -186,7 +189,9 @@ function clinicContact(appointment: Row): Pick<HomeVisit, "locationLabel" | "cli
 
   return {
     ...(hasName ? { locationLabel: name } : {}),
+    ...(address && address !== name ? { addressLine: [address, firstText(location?.city)].filter(Boolean).join(", ") } : {}),
     ...(phone ? { clinicPhone: phone.replace(/[^\d+]/g, "") } : {}),
+    ...(hasPoint ? { clinicPoint: { lat: latitude, lng: longitude } } : {}),
     ...(hasPoint
       ? { directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}` }
       : place
@@ -213,10 +218,18 @@ export function toHomeVisit(appointment: Row, now: number, locale?: string): Hom
   // doctor has already started (the patient can rejoin until the doctor completes it).
   const decision = isVideo ? getVideoSessionDecision(appointment) : null;
   const canJoin = Boolean(isVideo && viewState.paymentCompleted && decision?.canJoin);
+  // Unpaid video visit past its payment deadline: expired, even before the backend cron flips it.
+  // Never offer payment for it.
+  const paymentWindowClosed =
+    isVideo &&
+    !viewState.paymentCompleted &&
+    !isTerminalAppointment(appointment) &&
+    isPaymentDeadlinePassed(viewState.paymentExpiresAt, now);
 
   const treatment = text(appointment.treatmentType).replace(/_/g, " ");
   const metadata = asRow(appointment.metadata);
-  const token = firstText(appointment.tokenNumber, metadata?.tokenNumber);
+  // The server's token string (location prefix, e.g. "B-001"); a bare number only for old payloads.
+  const token = firstText(appointment.token, appointment.tokenLabel, metadata?.token) || (firstText(appointment.tokenNumber, metadata?.tokenNumber) ? `#${firstText(appointment.tokenNumber, metadata?.tokenNumber)}` : "");
 
   return {
     id: text(appointment.id),
@@ -233,18 +246,20 @@ export function toHomeVisit(appointment: Row, now: number, locale?: string): Hom
     timeLabel: timeLabel || "",
     startsAt: dateTime ? dateTime.toISOString() : null,
     isToday: dateTime ? formatISODateInIST(dateTime) === formatISODateInIST(new Date(now)) : false,
-    statusCode: isTerminalAppointment(appointment)
-      ? viewState.normalizedStatus
-      : viewState.isVideo && !viewState.paymentCompleted
-        ? "SCHEDULED"
-        : normalized.status || "SCHEDULED",
-    statusLabel: viewState.displayStatusLabel,
+    statusCode: paymentWindowClosed
+      ? "EXPIRED"
+      : isTerminalAppointment(appointment)
+        ? viewState.normalizedStatus
+        : viewState.isVideo && !viewState.paymentCompleted
+          ? "SCHEDULED"
+          : normalized.status || "SCHEDULED",
+    statusLabel: paymentWindowClosed ? "Expired" : viewState.displayStatusLabel,
     confirmationExpiresAt: viewState.confirmationExpiresAt,
     confirmationWindowMinutes: viewState.confirmationWindowMinutes,
     canJoin,
     joinAction: canJoin ? (decision?.action === "resume" ? "resume" : "join") : null,
     joinBlockedReason: canJoin ? null : (decision?.blockedReason ?? null),
-    awaitingPayment: isVideo && viewState.awaitingPayment,
+    awaitingPayment: isVideo && viewState.awaitingPayment && !paymentWindowClosed,
     // A patient can never cancel a video visit; moving a visit follows the shared reschedule rule.
     canReschedule: isVideo
       ? canRescheduleVideoAppointment(appointment, new Date(now))

@@ -47,6 +47,8 @@ import type {
   SupplierValues,
 } from "./pharmacy-inventory.schemas";
 import type { BatchAlert, BatchRow } from "./pharmacy-stock.logic";
+import type { InventoryCounts } from "@/lib/actions/pharmacy.server";
+import { isUuidLike } from "@/lib/utils/clinic-id";
 
 export const INVENTORY_TABS = ["inventory", "orders", "pharmacies", "analytics", "settings"] as const;
 export type InventoryTab = (typeof INVENTORY_TABS)[number];
@@ -99,6 +101,8 @@ export interface PharmacyInventoryViewProps {
   catalogRows: MedicineRow[];
   /** Medicines matching the filters on the server (all pages); `overview.rows` is the current page. */
   inventoryTotal: number;
+  /** Server counts of the whole inventory for the tiles; null until loaded. */
+  inventoryCounts?: InventoryCounts | null;
   inventoryPageSize: number;
 
   /** True with the `MANAGE_INVENTORY` permission; false hides every write action. */
@@ -173,6 +177,7 @@ export function PharmacyInventoryView({
   page,
   onPageChange,
   inventoryTotal,
+  inventoryCounts = null,
   inventoryPageSize,
   canManage,
   canRemove = false,
@@ -219,9 +224,18 @@ export function PharmacyInventoryView({
     dialog && dialog.kind === kind && "medicineKey" in dialog ? findMedicine(overview.rows, dialog.medicineKey) : null;
 
   const restockTarget = medicineOf("restock");
-  // A dashboard restock link whose medicine is not in the list opens "Add medicine" with the name filled in.
+  // A dashboard restock link whose medicine is not in the list opens "Add medicine" with the name
+  // filled in — but only when the link's key is actually a name (the `restockKey` fallback for a
+  // medicine with no id). A key that's a raw medicine id (the common case) couldn't be resolved
+  // because it's missing from the current view (pagination/filtering), not because it doesn't
+  // exist — dumping that id into the name field corrupts the form instead of helping, so we leave
+  // the dialog closed for that case rather than opening Add Medicine with a UUID as its name.
   const unknownRestockItem =
-    dialog?.kind === "restock" && dialog.fromLink === true && !inventoryLoading && !restockTarget
+    dialog?.kind === "restock" &&
+    dialog.fromLink === true &&
+    !inventoryLoading &&
+    !restockTarget &&
+    !isUuidLike(dialog.medicineKey)
       ? dialog.medicineKey
       : null;
   const addOpen = canManage && (dialog?.kind === "add" || unknownRestockItem !== null);
@@ -282,6 +296,7 @@ export function PharmacyInventoryView({
             page={page}
             onPageChange={onPageChange}
             total={inventoryTotal}
+            counts={inventoryCounts}
             pageSize={inventoryPageSize}
             canManage={canManage}
             onView={(medicine) => onDialogChange({ kind: "details", medicineKey: medicine.id })}

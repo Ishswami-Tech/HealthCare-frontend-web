@@ -6,15 +6,15 @@ import { Home, ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-background to-indigo-50 dark:from-background dark:via-background dark:to-background flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <div className="mb-8">
-          <h1 className="text-9xl font-semibold text-gray-200">404</h1>
+          <h1 className="text-9xl font-semibold text-muted-foreground/30">404</h1>
           <div className="relative -mt-16">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-3xl font-semibold text-foreground mb-2">
               Page Not Found
             </h2>
-            <p className="text-gray-600 mb-8">
+            <p className="text-muted-foreground mb-8">
               The page you're looking for doesn't exist or has been moved.
             </p>
           </div>
@@ -38,10 +38,10 @@ export default function NotFound() {
           </Button>
         </div>
 
-        <div className="mt-12 text-sm text-gray-500">
+        <div className="mt-12 text-sm text-muted-foreground">
           <p>
             Need help? Contact our{" "}
-            <Link href="/contact" prefetch={false} className="text-blue-600 hover:underline">
+            <Link href="/contact" prefetch={false} className="text-blue-600 dark:text-blue-400 hover:underline">
               support team
             </Link>
           </p>

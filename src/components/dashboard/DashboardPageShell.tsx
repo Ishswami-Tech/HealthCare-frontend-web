@@ -70,7 +70,7 @@ function HeaderActions({
   if (actions.length === 0 && !actionsSlot) return null;
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 lg:max-w-[50%]">
       {actions.map((action) => {
         const content = (
           <>
@@ -135,7 +135,7 @@ export function DashboardPageHeader({
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className="text-[11px] font-extrabold uppercase tracking-[1.2px] text-brand">
+          <span className="text-xs font-extrabold uppercase tracking-[1.2px] text-brand">
             {eyebrow}
           </span>
           <h1 className="max-w-2xl text-[26px] font-extrabold leading-tight tracking-[-0.5px] text-ink text-balance">

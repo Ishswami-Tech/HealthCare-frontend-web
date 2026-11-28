@@ -75,6 +75,7 @@ export default function PatientPrescriptions({ embedded = false }: PatientPrescr
       isLoading={!error && prescriptionsData === undefined && (authLoading || (canLoad && isPending))}
       // A failed background refresh keeps the list that is already on screen.
       failed={Boolean(error) && prescriptionsData === undefined}
+      refreshFailed={Boolean(error) && prescriptionsData !== undefined}
       onRetry={() => void refetch()}
       renderPay={renderPay}
       onDownloadBill={(invoiceId) => void downloadBill(invoiceId)}

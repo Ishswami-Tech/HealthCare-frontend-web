@@ -15,10 +15,8 @@ import { PatientHealthHubView, type HealthHubCard } from "./PatientHealthHubView
 import {
   buildPrescriptions,
   buildReportRows,
-  buildVitalTiles,
   latestPrescriptionLabel,
   reportsSummaryLabel,
-  vitalsUpdatedLabel,
 } from "@/components/patient/health/patient-health.logic";
 import { asRecordOrEmpty, unwrapRecords } from "@/lib/utils/coerce";
 import { usePatientUploads } from "@/hooks/query/usePatientUploads";
@@ -60,7 +58,6 @@ export default function PatientHealthContent() {
 
   const model = useMemo(() => {
     const record = asRecordOrEmpty(healthData);
-    const vitals = buildVitalTiles(record.vitals);
     const reports = buildReportRows({
       labReports: record.labReports,
       radiologyReports: record.radiologyReports,
@@ -69,8 +66,6 @@ export default function PatientHealthContent() {
       userId,
     });
     return {
-      vitals,
-      vitalsUpdated: vitalsUpdatedLabel(vitals),
       reportsDetail: reportsSummaryLabel(reports),
       medicinesDetail: latestPrescriptionLabel(record.prescriptions),
     };
@@ -102,10 +97,7 @@ export default function PatientHealthContent() {
   return (
     <DashboardPageShell>
       <PatientHealthHubView
-        vitals={model.vitals}
-        vitalsUpdatedLabel={model.vitalsUpdated}
-        isVitalsLoading={isLoading}
-        vitalsFailed={failed}
+        failed={failed}
         onRetry={() => void refetch()}
         cards={cards}
         library={{ items: libraryItems, isLoading: isFetchingLibrary && libraryItems.length === 0 }}

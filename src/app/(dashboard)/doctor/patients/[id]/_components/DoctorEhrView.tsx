@@ -2,7 +2,17 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { AlertCircle, ChevronLeft, Droplet, Loader2, Mail, Phone, Pill as PillIcon, Plus, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronLeft,
+  Droplet,
+  Loader2,
+  Mail,
+  Phone,
+  Pill as PillIcon,
+  Plus,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
@@ -12,12 +22,19 @@ import {
   type PatientClinicalRecordViewProps,
 } from "@/components/patient/PatientClinicalRecordView";
 
-/** What the patient header shows. Empty strings are left out. */
+/**
+ * What the patient header shows. Every field except `name` is optional; empty ones are
+ * left out of the band (the id chip falls back to the short "Patient ID" label when no
+ * UHID has been issued yet).
+ */
 export interface DoctorEhrHeaderInfo {
   name: string;
-  /** "32 years · Female" */
-  summary: string;
-  /** Short patient id shown after "Patient ID:". */
+  /** Whole years; shown next to the gender, computed from the date of birth when only
+   * that is on record. */
+  age: number | null;
+  /** "Male" — left out of the band when it is not on record. */
+  gender: string;
+  /** Short patient id shown after "Patient ID:" (used when no UHID has been issued yet). */
   idLabel: string;
   /** The full id, as a tooltip. */
   fullId: string;
@@ -42,9 +59,21 @@ export interface DoctorEhrViewProps {
   newVisitPending: boolean;
   /** Leave out when this user may not prescribe. */
   onPrescribe?: (() => void) | undefined;
+  /**
+   * The "Edit details" dialog (with its open state and the save handler) built by the data
+   * container; the header only renders its trigger. Leave out to hide the trigger — the
+   * view stays props-only like the rest of it.
+   */
+  patientDemographicsEdit?: ReactNode;
   record: Pick<
     PatientClinicalRecordViewProps,
-    "patient" | "ehr" | "appointments" | "history" | "vitals" | "labs" | "carePlan" | "prescriptions"
+    | "patient"
+    | "ehr"
+    | "appointments"
+    | "history"
+    | "labs"
+    | "carePlan"
+    | "prescriptions"
   >;
   /** The health record is still loading: numbers and tables show placeholders. */
   recordLoading: boolean;
@@ -54,6 +83,11 @@ export interface DoctorEhrViewProps {
   renderAppointmentHistory?: PatientClinicalRecordViewProps["renderAppointmentHistory"];
   /** Bills tab. Left out, it follows the signed-in role (never shown to a doctor). */
   showBills?: boolean;
+  /** The "Back to patients" link. Default `/doctor/patients`. */
+  backHref?: string;
+  /** Rendered inside a dialog (e.g. the consultation screen's "Open case sheet"): skips the
+   * full-page shell and the "Back to patients" link, since the dialog itself is the way back. */
+  embedded?: boolean;
 }
 
 const HEADER_BAND =
@@ -65,10 +99,27 @@ function PatientHeader({
   onNewVisit,
   newVisitPending,
   onPrescribe,
-}: Pick<DoctorEhrViewProps, "header" | "visitSelector" | "onNewVisit" | "newVisitPending" | "onPrescribe">) {
+  patientDemographicsEdit,
+}: Pick<
+  DoctorEhrViewProps,
+  | "header"
+  | "visitSelector"
+  | "onNewVisit"
+  | "newVisitPending"
+  | "onPrescribe"
+  | "patientDemographicsEdit"
+>) {
+  const summary = [
+    header.age !== null ? `${header.age} years` : "",
+    header.gender,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <>
-      <div className={`flex flex-wrap items-center gap-x-[18px] gap-y-4 px-4 py-5 sm:px-6 ${HEADER_BAND}`}>
+      <div
+        className={`flex flex-wrap items-center gap-x-[18px] gap-y-4 px-4 py-5 sm:px-6 ${HEADER_BAND}`}
+      >
         <InitialsAvatar name={header.name} size={64} />
         <div className="flex min-w-0 flex-1 basis-[220px] flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
@@ -76,21 +127,33 @@ function PatientHeader({
               Electronic health record
             </span>
             {header.uhid ? (
-              <span className="font-mono text-xs font-bold text-ink-soft" title="Unique health ID (UHID)">
+              <span
+                className="font-mono text-xs font-bold text-ink-soft"
+                title="Unique health ID (UHID)"
+              >
                 UHID {header.uhid}
               </span>
             ) : header.idLabel ? (
-              <span className="text-xs font-semibold text-ink-muted" title={header.fullId}>
+              <span
+                className="text-xs font-semibold text-ink-muted"
+                title={header.fullId}
+              >
                 Patient ID: {header.idLabel}
               </span>
             ) : null}
           </div>
-          <h1 className="m-0 text-[26px] font-extrabold leading-[1.1] tracking-[-0.5px] text-ink">{header.name}</h1>
+          <h1 className="m-0 text-[26px] font-extrabold leading-[1.1] tracking-[-0.5px] text-ink">
+            {header.name}
+          </h1>
           <div className="flex flex-wrap items-center gap-2">
-            {header.summary ? (
-              <span className="mr-1 whitespace-nowrap text-sm font-semibold text-ink-soft">{header.summary}</span>
+            {summary ? (
+              <span className="mr-1 whitespace-nowrap text-sm font-semibold text-ink-soft">
+                {summary}
+              </span>
             ) : null}
-            {header.bloodGroup ? <Chip icon={Droplet}>{header.bloodGroup}</Chip> : null}
+            {header.bloodGroup ? (
+              <Chip icon={Droplet}>{header.bloodGroup}</Chip>
+            ) : null}
             {header.phone ? <Chip icon={Phone}>{header.phone}</Chip> : null}
             {header.email ? (
               <Chip icon={Mail} className="max-w-full">
@@ -99,33 +162,56 @@ function PatientHeader({
             ) : null}
           </div>
         </div>
-        {onNewVisit || onPrescribe ? (
-          <div className="flex w-full flex-wrap gap-2.5 lg:w-auto lg:shrink-0">
-            {onNewVisit ? (
-              <Button variant="outline" size="md" className="flex-1 lg:flex-none" onClick={onNewVisit} disabled={newVisitPending}>
-                {newVisitPending ? <Loader2 className="animate-spin" /> : <Plus />}
-                New OPD visit
-              </Button>
-            ) : null}
-            {onPrescribe ? (
-              <Button size="md" className="flex-1 lg:flex-none" onClick={onPrescribe}>
-                <PillIcon />
-                Move to Prescription
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="flex w-full flex-wrap items-center gap-2.5 lg:w-auto lg:shrink-0">
+          {patientDemographicsEdit ? (
+            <div className="flex-1 lg:flex-none">{patientDemographicsEdit}</div>
+          ) : null}
+          {onNewVisit ? (
+            <Button
+              variant="outline"
+              size="md"
+              className="flex-1 lg:flex-none"
+              onClick={onNewVisit}
+              disabled={newVisitPending}
+            >
+              {newVisitPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Plus />
+              )}
+              New OPD visit
+            </Button>
+          ) : null}
+          {onPrescribe ? (
+            <Button
+              size="md"
+              className="flex-1 lg:flex-none"
+              onClick={onPrescribe}
+            >
+              <PillIcon />
+              Move to Prescription
+            </Button>
+          ) : null}
+        </div>
       </div>
-      <div className="border-t border-hair px-4 py-3 sm:px-6">{visitSelector}</div>
+      <div className="border-t border-hair px-4 py-3 sm:px-6">
+        {visitSelector}
+      </div>
     </>
   );
 }
 
 function LoadingState() {
   return (
-    <div className="flex flex-col gap-5" role="status" aria-label="Loading patient record">
+    <div
+      className="flex flex-col gap-5"
+      role="status"
+      aria-label="Loading patient record"
+    >
       <div className="overflow-hidden rounded-[20px] border border-[#c9eedb] bg-card shadow-card dark:border-border/70">
-        <div className={`flex items-center gap-[18px] px-4 py-5 sm:px-6 ${HEADER_BAND}`}>
+        <div
+          className={`flex items-center gap-[18px] px-4 py-5 sm:px-6 ${HEADER_BAND}`}
+        >
           <Skeleton className="size-16 shrink-0 rounded-full" />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <Skeleton className="h-3 w-44 rounded" />
@@ -163,21 +249,31 @@ export function DoctorEhrView({
   onNewVisit,
   newVisitPending,
   onPrescribe,
+  patientDemographicsEdit,
   record,
   recordLoading,
   caseSheet,
   renderAppointmentHistory,
   showBills,
+  backHref = "/doctor/patients",
+  embedded = false,
 }: DoctorEhrViewProps) {
+  const Shell = embedded ? "div" : DashboardPageShell;
   return (
-    <DashboardPageShell className="gap-y-2.5">
-      <Link
-        href="/doctor/patients"
-        className="inline-flex items-center gap-1 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
-      >
-        <ChevronLeft className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
-        Back to patients
-      </Link>
+    <Shell className="flex w-full flex-col gap-2.5">
+      {embedded ? null : (
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-1 self-start text-[13px] font-semibold text-ink-muted hover:text-ink"
+        >
+          <ChevronLeft
+            className="size-3.5"
+            strokeWidth={2.4}
+            aria-hidden="true"
+          />
+          Back to patients
+        </Link>
+      )}
 
       {failed ? (
         <Surface flush role="alert">
@@ -200,6 +296,10 @@ export function DoctorEhrView({
         <PatientClinicalRecordView
           {...record}
           loading={recordLoading}
+          /* The header band already shows the demographics (name, age, gender, blood
+             group, phone, email) and is where they are edited: keep the Overview
+             snapshot to the clinical facts only. */
+          hideHeaderDuplicates
           caseSheet={caseSheet}
           {...(renderAppointmentHistory ? { renderAppointmentHistory } : {})}
           {...(showBills === undefined ? {} : { showBills })}
@@ -210,10 +310,11 @@ export function DoctorEhrView({
               onNewVisit={onNewVisit}
               newVisitPending={newVisitPending}
               onPrescribe={onPrescribe}
+              patientDemographicsEdit={patientDemographicsEdit}
             />
           }
         />
       )}
-    </DashboardPageShell>
+    </Shell>
   );
 }

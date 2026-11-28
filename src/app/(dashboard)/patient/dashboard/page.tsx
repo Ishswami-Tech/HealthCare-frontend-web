@@ -10,6 +10,7 @@ import {
   hasDashboardSummaryLoadedForSession,
 } from "@/hooks/query/usePatientDashboardSummary";
 import { usePatientQueue } from "@/hooks/query/usePatientQueue";
+import { useMyInPersonToday } from "@/hooks/query/useInPerson";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useHealthLibrary } from "@/hooks/query/useHealthLibrary";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -21,6 +22,7 @@ import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/
 import { resolvePatientDisplayName } from "@/lib/utils/display-name";
 import { useLanguage } from "@/lib/i18n/context";
 import { PatientHomeView } from "@/components/patient/home/PatientHomeView";
+import { useClinicServiceToggles } from "@/hooks/query/useClinicServiceToggles";
 import {
   LIBRARY_FILTERS,
   LIBRARY_STRIP_SIZE,
@@ -31,6 +33,7 @@ import {
   toLibraryItem,
   type Row,
 } from "@/components/patient/home/homeData";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
 import type {
   HomeLibraryItem,
@@ -87,7 +90,19 @@ export default function PatientDashboard() {
   }, [doctorsData]);
 
   // Composed single-round-trip summary (appointments, prescriptions, EHR, invoices, payments).
-  const { data: summary, isPending: isPendingSummary } = usePatientDashboardSummary({ enabled: !!patientId });
+  const {
+    data: summary,
+    isPending: isPendingSummary,
+    isFetching: isFetchingSummary,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = usePatientDashboardSummary({ enabled: !!patientId });
+  const summaryFailedParts = Object.values(summary?.errors ?? {}).some(Boolean);
+  const loadError = summaryError
+    ? sanitizeErrorMessage(summaryError) || "Please check your connection and try again."
+    : summaryFailedParts
+      ? "Some of your information could not be loaded."
+      : null;
 
   const summaryAppointments = useMemo<Row[]>(
     () => (Array.isArray(summary?.appointments) ? summary.appointments.map(asRecord).filter((row): row is Row => !!row) : []),
@@ -123,7 +138,11 @@ export default function PatientDashboard() {
   const upcomingAppointments = useMemo(() => selectUpcomingAppointments(summaryAppointments), [summaryAppointments]);
 
   const visits = useMemo<HomeVisit[]>(
-    () => upcomingAppointments.map((appointment) => toHomeVisit(appointment, now, language)),
+    () =>
+      upcomingAppointments
+        .map((appointment) => toHomeVisit(appointment, now, language))
+        // An unpaid video visit whose payment window just closed is no longer upcoming.
+        .filter((visit) => visit.statusCode !== "EXPIRED"),
     [upcomingAppointments, now, language]
   );
 
@@ -131,6 +150,15 @@ export default function PatientDashboard() {
   // (`GET queue/me`); the staff queue list is never requested.
   const queueAppointment = useMemo(() => findQueueAppointment(upcomingAppointments), [upcomingAppointments]);
   const { data: queueEntry, isPending: isQueuePending } = usePatientQueue({ enabled: !!queueAppointment });
+  // The token (K-014) lives on the in-person visit, not on the appointment row.
+  const { data: inPersonToday } = useMyInPersonToday({ enabled: !!queueAppointment, live: true });
+  const queueVisitToday = useMemo(() => {
+    const id = queueAppointment ? textOf(queueAppointment.id) : "";
+    return (inPersonToday ?? []).find((entry) => entry.appointmentId === id) ?? null;
+  }, [inPersonToday, queueAppointment]);
+  const queueToken = queueVisitToday?.token ?? null;
+  // Token numbers only ("Now serving K-011"): never another patient's name.
+  const nowServingToken = queueVisitToday?.nowServingToken ?? null;
   const queue = useMemo<HomeQueue | null>(() => {
     if (!queueAppointment) return null;
     // Only what the API returns: no place is shown until the live entry arrives.
@@ -139,9 +167,11 @@ export default function PatientDashboard() {
       patientsAhead: queueEntry ? queueEntry.patientsAhead : null,
       estimatedWaitMinutes: queueEntry ? queueEntry.estimatedWaitTime : null,
       totalInQueue: queueEntry ? queueEntry.totalInQueue : null,
+      tokenLabel: queueToken,
+      nowServingToken,
       isLoading: isQueuePending,
     };
-  }, [queueAppointment, queueEntry, isQueuePending]);
+  }, [queueAppointment, queueEntry, isQueuePending, queueToken, nowServingToken]);
 
   // Key figures. A card is shown only when the summary carries that list.
   const stats = useMemo<HomeStat[]>(() => {
@@ -225,29 +255,35 @@ export default function PatientDashboard() {
     push("/patient/appointments?openBooking=1");
   }, [push]);
 
+  // QR self check-in switched off at the clinic: no scan entry points; reception checks patients in.
+  // Both consultation types switched off: no online booking entry points.
+  const { qrCheckInEnabled, videoConsultationEnabled, onlineBookingEnabled } =
+    useClinicServiceToggles();
   const startCheckIn = useCallback(() => {
     if (hasInPersonAppointment) {
       push("/patient/check-in");
       return;
     }
     openQrGate({
-      bookLabel: "Book video appointment",
+      bookLabel: "Book appointment",
       // Opens the booking wizard, like the other Book buttons on Home.
-      onBookAppointment: () => push("/patient/appointments?openBooking=1"),
+      ...(onlineBookingEnabled
+        ? { onBookAppointment: () => push("/patient/appointments?openBooking=1") }
+        : {}),
     });
-  }, [hasInPersonAppointment, openQrGate, push]);
+  }, [hasInPersonAppointment, onlineBookingEnabled, openQrGate, push]);
 
   const visitActions = useMemo(
     () => ({
       onJoin: (appointmentId: string) => push(buildVideoSessionRoute(appointmentId)),
-      // The reschedule and payment steps live on the appointments page: `?id=` opens the list
-      // at this visit, and `action=reschedule` opens its reschedule dialog when a move is allowed.
+      // One reschedule screen for every portal: the full-page ReschedulePanel. Payment lives on
+      // the appointments page (`?id=` opens the list at this visit).
       onReschedule: (appointmentId: string) =>
-        push(`/patient/appointments?id=${encodeURIComponent(appointmentId)}&action=reschedule`),
+        push(`/patient/appointments/${encodeURIComponent(appointmentId)}/reschedule`),
       onPay: (appointmentId: string) => push(`/patient/appointments?id=${encodeURIComponent(appointmentId)}`),
-      onCheckIn: startCheckIn,
+      onCheckIn: qrCheckInEnabled ? startCheckIn : undefined,
     }),
-    [push, startCheckIn]
+    [push, qrCheckInEnabled, startCheckIn]
   );
 
   return (
@@ -259,9 +295,10 @@ export default function PatientDashboard() {
       showProfileBanner={authoritativeProfileComplete !== true}
       onCompleteProfile={() => push("/profile-completion")}
       notice={<ClaimRecordCard userId={session?.user?.id ?? ""} enabled={Boolean(session?.user)} />}
-      onBook={openBooking}
+      onBook={onlineBookingEnabled ? openBooking : undefined}
+      videoBookingEnabled={videoConsultationEnabled}
       isBookingOpening={isBookingAppointmentLoading}
-      onScanCheckIn={startCheckIn}
+      onScanCheckIn={qrCheckInEnabled ? startCheckIn : undefined}
       stats={stats}
       isStatsLoading={showSummarySkeleton}
       visits={visits}
@@ -269,6 +306,9 @@ export default function PatientDashboard() {
       queue={queue}
       queueVisitId={queueAppointment ? textOf(queueAppointment.id) : null}
       visitActions={visitActions}
+      loadError={loadError}
+      onRetry={() => void refetchSummary()}
+      isRetrying={isFetchingSummary}
       library={{
         tab: libraryTab,
         onTabChange: setLibraryTab,

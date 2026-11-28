@@ -36,6 +36,7 @@ import {
 } from "@/components/video/lobby/VideoLobbyStatus";
 import { videoPortalLabel } from "@/components/video/lobby/VideoStageShell";
 import { getAppointmentDoctorPhoto } from "@/components/video/lobby/videoVisitPeople";
+import { getPatientRemarksSummary } from "@/components/video/PatientRemarksPanel";
 
 const VIDEO_ACTIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
 
@@ -964,6 +965,12 @@ export function VideoAppointmentMeetSession({
     : appointmentTimeSlotLabel !== "TBD"
       ? appointmentTimeSlotLabel
       : "Not set yet";
+  // Doctors see what the patient wrote at booking before they join.
+  const isClinicianViewer =
+    viewerRoleNormalized === "DOCTOR" || viewerRoleNormalized === "ASSISTANT_DOCTOR";
+  const lobbyPatientRemarks = isClinicianViewer
+    ? getPatientRemarksSummary(appointmentRecordSource || appointmentDetailsSource)
+    : null;
   const lobbyDoctorName = appointmentDoctorName
     ? appointmentDoctorName === "Doctor assigned"
       ? "Your doctor"
@@ -1035,6 +1042,7 @@ export function VideoAppointmentMeetSession({
       scheduledLabel={lobbyScheduledLabel}
       sessionLabel={appointmentSessionLabel}
       joinWindowText={VIDEO_JOIN_WINDOW_TEXT}
+      {...(lobbyPatientRemarks ? { patientRemarks: lobbyPatientRemarks } : {})}
       stateLabel={sessionStateLabel}
       stateMessage={sessionStateMessage}
       blocked={Boolean(blockedReason)}

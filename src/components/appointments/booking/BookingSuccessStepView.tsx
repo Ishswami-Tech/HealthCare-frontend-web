@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AudioLines, CalendarPlus, Check, MapPin, QrCode, ScanLine, Video } from "lucide-react";
+import { AudioLines, Bell, CalendarCheck, CalendarPlus, Check, MapPin, QrCode, ScanLine, Video } from "lucide-react";
 import { Divider, Kv, SoftCard, Surface } from "@/components/tbd";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,16 +32,51 @@ export interface BookingSuccessStepViewProps {
   onAddToCalendar?: (() => void) | undefined;
   /** Link to a map for the clinic address. */
   directionsHref?: string | undefined;
-  /** In-clinic, patient only: opens the check-in page. */
+  /** In-clinic, patient only: opens the check-in page. Never shown for video visits. */
   checkInAction?: BookingSuccessAction | undefined;
   /** The closing button ("Go to Home", "Go to appointments", "Done"). */
   primaryAction?: BookingSuccessAction | undefined;
+  /**
+   * Set when staff booked on a patient's behalf: the copy then names the patient
+   * ("Slot reserved for Asha Patil") instead of addressing the reader as the patient.
+   */
+  bookedForName?: string | undefined;
+}
+
+function describeBooking(
+  isVideo: boolean,
+  paymentPending: boolean,
+  paid: boolean,
+  bookedForName: string | undefined,
+): string {
+  if (bookedForName) {
+    if (isVideo) {
+      return paymentPending
+        ? `The selected time is saved for ${bookedForName}. The video appointment is booked once the fee is paid.`
+        : `The video appointment for ${bookedForName} is booked.`;
+    }
+    return `Slot reserved for ${bookedForName}. Ask them to check in with the QR at the clinic — that confirms the visit and puts them in the queue.`;
+  }
+  if (isVideo) {
+    if (paymentPending) return "Your selected time is saved. Pay below to book the video appointment.";
+    return paid
+      ? "Your payment is complete and the appointment is confirmed."
+      : "Your video appointment is booked. You can track the status from your appointments page.";
+  }
+  return "Your slot is reserved. Remember to check in with the QR at the clinic — that confirms your visit and puts you in the queue.";
 }
 
 const VISIT_DAY_STEPS = [
   { icon: MapPin, label: "Reach the clinic", strong: false },
   { icon: ScanLine, label: "Scan desk QR", strong: true },
   { icon: AudioLines, label: "Join the queue", strong: false },
+] as const;
+
+/** Video visits have no QR / check-in: the patient joins the call from the appointment. */
+const VIDEO_DAY_STEPS = [
+  { icon: Bell, label: "We'll remind you", strong: false },
+  { icon: CalendarCheck, label: "Open My appointments", strong: false },
+  { icon: Video, label: "Join the video call", strong: true },
 ] as const;
 
 /** Last step: the visit is booked (boards WebBooked and WebBookedClinic). */
@@ -58,16 +93,12 @@ export function BookingSuccessStepView({
   directionsHref,
   checkInAction,
   primaryAction,
+  bookedForName,
 }: BookingSuccessStepViewProps) {
   const isVideo = mode === "VIDEO";
+  const isStaffBooking = Boolean(bookedForName);
   const title = isVideo ? (paymentPending ? "Complete Payment" : "Appointment Confirmed") : "Clinic visit booked";
-  const description = isVideo
-    ? paymentPending
-      ? "Your selected time is saved. Pay below to book the video appointment."
-      : paid
-        ? "Your payment is complete and the appointment is confirmed."
-        : "Your video appointment is booked. You can track the status from your appointments page."
-    : "Your slot is reserved. Remember to check in with the QR at the clinic — that confirms your visit and puts you in the queue.";
+  const description = describeBooking(isVideo, paymentPending, paid, bookedForName);
 
   const secondary: ReactNode[] = [];
   if (isVideo && !paymentPending && onAddToCalendar) {
@@ -89,7 +120,9 @@ export function BookingSuccessStepView({
     );
   }
   const buttons: ReactNode[] = [...secondary];
-  if (checkInAction) {
+  // Check-in (QR) is an in-clinic step only.
+  const showCheckIn = !!checkInAction && !isVideo;
+  if (checkInAction && showCheckIn) {
     // One main button: with a check-in button present it is the emerald one.
     buttons.push(
       <Button key="check-in" size="xl" className="w-full" onClick={checkInAction.onClick}>
@@ -102,7 +135,7 @@ export function BookingSuccessStepView({
     buttons.push(
       <Button
         key="primary"
-        variant={checkInAction ? "outline" : "default"}
+        variant={showCheckIn ? "outline" : "default"}
         size="xl"
         className="w-full"
         onClick={primaryAction.onClick}
@@ -160,18 +193,28 @@ export function BookingSuccessStepView({
       {isVideo && paymentPending ? (
         <BookingNotice tone="amber" icon={Video} title="Payment required">
           <p className="m-0 text-xs">
-            Your appointment is created. Complete payment from the confirm screen to finish booking.
+            {isStaffBooking
+              ? "The appointment is created. The fee must be paid to finish booking."
+              : "Your appointment is created. Complete payment from the confirm screen to finish booking."}
           </p>
           {countdown}
         </BookingNotice>
       ) : null}
 
-      {!isVideo ? (
+      {!isVideo || !paymentPending ? (
         <SoftCard tone="sun" className="p-[22px]">
           <div className="flex flex-col gap-4">
-            <span className="text-base font-extrabold text-ink">On the day of your visit</span>
+            <span className="text-base font-extrabold text-ink">
+              {isStaffBooking
+                ? isVideo
+                  ? "Before the video call"
+                  : "On the day of the visit"
+                : isVideo
+                  ? "Before your video call"
+                  : "On the day of your visit"}
+            </span>
             <ol className="m-0 grid list-none grid-cols-3 gap-3 p-0">
-              {VISIT_DAY_STEPS.map((step) => (
+              {(isVideo ? VIDEO_DAY_STEPS : VISIT_DAY_STEPS).map((step) => (
                 <li key={step.label} className="flex flex-col items-center gap-2 text-center">
                   <span
                     className={cn(

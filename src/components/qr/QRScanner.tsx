@@ -10,6 +10,8 @@ interface QRScannerProps {
   autoStart?: boolean;
   /** Opens the "type the code" path. Offered when the camera is blocked or missing. */
   onEnterCode?: () => void;
+  /** Caption under the scan frame while the camera is on ("SCAN TO CHECK IN"). */
+  scanLabel?: string;
   className?: string;
 }
 
@@ -79,6 +81,7 @@ export function QRScanner({
   onScanFailure,
   autoStart = false,
   onEnterCode,
+  scanLabel,
   className,
 }: QRScannerProps) {
   const [state, dispatch] = useReducer(qrScannerReducer, initialState);
@@ -295,6 +298,7 @@ export function QRScanner({
       onStart={() => void startOrRetry()}
       onStop={() => void stopScanner()}
       onEnterCode={onEnterCode}
+      scanLabel={scanLabel}
     >
       {/* The library puts the camera picture in here. */}
       <div

@@ -7,6 +7,7 @@ import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 import { logger } from '@/lib/utils/logger';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
+import { writeIdentityCookies } from '@/lib/utils/identity-cookies';
 
 // Extract structured validation errors from an error object.
 // Must be called BEFORE sanitizeErrorMessage() which converts to a plain string.
@@ -175,16 +176,9 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
               : undefined;
       const firstName = typeof responseUser.firstName === 'string' ? responseUser.firstName.trim() : '';
       const lastName = typeof responseUser.lastName === 'string' ? responseUser.lastName.trim() : '';
-      const userName =
-        typeof responseUser.name === 'string' && responseUser.name.trim()
-          ? responseUser.name.trim()
-          : [firstName, lastName].filter(Boolean).join(' ').trim();
-      const verifiedPhone = typeof responseUser.phone === 'string' ? responseUser.phone.trim() : '';
 
-      if (firstName) cookieStore.set({ name: 'first_name', value: firstName, ...cookieOptions });
-      if (lastName) cookieStore.set({ name: 'last_name', value: lastName, ...cookieOptions });
-      if (userName) cookieStore.set({ name: 'user_name', value: userName, ...cookieOptions });
-      if (verifiedPhone) cookieStore.set({ name: 'verified_phone', value: verifiedPhone, ...cookieOptions });
+      // Name/phone are not copied into cookies (PII); a non-PII flag covers the stale-JWT window.
+      writeIdentityCookies(cookieStore, firstName && lastName ? true : undefined);
       if (explicitProfileComplete !== undefined) {
         cookieStore.set({
           name: 'profile_complete',
@@ -342,6 +336,38 @@ export async function getAllUsers() {
 
 // ===== ENHANCED USER MANAGEMENT ACTIONS =====
 
+const USER_CONFLICT_FIELDS = {
+  USER_PHONE_ALREADY_EXISTS: 'phone',
+  USER_EMAIL_ALREADY_EXISTS: 'email',
+  USER_ALREADY_EXISTS: 'email',
+} as const;
+
+export type CreateUserConflictCode = keyof typeof USER_CONFLICT_FIELDS;
+
+/** `createUser` answer: the new user, or the server's refusal because the account already exists. */
+export type CreateUserResult =
+  | { ok: true; user: unknown }
+  | {
+      ok: false;
+      code: CreateUserConflictCode;
+      field: (typeof USER_CONFLICT_FIELDS)[CreateUserConflictCode];
+      message: string;
+    };
+
+function isUserConflictCode(value: unknown): value is CreateUserConflictCode {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(USER_CONFLICT_FIELDS, value);
+}
+
+/** A 409 "account already exists" from POST /user, as a typed result; anything else is undefined. */
+function toCreateUserConflict(error: unknown): Extract<CreateUserResult, { ok: false }> | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  const record = error as Record<string, unknown>;
+  const details = record.details && typeof record.details === 'object' ? (record.details as Record<string, unknown>) : {};
+  const code = [record.backendCode, record.code, details.code, details.errorCode].find(isUserConflictCode);
+  if (!code) return undefined;
+  return { ok: false, code, field: USER_CONFLICT_FIELDS[code], message: sanitizeErrorMessage(error) };
+}
+
 /**
  * Create a new user
  */
@@ -386,17 +412,29 @@ export async function createUser(userData: {
     expiryDate?: string;
     status?: string;
   }[];
-}) {
+}): Promise<CreateUserResult> {
   const session = await getServerSession();
   if (!session?.user?.id) {
     throw new Error('Unauthorized: Authentication required');
   }
-  return executeAction('createUser', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.BASE, {
-      method: 'POST',
-      body: JSON.stringify(userData)
-    });
-  }, { email: userData.email, role: userData.role });
+  return executeAction('createUser', async (): Promise<CreateUserResult> => {
+    try {
+      const user = await requestUserApi<unknown>(API_ENDPOINTS.USERS.BASE, {
+        method: 'POST',
+        body: JSON.stringify(userData)
+      });
+      return { ok: true, user };
+    } catch (error) {
+      // A taken phone/email is an expected answer (409), not a failure: return it typed so the
+      // browser gets the code instead of a masked server-action 500.
+      const conflict = toCreateUserConflict(error);
+      if (conflict) {
+        logger.info('[createUser] Refused: account already exists', { role: userData.role, code: conflict.code });
+        return conflict;
+      }
+      throw error;
+    }
+  }, { role: userData.role });
 }
 
 /**
@@ -500,74 +538,10 @@ export async function getUserStats() {
   });
 }
 
-/**
- * Bulk update users
+/*
+ * No bulk-update, export, admin change-password, toggle-verification or /user/sessions routes
+ * exist on the backend; sessions are GET /auth/sessions + POST /auth/logout { sessionId }.
  */
-export async function bulkUpdateUsers(userIds: string[], updates: Record<string, string | number | boolean>) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('bulkUpdateUsers', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.BULK_UPDATE, {
-      method: 'PATCH',
-      body: JSON.stringify({ userIds, updates })
-    });
-  }, { userIdsCount: userIds.length });
-}
-
-/**
- * Export users data
- */
-export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Record<string, string | number | boolean>) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('exportUsers', async () => {
-    const params = new URLSearchParams({ format });
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) {
-          params.append(key, value.toString());
-        }
-      });
-    }
-    return await requestUserApi(`${API_ENDPOINTS.USERS.EXPORT}?${params.toString()}`, { method: 'GET' });
-  }, { format });
-}
-
-/**
- * Change user password (admin action)
- */
-export async function changeUserPassword(userId: string, newPassword: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('changeUserPassword', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.CHANGE_PASSWORD(userId), {
-      method: 'PATCH',
-      body: JSON.stringify({ password: newPassword })
-    });
-  }, { userId });
-}
-
-/**
- * Toggle user verification status
- */
-export async function toggleUserVerification(userId: string, isVerified: boolean) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('toggleUserVerification', async () => {
-    return await requestUserApi(API_ENDPOINTS.USERS.TOGGLE_VERIFICATION(userId), {
-      method: 'PATCH',
-      body: JSON.stringify({ isVerified })
-    });
-  }, { userId, isVerified });
-}
 
 /**
  * Get user activity logs
@@ -580,37 +554,6 @@ export async function getUserActivityLogs(userId: string, limit: number = 50) {
   return executeAction('getUserActivityLogs', async () => {
     return await requestUserApi(`${API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId)}?limit=${limit}`, { method: 'GET' });
   }, { userId, limit });
-}
-
-/**
- * Get user sessions
- */
-export async function getUserSessions(userId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('getUserSessions', async () => {
-    // SESSIONS is an object, use GET_ALL and pass userId as query param
-    return await requestUserApi(`${API_ENDPOINTS.USERS.SESSIONS.GET_ALL}?userId=${userId}`, { method: 'GET' });
-  }, { userId });
-}
-
-/**
- * Terminate user session
- */
-export async function terminateUserSession(userId: string, sessionId: string) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized: Authentication required');
-  }
-  return executeAction('terminateUserSession', async () => {
-    // TERMINATE_SESSION takes only sessionId
-    return await requestUserApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId), {
-      method: 'DELETE',
-      body: JSON.stringify({}),
-    });
-  }, { userId, sessionId });
 }
 
 /**

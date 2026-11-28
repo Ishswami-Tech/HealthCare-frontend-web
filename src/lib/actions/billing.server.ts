@@ -97,6 +97,7 @@ function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {
     ...(normalizedFeatures.length > 0 ? { features: normalizedFeatures } : {}),
     isActive: raw.isActive !== false,
     ...(raw.clinicId ? { clinicId: String(raw.clinicId) } : {}),
+    allowFamilyBooking: Boolean(raw.allowFamilyBooking),
     createdAt: String(raw.createdAt ?? nowIsoTimestamp()),
     updatedAt: String(raw.updatedAt ?? nowIsoTimestamp()),
   };
@@ -335,6 +336,7 @@ export async function createBillingPlan(data: CreateBillingPlanData): Promise<{
         : {}),
       ...(data.clinicId ? { clinicId: data.clinicId } : {}),
       ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+      ...(data.allowFamilyBooking !== undefined ? { allowFamilyBooking: data.allowFamilyBooking } : {}),
     };
 
     const { status, data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.CREATE, {
@@ -384,6 +386,7 @@ export async function updateBillingPlan(
       payload.isUnlimitedAppointments = data.isUnlimitedAppointments;
     }
     if (data.isActive !== undefined) payload.isActive = data.isActive;
+    if (data.allowFamilyBooking !== undefined) payload.allowFamilyBooking = data.allowFamilyBooking;
 
     const { status, data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.UPDATE(id), {
       method: 'PUT',
@@ -948,6 +951,8 @@ export async function createPaymentIntent(
   success: boolean;
   invoice?: any;
   paymentIntent?: any;
+  /** No gateway order was opened (e.g. a zero-amount plan/invoice) - already settled. */
+  alreadyPaid?: boolean;
   message?: string;
   error?: string;
 }> {
@@ -989,11 +994,13 @@ export async function createPaymentIntent(
       success?: boolean;
       invoice?: unknown;
       paymentIntent?: unknown;
+      alreadyPaid?: boolean;
       message?: string;
       error?: string;
       data?: {
         invoice?: unknown;
         paymentIntent?: unknown;
+        alreadyPaid?: boolean;
         message?: string;
         error?: string;
       };
@@ -1001,6 +1008,7 @@ export async function createPaymentIntent(
 
     const resolvedInvoice = response.invoice ?? response.data?.invoice;
     const resolvedPaymentIntent = response.paymentIntent ?? response.data?.paymentIntent;
+    const resolvedAlreadyPaid = response.alreadyPaid ?? response.data?.alreadyPaid;
     const resolvedMessage = response.message ?? response.data?.message;
     const resolvedError = response.error ?? response.data?.error;
 
@@ -1015,6 +1023,7 @@ export async function createPaymentIntent(
       success: true,
       invoice: resolvedInvoice,
       paymentIntent: resolvedPaymentIntent,
+      ...(resolvedAlreadyPaid ? { alreadyPaid: true } : {}),
       ...(resolvedMessage ? { message: resolvedMessage } : {}),
     };
   } catch (error) {
@@ -1039,6 +1048,7 @@ export async function verifyPaymentCallback(params: {
   provider?: string;
   message?: string;
   error?: string;
+  code?: string;
   payment?: unknown;
   invoice?: unknown;
   appointment?: unknown;
@@ -1073,6 +1083,8 @@ export async function verifyPaymentCallback(params: {
       paymentId?: string;
       provider?: string;
       message?: string;
+      error?: string;
+      code?: string;
       payment?: unknown;
       invoice?: unknown;
       appointment?: unknown;
@@ -1085,13 +1097,20 @@ export async function verifyPaymentCallback(params: {
       body: JSON.stringify({ orderId: params.orderId }),
     });
 
+    const verified = Boolean(data?.success);
     return {
-      success: Boolean(data?.success),
+      success: verified,
       ...(data?.clinicId ? { clinicId: data.clinicId } : {}),
       ...(data?.orderId ? { orderId: data.orderId } : {}),
       ...(data?.paymentId ? { paymentId: data.paymentId } : {}),
       ...(data?.provider ? { provider: data.provider } : {}),
-      message: data?.message ?? 'Payment verified successfully',
+      // A failed verification carries the backend's reason, never a "verified" message.
+      ...(verified
+        ? { message: data?.message ?? 'Payment verified successfully' }
+        : {
+            error: data?.error || data?.message || 'The payment could not be verified.',
+            ...(data?.code ? { code: data.code } : {}),
+          }),
       ...(data?.payment ? { payment: data.payment } : {}),
       ...(data?.invoice ? { invoice: data.invoice } : {}),
       ...(data?.appointment ? { appointment: data.appointment } : {}),
@@ -1242,7 +1261,8 @@ export async function createInPersonAppointmentWithSubscription(data: {
   clinicId: string;
   locationId: string;
   appointmentDate: string;
-  duration: number;
+  /** Server-owned (clinic in-person visit length); booking screens leave it out. */
+  duration?: number;
   treatmentType?: string;
   priority?: string;
   notes?: string;

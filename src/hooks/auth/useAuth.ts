@@ -10,7 +10,7 @@ import { useGlobalLoading } from '@/hooks/utils/useGlobalLoading';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore, resetAllStores } from '@/stores';
 import { RedirectContext } from '@/lib/utils/redirect';
-import { isSessionInvalidError, JWT_REFRESH_LEAD_MS } from '@/lib/utils/auth-recovery';
+import { isSessionInvalidError, JWT_REFRESH_LEAD_MS, markVoluntaryLogout } from '@/lib/utils/auth-recovery';
 import {
   login as loginAction,
   verifyOTP as verifyOTPAction,
@@ -20,12 +20,8 @@ import {
   getServerSession,
   requestOTP as requestOTPAction,
   socialLogin as socialLoginAction,
-  requestMagicLink as requestMagicLinkAction,
-  verifyMagicLink as verifyMagicLinkAction,
   changePassword as changePasswordAction,
   terminateAllSessions,
-  checkOTPStatus as checkOTPStatusAction,
-  invalidateOTP as invalidateOTPAction,
   verifyEmail as verifyEmailAction,
   googleLogin as googleLoginAction,
   refreshToken,
@@ -630,6 +626,8 @@ export function useAuth() {
   // Enhanced logout mutation with proper cleanup - ✅ Use core hook
   const logoutMutation = useMutationOperation<{ success: boolean }, void>(
     async () => {
+      // Before the session goes away: in-flight 401 recovery must not redirect to "session expired".
+      markVoluntaryLogout();
       try {
         await logoutAction();
         return { success: true };
@@ -913,65 +911,6 @@ export function useAuth() {
   const socialLogin = socialLoginMutation.mutate;
   const isSocialLoggingIn = socialLoginMutation.isPending;
 
-  // Magic link mutations - ✅ Use core hooks
-  const requestMagicLinkMutation = useMutationOperation<MessageResponse, string>(
-    (email) => requestMagicLinkAction(email),
-    {
-      toastId: TOAST_IDS.AUTH.LOGIN,
-      loadingMessage: 'Sending magic link...',
-      successMessage: 'Magic link sent to your email',
-      onSuccess: (data) => {
-        showSuccessToast(data.message || 'Magic link sent to your email', {
-          id: TOAST_IDS.AUTH.LOGIN,
-        });
-      },
-    }
-  );
-  
-  const requestMagicLink = requestMagicLinkMutation.mutate;
-  const isRequestingMagicLink = requestMagicLinkMutation.isPending;
-
-  const verifyMagicLinkMutation = useMutationOperation<AuthResponse, string>(
-    (token) => verifyMagicLinkAction(token),
-    {
-      toastId: TOAST_IDS.AUTH.LOGIN,
-      loadingMessage: 'Verifying magic link...',
-      successMessage: 'Logged in successfully',
-        onSuccess: (data) => {
-          const profileComplete = resolveProfileCompleteFromBackend(data.user as unknown as Record<string, unknown>);
-          const clinicId = resolveClinicId(data.user as unknown as Record<string, unknown>);
-          const accessToken =
-            (data as unknown as { access_token?: string; accessToken?: string }).access_token ||
-            (data as unknown as { access_token?: string; accessToken?: string }).accessToken ||
-            '';
-          const sessionId =
-            (data as unknown as { session_id?: string; sessionId?: string }).session_id ||
-            (data as unknown as { session_id?: string; sessionId?: string }).sessionId ||
-            '';
-          const sessionData: Session = {
-            user: {
-              ...data.user,
-              ...(clinicId ? { clinicId } : {}),
-              profileComplete,
-            } as User,
-            access_token: accessToken,
-            session_id: sessionId,
-            isAuthenticated: true,
-          };
-
-          resetQueryCacheForAuthTransition(sessionData);
-          void prefetchAuthenticatedWorkspace(clinicId, sessionData.session_id || sessionData.user.id || 'guest');
-        router.push(getRedirectPath(data.redirectUrl));
-        showSuccessToast('Logged in successfully', {
-          id: TOAST_IDS.AUTH.LOGIN,
-        });
-      },
-    }
-  );
-  
-  const verifyMagicLink = verifyMagicLinkMutation.mutate;
-  const isVerifyingMagicLink = verifyMagicLinkMutation.isPending;
-
   // Change password mutation - ✅ Use core hook
   const changePasswordMutation = useMutationOperation<AuthResponse, { currentPassword?: string; newPassword: string }>(
     (data) => changePasswordAction(data),
@@ -1003,38 +942,6 @@ export function useAuth() {
       },
     }
   );
-
-  // Check OTP Status mutation - ✅ Use core hook
-  const checkOTPStatusMutation = useMutationOperation<{ hasActiveOTP: boolean }, string>(
-    (email) => checkOTPStatusAction(email) as Promise<{ hasActiveOTP: boolean }>,
-    {
-      toastId: TOAST_IDS.VERIFICATION.OTP,
-      loadingMessage: 'Checking OTP status...',
-      successMessage: 'OTP status checked',
-      showToast: false, // No toast for status checks
-    }
-  );
-  
-  const checkOTPStatus = checkOTPStatusMutation.mutate;
-  const isCheckingOTPStatus = checkOTPStatusMutation.isPending;
-
-  // Invalidate OTP mutation - ✅ Use core hook
-  const invalidateOTPMutation = useMutationOperation<{ message: string }, string>(
-    (email) => invalidateOTPAction(email) as Promise<{ message: string }>,
-    {
-      toastId: TOAST_IDS.AUTH.OTP,
-      loadingMessage: 'Invalidating OTP...',
-      successMessage: 'OTP invalidated',
-      onSuccess: (data) => {
-        showSuccessToast(data.message, {
-          id: TOAST_IDS.AUTH.OTP,
-        });
-      },
-    }
-  );
-  
-  const invalidateOTP = invalidateOTPMutation.mutate;
-  const isInvalidatingOTP = invalidateOTPMutation.isPending;
 
   // Verify Email mutation - ✅ Use core hook
   const verifyEmailMutation = useMutationOperation<{ success: boolean; message: string }, { email: string; otp: string }>(
@@ -1073,16 +980,10 @@ export function useAuth() {
     resetPassword,
     changePassword,
     changePasswordAsync,
-    requestMagicLink,
-    verifyMagicLink,
     terminateAllSessions: terminateAllSessionsMutation.mutate,
-    checkOTPStatus,
-    invalidateOTP,
     verifyEmail,
     googleLogin,
     socialLogin,
-    isCheckingOTPStatus,
-    isInvalidatingOTP,
     isVerifyingEmail,
     isGoogleLoggingIn,
     isLoggingIn: loginMutation.isPending,
@@ -1090,8 +991,6 @@ export function useAuth() {
     isRequestingReset,
     isResettingPassword,
     isChangingPassword,
-    isRequestingMagicLink,
-    isVerifyingMagicLink,
     isTerminatingAllSessions: terminateAllSessionsMutation.isPending,
     isVerifyingOTP: verifyOTPMutation.isPending,
     isRequestingOTP: requestOTPMutation.isPending,

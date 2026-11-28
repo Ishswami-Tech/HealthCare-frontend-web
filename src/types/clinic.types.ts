@@ -24,6 +24,17 @@ export interface Clinic {
   createdAt: string;
   updatedAt: string;
   createdBy: string;
+  /** ABDM Health Information Provider (HIP) id for this clinic. Scaffolding only. */
+  abdmHipId?: string;
+  /** Clinic-set technical/app support phone, shown on the patient Help page. */
+  supportPhone?: string;
+  /** Clinic-set technical/app support email, shown on the patient Help page. */
+  supportEmail?: string;
+  /**
+   * Backend-resolved desk bill of a plan-less walk-in (GET /clinics/my-clinic, /clinics/:id), parsed
+   * by `resolveExpectedWalkInFee` in components/billing/plan-desk-path.logic.ts. Older backends omit it.
+   */
+  expectedWalkInFee?: unknown;
 }
 
 export interface ClinicLocation {
@@ -45,6 +56,8 @@ export interface ClinicLocation {
   settings?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  /** ABDM Health Facility Registry (HFR) id for this location. Scaffolding only. */
+  abdmHfrId?: string;
 }
 
 export interface ClinicUser {
@@ -104,6 +117,10 @@ export interface ClinicSettings {
     maxAdvanceBooking: number; // days
     minAdvanceBooking: number; // hours
     appointmentDuration: number; // minutes
+    /** Clinic in-person visit length used by the server for slots and bookings (default 3). */
+    inPersonDurationMinutes?: number;
+    /** Clinic video visit length used by the server for slots and bookings (default 15). */
+    videoDurationMinutes?: number;
     allowRescheduling: boolean;
     allowCancellation: boolean;
     cancellationWindow: number; // hours
@@ -200,6 +217,12 @@ export interface UpdateClinicData {
   status?: string;
   isActive?: boolean;
   settings?: Record<string, unknown>;
+  /** ABDM Health Information Provider (HIP) id for this clinic. Scaffolding only. */
+  abdmHipId?: string;
+  /** Clinic-set technical/app support phone, shown on the patient Help page. */
+  supportPhone?: string;
+  /** Clinic-set technical/app support email, shown on the patient Help page. */
+  supportEmail?: string;
 }
 
 export interface CreateClinicLocationData {
@@ -232,8 +255,13 @@ export interface UpdateClinicLocationData {
   isActive?: boolean;
   latitude?: number;
   longitude?: number;
-  workingHours?: Record<string, { start: string; end: string } | null>;
+  /** `{ start, end }` for every day, or per day: one session, split sessions, or null (closed). */
+  workingHours?:
+    | { start: string; end: string }
+    | Record<string, { start: string; end: string } | Array<{ start: string; end: string }> | null>;
   settings?: Record<string, unknown>;
+  /** ABDM Health Facility Registry (HFR) id for this location. Scaffolding only. */
+  abdmHfrId?: string;
 }
 
 export interface AssignClinicAdminData {

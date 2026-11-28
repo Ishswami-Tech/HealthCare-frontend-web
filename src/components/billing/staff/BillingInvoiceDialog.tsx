@@ -42,6 +42,8 @@ export function BillingInvoiceDialog({
   renderPayAction,
 }: BillingInvoiceDialogProps) {
   const payAction = invoice && invoice.status === "PENDING" && renderPayAction ? renderPayAction(invoice, "dialog") : null;
+  // The receipt PDF and the WhatsApp copy exist only once the invoice is paid; the API refuses them before.
+  const isPaid = invoice?.status === "PAID";
 
   return (
     <DialogShell
@@ -96,7 +98,8 @@ export function BillingInvoiceDialog({
           </DialogBody>
 
           <DialogActions>
-            {onSendWhatsApp ? (
+            {!isPaid ? <p className="m-0 mr-auto self-center text-xs text-ink-muted">Receipt available after payment.</p> : null}
+            {onSendWhatsApp && isPaid ? (
               <Button
                 variant="outline"
                 size="md"
@@ -112,7 +115,7 @@ export function BillingInvoiceDialog({
               variant={payAction ? "outline" : "default"}
               size="md"
               onClick={() => onOpenPdf(invoice)}
-              disabled={openPdfPending}
+              disabled={!isPaid || openPdfPending}
             >
               {openPdfPending ? <Loader2 className="animate-spin" /> : <FileText />}
               Open PDF

@@ -24,6 +24,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/query/useNotifications";
+import { useUndoableRemove } from "./useUndoableRemove";
 
 interface NotificationPanelProps {
   className?: string | undefined;
@@ -44,16 +45,17 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
     removeNotification,
   } = useNotifications(isNotificationPanelOpen);
 
+  const { hiddenIds, requestRemove } = useUndoableRemove(removeNotification);
   const [filter, setFilter] = useState<FilterType>("all");
   const [isMarkingAll, setIsMarkingAll] = useState(false);
 
   // Filter notifications
   const filteredNotifications = useMemo(() => {
-    if (filter === "all") return notifications;
-    if (filter === "unread")
-      return notifications.filter((n) => !n.isRead);
-    return notifications.filter((n) => n.type === filter);
-  }, [notifications, filter]);
+    const shown = notifications.filter((n) => !hiddenIds.has(n.id));
+    if (filter === "all") return shown;
+    if (filter === "unread") return shown.filter((n) => !n.isRead);
+    return shown.filter((n) => n.type === filter);
+  }, [notifications, filter, hiddenIds]);
 
   const handleMarkAsRead = async (id: string) => {
     await markAsRead(id);
@@ -69,7 +71,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
   };
 
   const handleRemove = (id: string) => {
-    removeNotification(id);
+    requestRemove(id);
   };
 
   const filterOptions: { value: FilterType; label: string }[] = [
@@ -82,6 +84,9 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
     { value: "MARKETING", label: "Marketing" },
   ];
 
+  // The badge text starts the accessible name, so the visible label and the name agree (WCAG 2.5.3).
+  const unreadCountLabel = unreadCount > 99 ? "99+" : String(unreadCount);
+
   return (
     <Popover
       open={isNotificationPanelOpen}
@@ -92,15 +97,16 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           variant="ghost"
           size="icon"
           className={cn("relative", className)}
-          aria-label="Notifications"
+          aria-label={unreadCount > 0 ? `${unreadCountLabel} Notifications, unread` : "Notifications"}
         >
-          <Bell className="size-[18px]" />
+          <Bell className="size-[18px]" aria-hidden="true" />
           {unreadCount > 0 && (
             <Badge
+              aria-hidden="true"
               variant="destructive"
-              className="absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-[#e11d48] px-1 py-0 text-[10px] font-extrabold text-white"
+              className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-card bg-[#e11d48] px-1 py-0 text-xs font-extrabold text-white"
             >
-              {unreadCount > 99 ? "99+" : unreadCount}
+              {unreadCountLabel}
             </Badge>
           )}
         </Button>
@@ -117,7 +123,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                   size="sm"
                   onClick={handleMarkAllAsRead}
                   disabled={isMarkingAll}
-                  className="h-8 text-xs"
+                  className="min-h-11 text-xs"
                 >
                   {isMarkingAll ? (
                     <Loader2 className="size-3 animate-spin mr-1" />
@@ -136,7 +142,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                   key={option.value}
                   variant={filter === option.value ? "default" : "outline"}
                   size="sm"
-                  className="h-7 text-xs whitespace-nowrap"
+                  className="min-h-11 text-xs whitespace-nowrap"
                   onClick={() => setFilter(option.value)}
                 >
                   {option.label}

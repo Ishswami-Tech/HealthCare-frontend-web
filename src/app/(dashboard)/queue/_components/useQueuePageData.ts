@@ -1,20 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHashTab } from "@/hooks/navigation/useHashTab";
-import { useReassignAppointmentDoctor, useStartAppointment } from "@/hooks/query/useAppointments";
+import {
+  useMarkAppointmentNoShow,
+  useStartAppointment,
+  useUpdateAppointmentStatus,
+} from "@/hooks/query/useAppointments";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
-import { useCurrentDoctorEntityId, useDoctors } from "@/hooks/query/useDoctors";
-import { usePauseQueue, useQueue, useQueueFilters, useTransferQueueEntry } from "@/hooks/query/useQueue";
+import { useInPersonDesk } from "@/hooks/query/useInPerson";
+import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
+import {
+  useCallNextPatient,
+  usePauseQueue,
+  useQueue,
+  useQueueFilters,
+  useSetQueuePriority,
+  useTransferQueueEntry,
+} from "@/hooks/query/useQueue";
 import { useRealTimeQueueStatus, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useQueueWebSocketIntegration } from "@/hooks/realtime/useWebSocketIntegration";
 import { useOptimisticUpdateQueueStatus } from "@/hooks/utils/useOptimisticQueue";
 import { useQueuePermissions, useRBAC } from "@/hooks/utils/useRBAC";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { useOnlineStatus } from "@/hooks/utils/useOnlineStatus";
+import { useUndoableAction } from "@/hooks/utils/useUndoableAction";
 import { bulkCancelQueueEntries } from "@/lib/actions/queue.server";
-import { hasQueuePatientIdentity } from "@/lib/queue/queue-adapter";
+import { getQueuePatientDisplayName, hasQueuePatientIdentity } from "@/lib/queue/queue-adapter";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import type { QueueFilterGroup, QueueFilterOption } from "@/types/api.types";
@@ -23,6 +37,8 @@ import { Permission } from "@/types/rbac.types";
 import {
   CONSULTATION_QUEUE_FILTERS,
   CONSULTATION_QUEUE_FILTER_KEYS,
+  buildQueueLanes,
+  dedupeQueueFilterOptions,
   QUEUE_STATUS,
   TERMINAL_QUEUE_STATUSES,
   extractRawQueueItems,
@@ -36,14 +52,18 @@ import {
   normalizeQueueToken,
   pollQueueSync,
   queuePageReducer,
-  type AssignableDoctor,
   type QueueDisplayItem,
   type QueuePrimaryAction,
   type QueueSection,
   type QueueStatsSummary,
   type QueueTabKey,
 } from "./queue.logic";
-import { textOf } from "@/lib/utils/coerce";
+import {
+  buildQueueOverview,
+  isCheckedInQueueEntry,
+  queueCapabilities,
+  type QueuePriority,
+} from "./queue-roles.logic";
 
 /** Roles the backend allows on `PATCH /queue/:entryId/transfer`. Doctors are not among them. */
 const QUEUE_TRANSFER_ROLES: ReadonlySet<Role> = new Set([
@@ -53,52 +73,6 @@ const QUEUE_TRANSFER_ROLES: ReadonlySet<Role> = new Set([
   Role.SUPER_ADMIN,
   Role.CLINIC_LOCATION_HEAD,
 ]);
-
-/** Roles the backend allows on `POST /appointments/:id/reassign-doctor`. */
-const ASSIGN_DOCTOR_ROLES: ReadonlySet<Role> = new Set([
-  Role.CLINIC_ADMIN,
-  Role.RECEPTIONIST,
-  Role.DOCTOR,
-  Role.ASSISTANT_DOCTOR,
-]);
-
-type DoctorRow = {
-  id?: unknown;
-  name?: unknown;
-  role?: unknown;
-  firstName?: unknown;
-  lastName?: unknown;
-  doctor?: { id?: unknown; user?: { name?: unknown; role?: unknown } };
-};
-
-function normalizeAssignableDoctors(users: DoctorRow[]): AssignableDoctor[] {
-  return users.reduce<AssignableDoctor[]>((acc, user) => {
-    const role = (textOf(user.role) || textOf(user.doctor?.user?.role)).toUpperCase();
-    const id = textOf(user.doctor?.id) || textOf(user.id);
-    if (!id || (role !== "DOCTOR" && role !== "ASSISTANT_DOCTOR")) {
-      return acc;
-    }
-
-    acc.push({
-      id,
-      name:
-        textOf(user.name) ||
-        textOf(user.doctor?.user?.name) ||
-        `${textOf(user.firstName)} ${textOf(user.lastName)}`.trim() ||
-        "Unknown Doctor",
-      role,
-    });
-    return acc;
-  }, []);
-}
-
-/** The doctors list comes back as an array, `{ doctors }` or `{ data: { doctors } }`. */
-function extractDoctorRows(doctorsData: unknown): DoctorRow[] {
-  if (Array.isArray(doctorsData)) return doctorsData as DoctorRow[];
-  const record = (doctorsData ?? {}) as { data?: { doctors?: unknown }; doctors?: unknown };
-  if (Array.isArray(record.data?.doctors)) return record.data.doctors as DoctorRow[];
-  return Array.isArray(record.doctors) ? (record.doctors as DoctorRow[]) : [];
-}
 
 /**
  * Data container for the shared `/queue` screen (doctor, receptionist, clinic admin, nurse, ...).
@@ -110,7 +84,11 @@ export function useQueuePageData() {
   const sessionRole = session?.user?.role as Role | undefined;
   const userRole = sessionRole || Role.SUPER_ADMIN;
   const doctorId = session?.user?.id;
-  const isDoctorRole = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
+  const capabilities = useMemo(() => queueCapabilities(sessionRole), [sessionRole]);
+  // Doctor and assistant see the clinic queue; only the doctor calls, starts and completes a visit.
+  const isClinicalRole = capabilities.variant === "doctor" || capabilities.variant === "assistant";
+  const isDoctorRole = capabilities.canRunVisit;
+  const isOnline = useOnlineStatus();
   const { tab: activeQueue, setTab: setActiveQueue } = useHashTab({
     tabs: ["consultations", "therapies"] as const,
     defaultValue: "consultations",
@@ -123,9 +101,6 @@ export function useQueuePageData() {
       isCleaningUp,
       transferringQueueItem,
       transferringId,
-      assigningQueueItem,
-      selectedDoctorId,
-      assignDoctorError,
       startingId,
     },
     dispatch,
@@ -144,7 +119,6 @@ export function useQueuePageData() {
     (value: QueueDisplayItem | null) => dispatch({ type: "setTransferringQueueItem", value }),
     [],
   );
-  const setSelectedDoctorId = useCallback((value: string) => dispatch({ type: "setSelectedDoctorId", value }), []);
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -162,8 +136,15 @@ export function useQueuePageData() {
 
   // Clinic context
   const { clinicId } = useClinicContext();
-  const { data: locations = [] } = useActiveLocations(clinicId || "");
-  const locationId = locations[0]?.id || "";
+  // Every location (clinic admin overview only); never used to guess the viewer's location.
+  const { data: locations = [] } = useActiveLocations(clinicId || "", { enabled: capabilities.showLocationOverview });
+  // Reception works one location, given by the server (`GET /in-person/desk` answers for the
+  // receptionist's allotted location). Other roles see the clinic queue the server scopes for them.
+  const isReception = sessionRole === Role.RECEPTIONIST;
+  const desk = useInPersonDesk({ date: formatISODateInIST(new Date()) }, isReception && Boolean(clinicId));
+  const locationId = isReception ? desk.data?.locationId || "" : "";
+  // A receptionist with no allotted location gets 403 from the desk: show that instead of spinning.
+  const deskError = isReception && desk.error ? desk.error : null;
   const queueClinicId = clinicId || undefined;
   const { subscribeToQueue: subscribeClinicQueue, unsubscribeFromQueue: unsubscribeClinicQueue } =
     useQueueWebSocketIntegration("healthcare-queue");
@@ -171,13 +152,18 @@ export function useQueuePageData() {
   // Fetch queue data with proper permissions - strictly bound to today
   const {
     data: queueData,
-    isPending: isLoading,
-    error,
+    isPending: isQueuePending,
+    error: queueError,
     refetch: refetchQueue,
-  } = useQueue(queueClinicId, { enabled: queuePermissions.canViewQueue });
+  } = useQueue(queueClinicId, {
+    ...(locationId ? { locationId } : {}),
+    // Reception waits for its server-given location instead of loading the whole clinic.
+    enabled: queuePermissions.canViewQueue && (!isReception || Boolean(locationId)),
+  });
+  const error = queueError ?? deskError;
+  const isLoading = isQueuePending && !deskError;
 
   const { data: queueStats } = useRealTimeQueueStatus(undefined, locationId || undefined);
-  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 200 });
   // A queue entry may carry the doctor's user id or the Doctor record id; a doctor's own rows match either.
   const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(isDoctorRole ? clinicId || "" : "");
 
@@ -194,8 +180,6 @@ export function useQueuePageData() {
     };
   }, [clinicId, locationId, subscribeClinicQueue, unsubscribeClinicQueue]);
 
-  const assignableDoctors = useMemo(() => normalizeAssignableDoctors(extractDoctorRows(doctorsData)), [doctorsData]);
-
   const { rawQueueEntries, rawQueueById } = useMemo(() => {
     const index: Record<string, unknown> = {};
     const entries = extractRawQueueItems(queueData).map((raw) => {
@@ -210,7 +194,10 @@ export function useQueuePageData() {
     () =>
       rawQueueEntries.filter(
         (item) =>
-          hasQueuePatientIdentity(item) && !TERMINAL_QUEUE_STATUSES.has(String(item.status || "").toUpperCase()),
+          hasQueuePatientIdentity(item) &&
+          !TERMINAL_QUEUE_STATUSES.has(String(item.status || "").toUpperCase()) &&
+          // V2: checked-in, in-clinic patients only (no booked-not-arrived rows, no video visits).
+          isCheckedInQueueEntry(item),
       ),
     [rawQueueEntries],
   );
@@ -228,7 +215,7 @@ export function useQueuePageData() {
         label: "All types",
         description: "Show every queue treatment type.",
       },
-      ...options,
+      ...dedupeQueueFilterOptions(options),
     ];
   }, [treatmentQueueFilters]);
 
@@ -330,7 +317,7 @@ export function useQueuePageData() {
   }, [refetchQueue, staleEntries]);
 
   const queueStatsSummary = useMemo<QueueStatsSummary>(() => {
-    const useApiQueueStats = resolvedActiveTreatmentFilter === "ALL" && !isDoctorRole;
+    const useApiQueueStats = resolvedActiveTreatmentFilter === "ALL" && !isClinicalRole;
     const apiQueueStats = (queueStats ?? {}) as Partial<Record<keyof QueueStatsSummary, unknown>>;
     const totalInQueue = scopedQueueEntries.length;
     const totalWaitMinutes = scopedQueueEntries.reduce((sum, item) => sum + getQueueWaitMinutes(item), 0);
@@ -350,14 +337,14 @@ export function useQueuePageData() {
       inProgress: fromApi("inProgress", inProgressCount),
       completedToday: fromApi("completedToday", completedTodayCount),
     };
-  }, [isDoctorRole, queueStats, resolvedActiveTreatmentFilter, scopedQueueEntries]);
+  }, [isClinicalRole, queueStats, resolvedActiveTreatmentFilter, scopedQueueEntries]);
 
   const queueScopeLabel = useMemo(() => {
     if (userRole === Role.SUPER_ADMIN) {
       return queueClinicId ? "Reception Queue" : "All clinics";
     }
 
-    if (isDoctorRole) {
+    if (isClinicalRole) {
       return "Clinic Queue";
     }
 
@@ -370,13 +357,12 @@ export function useQueuePageData() {
     }
 
     return "Live queue";
-  }, [isDoctorRole, queueClinicId, userRole]);
+  }, [isClinicalRole, queueClinicId, userRole]);
 
   // Mutation hooks for queue actions
   const updateQueueStatusOptimistic = useOptimisticUpdateQueueStatus(clinicId);
   const pauseQueueMutation = usePauseQueue();
   const transferQueueEntryMutation = useTransferQueueEntry();
-  const reassignAppointmentMutation = useReassignAppointmentDoctor();
   const startAppointmentMutation = useStartAppointment();
 
   const handleTransfer = useCallback(
@@ -421,62 +407,6 @@ export function useQueuePageData() {
     },
     [refetchQueue, setActiveConsultationLane, setActiveQueue, setActiveTherapyLane, transferQueueEntryMutation],
   );
-
-  const openAssignDoctorDialog = useCallback((item: QueueDisplayItem) => {
-    dispatch({ type: "setAssignDoctorError", value: "" });
-    dispatch({ type: "setSelectedDoctorId", value: "" });
-    dispatch({ type: "setAssigningQueueItem", value: item });
-  }, []);
-
-  const closeAssignDoctorDialog = useCallback(() => {
-    dispatch({ type: "setAssigningQueueItem", value: null });
-    dispatch({ type: "setSelectedDoctorId", value: "" });
-    dispatch({ type: "setAssignDoctorError", value: "" });
-  }, []);
-
-  const handleAssignDoctor = useCallback(async () => {
-    dispatch({ type: "setAssignDoctorError", value: "" });
-    if (!assigningQueueItem?.appointmentId) {
-      dispatch({ type: "setAssignDoctorError", value: "No linked appointment found for this queue entry." });
-      return;
-    }
-    if (!selectedDoctorId) {
-      dispatch({ type: "setAssignDoctorError", value: "Please select a doctor to assign." });
-      return;
-    }
-
-    try {
-      await reassignAppointmentMutation.mutateAsync({
-        appointmentId: assigningQueueItem.appointmentId,
-        doctorId: selectedDoctorId,
-        reason: "Queue doctor assignment by reception",
-      });
-      const selectedDoctorIdValue = String(selectedDoctorId);
-      const reassignmentSynced = await pollQueueSync(refetchQueue, 8, 400, (entries) =>
-        entries.some((item) => {
-          if (item.id !== assigningQueueItem.id) return false;
-
-          return [item.assignedDoctorId, item.primaryDoctorId, item.queueOwnerId]
-            .filter(Boolean)
-            .some((value) => String(value) === selectedDoctorIdValue);
-        }),
-      );
-
-      if (!reassignmentSynced) {
-        throw new Error("Reassignment request succeeded but backend queue sync is still pending.");
-      }
-
-      showSuccessToast("Doctor assigned successfully", { id: TOAST_IDS.GLOBAL.SUCCESS });
-      dispatch({ type: "setAssigningQueueItem", value: null });
-      dispatch({ type: "setSelectedDoctorId", value: "" });
-    } catch (assignError) {
-      dispatch({ type: "setAssignDoctorError", value: sanitizeErrorMessage(assignError) });
-      showErrorToast(assignError, {
-        id: TOAST_IDS.APPOINTMENT.REASSIGN,
-        duration: 5000,
-      });
-    }
-  }, [assigningQueueItem, selectedDoctorId, reassignAppointmentMutation, refetchQueue]);
 
   // Status updates and pause keep their existing wiring; no control on this screen calls them yet.
   // The status action answers `{ success, data }` or `{ success: false, error }`; the optimistic
@@ -530,20 +460,89 @@ export function useQueuePageData() {
     [refetchQueue, startAppointmentMutation],
   );
 
-  // Real-time queue data from API - filter by queue section
-  const getQueueByType = useCallback(
-    (type: string) => scopedQueueEntries.filter((item) => matchesQueueSection(item, type)),
-    [scopedQueueEntries],
+  // The doctor calls the patient in (POST /queue/call-next, doctor only on the API).
+  const callNextMutation = useCallNextPatient();
+  const [callingId, setCallingId] = useState<string | null>(null);
+  const handleCallPatient = useCallback(
+    async (item: QueueDisplayItem) => {
+      const rowDoctorId = item.assignedDoctorId || item.primaryDoctorId || doctorEntityId || doctorId;
+      if (!item.appointmentId || !rowDoctorId) return;
+      setCallingId(item.id);
+      try {
+        await callNextMutation.mutateAsync({ doctorId: String(rowDoctorId), appointmentId: item.appointmentId });
+        await refetchQueue();
+      } catch {
+        // The mutation hook has already shown the reason (for example 409: not checked in).
+      } finally {
+        setCallingId(null);
+      }
+    },
+    [callNextMutation, doctorEntityId, doctorId, refetchQueue],
   );
 
+  // Set priority (front desk, clinic admin): audited and applied to the live queue by the API.
+  const priorityMutation = useSetQueuePriority();
+  const [priorityItem, setPriorityItem] = useState<QueueDisplayItem | null>(null);
+  const [priorityError, setPriorityError] = useState<string | null>(null);
+  const openPriorityDialog = useCallback((item: QueueDisplayItem) => {
+    setPriorityError(null);
+    setPriorityItem(item);
+  }, []);
+  const handleSetPriority = useCallback(
+    async (item: QueueDisplayItem, priority: QueuePriority, reason: string) => {
+      if (!item.appointmentId) return;
+      setPriorityError(null);
+      try {
+        await priorityMutation.mutateAsync({ appointmentId: item.appointmentId, priority, ...(reason ? { reason } : {}) });
+        setPriorityItem(null);
+        void refetchQueue();
+      } catch (priorityFailure) {
+        setPriorityError(sanitizeErrorMessage(priorityFailure));
+      }
+    },
+    [priorityMutation, refetchQueue],
+  );
+
+  // Mark no-show (front desk, clinic admin) with a 5 s undo that puts the visit back to CONFIRMED.
+  const noShowMutation = useMarkAppointmentNoShow();
+  const restoreStatusMutation = useUpdateAppointmentStatus();
+  const runUndoable = useUndoableAction();
+  const [noShowItem, setNoShowItem] = useState<QueueDisplayItem | null>(null);
+  const handleConfirmNoShow = useCallback(async () => {
+    const appointmentId = noShowItem?.appointmentId;
+    if (!noShowItem || !appointmentId) return;
+    try {
+      await runUndoable({
+        message: `${getQueuePatientDisplayName(noShowItem)} marked as no-show`,
+        perform: () => noShowMutation.mutateAsync(appointmentId),
+        undo: async () => {
+          await restoreStatusMutation.mutateAsync({ appointmentId, status: QUEUE_STATUS.CONFIRMED });
+          await refetchQueue();
+        },
+      });
+      setNoShowItem(null);
+      void refetchQueue();
+    } catch {
+      // The mutation hook has already shown the reason.
+    }
+  }, [noShowItem, noShowMutation, refetchQueue, restoreStatusMutation, runUndoable]);
+
+  // Clinic admin: live numbers for every location (CaQueueOverview).
+  const queueOverview = useMemo(
+    () => (capabilities.showLocationOverview ? buildQueueOverview(queueEntries, locations) : null),
+    [capabilities.showLocationOverview, locations, queueEntries],
+  );
+  const roleNote =
+    capabilities.variant === "assistant"
+      ? "Checked-in patients go straight to the doctor, who calls them in and completes the visit. Prepare an Rx draft or dispense for any of them."
+      : capabilities.variant === "reception"
+        ? "Only the doctor calls the next patient in. Set priority or mark a no-show from the row menu."
+        : null;
+
+  // A row with no (or an unknown) treatment type lands in General Consultation, never nowhere.
   const consultationQueueSections = useMemo<QueueSection[]>(
-    () =>
-      consultationQueueFilters.map((option) => ({
-        key: normalizeQueueToken(option.value),
-        title: option.label,
-        items: getQueueByType(option.value),
-      })),
-    [consultationQueueFilters, getQueueByType],
+    () => buildQueueLanes(scopedQueueEntries, consultationQueueFilters, procedureQueueFilters),
+    [consultationQueueFilters, procedureQueueFilters, scopedQueueEntries],
   );
 
   const resolvedActiveConsultationLane = useMemo(() => {
@@ -564,14 +563,10 @@ export function useQueuePageData() {
     [consultationQueueSections, resolvedActiveConsultationLane],
   );
 
+  // One lane per key: several catalog treatments share AYURVEDIC_PROCEDURES (duplicate React keys).
   const procedureQueueSections = useMemo<QueueSection[]>(
-    () =>
-      procedureQueueFilters.map((option) => ({
-        key: normalizeQueueToken(option.value),
-        title: option.label,
-        items: getQueueByType(option.value),
-      })),
-    [procedureQueueFilters, getQueueByType],
+    () => buildQueueLanes(scopedQueueEntries, procedureQueueFilters, [], "__none__"),
+    [procedureQueueFilters, scopedQueueEntries],
   );
 
   const resolvedActiveTherapyLane = useMemo(() => {
@@ -698,11 +693,33 @@ export function useQueuePageData() {
     setActiveTherapyLane,
     procedurePrimaryActions,
 
+    // banners (offline, role note, clinic admin overview)
+    isOnline,
+    roleNote,
+    queueOverview,
+
     // row actions
     isDoctorRole,
-    canAssignDoctor: canUpdateAppointments && sessionRole !== undefined && ASSIGN_DOCTOR_ROLES.has(sessionRole),
+    queueVariant: capabilities.variant,
+    canSetPriority: capabilities.canSetPriority,
+    canMarkNoShow: capabilities.canMarkNoShow,
+    callingId,
+    handleCallPatient,
+
+    // "Set priority" dialog
+    priorityItem,
+    priorityError,
+    isPriorityPending: priorityMutation.isPending,
+    openPriorityDialog,
+    closePriorityDialog: () => setPriorityItem(null),
+    handleSetPriority,
+
+    // "Mark no-show" confirmation
+    noShowItem,
+    isNoShowPending: noShowMutation.isPending,
+    setNoShowItem,
+    handleConfirmNoShow,
     canMoveTo: sessionRole !== undefined && QUEUE_TRANSFER_ROLES.has(sessionRole),
-    isAssignPending: reassignAppointmentMutation.isPending,
     transferringId,
     startingId,
     handleStartConsultation,
@@ -714,15 +731,5 @@ export function useQueuePageData() {
     setTransferringQueueItem,
     queueTransferOptions,
     handleTransfer,
-
-    // "Assign doctor" dialog
-    assigningQueueItem,
-    assignableDoctors,
-    selectedDoctorId,
-    assignDoctorError,
-    setSelectedDoctorId,
-    openAssignDoctorDialog,
-    closeAssignDoctorDialog,
-    handleAssignDoctor,
   };
 }

@@ -10,6 +10,10 @@ class SentryExampleAPIError extends Error {
 
 // A faulty API route to test Sentry's error monitoring
 export function GET() {
+  // Test route of the Sentry wizard: development only.
+  if (process.env.NODE_ENV === "production") {
+    return new Response("Not found", { status: 404 });
+  }
   Sentry.logger.info("Sentry example API called");
   throw new SentryExampleAPIError(
     "This error is raised on the backend called by the example page.",

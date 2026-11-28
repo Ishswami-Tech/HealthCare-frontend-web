@@ -75,7 +75,7 @@ export const HELP_FAQS: HelpFaq[] = [
 // ── Ways to reach the clinic ───────────────────────────────────────────────
 
 export interface HelpContact {
-  key: "whatsapp" | "call" | "email";
+  key: "whatsapp" | "call" | "email" | "supportCall" | "supportEmail";
   label: string;
   /** The number or address, as the clinic publishes it. */
   detail: string;
@@ -119,6 +119,24 @@ export function buildHelpContacts({ phones, whatsapp, email }: ClinicContactDeta
   }
   if (email.includes("@")) {
     contacts.push({ key: "email", label: "Email", detail: email, href: `mailto:${email}` });
+  }
+  return contacts;
+}
+
+/**
+ * App/technical support rows — each clinic's own `supportPhone`/`supportEmail` (Clinic Admin
+ * settings), not the clinic's general contact info. A row is left out when the clinic has not
+ * set it.
+ */
+export function buildSupportContacts(supportPhone?: string, supportEmail?: string): HelpContact[] {
+  const contacts: HelpContact[] = [];
+  const phone = (supportPhone ?? "").trim();
+  if (phone) {
+    contacts.push({ key: "supportCall", label: "Technical support", detail: phone, href: `tel:+${digits(phone)}` });
+  }
+  const email = (supportEmail ?? "").trim();
+  if (email.includes("@")) {
+    contacts.push({ key: "supportEmail", label: "Technical support email", detail: email, href: `mailto:${email}` });
   }
   return contacts;
 }

@@ -96,7 +96,7 @@ function FeaturedCard({ featured }: { featured: LibraryFeatured }) {
     <SoftCard className="flex h-full flex-col justify-center p-6 sm:p-7">
       <div className="flex items-center gap-6">
         <div className="flex min-h-[180px] min-w-0 flex-1 flex-col justify-center gap-2.5">
-          <span className="self-start rounded-[8px] bg-[#facc15] px-[9px] py-[5px] text-[11px] font-extrabold uppercase leading-none tracking-[0.6px] text-[#422006]">
+          <span className="self-start rounded-[8px] bg-[#facc15] px-[9px] py-[5px] text-xs font-extrabold uppercase leading-none tracking-[0.6px] text-[#422006]">
             Featured
           </span>
           <h2 className="m-0 text-2xl font-extrabold leading-[1.2] tracking-[-0.4px] text-ink">{item.title}</h2>
@@ -237,7 +237,7 @@ function ShelfSection({
 
 function OverviewSkeleton() {
   return (
-    <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading the health library">
+    <div className="flex flex-col gap-5" aria-busy="true" role="status" aria-label="Loading the health library">
       <Skeleton className="h-[236px] w-full rounded-3xl" />
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-8">
         {Array.from({ length: 8 }, (_, index) => (

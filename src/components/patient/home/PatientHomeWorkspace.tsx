@@ -31,7 +31,7 @@ export interface PatientHomeWorkspaceProps {
   isLoading?: boolean;
   actions: HomeVisitActions;
   /** Opens the booking flow. */
-  onBook: () => void;
+  onBook?: (() => void) | undefined;
   isBookingOpening?: boolean;
   /** First tab to show. Used by the preview; the app always starts on "All". */
   initialTab?: HomeWorkspaceTab;
@@ -71,7 +71,7 @@ export function PatientHomeWorkspace({
           <span className="text-[13px] text-ink-muted">Your consultations at a glance</span>
         </div>
         {visits.length > 0 ? (
-          <Link
+          <Link prefetch={false}
             href="/patient/appointments"
             className="inline-flex shrink-0 items-center gap-1 rounded-md text-[13px] font-bold text-brand hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
           >
@@ -84,7 +84,7 @@ export function PatientHomeWorkspace({
       <SegTabs options={TABS} value={tab} onChange={setTab} ariaLabel="Filter visits by type" />
 
       {isLoading ? (
-        <div className="flex flex-col gap-4 rounded-[18px] border border-line p-5" aria-busy="true" aria-label="Loading your visits">
+        <div className="flex flex-col gap-4 rounded-[18px] border border-line p-5" aria-busy="true" role="status" aria-label="Loading your visits">
           <Skeleton className="h-5 w-44 rounded-md" />
           <div className="flex items-center gap-3.5">
             <Skeleton className="size-[60px] rounded-[14px]" />
@@ -108,6 +108,28 @@ export function PatientHomeWorkspace({
               </ul>
             </div>
           ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hair pt-3.5">
+            <Link prefetch={false}
+              href="/patient/appointments?tab=past"
+              className="inline-flex min-h-11 items-center gap-1 rounded-md text-[13px] font-bold text-ink-soft hover:text-ink focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40"
+            >
+              Past visits
+              <ChevronRight className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+            </Link>
+            <button
+              type="button"
+              onClick={onBook}
+              disabled={isBookingOpening}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-md text-[13px] font-bold text-brand hover:text-brand-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand/40 disabled:opacity-60"
+            >
+              {isBookingOpening ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+              ) : (
+                <Plus className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+              )}
+              {isBookingOpening ? "Opening…" : "Book another"}
+            </button>
+          </div>
         </>
       ) : (
         <div className="flex flex-col items-center gap-1.5 rounded-[18px] bg-[#f5f8fc] px-5 py-[26px] text-center dark:bg-white/5">
@@ -121,12 +143,14 @@ export function PatientHomeWorkspace({
           <p className="m-0 text-[13px] text-ink-muted">Book a consultation with your doctor in under a minute.</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2.5">
             <Button variant="outline" size="md" asChild>
-              <Link href="/patient/appointments?tab=past">Past visits</Link>
+              <Link prefetch={false} href="/patient/appointments?tab=past">Past visits</Link>
             </Button>
-            <Button variant="action" size="md" disabled={isBookingOpening} onClick={onBook}>
-              {isBookingOpening ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
-              {isBookingOpening ? "Opening…" : "Book now"}
-            </Button>
+            {onBook ? (
+              <Button variant="action" size="md" disabled={isBookingOpening} onClick={onBook}>
+                {isBookingOpening ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
+                {isBookingOpening ? "Opening…" : "Book now"}
+              </Button>
+            ) : null}
           </div>
         </div>
       )}

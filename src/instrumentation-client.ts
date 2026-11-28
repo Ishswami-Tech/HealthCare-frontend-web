@@ -6,4 +6,7 @@
  * imports onRouterTransitionStart from here.
  */
 
+// Must stay the first import: zod reads `jitless` when schemas are constructed (see zod-config).
+import "./lib/zod-config";
+
 export { onRouterTransitionStart } from "../sentry.client.config";

@@ -98,7 +98,7 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
         {trigger || (
           <Button variant="action" size="md">
             <Plus className="size-4" />
-            Book Video Appointment
+            Book appointment
           </Button>
         )}
       </DialogTrigger>

@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
+import {
+  QuickPrescriptionModal,
+  type PrescriptionSavedResult,
+} from "@/components/doctor/QuickPrescriptionModal";
 import { PatientAppointmentHistory } from "@/components/patient/PatientAppointmentHistory";
 import { VisitCaseSheet } from "@/components/patient/case-sheet/VisitCaseSheet";
 import {
@@ -10,38 +13,60 @@ import {
   type VisitSelectorVisit,
 } from "@/components/patient/case-sheet/VisitSelector";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
+import { usePrescriberDoctor } from "@/hooks/query/usePrescriberDoctor";
+import { useStaffRole } from "@/hooks/utils/useStaffRole";
+import { useQueryClient } from "@tanstack/react-query";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import {
   usePatientAppointments,
   usePatientCarePlan,
   usePatientLabResults,
   usePatientMedicalRecords,
-  usePatientVitalSigns,
 } from "@/hooks/query/usePatients";
 import { usePatientAppointmentHistory } from "@/hooks/query/usePatientAppointmentHistory";
 import { usePatientDirectoryEntry } from "@/hooks/query/usePatientDirectory";
-import { useCreatePatientVisit, usePatientVisits } from "@/hooks/query/usePatientVisits";
+import {
+  useCreatePatientVisit,
+  usePatientVisits,
+} from "@/hooks/query/usePatientVisits";
 import { useRBAC } from "@/hooks/utils/useRBAC";
+import { Button } from "@/components/ui/button";
+import { SectionTitle, Surface } from "@/components/tbd";
 import { useAuthStore } from "@/stores/auth.store";
 import { canViewCaseSheet } from "@/lib/utils/case-sheet-access";
 import { parseIstDateTime } from "@/lib/utils/date-time";
 import { Permission } from "@/types/rbac.types";
-import { patientSummaryLine, toDoctorPatientRow } from "../../_components/doctorPatients.logic";
+import {
+  genderLabel,
+  patientSummaryLine,
+  toDoctorPatientRow,
+} from "../../_components/doctorPatients.logic";
 import { DoctorEhrView } from "./DoctorEhrView";
 import { useEhrPatient } from "./useEhrPatient";
+import { PatientDemographicsEdit } from "./PatientDemographicsDialog";
 
 type Raw = Record<string, unknown>;
 
 const asRecord = (value: unknown): Raw =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Raw) : {};
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Raw)
+    : {};
 
-const asText = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+const asText = (value: unknown): string =>
+  typeof value === "string" ? value.trim() : "";
 
 function toArray(value: unknown): Raw[] {
   if (Array.isArray(value)) return value as Raw[];
   const record = asRecord(value);
-  for (const key of ["data", "items", "records", "appointments", "history", "labs", "results"]) {
+  for (const key of [
+    "data",
+    "items",
+    "records",
+    "appointments",
+    "history",
+    "labs",
+    "results",
+  ]) {
     const candidate = record[key];
     if (Array.isArray(candidate)) return candidate as Raw[];
   }
@@ -55,7 +80,13 @@ function planItemRows(items: unknown, kind: string, planId: string): Raw[] {
     const entry = asRecord(item);
     const text = asText(entry.text);
     if (!text) return [];
-    return [{ id: `${planId}-${kind}-${index}`, title: text, description: entry.done === true ? `${kind} (done)` : kind }];
+    return [
+      {
+        id: `${planId}-${kind}-${index}`,
+        title: text,
+        description: entry.done === true ? `${kind} (done)` : kind,
+      },
+    ];
   });
 }
 
@@ -69,7 +100,15 @@ function carePlanRows(value: unknown): Raw[] {
   const planId = asText(plan.id) || "care-plan";
   const summary = asText(plan.summary);
   return [
-    ...(summary ? [{ id: `${planId}-summary`, title: asText(plan.title) || "Care plan", description: summary }] : []),
+    ...(summary
+      ? [
+          {
+            id: `${planId}-summary`,
+            title: asText(plan.title) || "Care plan",
+            description: summary,
+          },
+        ]
+      : []),
     ...planItemRows(plan.goals, "Goal", planId),
     ...planItemRows(plan.interventions, "Intervention", planId),
   ];
@@ -86,9 +125,17 @@ type VisitListItem = VisitSelectorVisit;
 /** Visits from the list, plus visits only known from appointments; newest first, one per id. */
 function mergeVisits(
   listed: VisitListItem[],
-  pages: ReadonlyArray<{ rows: ReadonlyArray<{ date: string; time: string; visit: { id: string; opdNumber: string } | null | undefined }> }>,
+  pages: ReadonlyArray<{
+    rows: ReadonlyArray<{
+      date: string;
+      time: string;
+      visit: { id: string; opdNumber: string } | null | undefined;
+    }>;
+  }>,
 ): VisitListItem[] {
-  const byId = new Map<string, VisitListItem>(listed.map((visit) => [visit.id, visit]));
+  const byId = new Map<string, VisitListItem>(
+    listed.map((visit) => [visit.id, visit]),
+  );
   for (const page of pages) {
     for (const row of page.rows) {
       if (!row.visit || byId.has(row.visit.id)) continue;
@@ -101,24 +148,43 @@ function mergeVisits(
     }
   }
   return [...byId.values()].sort(
-    (a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime(),
+    (a, b) =>
+      new Date(b.registrationDate).getTime() -
+      new Date(a.registrationDate).getTime(),
   );
 }
 
 /**
- * Data for the EHR workspace at `/doctor/patients/[id]`: the patient, the OPD visits, the
- * health record and the prescription dialog. The layout is `DoctorEhrView`.
+ * Data for the EHR workspace at `/doctor/patients/[id]` (and the assistant doctor's
+ * `/assistant-doctor/patients/[id]`): the patient, the OPD visits, the health record and the
+ * prescription dialog. The layout is `DoctorEhrView`. For the assistant the dialog saves a draft
+ * for the doctor (`mode="draft"`); the Bills tab follows the role (hidden for both).
  */
-export function DoctorEhrContent({ patientId }: { patientId: string }) {
+export function DoctorEhrContent({
+  patientId,
+  backHref,
+  onPrescriptionSaved,
+  embedded,
+}: {
+  patientId: string;
+  backHref?: string;
+  onPrescriptionSaved?: (result: PrescriptionSavedResult) => void;
+  /** Rendered inside a dialog rather than as the page itself — see DoctorEhrView's `embedded`. */
+  embedded?: boolean;
+}) {
   const { clinicId } = useClinicContext();
   const clinic = clinicId || "";
   const { hasPermission } = useRBAC();
-  // Prescription.doctorId is the Doctor entity id, not the signed-in user's id.
-  const { doctorId: doctorEntityId } = useCurrentDoctorEntityId(clinic);
+  const { canDraftPrescription } = useStaffRole();
+  // Prescription.doctorId is the Doctor entity id, not the signed-in user's id (for the
+  // assistant: the clinic's doctor, who approves the draft).
+  const { doctorId: doctorEntityId } = usePrescriberDoctor(clinic);
   const [pickedVisitId, setPickedVisitId] = useState<string | null>(null);
   const [prescribing, setPrescribing] = useState(false);
 
-  const visitsQuery = usePatientVisits(clinic, patientId, { limit: MAX_VISITS });
+  const visitsQuery = usePatientVisits(clinic, patientId, {
+    limit: MAX_VISITS,
+  });
   const createVisit = useCreatePatientVisit();
   const role = useAuthStore((state) => state.session?.user?.role);
   const caseSheetAllowed = canViewCaseSheet(role);
@@ -127,27 +193,44 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
   // counts even when the list has not caught up, so the header never says "none" wrongly.
   const appointmentHistory = usePatientAppointmentHistory(patientId);
   const visits = useMemo(
-    () => mergeVisits(visitsQuery.data?.visits ?? [], appointmentHistory.data?.pages ?? []),
+    () =>
+      mergeVisits(
+        visitsQuery.data?.visits ?? [],
+        appointmentHistory.data?.pages ?? [],
+      ),
     [visitsQuery.data, appointmentHistory.data],
   );
-  const visitsLoading = visitsQuery.isPending || (visits.length === 0 && appointmentHistory.isPending);
+  const visitsLoading =
+    visitsQuery.isPending ||
+    (visits.length === 0 && appointmentHistory.isPending);
   // The newest visit is open until the doctor picks another one.
   const visitId = pickedVisitId ?? visits[0]?.id ?? null;
 
-  const { patient, loading, failed, retry } = useEhrPatient(clinic, patientId, visitId, visitsQuery.isPending);
+  const { patient, loading, failed, retry } = useEhrPatient(
+    clinic,
+    patientId,
+    visitId,
+    visitsQuery.isPending,
+  );
   const patientRecord = useMemo(() => patient ?? {}, [patient]);
   const patientEntityId = asText(patientRecord.id) || patientId;
   // EHR routes are keyed by the patient's user id.
   const patientUserId = patient
-    ? asText(patientRecord.userId) || asText(asRecord(patientRecord.user).id) || patientId
+    ? asText(patientRecord.userId) ||
+      asText(asRecord(patientRecord.user).id) ||
+      patientId
     : "";
 
-  const { data: ehrData, isPending: ehrPending } = useComprehensiveHealthRecord(patientUserId);
+  const { data: ehrData, isPending: ehrPending } =
+    useComprehensiveHealthRecord(patientUserId);
   const { data: appointmentsData } = usePatientAppointments(patientId);
-  const { data: historyData } = usePatientMedicalRecords(clinic, patientUserId, {
-    enabled: !!clinic && !!patientUserId,
-  });
-  const { data: vitalsData } = usePatientVitalSigns(patientUserId);
+  const { data: historyData } = usePatientMedicalRecords(
+    clinic,
+    patientUserId,
+    {
+      enabled: !!clinic && !!patientUserId,
+    },
+  );
   const { data: labsData } = usePatientLabResults(patientUserId);
   const { data: carePlanData } = usePatientCarePlan(patientId);
 
@@ -158,41 +241,69 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
       ehr,
       appointments: toArray(appointmentsData),
       history: preferList(historyData, ehr.medicalHistory),
-      vitals: preferList(vitalsData, ehr.vitals),
       labs: preferList(labsData, ehr.labReports),
-      carePlan: preferList(carePlanRows(carePlanData), ehr.carePlan ?? ehr.carePlans),
+      carePlan: preferList(
+        carePlanRows(carePlanData),
+        ehr.carePlan ?? ehr.carePlans,
+      ),
       prescriptions: toArray(ehr.prescriptions),
     }),
-    [appointmentsData, carePlanData, ehr, historyData, labsData, patientRecord, vitalsData],
+    [appointmentsData, carePlanData, ehr, historyData, labsData, patientRecord],
   );
 
   // UHID and the contact details kept outside the login (imported patients have no login phone).
   const { data: directoryEntry } = usePatientDirectoryEntry(clinic, patientId);
   const row = useMemo(() => toDoctorPatientRow(patientRecord), [patientRecord]);
-  const summary = row.age === null && !row.gender ? "" : patientSummaryLine(row);
+  const summary =
+    row.age === null && !row.gender ? "" : patientSummaryLine(row);
   const header = {
     name: patient ? row.name : "",
     summary,
+    // The view shows `${age} years` and the gender verbatim, so pass the display-ready
+    // values: the raw whole-years figure (null until known) and the labeled gender.
+    age: row.age,
+    gender: patient ? genderLabel(row.gender) : "",
     idLabel: patientEntityId.slice(0, 8).toUpperCase(),
     fullId: patientEntityId,
     uhid: directoryEntry?.uhid ?? "",
     bloodGroup:
-      asText(patientRecord.bloodGroup) || asText(asRecord(patientRecord.user).bloodGroup) || asText(ehr.bloodGroup),
+      asText(patientRecord.bloodGroup) ||
+      asText(asRecord(patientRecord.user).bloodGroup) ||
+      asText(ehr.bloodGroup),
     phone: row.phone || directoryEntry?.phone || "",
     email: row.email || directoryEntry?.email || "",
   };
 
   const handleNewVisit = async () => {
     try {
-      const visit = await createVisit.mutateAsync({ clinicId: clinic, input: { patientId: patientEntityId } });
+      const visit = await createVisit.mutateAsync({
+        clinicId: clinic,
+        input: { patientId: patientEntityId },
+      });
       setPickedVisitId(visit.id);
     } catch {
       // The mutation hook shows the error.
     }
   };
 
-  const canOpenCaseSheet = Boolean(clinic && patient && patientUserId && caseSheetAllowed);
-  const canPrescribe = Boolean(patient) && hasPermission(Permission.MANAGE_PRESCRIPTIONS);
+  // After the demographics dialog saves, refresh the two caches the header reads on its own:
+  // the directory entry (UHID / contact kept outside the login) and the health record (the
+  // Overview tiles and the record sections). `useUpdatePatient` already invalidates the shared
+  // patient/user lists; these two exact keys are this screen's own.
+  const queryClient = useQueryClient();
+  const onDemographicsSaved = () => {
+    void queryClient.invalidateQueries({ queryKey: ["patientDirectoryEntry", clinic, patientId] });
+    void queryClient.invalidateQueries({ queryKey: ["ehr", "comprehensive", patientUserId] });
+  };
+
+  const canOpenCaseSheet = Boolean(
+    clinic && patient && patientUserId && caseSheetAllowed,
+  );
+  const canPrescribe =
+    Boolean(patient) &&
+    (canDraftPrescription
+      ? hasPermission(Permission.DRAFT_PRESCRIPTIONS)
+      : hasPermission(Permission.MANAGE_PRESCRIPTIONS));
 
   return (
     <>
@@ -201,6 +312,8 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
         failed={failed}
         onRetry={retry}
         header={header}
+        {...(backHref ? { backHref } : {})}
+        {...(embedded ? { embedded } : {})}
         visitSelector={
           <VisitSelectorView
             visits={visits}
@@ -212,6 +325,14 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
         onNewVisit={clinic && patient ? () => void handleNewVisit() : undefined}
         newVisitPending={createVisit.isPending}
         onPrescribe={canPrescribe ? () => setPrescribing(true) : undefined}
+        patientDemographicsEdit={
+          <PatientDemographicsEdit
+            patient={patientRecord}
+            name={row.name}
+            userId={patientUserId}
+            onSaved={onDemographicsSaved}
+          />
+        }
         record={record}
         recordLoading={Boolean(patientUserId) && ehrPending}
         renderAppointmentHistory={
@@ -220,6 +341,7 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
                 <PatientAppointmentHistory
                   clinicId={clinic}
                   patientId={patientEntityId}
+                  doctorEntityId={doctorEntityId}
                   caseSheetAllowed={caseSheetAllowed}
                   onOpenTab={openTab}
                   onOpenVisit={(id) => {
@@ -237,11 +359,18 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
               patientId={patientEntityId}
               patientUserId={patientUserId}
               visitId={visitId}
+              onOpenVisit={setPickedVisitId}
             />
           ) : canOpenCaseSheet ? (
-            <div className="rounded-[20px] border border-dashed border-line bg-card px-5 py-8 text-center text-sm text-ink-muted">
-              No OPD visit yet. Use “New OPD visit” above to open a case sheet.
-            </div>
+            <Surface className="gap-3">
+              <SectionTitle
+                title="Start the case sheet"
+                description="No OPD visit yet. Register one to open the case sheet."
+              />
+              <Button className="self-start" onClick={() => void handleNewVisit()}>
+                Start case sheet
+              </Button>
+            </Surface>
           ) : undefined
         }
       />
@@ -253,7 +382,9 @@ export function DoctorEhrContent({ patientId }: { patientId: string }) {
           patientId={patientEntityId}
           patientName={row.name}
           doctorId={doctorEntityId}
+          mode={canDraftPrescription ? "draft" : "doctor"}
           {...(summary ? { patientSummary: summary } : {})}
+          {...(onPrescriptionSaved ? { onSaved: onPrescriptionSaved } : {})}
         />
       ) : null}
     </>

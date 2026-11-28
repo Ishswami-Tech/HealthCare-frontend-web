@@ -23,6 +23,7 @@ export function ManualCodeDrawer({
   onCodeChange,
   onSubmit,
   isProcessing,
+  isLocating = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,7 +31,10 @@ export function ManualCodeDrawer({
   onCodeChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   isProcessing: boolean;
+  /** Waiting for the device position the desk code needs. */
+  isLocating?: boolean;
 }) {
+  const isBusy = isProcessing || isLocating;
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="rounded-t-[22px] border bg-background">
@@ -39,8 +43,8 @@ export function ManualCodeDrawer({
             <IconBox icon={QrCode} tone="mint" size={44} className="mb-2" />
             <DrawerTitle className="text-xl font-extrabold text-ink">Enter the desk code</DrawerTitle>
             <DrawerDescription className="text-sm text-ink-muted">
-              Type the code printed under the QR at the reception desk. We check the code, your visit and your
-              location before you are checked in.
+              Type the code printed under the QR at the reception desk. The desk code needs your location: allow
+              it when your browser asks, so we can confirm you are at the clinic.
             </DrawerDescription>
           </DrawerHeader>
           <div className="px-4">
@@ -67,13 +71,13 @@ export function ManualCodeDrawer({
               form="manual-checkin-form"
               size="xl"
               className="w-full"
-              disabled={code.length < 4 || isProcessing}
-              aria-busy={isProcessing}
+              disabled={code.length < 4 || isBusy}
+              aria-busy={isBusy}
             >
-              {isProcessing ? (
+              {isBusy ? (
                 <>
                   <Loader2 className="animate-spin" aria-hidden="true" />
-                  Checking you in…
+                  {isLocating ? "Checking your location…" : "Checking you in…"}
                 </>
               ) : (
                 "Check in"

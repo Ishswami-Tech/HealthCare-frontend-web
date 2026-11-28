@@ -10,7 +10,8 @@ import {
   getUserProfile,
   updateUserProfile,
 } from '@/lib/actions/users.server';
-import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
+import { isSessionInvalidError, triggerClientAuthRecovery } from '@/lib/utils/auth-recovery';
+import { isSessionEndedMessage } from '@/lib/utils/session-failure';
 import { useQueryClient } from '@tanstack/react-query';
 
 // ===== USER PROFILE HOOKS =====
@@ -52,6 +53,12 @@ export const useUserProfile = (
       return await getUserProfile();
     } catch (error) {
       if (isSessionInvalidError(error)) {
+        // The server already cleared the auth cookies for a definitive failure
+        // (user deleted / removed from the clinic): follow it to login. Other
+        // session-ish failures keep the old behaviour (no profile, no logout).
+        if (error instanceof Error && isSessionEndedMessage(error.message)) {
+          triggerClientAuthRecovery();
+        }
         return null;
       }
       throw error;
@@ -611,87 +618,6 @@ export const useUserStats = () => {
 };
 
 /**
- * Hook to bulk update users
- */
-export const useBulkUpdateUsers = () => {
-  return useMutationOperation(
-    async ({ userIds, updates }: {
-      userIds: string[];
-      updates: Record<string, any>;
-    }) => {
-      return (await clinicApiClient.patch(API_ENDPOINTS.USERS.BULK_UPDATE, { userIds, updates })).data as Record<string, unknown>;
-    },
-    {
-      toastId: TOAST_IDS.USER.UPDATE,
-      loadingMessage: 'Updating users...',
-      successMessage: 'Users updated successfully',
-      invalidateQueries: [['users'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins'], ['userProfile']],
-    }
-  );
-};
-
-/**
- * Hook to export users
- */
-export const useExportUsers = () => {
-  return useMutationOperation(
-    async ({ format, filters }: {
-      format?: 'csv' | 'excel';
-      filters?: Record<string, any>;
-    }) => {
-      return (await clinicApiClient.get(API_ENDPOINTS.USERS.EXPORT, {
-        format: format || 'csv',
-        ...(filters ?? {}),
-      })).data as Record<string, unknown>;
-    },
-    {
-      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
-      loadingMessage: 'Exporting users...',
-      successMessage: 'Users exported successfully',
-    }
-  );
-};
-
-/**
- * Hook to change user password
- */
-export const useChangeUserPassword = () => {
-  return useMutationOperation(
-    async ({ userId, newPassword }: {
-      userId: string;
-      newPassword: string;
-    }) => {
-      return (await clinicApiClient.patch(API_ENDPOINTS.USERS.CHANGE_PASSWORD(userId), { password: newPassword })).data as Record<string, unknown>;
-    },
-    {
-      toastId: TOAST_IDS.USER.UPDATE,
-      loadingMessage: 'Changing password...',
-      successMessage: 'Password changed successfully',
-    }
-  );
-};
-
-/**
- * Hook to toggle user verification
- */
-export const useToggleUserVerification = () => {
-  return useMutationOperation(
-    async ({ userId, isVerified }: {
-      userId: string;
-      isVerified: boolean;
-    }) => {
-      return (await clinicApiClient.patch(API_ENDPOINTS.USERS.TOGGLE_VERIFICATION(userId), { isVerified })).data as Record<string, unknown>;
-    },
-    {
-      toastId: TOAST_IDS.USER.UPDATE,
-      loadingMessage: 'Updating user verification...',
-      successMessage: 'User verification updated successfully',
-      invalidateQueries: [['users'], ['user'], ['patients'], ['doctors'], ['receptionists'], ['clinicAdmins']],
-    }
-  );
-};
-
-/**
  * Hook to get user activity logs
  */
 export const useUserActivityLogs = (userId: string, limit: number = 50) => {
@@ -708,43 +634,4 @@ export const useUserActivityLogs = (userId: string, limit: number = 50) => {
     enabled: !!userId,
     retry: (failureCount, error) => !isSessionInvalidError(error) && failureCount < 2,
   });
-};
-
-/**
- * Hook to get user sessions
- */
-export const useUserSessions = (userId: string) => {
-  return useQueryData(['userSessions', userId], async () => {
-    try {
-      return (await clinicApiClient.get(API_ENDPOINTS.USERS.SESSIONS.GET_ALL, { userId })).data as Record<string, unknown>[];
-    } catch (error) {
-      if (isSessionInvalidError(error)) {
-        return [];
-      }
-      throw error;
-    }
-  }, {
-    enabled: !!userId,
-    retry: (failureCount, error) => !isSessionInvalidError(error) && failureCount < 2,
-  });
-};
-
-/**
- * Hook to terminate user session
- */
-export const useTerminateUserSession = () => {
-  return useMutationOperation(
-    async ({ userId, sessionId }: {
-      userId: string;
-      sessionId: string;
-    }) => {
-      return (await clinicApiClient.delete(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId))).data as Record<string, unknown>;
-    },
-    {
-      toastId: TOAST_IDS.SESSION.TERMINATE,
-      loadingMessage: 'Terminating user session...',
-      successMessage: 'User session terminated successfully',
-      invalidateQueries: [['userSessions']],
-    }
-  );
 };

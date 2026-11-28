@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { meaningfulPayments } from "@/components/billing/PaymentHistory";
 import { usePayments } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { PatientTransactionsView, type TransactionFilter } from "./PatientTransactionsView";
@@ -13,7 +14,9 @@ export function PatientTransactionsContent() {
 
   useWebSocketQuerySync();
 
-  const { data: payments = [], isPending, error, refetch } = usePayments(userId, clinicId);
+  const { data: allPayments = [], isPending, error, refetch } = usePayments(userId, clinicId);
+  // Real transactions only: superseded / expired attempts hidden, one pending row per invoice.
+  const payments = useMemo(() => meaningfulPayments(allPayments), [allPayments]);
 
   return (
     <PatientTransactionsView

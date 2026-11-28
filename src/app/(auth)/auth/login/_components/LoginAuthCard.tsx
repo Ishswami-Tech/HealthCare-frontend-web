@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import PhoneInput from "@/components/ui/phone-input";
 import { SocialLogin } from "@/components/auth/social-login";
+import { validateLoginIdentifier } from "./login-identifier";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ChevronLeft, Loader2, Mail, Phone } from "lucide-react";
@@ -143,6 +144,26 @@ export function LoginAuthCard({
     void submitOtpOnce();
   }, [isFormDisabled, isVerifyingOTP, otpValue, showOTPInput, submitOtpOnce]);
 
+  // D6: after a rejected code the six wrong digits stayed in the boxes and, with every box full,
+  // typing could not replace them. Clear the code and put the caret back in the first box.
+  const otpInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!authError || !showOTPInput || isVerifyingOTP || isFormDisabled) {
+      return;
+    }
+    if (!otpValue) {
+      return;
+    }
+    otpForm.setValue("otp", "");
+    lastAutoSubmittedOtpRef.current = "";
+    const input = otpInputRef.current;
+    if (input) {
+      input.focus();
+      input.setSelectionRange(0, 0);
+    }
+    // Typing a new digit clears authError (onOtpChange), so this never wipes a code being retyped.
+  }, [authError, isFormDisabled, isVerifyingOTP, otpForm, otpValue, showOTPInput]);
+
   const identifierValue =
     typeof otpForm.watch === "function" ? ((otpForm.watch("identifier") as string) ?? "") : "";
   const identifierError = otpForm.formState?.errors?.identifier?.message as string | undefined;
@@ -160,7 +181,7 @@ export function LoginAuthCard({
       />
 
       {sessionExpired && !isRestoringSession && (
-        <AuthNote tone="blue">Session expired. Please sign in again.</AuthNote>
+        <AuthNote tone="blue">Your session ended. Please sign in again.</AuthNote>
       )}
 
       {/* Success Notification Alert */}
@@ -248,6 +269,7 @@ export function LoginAuthCard({
                             onEmailChange(e.target.value);
                             field.onChange(e.target.value);
                           }}
+                          onFocus={(e) => e.currentTarget.select()}
                           disabled={isFormDisabled || showOTPInput}
                           autoComplete="email"
                           className="h-full rounded-none border-none bg-transparent px-0 pr-3.5 text-base font-semibold text-ink shadow-none placeholder:font-medium focus-visible:ring-0 focus-visible:ring-offset-0 md:text-base dark:bg-transparent"
@@ -297,6 +319,7 @@ export function LoginAuthCard({
                     <FormControl>
                       <OtpCodeInput
                         autoFocus
+                        inputRef={otpInputRef}
                         value={field.value}
                         onChange={(value) => {
                           field.onChange(value);
@@ -329,10 +352,9 @@ export function LoginAuthCard({
               className="group w-full"
               onClick={() => {
                 const id = otpForm.getValues("identifier");
-                if (!id) {
-                  otpForm.setError("identifier", {
-                    message: "Please enter your email or phone",
-                  });
+                const identifierProblem = validateLoginIdentifier(otpMethod, id ?? "");
+                if (identifierProblem) {
+                  otpForm.setError("identifier", { message: identifierProblem });
                   return;
                 }
                 onRequestOTP(id);

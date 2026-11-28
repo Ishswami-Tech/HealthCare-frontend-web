@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import { Children, isValidElement, type ComponentType, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft, Info, type LucideProps } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,7 +57,7 @@ export function Pill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] px-[9px] py-1 text-[11px] font-extrabold uppercase leading-none tracking-[0.4px]",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] px-[9px] py-1 text-xs font-extrabold uppercase leading-none tracking-[0.4px]",
         PILL_TONES[tone],
         className,
       )}
@@ -106,7 +106,7 @@ export function LiveTag({ children, className }: { children: ReactNode; classNam
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] bg-[#d1fae5] px-[9px] py-1 text-[11px] font-extrabold uppercase leading-none tracking-[0.4px] text-[#065f46] dark:bg-emerald-500/15 dark:text-emerald-300",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] bg-[#d1fae5] px-[9px] py-1 text-xs font-extrabold uppercase leading-none tracking-[0.4px] text-[#065f46] dark:bg-emerald-500/15 dark:text-emerald-300",
         className,
       )}
     >
@@ -271,7 +271,7 @@ export function PageHero({
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-col gap-1.5">
           {eyebrow ? (
-            <span className="text-[11px] font-extrabold uppercase tracking-[1.2px] text-brand">{eyebrow}</span>
+            <span className="text-xs font-extrabold uppercase tracking-[1.2px] text-brand">{eyebrow}</span>
           ) : null}
           <h1 className="m-0 text-[26px] font-extrabold leading-tight tracking-[-0.5px] text-ink">{title}</h1>
           {description ? (
@@ -525,12 +525,12 @@ export function ListRow({
 
 /** Round avatar with initials (fallback when there is no photo). */
 const AVATAR_TONES = [
-  "bg-[#fde68a] text-[#92400e]",
-  "bg-[#ddd6fe] text-[#5b21b6]",
-  "bg-[#bae6fd] text-[#075985]",
-  "bg-[#fecdd3] text-[#9f1239]",
-  "bg-[#bbf7d0] text-[#166534]",
-  "bg-[#fed7aa] text-[#9a3412]",
+  "bg-[#fde68a] text-[#92400e] dark:bg-amber-950/30 dark:text-amber-200",
+  "bg-[#ddd6fe] text-[#5b21b6] dark:bg-violet-950/30 dark:text-violet-200",
+  "bg-[#bae6fd] text-[#075985] dark:bg-sky-950/30 dark:text-sky-200",
+  "bg-[#fecdd3] text-[#9f1239] dark:bg-rose-950/30 dark:text-rose-200",
+  "bg-[#bbf7d0] text-[#166534] dark:bg-emerald-950/30 dark:text-emerald-200",
+  "bg-[#fed7aa] text-[#9a3412] dark:bg-orange-950/30 dark:text-orange-200",
 ] as const;
 
 export function InitialsAvatar({
@@ -653,7 +653,7 @@ export function GridHead({
     <div
       role="row"
       className={cn(
-        "hidden items-center gap-4 border-b border-hair px-5 py-3 text-[11px] font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:grid",
+        "hidden items-center gap-4 border-b border-hair px-5 py-3 text-xs font-extrabold uppercase tracking-[0.6px] text-ink-muted lg:grid",
         className,
       )}
       style={{ gridTemplateColumns: columns }}
@@ -665,6 +665,26 @@ export function GridHead({
       ))}
     </div>
   );
+}
+
+const CELL_ROLES = new Set(["cell", "gridcell", "columnheader", "rowheader"]);
+
+/**
+ * A `row` must own cells (axe `aria-required-children`). Each child that is not already a cell
+ * gets a `display: contents` cell wrapper, so the grid / flex layout of the row is unchanged.
+ */
+function asRowCells(children: ReactNode): ReactNode {
+  return Children.map(children, (child) => {
+    if (child === null || child === undefined || typeof child === "boolean") return null;
+    if (isValidElement<{ role?: string }>(child) && CELL_ROLES.has(String(child.props.role ?? ""))) {
+      return child;
+    }
+    return (
+      <div role="cell" className="contents">
+        {child}
+      </div>
+    );
+  });
 }
 
 /** One row of a grid table (stacks on small screens). */
@@ -681,12 +701,12 @@ export function GridRow({
     <div
       role="row"
       className={cn(
-        "flex flex-col gap-3 border-b border-hair px-5 py-3 text-sm last:border-b-0 lg:grid lg:min-h-[60px] lg:items-center lg:gap-4 lg:py-2 [&>*]:min-w-0",
+        "flex flex-col gap-3 border-b border-hair px-5 py-3 text-sm last:border-b-0 lg:grid lg:min-h-[60px] lg:items-center lg:gap-4 lg:py-2 [&>*]:min-w-0 [&>[role=cell].contents>*]:min-w-0",
         className,
       )}
       style={{ gridTemplateColumns: columns }}
     >
-      {children}
+      {asRowCells(children)}
     </div>
   );
 }

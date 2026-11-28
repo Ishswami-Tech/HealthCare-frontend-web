@@ -26,6 +26,10 @@ export interface PatientSettingsViewProps {
   languageChanging?: boolean;
 
   onChangePassword: () => void;
+  /** false for OTP-only accounts: the "Password" row is hidden (they have no password to change). */
+  showPassword?: boolean;
+  /** The clinic's name (from the backend), used in the terms row. */
+  clinicName?: string;
 
   /** `false` while there is no download-my-data API: the row shows "Not available yet". */
   dataExportAvailable?: boolean;
@@ -50,6 +54,8 @@ export function PatientSettingsView({
   onLanguageChange,
   languageChanging = false,
   onChangePassword,
+  showPassword = false,
+  clinicName = "",
   dataExportAvailable = false,
   onExportData,
   deactivateOpen,
@@ -157,17 +163,19 @@ export function PatientSettingsView({
             Privacy & security
           </IconHeading>
           <Surface className="gap-0 px-5 py-1">
-            <MenuRow
-              icon={KeyRound}
-              tone="mint"
-              label="Password"
-              description="Change the password you sign in with"
-              right={
-                <Button variant="outline" onClick={onChangePassword}>
-                  Change
-                </Button>
-              }
-            />
+            {showPassword ? (
+              <MenuRow
+                icon={KeyRound}
+                tone="mint"
+                label="Password"
+                description="Change the password you sign in with"
+                right={
+                  <Button variant="outline" onClick={onChangePassword}>
+                    Change
+                  </Button>
+                }
+              />
+            ) : null}
             <MenuRow
               icon={FileText}
               tone="blue"
@@ -180,7 +188,7 @@ export function PatientSettingsView({
               icon={ScrollText}
               tone="slate"
               label="Terms of service"
-              description={`The rules for using ${APP_CONFIG.CLINIC.BRAND_NAME}`}
+              description={`The rules for using ${clinicName || APP_CONFIG.CLINIC.BRAND_NAME}'s services`}
               href="/terms-of-service"
               external
             />

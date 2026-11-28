@@ -1,186 +1,115 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/hooks/auth/useAuth";
-import { Button } from "@/components/ui/button";
-import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HashTabs } from "@/hooks/navigation/HashTabs";
-import { Save } from "lucide-react";
-import { ReceptionistProfileOverviewCard } from "./ReceptionistProfileOverviewCard";
-import { ReceptionistProfilePersonalTab } from "./ReceptionistProfilePersonalTab";
-import { ReceptionistProfileWorkTab } from "./ReceptionistProfileWorkTab";
-import { ReceptionistProfilePerformanceTab } from "./ReceptionistProfilePerformanceTab";
-import { ReceptionistProfilePreferencesTab } from "./ReceptionistProfilePreferencesTab";
-import { ReceptionistProfileSecurityTab } from "./ReceptionistProfileSecurityTab";
-import type { ReceptionistProfileFormState, ReceptionistProfileUser } from "./receptionist-profile.types";
+import { MapPin } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InitialsAvatar, LoadErrorNote, Pill, SectionTitle, Surface, TbdPage } from "@/components/tbd";
+import { ChangePasswordForm } from "@/components/settings/ChangePasswordForm";
+import { useHashTab } from "@/hooks/navigation/useHashTab";
+import { useUpdateUserProfile, useUserProfile } from "@/hooks/query/useUsers";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { ReceptionCanDoList } from "@/components/receptionist/ReceptionNotes";
+import { useReceptionLocation } from "@/components/receptionist/useReceptionDesk";
+// The staff profile pieces the pharmacist profile already has (same /users/profile form and the
+// shared change-password flow); reception reuses them instead of keeping its own copy.
+import { PharmacistProfilePersonalCard } from "../../../pharmacist/profile/_components/PharmacistProfilePersonalCard";
+import { PharmacistProfileSecurityCard } from "../../../pharmacist/profile/_components/PharmacistProfileSecurityCard";
+import {
+  toPharmacistProfileForm,
+  toPharmacistProfilePayload,
+  type PharmacistProfileForm,
+} from "../../../pharmacist/profile/_components/pharmacist-profile.logic";
 
-function createInitialProfileData(user?: ReceptionistProfileUser): ReceptionistProfileFormState {
-  return {
-    personalInfo: {
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      email: user?.email || "",
-      phone: "",
-      dateOfBirth: "",
-      gender: "",
-      address: "",
-      city: "",
-      state: "",
-      country: "",
-      zipCode: "",
-      emergencyContact: "",
-      emergencyPhone: "",
-      occupation: "",
-      maritalStatus: "",
-    },
-    workInfo: {
-      employeeId: "",
-      department: "",
-      position: "",
-      joiningDate: "",
-      workSchedule: "",
-      supervisor: "",
-      workLocation: "",
-      experience: "",
-      skills: [],
-    },
-    systemAccess: {
-      canScheduleAppointments: false,
-      canEditPatientInfo: false,
-      canProcessPayments: false,
-      canAccessReports: false,
-      canManageInventory: false,
-      systemRole: user?.role || "Receptionist",
-      lastLogin: "",
-    },
-    preferences: {
-      language: "English",
-      timezone: "Asia/Kolkata",
-      dateFormat: "DD/MM/YYYY",
-      timeFormat: "12-hour",
-      theme: "Light",
-    },
-    notificationSettings: {
-      emailNotifications: true,
-      smsNotifications: true,
-      appointmentAlerts: true,
-      patientUpdates: true,
-      systemUpdates: false,
-      reminderNotifications: true,
-    },
-    vitals: {
-      height: "—",
-      weight: "—",
-      bloodGroup: "—",
-      bmi: "—",
-      bloodPressure: "—",
-    },
-  };
-}
+const TABS = ["personal", "security"] as const;
 
-import { useUserProfile } from "@/hooks/query/useUsers";
+function ProfileForm({ userProfile, loading }: { userProfile: unknown; loading: boolean }) {
+  const updateProfile = useUpdateUserProfile();
+  const [form, setForm] = useState<PharmacistProfileForm>(() => toPharmacistProfileForm(userProfile));
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const { tab, setTab } = useHashTab({ tabs: TABS, defaultValue: "personal" });
+  const { locationName } = useReceptionLocation();
+  const name = `${form.firstName} ${form.lastName}`.trim();
 
-export default function ReceptionistProfileContent() {
-  const { session } = useAuth();
-  const user = session?.user;
-  const { data: userProfile } = useUserProfile();
-
-  const [profileData, setProfileData] = useState(() => createInitialProfileData(user));
-  const [showPassword, setShowPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  const updatePersonalInfo = (field: string, value: string) => {
-    setProfileData((prev) => ({
-      ...prev,
-      personalInfo: { ...prev.personalInfo, [field]: value },
-    }));
-  };
-
-  const updatePreferences = (field: string, value: string) => {
-    setProfileData((prev) => ({
-      ...prev,
-      preferences: { ...prev.preferences, [field]: value },
-    }));
-  };
-
-  const updateNotificationSettings = (field: string, value: boolean) => {
-    setProfileData((prev) => ({
-      ...prev,
-      notificationSettings: { ...prev.notificationSettings, [field]: value },
-    }));
+  const save = async () => {
+    try {
+      const result = (await updateProfile.mutateAsync(toPharmacistProfilePayload(form))) as
+        | { success?: boolean; error?: string }
+        | undefined;
+      if (!result?.success) {
+        showErrorToast(result?.error || "Your profile could not be saved.", { id: TOAST_IDS.PROFILE.UPDATE });
+        return;
+      }
+      showSuccessToast("Profile saved", { id: TOAST_IDS.PROFILE.UPDATE });
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.PROFILE.UPDATE });
+    }
   };
 
   return (
-    <div className="flex flex-col gap-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-semibold">My Profile</h1>
-        <Button className="flex items-center gap-2" type="button">
-          <Save className="size-4" />
-          Save Changes
-        </Button>
-      </div>
-
-      <ReceptionistProfileOverviewCard profileData={profileData} />
-
-      <HashTabs
-        tabs={["personal", "work", "performance", "preferences", "security"] as const}
-        defaultValue="personal"
-        className="flex flex-col gap-y-4"
-      >
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0 gap-5">
         <TabsList>
-          <TabsTrigger value="personal">
-            Personal
-          </TabsTrigger>
-          <TabsTrigger value="work">
-            Work
-          </TabsTrigger>
-          <TabsTrigger value="performance">
-            Performance
-          </TabsTrigger>
-          <TabsTrigger value="preferences">
-            Preferences
-          </TabsTrigger>
-          <TabsTrigger value="security">
-            Security
-          </TabsTrigger>
+          <TabsTrigger value="personal">Personal info</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
-
         <TabsContent value="personal">
-          <ReceptionistProfilePersonalTab
-            profileData={profileData}
-            updatePersonalInfo={updatePersonalInfo}
-            phoneVerified={(userProfile as Record<string, unknown>)?.phoneVerified as boolean | undefined}
+          <PharmacistProfilePersonalCard
+            form={form}
+            onFieldChange={(field, value) => setForm((current) => ({ ...current, [field]: value }))}
+            onSubmit={() => void save()}
+            saving={updateProfile.isPending}
+            loading={loading}
+            unavailable={false}
           />
         </TabsContent>
-
-        <TabsContent value="work">
-          <ReceptionistProfileWorkTab profileData={profileData} />
-        </TabsContent>
-
-        <TabsContent value="performance">
-          <ReceptionistProfilePerformanceTab />
-        </TabsContent>
-
-        <TabsContent value="preferences">
-          <ReceptionistProfilePreferencesTab
-            profileData={profileData}
-            updatePreferences={updatePreferences}
-            updateNotificationSettings={updateNotificationSettings}
-          />
-        </TabsContent>
-
         <TabsContent value="security">
-          <ReceptionistProfileSecurityTab
-            showPassword={showPassword}
-            setShowPassword={setShowPassword}
-            newPassword={newPassword}
-            setNewPassword={setNewPassword}
-            confirmPassword={confirmPassword}
-            setConfirmPassword={setConfirmPassword}
+          <PharmacistProfileSecurityCard
+            loading={loading}
+            passwordDialogOpen={passwordOpen}
+            onPasswordDialogChange={setPasswordOpen}
+            changePasswordForm={passwordOpen ? <ChangePasswordForm /> : null}
           />
         </TabsContent>
-      </HashTabs>
+      </Tabs>
+
+      <div className="flex flex-col gap-5">
+        <Surface as="aside" aria-label="Profile summary" className="items-center gap-3 text-center">
+          <InitialsAvatar name={name || "Reception"} size={80} />
+          <h2 className="m-0 text-lg font-extrabold text-ink">{name || "Reception"}</h2>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            <Pill tone="clinic">Front desk</Pill>
+            <Pill tone="slate">
+              <MapPin className="size-3" aria-hidden="true" /> {locationName}
+            </Pill>
+          </div>
+        </Surface>
+        <Surface as="section" aria-label="What reception can do">
+          <SectionTitle title="What reception can do" />
+          <ReceptionCanDoList />
+        </Surface>
+      </div>
     </div>
+  );
+}
+
+/** RecProfile: the receptionist's own details, password, and what the desk can do. */
+export default function ReceptionistProfileContent() {
+  const { data: userProfile, isPending, isFetching, error, refetch } = useUserProfile();
+  return (
+    <TbdPage title="Reception profile" description="Update your details. Save keeps the current tab open.">
+      {error && !userProfile ? (
+        <LoadErrorNote
+          title="Your profile could not be loaded."
+          message={error.message}
+          onRetry={() => void refetch()}
+        />
+      ) : null}
+      <ProfileForm
+        // The form starts from the loaded profile, so it is mounted again once the profile arrives.
+        key={userProfile ? "loaded" : "pending"}
+        userProfile={userProfile}
+        loading={isPending && isFetching}
+      />
+    </TbdPage>
   );
 }

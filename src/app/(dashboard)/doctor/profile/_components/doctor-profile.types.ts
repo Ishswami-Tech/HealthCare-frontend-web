@@ -30,6 +30,8 @@ export interface DoctorProfileProfessionalInfo {
   clinicAffiliations: string[];
   /** Public name, headline and highlights per language (en / hi / mr). */
   localizedProfile: LocalizedProfileDraft;
+  /** ABDM Health Professional Registry (HPR) id. Scaffolding only; not yet verified against ABDM. */
+  abdmHprId: string;
 }
 
 export interface DoctorProfileConsultationSettings {
@@ -39,7 +41,6 @@ export interface DoctorProfileConsultationSettings {
   videoConsultation: boolean;
   homeVisits: boolean;
   emergencyConsultation: boolean;
-  consultationDuration: string;
   maxPatientsPerDay: string;
   bookingAdvanceDays: string;
 }
@@ -48,6 +49,12 @@ export interface DoctorProfileAvailabilityDay {
   available: boolean;
   startTime: string;
   endTime: string;
+  /**
+   * Sessions beyond the first, as `{ start, end }` pairs. The Profile editor shows the first
+   * block only; extra blocks (e.g. an evening OPD block from the Schedule page) are carried
+   * through so a Profile save never drops them.
+   */
+  extraSessions?: Array<{ start: string; end: string }>;
 }
 
 export interface DoctorProfileFormState {

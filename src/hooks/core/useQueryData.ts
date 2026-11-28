@@ -24,6 +24,8 @@ export interface UseQueryDataReturn<TData, TError = Error> {
   isFetched: boolean;
   isFetching: boolean;
   error: TError | null;
+  /** When the data last arrived from the server (ms since epoch); 0 before the first answer. */
+  dataUpdatedAt: number;
   refetch: (options?: { throwOnError?: boolean; cancelRefetch?: boolean }) => Promise<any>;
 }
 
@@ -44,6 +46,7 @@ export const useQueryData = <
     isFetched,  // True if the query has been fetched at least once
     isFetching, // True if the query is currently fetching (including background updates)
     error,      // Error object if query failed
+    dataUpdatedAt, // When the data last arrived
     refetch     // Function to manually trigger a refetch
   } = useQuery<TData, TError>({
     queryKey,
@@ -58,6 +61,7 @@ export const useQueryData = <
     isFetched,  // Whether data has been fetched
     isFetching, // Current loading state
     error,      // Error object if query failed
+    dataUpdatedAt, // When the data last arrived
     refetch     // Manual refetch trigger
   };
 };

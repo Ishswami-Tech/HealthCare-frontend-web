@@ -41,6 +41,18 @@ export function toClaimInput(fullName: string, receiptNumber: string): ClaimReco
 }
 
 /**
+ * The count from `GET /auth/claim-record/available`, whether the client hands back the bare
+ * `{ available }` or the server envelope `{ status, data: { available } }`. Anything unreadable is
+ * 0, so the claim card stays hidden unless the server positively reports a matching record.
+ */
+function readAvailableCount(response: unknown): number {
+  const body = response as { available?: unknown; data?: { available?: unknown } } | null;
+  const raw = body?.available ?? body?.data?.available;
+  const count = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
+/**
  * How many earlier clinic records (imported from the old register) are held under the patient's
  * verified mobile number. Only a number: the page shows the claim card when it is above zero.
  */
@@ -49,7 +61,7 @@ export function useClaimableRecords(userId: string, enabled: boolean) {
     ['claimableRecords', userId],
     async () => {
       const response = await clinicApiClient.get<{ available: number }>(`${CLAIM_PATH}/available`);
-      return response as unknown as { available: number };
+      return { available: readAvailableCount(response) };
     },
     { enabled, staleTime: 5 * 60_000, retry: false }
   );

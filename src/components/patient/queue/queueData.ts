@@ -2,6 +2,7 @@ import { toHomeVisit, type Row } from "@/components/patient/home/homeData";
 import { asRecord, firstText, textOf } from "@/lib/utils/coerce";
 import type { HomeVisit } from "@/components/patient/home/types";
 import type { MyQueuePosition } from "@/hooks/query/usePatientQueue";
+import type { InPersonVisit } from "@/types/in-person.types";
 import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
 import { formatTimeLabel } from "@/lib/utils/date-time";
 
@@ -29,6 +30,8 @@ export interface QueueTicket {
   doctorBusy: boolean | null;
   /** "01:42 pm" */
   checkedInLabel: string | null;
+  /** Token the doctor is seeing now (K-011). Only a token number, never a name. */
+  nowServingToken: string | null;
 }
 
 /** Who and where: taken from the patient's own appointment. */
@@ -136,7 +139,62 @@ export function toQueueTicket(entry: MyQueuePosition, tokenLabel?: string | null
     isWithDoctor,
     doctorBusy: isWithDoctor ? true : entry.nowServing,
     checkedInLabel: clockLabel(entry.checkedInAt),
+    nowServingToken: null,
   };
+}
+
+/**
+ * An in-person visit (`GET in-person/*`, V2) as a ticket: token K-014, people ahead, ETA.
+ * Null while the visit is not in the queue (booked, or already over).
+ */
+export function toVisitTicket(visit: InPersonVisit | null | undefined): QueueTicket | null {
+  if (!visit || (visit.stage !== "CHECKED_IN" && visit.stage !== "WITH_DOCTOR")) return null;
+  const isWithDoctor = visit.stage === "WITH_DOCTOR";
+  return {
+    tokenLabel: visit.token?.trim() || null,
+    position: isWithDoctor ? null : countOrNull(visit.position, 1),
+    patientsAhead: isWithDoctor ? 0 : countOrNull(visit.peopleAhead),
+    totalInQueue: null,
+    estimatedWaitMinutes: isWithDoctor ? 0 : countOrNull(visit.etaMinutes),
+    statusCode: isWithDoctor ? "IN_PROGRESS" : "WAITING",
+    isWithDoctor,
+    doctorBusy: isWithDoctor ? true : visit.nowServingToken !== null,
+    checkedInLabel: clockLabel(visit.checkedInAt),
+    nowServingToken: isWithDoctor ? visit.token?.trim() || null : visit.nowServingToken?.trim() || null,
+  };
+}
+
+/** The visit the patient is queued for today (checked in or with the doctor), if any. */
+export function pickQueuedVisit(visits: readonly InPersonVisit[] | null | undefined): InPersonVisit | null {
+  return (visits ?? []).find((visit) => visit.stage === "CHECKED_IN" || visit.stage === "WITH_DOCTOR") ?? null;
+}
+
+/**
+ * The queued visit for one specific appointment ("Track live queue" on that visit's own card).
+ * A patient can be checked in for more than one in-clinic visit today (a follow-up booked same
+ * day, a second family member's slot); without an id every card fell back to whichever visit
+ * `pickQueuedVisit` found first, so a later visit's card showed the first visit's place in line.
+ * Falls back to `pickQueuedVisit` when the id is absent or not (yet) in `visits` (the dashboard's
+ * generic link, or a stale id), not the common case.
+ */
+export function pickQueuedVisitById(
+  visits: readonly InPersonVisit[] | null | undefined,
+  appointmentId: string | null | undefined,
+): InPersonVisit | null {
+  if (appointmentId) {
+    const match = (visits ?? []).find(
+      (visit) =>
+        visit.appointmentId === appointmentId &&
+        (visit.stage === "CHECKED_IN" || visit.stage === "WITH_DOCTOR"),
+    );
+    if (match) return match;
+  }
+  return pickQueuedVisit(visits);
+}
+
+/** "You're next": checked in, nobody waiting ahead. */
+export function isNextInLine(ticket: QueueTicket | null): boolean {
+  return Boolean(ticket && !ticket.isWithDoctor && ticket.patientsAhead === 0);
 }
 
 /**
@@ -157,6 +215,7 @@ export function toCheckInTicket(
     isWithDoctor: false,
     doctorBusy: null,
     checkedInLabel: clockLabel(checkIn.checkedInAt),
+    nowServingToken: null,
   };
 }
 
@@ -180,4 +239,44 @@ export function queueProgress(ticket: QueueTicket): number | null {
   if (ticket.isWithDoctor) return 1;
   if (ticket.patientsAhead === null) return null;
   return 1 / (ticket.patientsAhead + 1);
+}
+
+// ── Tokens between "now serving" and the patient ───────────────────────────
+
+interface ParsedToken {
+  prefix: string;
+  number: number;
+  width: number;
+}
+
+/** "K-014" -> { prefix: "K-", number: 14, width: 3 }. Null for anything else. */
+export function parseToken(token: string | null | undefined): ParsedToken | null {
+  const match = /^(.*?)(\d+)$/.exec(token?.trim() ?? "");
+  const digits = match?.[2];
+  if (!match || !digits) return null;
+  const number = Number(digits);
+  return Number.isSafeInteger(number) ? { prefix: match[1] ?? "", number, width: digits.length } : null;
+}
+
+/** Most token rows drawn between "now serving" and the patient; more than this shows a summary. */
+export const MAX_AHEAD_ROWS = 6;
+
+/**
+ * The token numbers waiting before the patient, in order (K-012, K-013), worked out from the
+ * now-serving token and the patient's own token. Only when the numbers agree with the people-ahead
+ * count from the API (no skipped or cancelled tokens in between); otherwise null, and the screen
+ * shows a count instead. Token numbers only: no other patient detail exists on this side.
+ */
+export function tokensAhead(ticket: QueueTicket): string[] | null {
+  if (ticket.isWithDoctor || ticket.patientsAhead === null) return null;
+  if (ticket.patientsAhead === 0) return [];
+  const mine = parseToken(ticket.tokenLabel);
+  const serving = parseToken(ticket.nowServingToken);
+  if (!mine || !serving || mine.prefix !== serving.prefix) return null;
+  const gap = mine.number - serving.number - 1;
+  if (gap !== ticket.patientsAhead || gap > MAX_AHEAD_ROWS) return null;
+  return Array.from(
+    { length: gap },
+    (_, index) => `${mine.prefix}${String(serving.number + 1 + index).padStart(mine.width, "0")}`,
+  );
 }

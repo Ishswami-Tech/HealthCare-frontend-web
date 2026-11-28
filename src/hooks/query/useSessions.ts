@@ -16,6 +16,23 @@ export interface ActiveSession {
   isCurrent: boolean;
 }
 
+const DEVICE_LABEL_FIELDS = ['deviceName', 'name', 'browser', 'os', 'platform', 'deviceType', 'userAgent'] as const;
+
+/** A readable device label from whatever the server sent (string, object or nothing). */
+export function deviceInfoLabel(raw: unknown): string {
+  if (typeof raw === 'string') return raw.trim();
+  if (!raw || typeof raw !== 'object') return '';
+  const record = raw as Record<string, unknown>;
+  const browser = typeof record['browser'] === 'string' ? record['browser'].trim() : '';
+  const os = typeof record['os'] === 'string' ? record['os'].trim() : '';
+  if (browser && os) return `${browser} on ${os}`;
+  for (const field of DEVICE_LABEL_FIELDS) {
+    const value = record[field];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
 /**
  * GET /auth/sessions (any signed-in user). The response is `{ data: Session[] }`;
  * note the backend currently always answers with an empty list.
@@ -28,8 +45,10 @@ export const useActiveSessions = (enabled: boolean = true) => {
         ActiveSession[] | { sessions?: ActiveSession[]; data?: ActiveSession[] }
       >(API_ENDPOINTS.AUTH.SESSIONS);
       const payload = result.data;
-      if (Array.isArray(payload)) return payload;
-      return payload?.sessions ?? payload?.data ?? [];
+      const list = Array.isArray(payload) ? payload : (payload?.sessions ?? payload?.data ?? []);
+      // The backend may send deviceInfo as an object ({ userAgent, platform, ... }) or null;
+      // the UI works with one readable label.
+      return list.map((session) => ({ ...session, deviceInfo: deviceInfoLabel(session.deviceInfo) }));
     },
     {
       enabled,

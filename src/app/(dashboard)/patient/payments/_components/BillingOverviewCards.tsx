@@ -17,6 +17,7 @@ import {
   invoiceRoute,
   invoiceSubject,
   invoiceTotal,
+  overdueLabel,
   type DueSummary,
   type SpendCategoryKey,
   type SpendSummary,
@@ -53,7 +54,10 @@ export function BillingDueCard({
           Amount due
         </span>
         {loading || failed ? null : (
-          <Pill tone="white">{due.count > 0 ? `${due.count} to pay` : "All paid"}</Pill>
+          <span className="flex flex-wrap items-center justify-end gap-1.5">
+            {next && overdueLabel(next) ? <Pill tone="rose">Overdue</Pill> : null}
+            <Pill tone="white">{due.count > 0 ? `${due.count} to pay` : "All paid"}</Pill>
+          </span>
         )}
       </div>
 
@@ -73,7 +77,9 @@ export function BillingDueCard({
             {failed
               ? "Your invoices could not be loaded."
               : next
-                ? `Next: ${invoiceNumberLabel(next)} · due ${formatDateLabel(next.dueDate, EMPTY_DATE_LABEL)}`
+                ? `Next: ${invoiceNumberLabel(next)} · due ${formatDateLabel(next.dueDate, EMPTY_DATE_LABEL)}${
+                    overdueLabel(next) ? ` · ${overdueLabel(next)}` : ""
+                  }`
                 : "You have nothing to pay right now."}
           </span>
         )}
@@ -148,7 +154,7 @@ export function BillingPlanCard({
         ) : (
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-[15px] font-bold text-ink">No active plan</span>
-            <span className="text-[13px] text-ink-muted">Subscribe to a plan to book in-clinic visits.</span>
+            <span className="text-[13px] text-ink-muted">Get a plan, online or at the clinic reception, to book in-clinic visits.</span>
           </div>
         )}
       </div>
@@ -347,7 +353,8 @@ export function BillingPendingInvoicesCard({
               >
                 <span className="truncate text-sm font-bold text-ink">{invoiceNumberLabel(invoice)}</span>
                 <span className="truncate text-xs text-ink-muted">
-                  Due {formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)} · {invoiceSubject(invoice)}
+                  Due {formatDateLabel(invoice.dueDate, EMPTY_DATE_LABEL)}
+                  {overdueLabel(invoice) ? ` · ${overdueLabel(invoice)}` : ""} · {invoiceSubject(invoice)}
                 </span>
               </Link>
               {renderPay(invoice, "row")}

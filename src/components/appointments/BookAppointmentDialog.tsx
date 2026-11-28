@@ -2,22 +2,30 @@
 
 import Link from "next/link";
 import { logger } from "@/lib/utils/logger";
+import { clipInClinicSlots, readClinicWindows, readWeeklyWindows } from "./booking/clinicHours";
+import { isBookingDayClosed, resolveBookingWeekHours } from "./booking/bookingDays";
 import {
   useState,
   useEffect,
   useMemo,
   useCallback,
   useRef,
+  useLayoutEffect,
   useReducer,
   type SetStateAction,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
 import type {
   AppointmentServiceDefinition,
   AppointmentType,
   TreatmentType,
 } from "@/types/appointment.types";
+import {
+  VIDEO_CONSULTATION_TREATMENT_TYPE,
+  defaultBookingServiceId,
+  selectBookingServices,
+  shouldShowServiceCategoryFilter,
+} from "@/lib/utils/booking-services";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -63,7 +71,7 @@ import {
   useCheckSubscriptionCoverage,
   useCreateInPersonAppointmentWithSubscription,
 } from "@/hooks/query/useBilling";
-import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
+import { NearestLocationButton } from "@/components/appointments/booking/NearestLocationButton";
 import {
   useActiveLocations,
   useClinicContext,
@@ -72,8 +80,8 @@ import {
   useCurrentClinicId,
   useMyClinic,
 } from "@/hooks/query/useClinics";
+import { useClinicBrandName } from "@/hooks/query/useClinicBrandName";
 import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
-import { useRBAC } from "@/hooks/utils/useRBAC";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
 import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
 import { clinicApiClient } from "@/lib/api/client";
@@ -83,7 +91,6 @@ import {
   showInfoToast,
   showSuccessToast,
 } from "@/hooks/utils/use-toast";
-import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
 import { resolveAuthoritativeProfileCompleteFromCandidates } from "@/lib/config/profile";
 import { ROUTES } from "@/lib/config/routes";
@@ -128,7 +135,16 @@ import {
   type BookingLayout,
   type BookingVisitForProps,
 } from "@/components/appointments/booking";
-import { IconBox, Note, Pill, SectionTitle } from "@/components/tbd";
+import { EmptyBlock, IconBox, Note, Pill, SectionTitle } from "@/components/tbd";
+import { PatientPlanStatus } from "@/components/billing/PatientPlanStatus";
+import { resolveWalkInPlanSettings, walkInFallbackText } from "@/components/billing/plan-desk-path.logic";
+import {
+  BOOKING_PAUSED_COPY,
+  readOpdServiceToggles,
+  resolveConsultationModes,
+  type ConsultationModeAvailability,
+} from "@/lib/clinics/opd-controls.logic";
+import { useRefreshClinicSettings } from "@/hooks/query/useClinicServiceToggles";
 import { syncAppointmentInCache } from "@/lib/utils/appointment-cache";
 import {
   Activity,
@@ -156,8 +172,13 @@ import {
   Video,
   MapPin,
   Building,
+  Building2,
+  CalendarCheck,
+  ShieldAlert,
+  HeartHandshake,
   ChevronDown,
   ChevronUp,
+  CalendarOff,
 } from "lucide-react";
 
 function isProfileCompletionError(error: unknown): boolean {
@@ -199,9 +220,18 @@ interface BookAppointmentDialogProps {
   initialServiceId?: string;
   initialDoctorId?: string;
   initialPatientId?: string;
+  /**
+   * Staff only: the patient the dialog opens for (reception patient detail). Shown as the chosen
+   * patient even when they are not in the picker's first page of results. `userId` must equal
+   * `initialPatientId`.
+   */
+  initialPatient?: { userId: string; patientId?: string; displayName: string; phone?: string; uhid?: string };
   /** Patients only: open with this family member chosen under "Who is this visit for?". */
   initialFamilyMemberId?: string;
-  /** When true, forces VIDEO mode and skips mode selection step */
+  /**
+   * When true, only video is offered and the mode step is skipped. By default both consultation
+   * types are offered, each gated by the clinic switches and the doctor's override.
+   */
   videoOnly?: boolean;
 }
 
@@ -354,10 +384,13 @@ const STEP_LABELS: Record<WizardStepId, string> = {
   confirm: "Confirm",
   success: "Done",
 };
-/** Each appointment slot is 3 minutes. 20 bookable slots per hour. */
-const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
-const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
-const VIDEO_CONSULTATION_TREATMENT_TYPE: TreatmentType = "GENERAL_CONSULTATION";
+/** The visit length the availability API used for its slots (`slotDuration`, minutes); 0 when unknown. */
+function serverSlotDurationMinutes(availability: unknown): number {
+  const record = availability && typeof availability === "object" ? (availability as Record<string, unknown>) : null;
+  const nested = record?.data && typeof record.data === "object" ? (record.data as Record<string, unknown>) : null;
+  const value = Number(record?.slotDuration ?? nested?.slotDuration);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
 
 interface BookAppointmentStepBarProps {
   activeSteps: readonly WizardStepId[];
@@ -393,6 +426,98 @@ function BookAppointmentStepBar({
   );
 }
 
+/** Pause before the merged Consultation screen moves on, so the chosen tile's check is seen. */
+const CONSULTATION_AUTO_ADVANCE_DELAY_MS = 250;
+
+type ConsultationTileIcon = React.ComponentProps<typeof IconBox>["icon"];
+type ConsultationTileTone = NonNullable<React.ComponentProps<typeof IconBox>["tone"]>;
+
+/** Icon + tint per patient-bookable service on the merged Consultation screen. */
+const CONSULTATION_SERVICE_TILE_VISUALS: Record<
+  string,
+  { icon: ConsultationTileIcon; tone: ConsultationTileTone }
+> = {
+  GENERAL_CONSULTATION: { icon: Stethoscope, tone: "blue" },
+  FOLLOW_UP: { icon: CalendarCheck, tone: "aqua" },
+  SPECIAL_CASE: { icon: ShieldAlert, tone: "amber" },
+  GERIATRIC_CARE: { icon: HeartHandshake, tone: "rose" },
+};
+const DEFAULT_SERVICE_TILE_VISUAL = { icon: Activity, tone: "slate" } as const;
+
+interface ConsultationTileProps {
+  selected: boolean;
+  onSelect: () => void;
+  icon: ConsultationTileIcon;
+  tone: ConsultationTileTone;
+  title: string;
+  subtitle?: string;
+  footnote?: React.ReactNode;
+}
+
+/**
+ * One selectable row of the merged Consultation screen (mode, location, service): tinted icon
+ * on the left, title + one-line subtitle, filled check badge when chosen.
+ */
+function ConsultationTile({
+  selected,
+  onSelect,
+  icon,
+  tone,
+  title,
+  subtitle,
+  footnote,
+}: ConsultationTileProps) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={bookingOptionClass(
+        selected,
+        cn(
+          "flex min-h-16 items-center gap-3 px-4 py-3.5 shadow-sm transition-all hover:-translate-y-px hover:shadow-md",
+          selected && "shadow-md",
+        ),
+      )}
+    >
+      <IconBox icon={icon} tone={tone} size={44} />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[15px] font-semibold leading-tight text-ink">
+          {title}
+        </span>
+        {subtitle ? (
+          <span className="line-clamp-1 text-[13px] text-ink-muted">{subtitle}</span>
+        ) : null}
+        {footnote}
+      </span>
+      {selected ? (
+        <span
+          aria-hidden="true"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand text-white"
+        >
+          <Check className="size-3.5" strokeWidth={3} />
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+/** Small uppercase section label with an icon (merged Consultation screen). */
+function ConsultationSectionLabel({
+  icon: Icon,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <BookingGroupLabel className="flex items-center gap-1.5">
+      <Icon className="size-3.5" aria-hidden="true" />
+      {children}
+    </BookingGroupLabel>
+  );
+}
+
 interface BookAppointmentStep1Props {
   consultationMode: "IN_PERSON" | "VIDEO";
   isPatientClinicStillResolving: boolean;
@@ -414,10 +539,24 @@ interface BookAppointmentStep1Props {
   setSelectedDoctorId: (value: string) => void;
   setSelectedDate: (value: Date | undefined) => void;
   setSelectedSlot: (value: string) => void;
-  goNext: () => void;
   setConsultationMode: (value: "IN_PERSON" | "VIDEO") => void;
+  /** Services of the chosen mode (backend `bookable` list, see selectBookingServices). */
+  visibleServices: AppointmentServiceDefinition[];
+  serviceFilter: string;
+  setServiceFilter: React.Dispatch<React.SetStateAction<string>>;
+  servicesLoading: boolean;
+  /** The service to keep / preselect after a mode switch (video defaults to General). */
+  resolveServiceForMode: (mode: "IN_PERSON" | "VIDEO", currentServiceId: string) => string;
+  /** Same step advance as the footer Continue (used when the patient picks Video). */
+  goNext: () => void;
+  /** Modes the clinic (and doctor) allow; a switched-off mode is not offered. */
+  bookableModes: ConsultationModeAvailability;
 }
 
+/**
+ * Patient step 1: consultation mode, visit location (in-clinic) and service on one screen,
+ * one Continue in the footer. Staff never see it (they book in-person on the Service step).
+ */
 function BookAppointmentStep1({
   consultationMode,
   isPatientClinicStillResolving,
@@ -439,11 +578,92 @@ function BookAppointmentStep1({
   setSelectedDoctorId,
   setSelectedDate,
   setSelectedSlot,
-  goNext,
   setConsultationMode,
+  visibleServices,
+  serviceFilter,
+  setServiceFilter,
+  servicesLoading,
+  resolveServiceForMode,
+  goNext,
+  bookableModes,
 }: BookAppointmentStep1Props) {
+  const resetSchedule = () => {
+    setSelectedDoctorId("");
+    setSelectedDate(getTodayIST());
+    setSelectedSlot("");
+  };
+  // V2: a location is chosen at booking, either a specific one or the nearest one.
+  // Auto-advance only when an explicit click completes the in-clinic set (location + service);
+  // preselected defaults never advance on their own. The short delay shows the check first.
+  const serviceClickedRef = useRef(false);
+  const advanceAfterChoice = () => setTimeout(goNext, CONSULTATION_AUTO_ADVANCE_DELAY_MS);
+  const pickLocation = (locationId: string) => {
+    setSelectedLocationId(locationId);
+    resetSchedule();
+    if (consultationMode === "IN_PERSON" && serviceClickedRef.current && selectedServiceId) {
+      advanceAfterChoice();
+    }
+  };
+  // Video uses the backend's video default service (General Consultation): no list.
+  const videoService =
+    consultationMode === "VIDEO"
+      ? visibleServices.find((service) => service.treatmentType === selectedServiceId)
+      : undefined;
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <ConsultationSectionLabel icon={Activity}>Consultation Mode</ConsultationSectionLabel>
+        <div className="grid grid-cols-2 gap-2.5">
+          {(
+            [
+              {
+                value: "IN_PERSON",
+                label: "In-Clinic",
+                desc: "Visit the clinic",
+                icon: Building2,
+                tone: "mint",
+              },
+              {
+                value: "VIDEO",
+                label: "Video",
+                desc: "Remote consultation",
+                icon: Video,
+                tone: "video",
+              },
+            ] as const
+          )
+            // A mode the clinic (or the doctor) has switched off is not offered.
+            .filter(({ value }) => (value === "VIDEO" ? bookableModes.video : bookableModes.inPerson))
+            .map(({ value, label, desc, icon, tone }) => (
+            <ConsultationTile
+              key={value}
+              selected={consultationMode === value}
+              icon={icon}
+              tone={tone}
+              title={label}
+              subtitle={desc}
+              onSelect={() => {
+                setConsultationMode(value);
+                if (value === "VIDEO") {
+                  setSelectedLocationId("");
+                }
+                // Leaving video: its service was automatic, so the patient picks one here.
+                setSelectedServiceId(
+                  value === "IN_PERSON" && consultationMode === "VIDEO"
+                    ? ""
+                    : resolveServiceForMode(value, selectedServiceId),
+                );
+                resetSchedule();
+                // Video needs no location or service choice: continue straight to Date & time
+                // (same advance as the footer Continue). In-Clinic stays to pick the service.
+                if (value === "VIDEO") {
+                  setTimeout(goNext, 150);
+                }
+              }}
+            />
+          ))}
+        </div>
+      </div>
       {consultationMode === "VIDEO" ? (
         <Note tone="blue" icon={Video}>
           Video consultations do not require a physical location.
@@ -479,7 +699,7 @@ function BookAppointmentStep1({
         </BookingNotice>
       ) : (
         <div className="flex flex-col gap-2">
-          <BookingGroupLabel>Visit Location</BookingGroupLabel>
+          <ConsultationSectionLabel icon={MapPin}>Visit Location</ConsultationSectionLabel>
           {((locationsLoading || allLocationsLoading) &&
             locations.length === 0) ||
           !activeLocationsFetched ||
@@ -519,48 +739,24 @@ function BookAppointmentStep1({
                   locations so booking can continue.
                 </div>
               )}
+              {locations.length > 1 ? <NearestLocationButton onPick={pickLocation} /> : null}
               {locations.map((loc) => (
-                <button
+                <ConsultationTile
                   key={loc.id}
-                  type="button"
-                  aria-pressed={selectedLocationId === loc.id}
-                  onClick={() => {
-                    setSelectedLocationId(loc.id);
-                    setSelectedDoctorId("");
-                    setSelectedDate(getTodayIST());
-                    setSelectedSlot("");
-                    setTimeout(goNext, 150);
-                  }}
-                  className={bookingOptionClass(
-                    selectedLocationId === loc.id,
-                    "flex items-center gap-3 px-4 py-3",
-                  )}
-                >
-                  <IconBox
-                    icon={MapPin}
-                    tone="mint"
-                    size={38}
-                    solid={selectedLocationId === loc.id}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="m-0 text-sm font-bold text-ink">
-                      {loc.name || loc.address || "Location"}
-                    </p>
-                    {loc.address && loc.name && (
-                      <p className="m-0 truncate text-xs text-ink-muted">
-                        {loc.address}
-                      </p>
-                    )}
-                    {loc.isActive === false && (
-                      <p className="m-0 mt-1 text-[11px] font-semibold text-[#b45309] dark:text-amber-300">
+                  selected={selectedLocationId === loc.id}
+                  onSelect={() => pickLocation(loc.id)}
+                  icon={MapPin}
+                  tone="mint"
+                  title={loc.name || loc.address || "Location"}
+                  {...(loc.address && loc.name ? { subtitle: loc.address } : {})}
+                  footnote={
+                    loc.isActive === false ? (
+                      <span className="text-[11px] font-semibold text-[#b45309] dark:text-amber-300">
                         Inactive location
-                      </p>
-                    )}
-                  </div>
-                  {selectedLocationId === loc.id && (
-                    <Check className="size-4 shrink-0 text-brand" />
-                  )}
-                </button>
+                      </span>
+                    ) : undefined
+                  }
+                />
               ))}
             </div>
           )}
@@ -568,61 +764,30 @@ function BookAppointmentStep1({
       )}
 
       <div className="flex flex-col gap-2">
-        <BookingGroupLabel>Consultation Mode</BookingGroupLabel>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          {(
-            [
-              {
-                value: "IN_PERSON",
-                label: "In-Clinic",
-                desc: "Visit the clinic",
-                icon: (
-                  <Building
-                    className="size-[22px] text-[#059669] dark:text-emerald-300"
-                    strokeWidth={2.2}
-                  />
-                ),
-              },
-              {
-                value: "VIDEO",
-                label: "Video",
-                desc: "Remote consultation",
-                icon: (
-                  <Video className="size-[22px] fill-[#4f46e5] text-[#4f46e5] dark:fill-indigo-400 dark:text-indigo-400" />
-                ),
-              },
-            ] as const
-          ).map(({ value, label, desc, icon }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={consultationMode === value}
-              onClick={() => {
-                setConsultationMode(value);
-                if (value === "VIDEO") {
-                  setSelectedLocationId("");
-                  setSelectedServiceId(VIDEO_CONSULTATION_TREATMENT_TYPE);
-                } else if (
-                  selectedServiceId === VIDEO_CONSULTATION_TREATMENT_TYPE
-                ) {
-                  setSelectedServiceId("");
-                }
-                setSelectedDoctorId("");
-                setSelectedDate(getTodayIST());
-                setSelectedSlot("");
-                setTimeout(goNext, 150);
-              }}
-              className={bookingOptionClass(
-                consultationMode === value,
-                "flex min-h-24 flex-col items-start justify-center gap-1 px-3.5 py-3",
-              )}
-            >
-              {icon}
-              <span className="text-sm font-bold text-ink">{label}</span>
-              <span className="text-xs text-ink-muted">{desc}</span>
-            </button>
-          ))}
-        </div>
+        <ConsultationSectionLabel icon={Stethoscope}>Service</ConsultationSectionLabel>
+        {consultationMode !== "VIDEO" ? (
+          <BookingServiceList
+            compact
+            visibleServices={visibleServices}
+            serviceFilter={serviceFilter}
+            setServiceFilter={setServiceFilter}
+            servicesLoading={servicesLoading}
+            selectedServiceId={selectedServiceId}
+            onSelectService={(treatmentType) => {
+              setSelectedServiceId(treatmentType);
+              resetSchedule();
+              serviceClickedRef.current = true;
+              if (selectedLocationId) {
+                advanceAfterChoice();
+              }
+            }}
+          />
+        ) : (
+          <p className="m-0 text-[13px] text-ink-muted">
+            Video visits are booked as{" "}
+            {videoService?.label || "General Consultation"}.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -1308,15 +1473,6 @@ function BookAppointmentStep2Service({
   selectedPatient,
   goNext,
 }: BookAppointmentStep2ServiceProps) {
-  const categories = [
-    "All",
-    ...Array.from(new Set(visibleServices.map((t) => t.category))),
-  ];
-  const filtered =
-    serviceFilter === "All"
-      ? visibleServices
-      : visibleServices.filter((t) => t.category === serviceFilter);
-
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
       <p className="m-0 text-sm font-medium text-ink-muted">
@@ -1343,43 +1499,117 @@ function BookAppointmentStep2Service({
           selectedPatient={selectedPatient}
         />
       )}
+      <BookingServiceList
+        visibleServices={visibleServices}
+        serviceFilter={serviceFilter}
+        setServiceFilter={setServiceFilter}
+        servicesLoading={servicesLoading}
+        selectedServiceId={selectedServiceId}
+        onSelectService={(treatmentType) => {
+          setSelectedServiceId(treatmentType);
+          setSelectedDoctorId("");
+          setSelectedDate(getTodayIST());
+          setSelectedSlot("");
+          setTimeout(goNext, 150);
+        }}
+      />
+    </div>
+  );
+}
+
+interface BookingServiceListProps {
+  visibleServices: AppointmentServiceDefinition[];
+  serviceFilter: string;
+  setServiceFilter: React.Dispatch<React.SetStateAction<string>>;
+  servicesLoading: boolean;
+  selectedServiceId: string;
+  onSelectService: (treatmentType: TreatmentType) => void;
+  /** Merged patient screen: short rows (2-column tiles on sm+ for up to 4 services). */
+  compact?: boolean;
+}
+
+/**
+ * The service rows of the booking dialog (backend list, already filtered for the mode).
+ * Category chips only appear when the services span two or more categories.
+ */
+function BookingServiceList({
+  visibleServices,
+  serviceFilter,
+  setServiceFilter,
+  servicesLoading,
+  selectedServiceId,
+  onSelectService,
+  compact = false,
+}: BookingServiceListProps) {
+  const showCategoryFilter = shouldShowServiceCategoryFilter(visibleServices);
+  const categories = [
+    "All",
+    ...Array.from(new Set(visibleServices.map((t) => t.category))),
+  ];
+  const filtered =
+    !showCategoryFilter || serviceFilter === "All"
+      ? visibleServices
+      : visibleServices.filter((t) => t.category === serviceFilter);
+
+  return (
+    <>
       {servicesLoading ? <BookingSkeletonRows rows={4} /> : null}
-      <div className="flex gap-2 overflow-x-auto pb-1 scroll-smooth">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            onClick={() => setServiceFilter(cat)}
-            aria-pressed={serviceFilter === cat}
-            className={`inline-flex min-h-[38px] shrink-0 items-center whitespace-nowrap rounded-xl px-3.5 text-[13px] transition-colors ${
-              serviceFilter === cat
-                ? "bg-[#047857] font-bold text-white shadow-[0_6px_14px_rgba(4,120,87,0.22)]"
-                : "border border-line bg-card font-semibold text-ink hover:bg-mint-soft"
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-      <div className="flex flex-col gap-y-2">
-        {!servicesLoading && filtered.length === 0 ? (
-          <BookingEmpty
-            icon={Activity}
-            tone="slate"
-            title="No services available for this mode"
-          />
-        ) : null}
-        {filtered.map((t) => (
+      {showCategoryFilter ? (
+        <div className="flex gap-2 overflow-x-auto pb-1 scroll-smooth">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setServiceFilter(cat)}
+              aria-pressed={serviceFilter === cat}
+              className={`inline-flex min-h-[38px] shrink-0 items-center whitespace-nowrap rounded-xl px-3.5 text-[13px] transition-colors ${
+                serviceFilter === cat
+                  ? "bg-[#047857] font-bold text-white shadow-[0_6px_14px_rgba(4,120,87,0.22)]"
+                  : "border border-line bg-card font-semibold text-ink hover:bg-mint-soft"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {!servicesLoading && filtered.length === 0 ? (
+        <BookingEmpty
+          icon={Activity}
+          tone="slate"
+          title="No services available for this mode"
+        />
+      ) : null}
+      <div
+        className={cn(
+          compact ? "gap-2.5" : "gap-2",
+          compact && filtered.length <= 4
+            ? "grid grid-cols-1 sm:grid-cols-2"
+            : "flex flex-col",
+        )}
+      >
+        {filtered.map((t) =>
+          compact ? (
+            <ConsultationTile
+              key={t.treatmentType}
+              selected={selectedServiceId === t.treatmentType}
+              onSelect={() => onSelectService(t.treatmentType)}
+              icon={
+                (CONSULTATION_SERVICE_TILE_VISUALS[t.treatmentType] ??
+                  DEFAULT_SERVICE_TILE_VISUAL).icon
+              }
+              tone={
+                (CONSULTATION_SERVICE_TILE_VISUALS[t.treatmentType] ??
+                  DEFAULT_SERVICE_TILE_VISUAL).tone
+              }
+              title={t.label || t.treatmentType}
+              {...(t.description ? { subtitle: t.description } : {})}
+            />
+          ) : (
           <button
             key={t.treatmentType}
             type="button"
-            onClick={() => {
-              setSelectedServiceId(t.treatmentType);
-              setSelectedDoctorId("");
-              setSelectedDate(getTodayIST());
-              setSelectedSlot("");
-              setTimeout(goNext, 150);
-            }}
+            onClick={() => onSelectService(t.treatmentType)}
             aria-pressed={selectedServiceId === t.treatmentType}
             className={bookingOptionClass(
               selectedServiceId === t.treatmentType,
@@ -1401,15 +1631,16 @@ function BookAppointmentStep2Service({
                     <Check className="size-4 shrink-0 text-brand" />
                   )}
                 </div>
-                <p className="m-0 text-xs text-ink-muted line-clamp-2">
+                <p className="m-0 text-xs text-ink-muted">
                   {t.description || ""}
                 </p>
               </div>
             </div>
           </button>
-        ))}
+          ),
+        )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -1574,6 +1805,8 @@ interface BookAppointmentStep3Props {
   isClinicClosedDate: (date: Date) => boolean;
   layout: BookingLayout;
   doctorInfo: BookingDoctorInfo | null;
+  /** The doctor is still being resolved (auto-pick after choosing Video). */
+  doctorLoading?: boolean | undefined;
   doctorHours: BookingHoursRow[];
   doctorHoursTag?: string | undefined;
 }
@@ -1586,9 +1819,20 @@ function BookAppointmentStep3({
   isClinicClosedDate,
   layout,
   doctorInfo,
+  doctorLoading = false,
   doctorHours,
   doctorHoursTag,
 }: BookAppointmentStep3Props) {
+  // Open on the month of the selected day, else the first bookable day. Without this the
+  // calendar opened on the current month even when staff had already been moved to a day in
+  // the next one (and at month end every remaining day of the current month can be closed).
+  // Lazy state: computed once per mount (each visit to this step); the calendar drives later moves.
+  const [initialMonth] = useState<Date>(
+    () =>
+      selectedDate && !isClinicClosedDate(selectedDate)
+        ? selectedDate
+        : getNextBookableDateIST(isClinicClosedDate),
+  );
   const calendar = (
     <>
       <div className="book-dialog-calendar-container flex w-full max-w-full justify-center">
@@ -1608,8 +1852,11 @@ function BookAppointmentStep3({
         <Calendar
           mode="single"
           selected={selectedDate}
+          defaultMonth={initialMonth}
           onSelect={(d) => {
-            if (d && isClinicClosedDate(d)) {
+            // Clicking the selected day again makes the picker send `undefined`: keep the date
+            // instead of leaving the step without one.
+            if (!d || isClinicClosedDate(d)) {
               return;
             }
             setSelectedDate(d);
@@ -1647,6 +1894,7 @@ function BookAppointmentStep3({
     return (
       <BookingDoctorPage
         doctor={doctorInfo}
+        doctorLoading={doctorLoading}
         hours={doctorHours}
         hoursTag={doctorHoursTag}
       >
@@ -1692,6 +1940,7 @@ interface BookAppointmentStep4Props {
   // Presentation only
   layout: BookingLayout;
   doctorInfo: BookingDoctorInfo | null;
+  doctorLoading?: boolean | undefined;
   doctorHours: BookingHoursRow[];
   /** Slots already taken, drawn struck through. Never selectable. */
   bookedSlots: string[];
@@ -1726,6 +1975,7 @@ function BookAppointmentStep4({
   selectedSlotLabel,
   layout,
   doctorInfo,
+  doctorLoading = false,
   doctorHours,
   bookedSlots,
   feeLabel,
@@ -1737,6 +1987,7 @@ function BookAppointmentStep4({
     slotGroups,
     bookedSlots,
     appointmentDurationMinutes,
+    selectedDate ? formatISODateInIST(selectedDate) : undefined,
   );
   // Same order of checks as before: nothing chosen yet, loading, no slots, slots.
   const status = !shouldLoadAvailability
@@ -1772,6 +2023,7 @@ function BookAppointmentStep4({
       layout={layout}
       mode={consultationMode}
       doctor={doctorInfo}
+      doctorLoading={doctorLoading}
       hours={doctorHours}
       dateStrip={{
         days: stripDays,
@@ -1836,6 +2088,8 @@ interface BookAppointmentStep5Props {
   setRequiresVideoPayment: React.Dispatch<React.SetStateAction<boolean>>;
   setVideoPaymentCompleted: React.Dispatch<React.SetStateAction<boolean>>;
   needsSubscriptionPlan: boolean;
+  /** End of the patient's active in-person plan period (shown as "Plan active till ..."). */
+  planActiveTill?: string | null;
   isSubscriptionGateLoading: boolean;
   chiefComplaint: string;
   setChiefComplaint: React.Dispatch<React.SetStateAction<string>>;
@@ -1853,6 +2107,11 @@ interface BookAppointmentStep5Props {
   locationName: string;
   /** The amber book / pay button, also shown in the footer on small screens. */
   confirmAction: React.ReactNode;
+  /**
+   * Staff, in-clinic: the patient's user id, to show their plan and the clinic's plan-less visit
+   * rule (walkInWithoutPlan / walkInDeskFee settings) before confirming. Empty for patients.
+   */
+  staffPlanPatientUserId?: string;
 }
 
 function BookAppointmentStep5({
@@ -1875,6 +2134,7 @@ function BookAppointmentStep5({
   setRequiresVideoPayment,
   setVideoPaymentCompleted,
   needsSubscriptionPlan,
+  planActiveTill,
   isSubscriptionGateLoading,
   chiefComplaint,
   setChiefComplaint,
@@ -1887,8 +2147,12 @@ function BookAppointmentStep5({
   visitForName,
   locationName,
   confirmAction,
+  staffPlanPatientUserId = "",
 }: BookAppointmentStep5Props) {
   const { language } = useLanguage();
+  // Plan-less patient: the clinic's walk-in rule and desk fee (clinic settings), same words as mobile.
+  const { data: stepClinic } = useCurrentClinic();
+  const patientWalkInNote = walkInFallbackText(resolveWalkInPlanSettings(stepClinic?.settings, stepClinic?.expectedWalkInFee));
   const isPageLayout = layout === "page";
   // The existing gateway button: same props and callbacks, only the look changed.
   const payButton =
@@ -1982,8 +2246,15 @@ function BookAppointmentStep5({
           ? {
               loading: isSubscriptionGateLoading,
               required: needsSubscriptionPlan,
+              activeTill: planActiveTill ?? null,
+              walkInNote: patientWalkInNote,
             }
           : undefined
+      }
+      staffPlanNotice={
+        !isPatientInPerson && consultationMode === "IN_PERSON" && staffPlanPatientUserId ? (
+          <PatientPlanStatus clinicId={activeClinicId} patientUserId={staffPlanPatientUserId} />
+        ) : undefined
       }
       confirmAction={isPageLayout ? confirmAction : undefined}
     />
@@ -2004,6 +2275,8 @@ interface BookAppointmentStep6Props {
   pathname: string;
   push: (url: string) => void;
   patientCheckInRoute: string;
+  /** Clinic QR self check-in switch; the check-in shortcut is hidden when off. */
+  qrCheckInEnabled: boolean;
   postBookingRoute: string;
   postBookingLabel: string;
   paymentExpiresAt?: string | null;
@@ -2040,6 +2313,7 @@ function BookAppointmentStep6({
   pathname,
   push,
   patientCheckInRoute,
+  qrCheckInEnabled,
   postBookingRoute,
   postBookingLabel,
   paymentExpiresAt,
@@ -2055,6 +2329,7 @@ function BookAppointmentStep6({
   isPatientUser,
 }: BookAppointmentStep6Props) {
   const { language } = useLanguage();
+  const clinicBrand = useClinicBrandName();
   const isVideoMode = consultationMode === "VIDEO";
   const paymentPending = isVideoMode && requiresVideoPayment && !videoPaymentCompleted;
   const paid = isVideoMode && videoPaymentCompleted && Boolean(paidAmountLabel);
@@ -2087,6 +2362,7 @@ function BookAppointmentStep6({
       ]
     : [
         { label: "When", value: when },
+        ...(!isPatientUser && patientName ? [{ label: "Patient", value: patientName }] : []),
         ...(locationName ? [{ label: "Where", value: locationName }] : []),
         { label: "Service", value: selectedService?.label || "Appointment" },
       ];
@@ -2113,6 +2389,7 @@ function BookAppointmentStep6({
           : `In-clinic${bookingRef ? ` · Booking ${bookingRef}` : ""}`
       }
       details={details}
+      bookedForName={isPatientUser ? undefined : patientName || "the patient"}
       cardAction={
         paid && isPatientUser ? (
           <Button variant="soft" size="lg" asChild>
@@ -2140,7 +2417,7 @@ function BookAppointmentStep6({
                 slot: selectedSlot,
                 durationMinutes: appointmentDurationMinutes,
                 title: `Video visit with ${doctorName}`,
-                description: `${APP_CONFIG.CLINIC.BRAND_NAME} video appointment`,
+                description: clinicBrand.isKnown ? `${clinicBrand.name} video appointment` : "Video appointment",
                 uid: bookedAppointmentId,
               });
               if (!saved) {
@@ -2155,7 +2432,7 @@ function BookAppointmentStep6({
           : undefined
       }
       checkInAction={
-        !isVideoMode && isPatientInPersonFlow
+        !isVideoMode && isPatientInPersonFlow && qrCheckInEnabled
           ? {
               label: "Open Check-in Page",
               onClick: () => closeAndGo(patientCheckInRoute),
@@ -2226,29 +2503,6 @@ const WEEKDAY_KEYS = [
   "friday",
   "saturday",
 ] as const;
-
-const hasOpenSessionWindows = (dayWindows: unknown): boolean => {
-  if (Array.isArray(dayWindows)) {
-    return dayWindows.some((window) => {
-      if (!window || typeof window !== "object" || Array.isArray(window)) {
-        return false;
-      }
-      const record = window as Record<string, unknown>;
-      const start = typeof record.start === "string" ? record.start.trim() : "";
-      const end = typeof record.end === "string" ? record.end.trim() : "";
-      return !!start && !!end && start < end;
-    });
-  }
-
-  if (dayWindows && typeof dayWindows === "object") {
-    const record = dayWindows as Record<string, unknown>;
-    const start = typeof record.start === "string" ? record.start.trim() : "";
-    const end = typeof record.end === "string" ? record.end.trim() : "";
-    return !!start && !!end && start < end;
-  }
-
-  return false;
-};
 
 const isSubscriptionCurrent = (
   subscription?: {
@@ -2328,8 +2582,9 @@ export function BookAppointmentDialog({
   initialServiceId,
   initialDoctorId,
   initialPatientId,
+  initialPatient,
   initialFamilyMemberId,
-  videoOnly = true,
+  videoOnly = false,
 }: BookAppointmentDialogProps) {
   const { language } = useLanguage();
   const { push, replace } = useRouter();
@@ -2337,8 +2592,17 @@ export function BookAppointmentDialog({
   const queryClient = useQueryClient();
   const { isConnected, connectionStatus, subscribe } = useWebSocketContext();
   const { session } = useAuth();
-  const { hasPermission } = useRBAC();
   const userRole = (session?.user?.role || "").toUpperCase();
+  // Product rules: video visits are booked by the patient only; staff (doctor, reception, clinic
+  // admin) can only book in-person visits. Patients choose the mode unless the caller asks for
+  // video only.
+  const staffBooking = Boolean(userRole) && userRole !== "PATIENT";
+  const initialMode: "IN_PERSON" | "VIDEO" = staffBooking
+    ? "IN_PERSON"
+    : videoOnly
+      ? "VIDEO"
+      : (initialConsultationMode ?? "IN_PERSON");
+  const showModeStep = !staffBooking && !videoOnly;
 
   const profileCompletionRedirectUrl = `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/patient/appointments")}`;
 
@@ -2378,6 +2642,8 @@ export function BookAppointmentDialog({
     stepDirection: "forward" | "backward";
     selectedLocationId: string;
     consultationMode: "IN_PERSON" | "VIDEO";
+    /** Opened for a video visit by the caller: the mode step is skipped while video is offered. */
+    openedForVideo: boolean;
     selectedServiceId: string;
     selectedDoctorId: string;
     selectedDate: Date | undefined;
@@ -2435,14 +2701,20 @@ export function BookAppointmentDialog({
       }
     | { type: "resetBookingFlow"; payload: BookingFlowState };
 
-  const createBookingFlowState = useCallback(
-    (): BookingFlowState => ({
+  const createBookingFlowState = useCallback((): BookingFlowState => {
+    // The caller's mode first; the clinic switches may still move it (see the effect below).
+    const initialMode: "IN_PERSON" | "VIDEO" = videoOnly
+      ? "VIDEO"
+      : initialConsultationMode || "IN_PERSON";
+    return {
       step: 1,
       serviceFilter: "All",
       stepDirection: "forward",
       selectedLocationId: locationId || "",
-      consultationMode: "VIDEO", // Always VIDEO - in-person appointments disabled
-      selectedServiceId: initialServiceId || (videoOnly ? VIDEO_CONSULTATION_TREATMENT_TYPE : ""),
+      consultationMode: initialMode,
+      openedForVideo: initialConsultationMode === "VIDEO",
+      selectedServiceId:
+        initialServiceId || (initialMode === "VIDEO" ? VIDEO_CONSULTATION_TREATMENT_TYPE : ""),
       selectedDoctorId: initialDoctorId || "",
       selectedDate: getTodayIST(),
       selectedSlot: "",
@@ -2453,16 +2725,19 @@ export function BookAppointmentDialog({
       videoPaymentCompleted: false,
       acceptedVideoPaymentPolicy: false,
       selectedPatientId: initialPatientId || "",
-      patientSearch: "",
+      // A pre-chosen patient is searched for, so the picker lists (and ticks) them.
+      patientSearch: initialPatient?.displayName || "",
       showQuickCreatePatient: false,
       showQuickCreateAdditionalDetails: false,
       recentlyCreatedPatient: null,
-    }),
-    [
+    };
+  }, [
       initialConsultationMode,
       initialDoctorId,
+      initialPatient?.displayName,
       initialPatientId,
       initialServiceId,
+      initialMode,
       locationId,
       videoOnly,
     ],
@@ -2614,6 +2889,7 @@ export function BookAppointmentDialog({
     stepDirection,
     selectedLocationId,
     consultationMode,
+    openedForVideo,
     selectedServiceId,
     selectedDoctorId,
     selectedDate,
@@ -2975,7 +3251,7 @@ export function BookAppointmentDialog({
   // Reading from the cache is fine because the dialog uses the profile
   // only for an authoritative `profileComplete` check on the patient
   // record - the same key is already warmed by `DashboardLayout`.
-  const { data: currentPatientProfile } = useUserProfile(
+  const { data: currentPatientProfile, isPending: isPatientProfilePending } = useUserProfile(
     dialogOpen ? undefined : { enabled: false }
   );
   const authoritativeProfileComplete = useMemo(
@@ -3014,11 +3290,18 @@ export function BookAppointmentDialog({
         setInternalOpen(nextOpen);
       }
 
+      // Reset on every open, not just close: this dialog is mounted once and reused across
+      // bookings (never unmounted), so without this a slot/step left over from the previous
+      // booking can survive into the next open and get silently resubmitted.
+      if (!dialogOpen && nextOpen) {
+        resetBookingFlowState();
+      }
       if (!nextOpen) {
         resetBookingFlowState();
       }
     },
     [
+      dialogOpen,
       onOpenChange,
       profileCompletionBlocked,
       profileCompletionRedirectUrl,
@@ -3044,6 +3327,19 @@ export function BookAppointmentDialog({
 
     return null;
   }, [currentClinic, myClinic]);
+
+  // Clinic service switches (opdControls) + per-doctor overrides. They only hide options up
+  // front; the availability `restrictions` and the backend refusal remain the fallback when
+  // this cached copy is stale.
+  const clinicServices = useMemo(
+    () => readOpdServiceToggles(resolvedAppointmentSettings),
+    [resolvedAppointmentSettings],
+  );
+  // Clinic-level bookable modes. A `videoOnly` caller never offers in-person.
+  const clinicBookableModes = useMemo<ConsultationModeAvailability>(() => {
+    const modes = resolveConsultationModes(resolvedAppointmentSettings);
+    return { video: modes.video, inPerson: modes.inPerson && !videoOnly };
+  }, [resolvedAppointmentSettings, videoOnly]);
 
   const clinicVideoCallWindow = useMemo(() => {
     const normalizeWindowTime = (value: unknown): string | null => {
@@ -3137,58 +3433,6 @@ export function BookAppointmentDialog({
 
     return operatingWindows as Record<string, unknown>;
   }, [resolvedAppointmentSettings]);
-  const isClinicClosedDate = useCallback(
-    (date: Date) => {
-      const dayKey = WEEKDAY_KEYS[date.getDay()];
-      if (!dayKey) {
-        return false;
-      }
-
-      // Match backend availability: clinic operatingWindowsByDay empty = closed.
-      if (clinicOperatingDays) {
-        if (!hasOpenSessionWindows(clinicOperatingDays[dayKey])) {
-          return true;
-        }
-      }
-
-      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      return (
-        clinicHolidayClosures.has(dateKey) ||
-        clinicHolidayClosures.has(formatISODateInIST(date))
-      );
-    },
-    [clinicHolidayClosures, clinicOperatingDays],
-  );
-
-  const isSlotWithinClinicVideoWindow = useCallback(
-    (slot: string) => {
-      if (consultationMode !== "VIDEO" || !clinicVideoCallWindow) {
-        return true;
-      }
-
-      const parseMinutes = (value: string) => {
-        const [hoursRaw, minutesRaw] = value.split(":");
-        const hours = Number(hoursRaw);
-        const minutes = Number(minutesRaw);
-        if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-        return hours * 60 + minutes;
-      };
-
-      const slotStart = parseMinutes(slot);
-      const windowStart = parseMinutes(clinicVideoCallWindow.start);
-      const windowEnd = parseMinutes(clinicVideoCallWindow.end);
-      if (slotStart === null || windowStart === null || windowEnd === null) {
-        return true;
-      }
-
-      return (
-        slotStart >= windowStart &&
-        slotStart + VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES <= windowEnd
-      );
-    },
-    [clinicVideoCallWindow, consultationMode],
-  );
-
   const { mutateAsync: createAppointment, isPending: isBooking } =
     useCreateAppointment(activeClinicId);
   const {
@@ -3203,7 +3447,6 @@ export function BookAppointmentDialog({
     isBooking ||
     isCheckingSubscriptionCoverage ||
     isCreatingSubscriptionAppointment;
-  const { mutate: sendReminder } = useSendAppointmentReminder();
   const shouldLoadSubscriptions =
     dialogOpen && !!targetPatientId && consultationMode === "IN_PERSON";
   const { data: subscriptionsData = [] } = useSubscriptions(
@@ -3223,24 +3466,48 @@ export function BookAppointmentDialog({
   // Derived
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
-  const visibleServices = useMemo(() => {
-    const filteredServices = (
-      appointmentServices as AppointmentServiceDefinition[]
-    ).filter(
-      (service) =>
-        service.active &&
-        service.appointmentModes.includes(modeAppointmentType),
-    );
-
-    if (consultationMode === "VIDEO") {
-      return filteredServices.filter(
-        (service) =>
-          service.treatmentType === VIDEO_CONSULTATION_TREATMENT_TYPE,
-      );
+  // Backend-driven list: patients see the clinic's `bookable` services of the mode, staff every
+  // service of the mode; an older backend (no `bookable`) keeps the previous list.
+  const servicesForMode = useCallback(
+    (mode: "IN_PERSON" | "VIDEO") =>
+      selectBookingServices(
+        appointmentServices as AppointmentServiceDefinition[],
+        mode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
+        { patientBooking: !staffBooking, keepTreatmentType: initialServiceId },
+      ),
+    [appointmentServices, initialServiceId, staffBooking],
+  );
+  const visibleServices = useMemo(
+    () => servicesForMode(consultationMode),
+    [consultationMode, servicesForMode],
+  );
+  const resolveServiceForMode = useCallback(
+    (mode: "IN_PERSON" | "VIDEO", currentServiceId: string) =>
+      defaultBookingServiceId(
+        servicesForMode(mode),
+        mode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
+        currentServiceId,
+      ),
+    [servicesForMode],
+  );
+  // Video has no separate Service step: keep its service valid for the clinic's list
+  // (General Consultation by default, as before).
+  useEffect(() => {
+    if (!dialogOpen || consultationMode !== "VIDEO" || servicesLoading) {
+      return;
     }
-
-    return filteredServices;
-  }, [appointmentServices, consultationMode, modeAppointmentType]);
+    const nextServiceId = resolveServiceForMode("VIDEO", selectedServiceId);
+    if (nextServiceId && nextServiceId !== selectedServiceId) {
+      setSelectedServiceId(nextServiceId);
+    }
+  }, [
+    consultationMode,
+    dialogOpen,
+    resolveServiceForMode,
+    selectedServiceId,
+    servicesLoading,
+    setSelectedServiceId,
+  ]);
 
   const selectedService = useMemo(
     () =>
@@ -3250,13 +3517,6 @@ export function BookAppointmentDialog({
     [selectedServiceId, visibleServices],
   );
 
-  const appointmentDurationMinutes =
-    consultationMode === "VIDEO"
-      ? VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES
-      : selectedService?.defaultDurationMinutes &&
-          selectedService.defaultDurationMinutes > 0
-        ? selectedService.defaultDurationMinutes
-        : IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES;
   const isPatientInPersonFlow =
     userRole === "PATIENT" && consultationMode === "IN_PERSON";
   const videoPaymentAmount = Number(selectedService?.videoConsultationFee || 0);
@@ -3265,7 +3525,7 @@ export function BookAppointmentDialog({
     userRole === "PATIENT" &&
     videoPaymentAmount > 0;
 
-  const doctorsList: any[] = useMemo(() => {
+  const allDoctorsList: any[] = useMemo(() => {
     // Backend returns [{ doctor: { id, user: { id, name, email } } }]
     const normalize = (raw: any[]) =>
       raw.map((u: any) => {
@@ -3296,6 +3556,60 @@ export function BookAppointmentDialog({
     const raw = (doctorsData as any)?.doctors || [];
     return normalize(raw);
   }, [doctorsData]);
+  // Doctors whose own override switches the current mode off are not offered. A doctor the
+  // caller passed in stays, so the availability `restrictions` can explain the refusal.
+  const doctorsList: any[] = useMemo(
+    () =>
+      allDoctorsList.filter((doctor: any) => {
+        if (initialDoctorId && doctor.id === initialDoctorId) return true;
+        const modes = resolveConsultationModes(resolvedAppointmentSettings, doctor.id);
+        return consultationMode === "VIDEO" ? modes.video : modes.inPerson;
+      }),
+    [allDoctorsList, consultationMode, initialDoctorId, resolvedAppointmentSettings],
+  );
+  // Modes that can actually be booked: the clinic switch, then the doctor's override (which only
+  // restricts). With a doctor fixed by the caller that doctor decides; otherwise a mode stays
+  // offered while at least one doctor takes it. Until doctors load, the clinic switch decides.
+  const bookableModes = useMemo<ConsultationModeAvailability>(() => {
+    if (initialDoctorId) {
+      const doctor = resolveConsultationModes(resolvedAppointmentSettings, initialDoctorId);
+      return {
+        video: clinicBookableModes.video && doctor.video,
+        inPerson: clinicBookableModes.inPerson && doctor.inPerson,
+      };
+    }
+    if (doctorsLoading || allDoctorsList.length === 0) return clinicBookableModes;
+    const anyDoctor = (mode: keyof ConsultationModeAvailability) =>
+      allDoctorsList.some(
+        (doctor: any) => resolveConsultationModes(resolvedAppointmentSettings, doctor.id)[mode],
+      );
+    return {
+      video: clinicBookableModes.video && anyDoctor("video"),
+      inPerson: clinicBookableModes.inPerson && anyDoctor("inPerson"),
+    };
+  }, [allDoctorsList, clinicBookableModes, doctorsLoading, initialDoctorId, resolvedAppointmentSettings]);
+  // A switched-off mode is never pre-selected when the other one can still be booked.
+  useEffect(() => {
+    if (!dialogOpen || bookedAppointmentId) return;
+    if (consultationMode === "VIDEO" && !bookableModes.video && bookableModes.inPerson) {
+      setConsultationMode("IN_PERSON");
+      if (selectedServiceId === VIDEO_CONSULTATION_TREATMENT_TYPE) setSelectedServiceId("");
+    } else if (consultationMode === "IN_PERSON" && !bookableModes.inPerson && bookableModes.video) {
+      setConsultationMode("VIDEO");
+      setSelectedLocationId("");
+      setSelectedServiceId(VIDEO_CONSULTATION_TREATMENT_TYPE);
+    }
+  }, [
+    bookedAppointmentId,
+    bookableModes,
+    consultationMode,
+    dialogOpen,
+    selectedServiceId,
+    setConsultationMode,
+    setSelectedLocationId,
+    setSelectedServiceId,
+  ]);
+  const bookingPaused = !bookableModes.video && !bookableModes.inPerson;
 
   const doctorsErrorMessage = useMemo(() => {
     if (!doctorsError || doctorsLoading || !doctorsFetched) {
@@ -3313,7 +3627,7 @@ export function BookAppointmentDialog({
       !dialogOpen ||
       selectedDoctorId ||
       doctorsLoading ||
-      doctorsList.length !== 1
+      doctorsList.length === 0
     ) {
       return "";
     }
@@ -3325,29 +3639,33 @@ export function BookAppointmentDialog({
     () => doctorsList.find((d: any) => d.id === resolvedDoctorId),
     [doctorsList, resolvedDoctorId],
   );
+  // While the doctor list (re)loads, e.g. right after switching to Video, the auto-picked doctor
+  // is not known yet: show a "Loading doctor…" skeleton instead of flashing "No doctor selected".
+  const doctorResolving = !selectedDoctor && (doctorsRefreshing || (shouldLoadDoctors && !doctorsFetched));
 
-  // Mirror backend availability day resolution: doctor workingHours → clinic windows → holidays.
+  // The location whose hours bound the day: the chosen one, or the clinic's only location.
+  const bookingLocationHours = useMemo(() => {
+    const list = locations as Array<{ id?: string; workingHours?: unknown }>;
+    const chosen = resolvedLocationId ? list.find((loc) => loc.id === resolvedLocationId) : undefined;
+    return (chosen ?? (list.length === 1 ? list[0] : undefined))?.workingHours;
+  }, [locations, resolvedLocationId]);
+  // Same day rule as the server (clinic working days, location days, holidays, then the hours
+  // cascade location -> doctor -> clinic windows): see booking/bookingDays.
   const isBookingDateDisabled = useCallback(
-    (date: Date) => {
-      const dayKey = WEEKDAY_KEYS[date.getDay()];
-      const workingHours = (selectedDoctor as { workingHours?: unknown } | undefined)
-        ?.workingHours;
-
-      if (
-        dayKey &&
-        workingHours &&
-        typeof workingHours === "object" &&
-        !Array.isArray(workingHours) &&
-        Object.prototype.hasOwnProperty.call(workingHours, dayKey)
-      ) {
-        if (!hasOpenSessionWindows((workingHours as Record<string, unknown>)[dayKey])) {
-          return true;
-        }
-      }
-
-      return isClinicClosedDate(date);
-    },
-    [isClinicClosedDate, selectedDoctor],
+    (date: Date) =>
+      isBookingDayClosed({
+        weekDayIndex: date.getDay(),
+        dateKeys: [
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+          formatISODateInIST(date),
+        ],
+        closedDateKeys: clinicHolidayClosures,
+        appointmentSettings: resolvedAppointmentSettings,
+        locationWorkingHours: bookingLocationHours,
+        doctorWorkingHours: (selectedDoctor as { workingHours?: unknown } | undefined)?.workingHours,
+        inClinic: consultationMode !== "VIDEO",
+      }),
+    [bookingLocationHours, clinicHolidayClosures, consultationMode, resolvedAppointmentSettings, selectedDoctor],
   );
 
   useEffect(() => {
@@ -3407,6 +3725,37 @@ export function BookAppointmentDialog({
     },
   );
 
+  // Visit length is clinic-specific and owned by the server (clinic settings: in-person / video
+  // visit length). The slot picker shows the server's `slotDuration`; bookings never send one.
+  const appointmentDurationMinutes = serverSlotDurationMinutes(availability);
+
+  const isSlotWithinClinicVideoWindow = useCallback(
+    (slot: string) => {
+      if (consultationMode !== "VIDEO" || !clinicVideoCallWindow) {
+        return true;
+      }
+
+      const parseMinutes = (value: string) => {
+        const [hoursRaw, minutesRaw] = value.split(":");
+        const hours = Number(hoursRaw);
+        const minutes = Number(minutesRaw);
+        if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+        return hours * 60 + minutes;
+      };
+
+      const slotStart = parseMinutes(slot);
+      const windowStart = parseMinutes(clinicVideoCallWindow.start);
+      const windowEnd = parseMinutes(clinicVideoCallWindow.end);
+      if (slotStart === null || windowStart === null || windowEnd === null) {
+        return true;
+      }
+
+      // The slot length is the server's (clinic video visit length).
+      return slotStart >= windowStart && slotStart + appointmentDurationMinutes <= windowEnd;
+    },
+    [appointmentDurationMinutes, clinicVideoCallWindow, consultationMode],
+  );
+
   const showAvailabilityLoader =
     shouldLoadAvailability &&
     availabilityLoading &&
@@ -3448,8 +3797,18 @@ export function BookAppointmentDialog({
       knownPatientsRef.current.get(selectedPatientId) ||
       (recentlyCreatedPatient?.id === selectedPatientId
         ? recentlyCreatedPatient
+        : null) ||
+      (initialPatient && initialPatient.userId === selectedPatientId
+        ? {
+            id: initialPatient.patientId || initialPatient.userId,
+            userId: initialPatient.userId,
+            displayName: initialPatient.displayName,
+            phone: initialPatient.phone ?? "",
+            email: "",
+            uhid: initialPatient.uhid ?? "",
+          }
         : null),
-    [patientsList, selectedPatientId, recentlyCreatedPatient],
+    [patientsList, selectedPatientId, recentlyCreatedPatient, initialPatient],
   );
   const resolvedBookingPatientId = useMemo(() => {
     if (isPrivilegedScheduler) {
@@ -3475,24 +3834,33 @@ export function BookAppointmentDialog({
       ((rawProfile as any)?.user as Record<string, unknown>)?.patientId ||
       (((rawProfile as any)?.user as Record<string, unknown>)?.patient as Record<string, unknown>)?.id;
 
-    if (!patientRecordId) {
-      logger.warn(
-        "[BookAppointmentDialog] Patient profile not found or missing patient.id",
-        {
-          hasProfile: !!currentPatientProfile,
-          userId: session?.user?.id || 'unknown',
-          profileKeys: currentPatientProfile && typeof currentPatientProfile === 'object'
-            ? Object.keys(currentPatientProfile as Record<string, unknown>)
-            : [],
-        },
-      );
-    }
-
     return (patientRecordId as string) || "";
+  }, [currentPatientProfile, isPrivilegedScheduler, selectedPatientId]);
+
+  // Warn once per account, and only after the profile has actually loaded: the memo above runs
+  // while the profile is still in flight (and again on every re-render), which logged a false
+  // "missing patient.id" twice on each open.
+  const warnedMissingPatientIdFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!dialogOpen || isPrivilegedScheduler || isPatientProfilePending || !currentPatientProfile) return;
+    if (resolvedBookingPatientId) return;
+    const userId = session?.user?.id || "unknown";
+    if (warnedMissingPatientIdFor.current === userId) return;
+    warnedMissingPatientIdFor.current = userId;
+    logger.warn("[BookAppointmentDialog] Patient profile not found or missing patient.id", {
+      hasProfile: true,
+      userId,
+      profileKeys:
+        typeof currentPatientProfile === "object"
+          ? Object.keys(currentPatientProfile as Record<string, unknown>)
+          : [],
+    });
   }, [
-    currentPatientProfile,
+    dialogOpen,
     isPrivilegedScheduler,
-    selectedPatientId,
+    isPatientProfilePending,
+    currentPatientProfile,
+    resolvedBookingPatientId,
     session?.user?.id,
   ]);
 
@@ -3530,16 +3898,22 @@ export function BookAppointmentDialog({
     !activeSubscription;
 
   const activeSteps = useMemo(() => {
-    const hasMultipleDoctors = doctorsLoading || doctorsList.length !== 1;
+    // One doctor in this product: the Doctor step only appears if a clinic really lists several
+    // (never while loading); with one doctor it is picked automatically (`autoSelectedDoctorId`).
 
     return STEP_ORDER.filter((stepId) => {
-      // Skip mode selection step when videoOnly mode
+      // The mode step is where patients choose between the two types (staff book in-person
+      // only). Video-only flows (by caller, by clinic switch or by a caller-chosen video visit)
+      // skip it.
       if (stepId === "mode") {
-        return !videoOnly;
+        if (!showModeStep) return false;
+        if (consultationMode === "IN_PERSON") return true;
+        return bookableModes.inPerson && !openedForVideo;
       }
 
+      // Patients pick the service on the mode screen (mode + location + service on one step).
       if (stepId === "service") {
-        return consultationMode !== "VIDEO";
+        return consultationMode !== "VIDEO" && !showModeStep;
       }
 
       // Staff choose the patient on the Service step. The video flow skips that step, so it
@@ -3548,8 +3922,10 @@ export function BookAppointmentDialog({
         return isPrivilegedScheduler && consultationMode === "VIDEO";
       }
 
+      // Product rule: one doctor only. There is never a doctor picker; the clinic's doctor is
+      // selected automatically (see autoSelectedDoctorId).
       if (stepId === "doctor") {
-        return hasMultipleDoctors;
+        return false;
       }
 
       // Patients pick date on the same screen as time (date strip + slots).
@@ -3560,10 +3936,13 @@ export function BookAppointmentDialog({
       return true;
     });
   }, [
+    bookableModes.inPerson,
     consultationMode,
     doctorsList.length,
     doctorsLoading,
     isPrivilegedScheduler,
+    showModeStep,
+    openedForVideo,
     videoOnly,
   ]);
 
@@ -3595,7 +3974,7 @@ export function BookAppointmentDialog({
     if (currentStepId === "mode") {
       return consultationMode === "VIDEO"
         ? "Book Video Appointment"
-        : "Location & Mode";
+        : "Consultation & Service";
     }
 
     return STEP_LABELS[currentStepId];
@@ -3741,6 +4120,33 @@ export function BookAppointmentDialog({
     };
   }, [availability]);
 
+  // The backend refused a mode our cached clinic settings still show as on: re-read the clinic
+  // once per opening so the hidden options catch up (the refusal itself is shown as before).
+  const refreshClinicSettings = useRefreshClinicSettings();
+  const staleClinicSettingsRefreshedRef = useRef(false);
+  useEffect(() => {
+    if (!dialogOpen) {
+      staleClinicSettingsRefreshedRef.current = false;
+      return;
+    }
+    if (staleClinicSettingsRefreshedRef.current || !resolvedDoctorId) return;
+    const cached = resolveConsultationModes(resolvedAppointmentSettings, resolvedDoctorId);
+    const backendRefusedCachedMode =
+      (consultationMode === "VIDEO" && cached.video && !restrictions.videoConsultationEnabled) ||
+      (consultationMode === "IN_PERSON" && cached.inPerson && !restrictions.generalConsultationEnabled);
+    if (backendRefusedCachedMode) {
+      staleClinicSettingsRefreshedRef.current = true;
+      refreshClinicSettings();
+    }
+  }, [
+    consultationMode,
+    dialogOpen,
+    refreshClinicSettings,
+    resolvedAppointmentSettings,
+    resolvedDoctorId,
+    restrictions,
+  ]);
+
   const consultationBlocked = useMemo(() => {
     if (restrictions.clinicPaused || restrictions.doctorPaused) return true;
     if (
@@ -3753,52 +4159,6 @@ export function BookAppointmentDialog({
     return false;
   }, [consultationMode, restrictions]);
 
-  // Extract videoCallWindow from availability response (authoritative source from backend)
-  // The backend already filters slots by videoCallWindow for VIDEO_CALL appointments,
-  // so we trust the backend's availableSlots directly.
-  const backendVideoCallWindow = useMemo(() => {
-    const availabilityData = availability as Record<string, unknown> | undefined;
-    if (!availabilityData) return null;
-
-    // Check at root level (backend returns videoCallWindow in response)
-    const windowValue = availabilityData.videoCallWindow as
-      | { start?: unknown; end?: unknown }
-      | undefined;
-    if (windowValue && typeof windowValue === "object" && windowValue !== null) {
-      const start =
-        typeof windowValue.start === "string" ? windowValue.start.trim() : null;
-      const end =
-        typeof windowValue.end === "string" ? windowValue.end.trim() : null;
-      if (start && end && /^([01]\d|2[0-3]):([0-5]\d)$/.test(start) && /^([01]\d|2[0-3]):([0-5]\d)$/.test(end)) {
-        return { start, end };
-      }
-    }
-
-    // Check in nested data.data structure
-    const nestedData = availabilityData.data as Record<string, unknown> | undefined;
-    if (nestedData) {
-      const nestedWindow = nestedData.videoCallWindow as
-        | { start?: unknown; end?: unknown }
-        | undefined;
-      if (nestedWindow && typeof nestedWindow === "object" && nestedWindow !== null) {
-        const start =
-          typeof nestedWindow.start === "string" ? nestedWindow.start.trim() : null;
-        const end =
-          typeof nestedWindow.end === "string" ? nestedWindow.end.trim() : null;
-        if (
-          start &&
-          end &&
-          /^([01]\d|2[0-3]):([0-5]\d)$/.test(start) &&
-          /^([01]\d|2[0-3]):([0-5]\d)$/.test(end)
-        ) {
-          return { start, end };
-        }
-      }
-    }
-
-    return null;
-  }, [availability]);
-
   // For VIDEO_CALL appointments, trust the backend's filtered availableSlots directly.
   // The backend already filters by videoCallWindow when appointmentType is VIDEO_CALL.
   // Only apply additional filtering if we don't have backend-filtered slots.
@@ -3809,44 +4169,31 @@ export function BookAppointmentDialog({
 
     const baseSlots = slots as string[];
 
-    // For VIDEO_CALL: backend already filtered by videoCallWindow, use slots directly
-    // For IN_PERSON or no window: use all slots
-    if (consultationMode !== "VIDEO" || !backendVideoCallWindow) {
+    // The server already filters video slots by the clinic video window and its own visit length.
+    if (consultationMode === "VIDEO" || !selectedDate) {
       return baseSlots;
     }
-
-    // Only apply frontend filtering as a safety measure using the backend's window
-    // This handles edge cases where backend might not have filtered
-    const parseMinutes = (value: string) => {
-      const [hoursRaw, minutesRaw] = value.split(":");
-      const hours = Number(hoursRaw);
-      const minutes = Number(minutesRaw);
-      if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-      return hours * 60 + minutes;
-    };
-
-    const windowStart = parseMinutes(backendVideoCallWindow.start);
-    const windowEnd = parseMinutes(backendVideoCallWindow.end);
-
-    if (windowStart === null || windowEnd === null) {
-      return baseSlots;
-    }
-
-    return baseSlots.filter((slot) => {
-      const slotStart = parseMinutes(slot);
-      if (slotStart === null) return true;
-
-      // Slot must start at or after window start
-      // Slot end (start + 15 min) must be at or before window end
-      const slotEnd = slotStart + VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES;
-      return slotStart >= windowStart && slotEnd <= windowEnd;
-    });
-  }, [
-    backendVideoCallWindow,
-    consultationBlocked,
-    consultationMode,
-    slots,
-  ]);
+    // In-clinic: never offer a time outside the known opening hours for that weekday. The
+    // server already intersects location, clinic and doctor hours (including a dated
+    // day-availability override the web does not see), so the doctor's WEEKLY hours are not
+    // re-applied here: that would hide an override's extra hours. Clinic windows still apply;
+    // the location's hours stand in when they are not configured.
+    const dayKey = WEEKDAY_KEYS[selectedDate.getDay()];
+    return clipInClinicSlots(
+      baseSlots,
+      {
+        clinicWindows: readClinicWindows(dayKey ? clinicOperatingDays?.[dayKey] : undefined),
+        doctorWindows: [],
+        locationWindows: readWeeklyWindows(
+          (locations as Array<{ id?: string; workingHours?: unknown }>).find(
+            (loc) => loc.id === resolvedLocationId,
+          )?.workingHours,
+          dayKey,
+        ),
+      },
+      serverSlotDurationMinutes(availability),
+    );
+  }, [availability, clinicOperatingDays, consultationBlocked, consultationMode, selectedDate, selectedDoctor, locations, resolvedLocationId, slots]);
   const validateLatestAvailability = useCallback(async (selectedSlot?: string) => {
     const cachedAvailability = queryClient.getQueryData(availabilityQueryKey);
     const cachedSlots = extractAvailabilitySlots(cachedAvailability);
@@ -3990,7 +4337,9 @@ export function BookAppointmentDialog({
   );
   const selectedSlotLabel = useMemo(() => {
     if (!activeSelectedSlot) return "";
-    return `${activeSelectedSlot} - ${appointmentDurationMinutes} min`;
+    return appointmentDurationMinutes > 0
+      ? `${activeSelectedSlot} - ${appointmentDurationMinutes} min`
+      : activeSelectedSlot;
   }, [activeSelectedSlot, appointmentDurationMinutes]);
   const liveSyncMode =
     connectionStatus === "connected"
@@ -4228,7 +4577,6 @@ export function BookAppointmentDialog({
             : {}),
           date: selectedDateString,
           time: selectedSlot,
-          duration: appointmentDurationMinutes,
           type: finalAppointmentType,
           ...(chiefComplaint ? { notes: chiefComplaint } : {}),
           priority: "NORMAL",
@@ -4368,7 +4716,6 @@ export function BookAppointmentDialog({
           clinicId: activeClinicId,
           locationId: appointmentLocationId,
           appointmentDate: appointmentDateIso,
-          duration: appointmentDurationMinutes,
           treatmentType: selectedService.treatmentType,
           priority: urgency.toUpperCase(),
           notes: chiefComplaint || selectedService.label,
@@ -4412,7 +4759,6 @@ export function BookAppointmentDialog({
           time: selectedSlot,
           type: finalAppointmentType,
           treatmentType: selectedService.treatmentType,
-          duration: appointmentDurationMinutes,
           notes: chiefComplaint || selectedService.label,
           priority: urgency.toUpperCase() as any,
           patientId: bookingPatientId,
@@ -4463,10 +4809,9 @@ export function BookAppointmentDialog({
       }
 
       setBookedAppointmentId(apptId);
-      // Send appointment reminder via push + email + WhatsApp
-      if (hasPermission(Permission.SEND_NOTIFICATIONS)) {
-        sendReminder({ appointmentId: apptId, reminderType: "all" });
-      }
+      // Booking notifications are server-driven: AppointmentsService.createAppointment schedules
+      // the reminder job and the `appointment.created` event fans out the booking notification.
+      // A client-side reminder call here was redundant (and its 400 leaked validation text).
       onBooked?.();
       showSuccessToast(
         `Appointment booked${selectedDoctor?.name ? ` with ${formatDoctorDisplayName(selectedDoctor.name)}` : ""}` +
@@ -4563,8 +4908,6 @@ export function BookAppointmentDialog({
     createAppointment,
     checkSubscriptionCoverage,
     createSubscriptionAppointment,
-    hasPermission,
-    sendReminder,
     onBooked,
     userRole,
     activeSubscription,
@@ -4600,7 +4943,9 @@ export function BookAppointmentDialog({
         !!consultationMode &&
         (consultationMode === "VIDEO" ||
           !!resolvedLocationId ||
-          locations.length === 1)
+          locations.length === 1) &&
+        // The service is chosen on this screen too.
+        !!selectedService
       );
     }
     if (currentStepId === "service") {
@@ -4619,7 +4964,15 @@ export function BookAppointmentDialog({
     }
     if (currentStepId === "slot") {
       const hasDate = !!selectedDate && !isBookingDateDisabled(selectedDate);
-      return hasDate && !!activeSelectedSlot;
+      // A self-booking patient's resolvedBookingPatientId comes from the userProfile query,
+      // which only starts fetching once this dialog opens (see useUserProfile above) — reaching
+      // the confirm step before it settles landed on a confirm screen built from a stale/empty
+      // patient id (found live: a console warning "Patient profile not found or missing
+      // patient.id" right after this step, reliably reproduced only under rapid scripted
+      // clicking, never a human pausing between steps, but worth closing properly rather than
+      // relying solely on the submit-time refetch fallback further down this file).
+      const patientProfileReady = isPrivilegedScheduler || !isPatientProfilePending;
+      return hasDate && !!activeSelectedSlot && patientProfileReady;
     }
     return true;
   }, [
@@ -4632,10 +4985,41 @@ export function BookAppointmentDialog({
     isBookingDateDisabled,
     resolvedDoctorId,
     resolvedLocationId,
+    selectedService,
     selectedServiceId,
     activeSelectedSlot,
     selectedPatientId,
+    isPatientProfilePending,
   ]);
+
+  // Plain-words reason the footer Continue is disabled (shown above the footer and linked to the button).
+  const nextBlockedReason = useMemo(() => {
+    if (canNext) return "";
+    if (currentStepId === "mode") {
+      return selectedService ? "Choose a clinic location to continue." : "Choose a service to continue.";
+    }
+    if (currentStepId === "service") {
+      return selectedServiceId ? "Choose who the visit is for to continue." : "Choose a service to continue.";
+    }
+    if (currentStepId === "patient") return "Choose who the visit is for to continue.";
+    if (currentStepId === "doctor") return "Choose a doctor to continue.";
+    if (currentStepId === "date") return "Choose an open date to continue.";
+    if (currentStepId === "slot") {
+      const hasDate = !!selectedDate && !isBookingDateDisabled(selectedDate);
+      if (!hasDate) return "Choose an open date to continue.";
+      return activeSelectedSlot ? "Loading your profile, one moment." : "Choose a time to continue.";
+    }
+    return "";
+  }, [canNext, currentStepId, selectedService, selectedServiceId, selectedDate, isBookingDateDisabled, activeSelectedSlot]);
+
+  // Remember what had focus when the dialog opened and give it back on close (WCAG 2.4.3).
+  const openerRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (dialogOpen && typeof document !== "undefined") {
+      const active = document.activeElement;
+      openerRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
+  }, [dialogOpen]);
 
   const goNext = useCallback(() => {
     const nextStepId = activeSteps[currentStepIndex + 1];
@@ -4728,8 +5112,17 @@ export function BookAppointmentDialog({
         ],
       }
     : null;
+  // The card prints the week the calendar offers (booking/bookingDays): clinic working days and
+  // location days decide which days are open, the hours come from the location, else the
+  // doctor, else the clinic windows. The doctor's weekly hours alone never close a day here.
+  const bookingWeekHours = resolveBookingWeekHours({
+    appointmentSettings: resolvedAppointmentSettings,
+    locationWorkingHours: bookingLocationHours,
+    doctorWorkingHours: (selectedDoctor as { workingHours?: unknown } | undefined)?.workingHours,
+    inClinic: consultationMode !== "VIDEO",
+  });
   const doctorHours: BookingHoursRow[] = [
-    ...summarizeWorkingHours(selectedDoctor?.workingHours),
+    ...summarizeWorkingHours(bookingWeekHours),
     ...(consultationMode === "VIDEO" && clinicVideoCallWindow
       ? [
           {
@@ -4813,7 +5206,7 @@ export function BookAppointmentDialog({
         : stepTitle;
 
   // The book / pay button (amber). Same conditions and handler as before; it is drawn in the
-  // footer and, on wide patient screens, inside the payment summary card.
+  // footer (staff) or full width inside the payment summary card (patient page layout).
   const renderConfirmButton = (size: "md" | "xl", className?: string) => {
     const isVideoPaymentPending =
       consultationMode === "VIDEO" &&
@@ -4826,12 +5219,12 @@ export function BookAppointmentDialog({
         ? shouldCollectVideoPayment
           ? !acceptedVideoPaymentPolicy || isBooking || isVideoPaymentPending
           : isBooking
-        : isCreatingInPersonAppointment || isSubscriptionGateLoading;
+        : isCreatingInPersonAppointment || isSubscriptionGateLoading || needsSubscriptionPlan;
     const confirmLabel = isVideoPaymentPending
       ? "Payment in progress"
       : consultationMode === "VIDEO"
         ? shouldCollectVideoPayment
-          ? `Confirm & Pay ${formatRupees(videoPaymentAmount)}`
+          ? `Pay ${formatRupees(videoPaymentAmount)} & book`
           : "Book Video Appointment"
         : needsSubscriptionPlan
           ? "Choose plan to continue"
@@ -4885,7 +5278,7 @@ export function BookAppointmentDialog({
 
   // Main render
 
-  const stepContent = (() => {
+  const wizardStepContent = (() => {
     switch (currentStepId) {
       case "mode":
         return (
@@ -4911,8 +5304,14 @@ export function BookAppointmentDialog({
               setSelectedDoctorId={setSelectedDoctorId}
               setSelectedDate={setSelectedDate}
               setSelectedSlot={setSelectedSlot}
-              goNext={goNext}
               setConsultationMode={setConsultationMode}
+              visibleServices={visibleServices}
+              serviceFilter={serviceFilter}
+              setServiceFilter={setServiceFilter}
+              servicesLoading={servicesLoading}
+              resolveServiceForMode={resolveServiceForMode}
+              goNext={goNext}
+              bookableModes={bookableModes}
             />
           </AppointmentStepWrapper>
         );
@@ -5015,6 +5414,7 @@ export function BookAppointmentDialog({
               isClinicClosedDate={isBookingDateDisabled}
               layout={bookingLayout}
               doctorInfo={doctorInfo}
+              doctorLoading={doctorResolving}
               doctorHours={doctorHours}
               doctorHoursTag={doctorHoursTag}
             />
@@ -5045,6 +5445,7 @@ export function BookAppointmentDialog({
               selectedSlotLabel={selectedSlotLabel}
               layout={bookingLayout}
               doctorInfo={doctorInfo}
+              doctorLoading={doctorResolving}
               doctorHours={doctorHours}
               bookedSlots={bookedSlotsForDisplay}
               feeLabel={feeLabel}
@@ -5076,6 +5477,7 @@ export function BookAppointmentDialog({
               setRequiresVideoPayment={setRequiresVideoPayment}
               setVideoPaymentCompleted={setVideoPaymentCompleted}
               needsSubscriptionPlan={needsSubscriptionPlan}
+              planActiveTill={activeSubscription?.currentPeriodEnd ?? activeSubscription?.nextBillingDate ?? null}
               isSubscriptionGateLoading={isSubscriptionGateLoading}
               chiefComplaint={chiefComplaint}
               setChiefComplaint={setChiefComplaint}
@@ -5087,7 +5489,12 @@ export function BookAppointmentDialog({
               visitFor={visitFor}
               visitForName={visitForMemberLabel}
               locationName={bookingLocationName}
-              confirmAction={renderConfirmButton("xl", "w-full")}
+              confirmAction={renderConfirmButton("md", "w-full lg:min-w-[240px]")}
+              staffPlanPatientUserId={
+                isPrivilegedScheduler
+                  ? String((selectedPatient as { userId?: unknown } | null)?.userId || selectedPatientId || "")
+                  : ""
+              }
             />
           </AppointmentStepWrapper>
         );
@@ -5099,7 +5506,12 @@ export function BookAppointmentDialog({
               consultationMode={consultationMode}
               requiresVideoPayment={requiresVideoPayment}
               videoPaymentCompleted={videoPaymentCompleted}
-              selectedSlot={activeSelectedSlot}
+              // The raw selection, not activeSelectedSlot: once booked, a live-availability push
+              // (the now-taken slot dropping out of effectiveSlots) filtered activeSelectedSlot
+              // back to "", showing "Wed, 28 Oct · None" on the success screen even though the
+              // real appointment record held the correct time — the booking already happened, so
+              // this screen shows what was booked, not what's still open to pick.
+              selectedSlot={selectedSlot}
               clinicVideoCallWindow={clinicVideoCallWindow}
               selectedService={selectedService ?? null}
               selectedDoctor={selectedDoctor ?? null}
@@ -5109,6 +5521,7 @@ export function BookAppointmentDialog({
               pathname={pathname}
               push={push}
               patientCheckInRoute={patientCheckInRoute}
+              qrCheckInEnabled={clinicServices.qrCheckInEnabled}
               postBookingRoute={postBookingRoute}
               postBookingLabel={postBookingLabel}
               paymentExpiresAt={bookedPaymentExpiresAt}
@@ -5128,14 +5541,29 @@ export function BookAppointmentDialog({
     }
   })();
 
+  // Both consultation types switched off (clinic, or every doctor for video-only booking):
+  // nothing can be booked, so show why instead of the wizard. A finished booking still shows.
+  const showBookingPaused = bookingPaused && !isSuccessStep && !bookedAppointmentId;
+  const stepContent = showBookingPaused ? (
+    <EmptyBlock
+      icon={CalendarOff}
+      tone="amber"
+      title={BOOKING_PAUSED_COPY.title}
+      description={BOOKING_PAUSED_COPY.description}
+    />
+  ) : (
+    wizardStepContent
+  );
+
   return (
     <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
-      {!hideTrigger && (
+      {/* No "Book" button while the clinic has every bookable consultation type switched off. */}
+      {!hideTrigger && (bookableModes.video || bookableModes.inPerson) && (
         <DialogTrigger asChild>
           {trigger || (
             <Button variant="action" size="md">
               <Plus className="size-5" />
-              Book Video Appointment
+              {videoOnly ? "Book video appointment" : "Book appointment"}
             </Button>
           )}
         </DialogTrigger>
@@ -5151,6 +5579,13 @@ export function BookAppointmentDialog({
             ? "sm:h-[min(88dvh,720px)] sm:w-[min(94vw,640px)] sm:max-w-none lg:w-[min(94vw,980px)]"
             : "sm:h-auto sm:max-h-[92dvh] sm:min-h-[min(92dvh,560px)] sm:w-[min(94vw,560px)] sm:max-w-none",
         )}
+        onCloseAutoFocus={(event) => {
+          const opener = openerRef.current;
+          if (opener && opener.isConnected) {
+            event.preventDefault();
+            opener.focus();
+          }
+        }}
       >
         {/* Header */}
         <div
@@ -5169,7 +5604,7 @@ export function BookAppointmentDialog({
               >
                 {displayTitle}
               </DialogTitle>
-              {consultationMode === "VIDEO" && (
+              {consultationMode === "VIDEO" && !showBookingPaused && (
                 <Pill tone="amber">Video booking flow</Pill>
               )}
             </div>
@@ -5181,7 +5616,7 @@ export function BookAppointmentDialog({
           </DialogHeader>
 
           {/* Step bar hide on success screen */}
-          {!isSuccessStep && (
+          {!isSuccessStep && !showBookingPaused && (
             <div className="mt-2.5 w-full min-w-0">
               <BookAppointmentStepBar
                 activeSteps={activeSteps}
@@ -5204,26 +5639,28 @@ export function BookAppointmentDialog({
           )}
           {...(isPageLayout ? { "data-tone": "sky" } : {})}
         >
-          <LazyMotion features={domAnimation}>
-            <AnimatePresence mode="wait" initial={false}>
-              <m.div
-                key={currentStepId}
-                initial={{
-                  opacity: 0,
-                  x: stepDirection === "forward" ? 20 : -20,
-                }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: stepDirection === "forward" ? -20 : 20 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="min-h-0"
-              >
-                {stepContent}
-              </m.div>
-            </AnimatePresence>
-          </LazyMotion>
+          {/* Plain render, no animation library in the mount/unmount path (2026-10-28): confirmed
+              live via direct DOM inspection that AnimatePresence's exit lifecycle can get stuck
+              and never actually unmount the previous step — both the old and new step's content
+              ended up coexisting as DOM siblings, the old one visible and the new one stuck at
+              opacity:0 from an entry animation that never ran, with zero console error. Tried
+              dropping `mode="wait"` and dropping the opacity tween first; neither fixed it, since
+              the real defect is the exit-to-removal handoff itself, not any one tween. A core
+              booking step must never depend on an animation library's lifecycle completing to be
+              visible — losing the slide/fade polish here is the right trade for a flow real
+              patients depend on actually working. */}
+          <div className="min-h-0">{stepContent}</div>
         </div>
 
         {/* Footer hide on success screen */}
+        {!isSuccessStep && nextBlockedReason ? (
+          <p
+            id="booking-continue-hint"
+            className="m-0 shrink-0 border-t border-hair bg-[#f8fafc] px-3.5 pt-2 text-xs font-medium text-ink-muted dark:bg-well/40 sm:px-5"
+          >
+            {nextBlockedReason}
+          </p>
+        ) : null}
         {!isSuccessStep && (
           <div className="flex shrink-0 flex-row items-center gap-2 border-t border-hair bg-[#f8fafc] px-3.5 py-2.5 dark:bg-well/40 sm:px-5">
             <Button
@@ -5242,11 +5679,12 @@ export function BookAppointmentDialog({
             </Button>
             <div className="hidden flex-1 sm:block" />
 
-            {currentStepId !== "confirm" ? (
+            {showBookingPaused ? null : currentStepId !== "confirm" ? (
               <Button
                 size="md"
                 onClick={goNext}
                 disabled={!canNext}
+                aria-describedby={nextBlockedReason ? "booking-continue-hint" : undefined}
                 className="max-sm:flex-auto"
               >
                 {pendingStepNavigation === "forward" ? (
@@ -5258,10 +5696,10 @@ export function BookAppointmentDialog({
                 )}
               </Button>
             ) : (
-              // On wide patient screens the same button sits in the payment summary card.
+              // Patient page layout: the button sits full width in the payment summary card.
               renderConfirmButton(
                 "md",
-                cn("max-sm:flex-auto", isPageLayout && "lg:hidden"),
+                cn("max-sm:flex-auto", isPageLayout && "hidden"),
               )
             )}
           </div>

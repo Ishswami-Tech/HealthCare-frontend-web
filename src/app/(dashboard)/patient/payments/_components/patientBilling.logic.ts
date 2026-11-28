@@ -1,6 +1,6 @@
 import { isPaidPayment, paymentKind, type PaymentKind } from "@/components/billing/PaymentHistory";
 import { paymentDateValue, sortPaymentsNewestFirst } from "@/components/billing/staff/billing.logic";
-import { EMPTY_DATE_LABEL, formatDateInIST, formatDateLabel, formatMonthShortInIST } from "@/lib/utils/date-time";
+import { EMPTY_DATE_LABEL, formatDateInIST, formatDateKeyInIST, formatDateLabel, formatMonthShortInIST } from "@/lib/utils/date-time";
 import type { Invoice, Payment, Subscription } from "@/types/billing.types";
 
 // ── Routes ─────────────────────────────────────────────────────────────────
@@ -70,12 +70,66 @@ export function invoiceDiscount(invoice: Invoice): number {
   return finite((invoice as PatientInvoice).discount) ?? 0;
 }
 
-export function isPayableInvoice(invoice: Pick<Invoice, "status">): boolean {
-  return String(invoice.status || "").toUpperCase() === "PENDING";
+/**
+ * When the open payment attempt of a PENDING invoice stops being payable (`paymentExpiresAt`
+ * from the invoices API), or null when it has none.
+ */
+export function invoicePaymentExpiresAt(invoice: Pick<Invoice, "paymentExpiresAt">): Date | null {
+  const raw = invoice.paymentExpiresAt;
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+/**
+ * An invoice whose payment window is over: every payment must be completed within its window,
+ * otherwise the backend voids the invoice within a minute or two. It is shown as expired
+ * straight away and never offers Pay.
+ */
+export function isLapsedCheckout(
+  invoice: Pick<Invoice, "status" | "subscriptionId" | "paymentExpiresAt">,
+  now: Date = new Date(),
+): boolean {
+  if (String(invoice.status || "").toUpperCase() !== "PENDING") return false;
+  const expiresAt = invoicePaymentExpiresAt(invoice);
+  return expiresAt !== null && expiresAt.getTime() <= now.getTime();
+}
+
+type InvoiceStateFields = Pick<Invoice, "status" | "subscriptionId" | "paymentExpiresAt">;
+
+export function isPayableInvoice(invoice: InvoiceStateFields, now: Date = new Date()): boolean {
+  return String(invoice.status || "").toUpperCase() === "PENDING" && !isLapsedCheckout(invoice, now);
 }
 
 export function isPaidInvoice(invoice: Pick<Invoice, "status">): boolean {
   return String(invoice.status || "").toUpperCase() === "PAID";
+}
+
+export type InvoiceDisplayState = "pending" | "paid" | "closed";
+
+/**
+ * What the patient can do with an invoice: PENDING -> Pay, PAID -> download the receipt,
+ * VOID / EXPIRED / CANCELLED (or a lapsed plan checkout) -> nothing, shown muted.
+ */
+export function invoiceDisplayState(invoice: InvoiceStateFields, now: Date = new Date()): InvoiceDisplayState {
+  if (isPaidInvoice(invoice)) return "paid";
+  if (isPayableInvoice(invoice, now)) return "pending";
+  return "closed";
+}
+
+/** Status word for the invoice pill: a lapsed invoice reads "EXPIRED" before the backend voids it. */
+export function invoiceDisplayStatus(invoice: InvoiceStateFields, now: Date = new Date()): string {
+  return isLapsedCheckout(invoice, now) ? "EXPIRED" : String(invoice.status || "PENDING").toUpperCase();
+}
+
+/** The open plan purchase the patient can still pay (newest first), or null. */
+export function pendingPlanInvoice(invoices: Invoice[], now: Date = new Date()): Invoice | null {
+  return (
+    invoices
+      .filter((invoice) => Boolean(invoice.subscriptionId) && isPayableInvoice(invoice, now))
+      .toSorted((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())[0] ??
+    null
+  );
 }
 
 function rawLines(invoice: PatientInvoice): unknown[] {
@@ -209,7 +263,29 @@ export function pendingInvoices(invoices: Invoice[]): Invoice[] {
     const value = new Date(invoice.dueDate || invoice.createdAt || 0).getTime();
     return Number.isFinite(value) ? value : 0;
   };
-  return invoices.filter(isPayableInvoice).toSorted((left, right) => time(left) - time(right));
+  return invoices.filter((invoice) => isPayableInvoice(invoice)).toSorted((left, right) => time(left) - time(right));
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Whole days an unpaid invoice is past its due date (0 when it is not payable, has no due date,
+ * or is due today or later). Calendar days in IST, so "due 5 Oct" is overdue from 6 Oct.
+ */
+export function invoiceDaysOverdue(invoice: Invoice, now: number = Date.now()): number {
+  if (!isPayableInvoice(invoice) || !invoice.dueDate) return 0;
+  const due = new Date(invoice.dueDate).getTime();
+  if (!Number.isFinite(due)) return 0;
+  const dayKey = (value: number) => new Date(`${formatDateKeyInIST(new Date(value))}T00:00:00Z`).getTime();
+  const days = Math.floor((dayKey(now) - dayKey(due)) / DAY_MS);
+  return days > 0 ? days : 0;
+}
+
+/** "Overdue · 26 days ago", or "" when the invoice is not overdue. */
+export function overdueLabel(invoice: Invoice, now: number = Date.now()): string {
+  const days = invoiceDaysOverdue(invoice, now);
+  if (days === 0) return "";
+  return `Overdue · ${days === 1 ? "1 day" : `${days} days`} ago`;
 }
 
 export interface DueSummary {

@@ -9,6 +9,7 @@ import { MinimalStatusIndicator } from "@/components/common/MinimalStatusIndicat
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useHydrated } from "@/hooks/utils/useHydrated";
+import { useMinWidth } from "@/hooks/utils/useMinWidth";
 import { useRouter, usePathname } from "next/navigation";
 import { LogOut, User, Settings, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,8 @@ function getAvatarGradient(initials?: string) {
 
 export function Header({ className, children, showSidebarTrigger = true }: HeaderProps) {
   const mounted = useHydrated();
+  // Tailwind `lg` breakpoint: the system-status badge is only shown from here up.
+  const showStatusBadge = useMinWidth(1024);
   const { logoutAsync } = useAuth();
   const { push } = useRouter();
   const pathname = usePathname();
@@ -90,10 +93,10 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
           className,
         )}
       >
-        <div className="flex h-14 w-full items-center gap-2.5 px-4 sm:px-6 md:h-[68px] md:px-8">
+        <div className="flex min-h-14 w-full items-center gap-2.5 px-4 py-1 sm:px-6 md:min-h-[68px] md:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {showSidebarTrigger && (
-              <SidebarTrigger className="-ml-1 size-8 shrink-0 md:hidden" />
+              <SidebarTrigger className="-ml-1 size-11 shrink-0 md:hidden" />
             )}
 
             {showPageTitle && (
@@ -109,16 +112,20 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
             {children}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-2.5">
             {mounted ? (
               <>
-                <div className="hidden items-center lg:flex">
-                  <MinimalStatusIndicator />
-                </div>
+                {/* Mounted only where it is visible (lg and up): below that the badge was
+                    CSS-hidden but still polled /health on every page. */}
+                {showStatusBadge ? (
+                  <div className="hidden items-center lg:flex">
+                    <MinimalStatusIndicator />
+                  </div>
+                ) : null}
 
-                <NotificationBell className="size-10 rounded-xl border border-line bg-card text-ink shadow-none transition-colors hover:bg-mint-soft hover:text-ink dark:bg-card dark:hover:bg-accent" />
+                <NotificationBell className="size-11 rounded-xl border border-line bg-card text-ink shadow-none transition-colors hover:bg-mint-soft hover:text-ink dark:bg-card dark:hover:bg-accent" />
 
-                <CompactThemeSwitcher className="size-10 rounded-xl border border-line bg-card text-ink shadow-none transition-colors hover:bg-mint-soft hover:text-ink dark:bg-card dark:hover:bg-accent" />
+                <CompactThemeSwitcher className="size-11 rounded-xl border border-line bg-card text-ink shadow-none transition-colors hover:bg-mint-soft hover:text-ink dark:bg-card dark:hover:bg-accent" />
 
                 <LanguageSwitcher
                   variant="compact"
@@ -132,11 +139,12 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
+                        aria-label={`Account menu for ${displayUser.name}`}
                         className="flex min-h-11 items-center gap-2.5 rounded-[14px] border border-line bg-card py-1 pl-1.5 pr-2 text-left transition-colors hover:bg-mint-soft sm:pr-3"
                       >
                         <span
                           className={cn(
-                            "relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-linear-to-br text-[11px] font-bold text-white",
+                            "relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-linear-to-br text-xs font-bold text-white",
                             getAvatarGradient(displayUser.initials),
                           )}
                         >
@@ -157,7 +165,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
                           <span className="truncate text-[13px] font-bold text-ink">
                             {displayUser.name}
                           </span>
-                          <span className="truncate text-[11px] capitalize text-ink-muted">
+                          <span className="truncate text-xs capitalize text-ink-muted">
                             {displayUser.role.replace(/_/g, " ").toLowerCase()}
                           </span>
                         </span>

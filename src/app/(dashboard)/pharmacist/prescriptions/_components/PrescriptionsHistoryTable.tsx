@@ -101,6 +101,10 @@ export function PrescriptionsHistoryTable({
                   <span className="block text-[13px] font-semibold leading-[1.35] text-ink">
                     {formatDateTimeLabel(prescription.handedOverAt)}
                   </span>
+                ) : prescription.dispensedAt ? (
+                  <span className="block text-[13px] font-medium leading-[1.35] text-ink-muted">
+                    Dispensed at {formatDateTimeLabel(prescription.dispensedAt)}
+                  </span>
                 ) : (
                   <span className="text-[13px] font-medium text-ink-muted">
                     {prescription.status === "CANCELLED" ? "Not handed over" : "Time not recorded"}
@@ -120,6 +124,8 @@ export function PrescriptionsHistoryTable({
                   >
                     Reverse dispense
                   </Button>
+                ) : prescription.handoverStatus === "HANDED_OVER" ? (
+                  <span className="text-xs font-medium text-ink-muted">Collected — record a return</span>
                 ) : (
                   <span className="text-sm font-medium text-ink-muted" aria-label="No action">
                     —

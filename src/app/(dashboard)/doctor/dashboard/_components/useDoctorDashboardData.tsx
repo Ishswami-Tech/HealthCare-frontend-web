@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useDisplayUser } from "@/stores/layout.store";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useCurrentDoctorEntityId } from "@/hooks/query/useDoctors";
 import { useAppointments, useCompleteAppointment, useStartAppointment, hasAppointmentsLoadedForSession } from "@/hooks/query/useAppointments";
-import { useQueue } from "@/hooks/query/useQueue";
+import { useDoctorQueueGlance, useQueue } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useCurrentTimestamp } from "@/hooks/utils/useClientDate";
 import {
@@ -23,6 +24,7 @@ import type { AppointmentWithRelations } from "@/types/appointment.types";
 import type { CanonicalQueueEntry } from "@/types/queue.types";
 import {
   buildDoctorDashboardStats,
+  buildDoctorFollowUpLines,
   buildDoctorQueueLines,
   buildDoctorQueueSections,
   buildDoctorTodayRow,
@@ -41,14 +43,18 @@ import {
 
 /** How often the video join state of today's visits is worked out again. */
 const JOIN_STATE_REFRESH_MS = 30_000;
+/** Visit statuses that never take the consultation card. */
+const CLOSED_VISIT_STATUSES: ReadonlySet<string> = new Set(["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"]);
 
 export function useDoctorDashboardData() {
   const { push } = useRouter();
   const { session } = useAuth();
   const user = session?.user;
+  // The shell's resolved name (first + last, then `users.name`, ...) so the greeting matches the header.
+  const shellName = useDisplayUser()?.name;
   const displayDoctorName = useMemo(
-    () => getDisplayDoctorName(user?.name || user?.firstName || null),
-    [user?.firstName, user?.name]
+    () => getDisplayDoctorName(shellName || user?.name || user?.firstName || null),
+    [shellName, user?.firstName, user?.name]
   );
   const clinicId = useCurrentClinicId();
   const doctorId = user?.id;
@@ -70,16 +76,16 @@ export function useDoctorDashboardData() {
     () => formatDateInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA"),
     []
   );
+  // Everything this dashboard shows is today's (table, queue, current consult) plus video visits
+  // still open from late yesterday (5-hour join window), so the server returns only yesterday
+  // and today. A wider window (it was -90 .. +365 days) with the 500-row page and newest-first
+  // ordering would drop today's rows on a busy clinic.
   const historyStartDate = useMemo(() => {
     const date = new Date();
-    date.setDate(date.getDate() - 90);
+    date.setDate(date.getDate() - 1);
     return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
   }, []);
-  const futureEndDate = useMemo(() => {
-    const date = new Date();
-    date.setDate(date.getDate() + 365);
-    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
-  }, []);
+  const futureEndDate = today;
   const [
     {
       consultSummary,
@@ -110,6 +116,9 @@ export function useDoctorDashboardData() {
     ...(queueDoctorId ? { doctorId: queueDoctorId } : {}),
     enabled: !!clinicId,
   });
+  // B11: who is with the doctor and who is next, from the live queue in GET /queue order
+  // (GET /appointments/summary/daily -> liveQueue). Null when the backend sends no glance.
+  const { data: queueGlance } = useDoctorQueueGlance(clinicId || undefined, { enabled: !!clinicId });
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
 
@@ -171,7 +180,6 @@ export function useDoctorDashboardData() {
   }, [dispatch]);
 
   const currentInPersonConsult = useMemo(() => {
-    const activeQueueAppointmentId = String((highlightedQueuePatient as any)?.appointmentId || "");
     // An appointment carries the Doctor record id; older payloads carried the user id.
     // Only today's visits count, so a visit left open on an earlier day never takes the card.
     const isOwnAppointment = (appointment: AppointmentWithRelations) => {
@@ -183,13 +191,38 @@ export function useDoctorDashboardData() {
         ? formatDateInIST(startsAt, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA") === today
         : false;
     };
+    const isOwnInProgress = (appointment: AppointmentWithRelations) =>
+      isOwnAppointment(appointment) &&
+      appointment.type === "IN_PERSON" &&
+      String(appointment.status || "").toUpperCase() === "IN_PROGRESS";
+    const findOpenById = (id: string | null) =>
+      id
+        ? visibleAppointmentsArray.find(
+            (appointment: AppointmentWithRelations) =>
+              appointment.id === id && !CLOSED_VISIT_STATUSES.has(String(appointment.status || "").toUpperCase())
+          ) ?? null
+        : null;
+
+    // B11: the live queue glance decides, so the card always agrees with the queue: the visit in
+    // progress, else the next waiting patient. The glance is absent on an older backend or when
+    // the queue could not be read; it can also name a visit the list has not loaded (or has
+    // already closed) for a moment. In those cases the list-based rules below apply.
+    if (queueGlance) {
+      const fromGlance =
+        findOpenById(queueGlance.inProgressAppointmentId) ||
+        visibleAppointmentsArray.find(isOwnInProgress) ||
+        findOpenById(queueGlance.nextAppointmentId);
+      if (fromGlance) {
+        return fromGlance;
+      }
+      if (!queueGlance.inProgressAppointmentId && !queueGlance.nextAppointmentId) {
+        return null;
+      }
+    }
+
+    const activeQueueAppointmentId = String((highlightedQueuePatient as any)?.appointmentId || "");
     return (
-      visibleAppointmentsArray.find(
-        (appointment: AppointmentWithRelations) =>
-          isOwnAppointment(appointment) &&
-          appointment.type === "IN_PERSON" &&
-          String(appointment.status || "").toUpperCase() === "IN_PROGRESS"
-      ) ||
+      visibleAppointmentsArray.find(isOwnInProgress) ||
       (activeQueueAppointmentId
         ? visibleAppointmentsArray.find((appointment: AppointmentWithRelations) => appointment.id === activeQueueAppointmentId)
         : null) ||
@@ -202,7 +235,7 @@ export function useDoctorDashboardData() {
       ) ||
       null
     );
-  }, [doctorEntityId, doctorId, highlightedQueuePatient, today, visibleAppointmentsArray]);
+  }, [doctorEntityId, doctorId, highlightedQueuePatient, queueGlance, today, visibleAppointmentsArray]);
 
   const currentConsultStatus = String(currentInPersonConsult?.status || "").toUpperCase();
   const currentConsultStartOverride =
@@ -323,7 +356,9 @@ export function useDoctorDashboardData() {
     () => ({
       all: todayRows.length,
       confirmed: todayRows.filter((row) => row.appointment.statusEnum === "CONFIRMED").length,
+      inProgress: todayRows.filter((row) => row.appointment.statusEnum === "IN_PROGRESS").length,
       completed: todayRows.filter((row) => row.appointment.statusEnum === "COMPLETED").length,
+      cancelled: todayRows.filter((row) => row.appointment.statusEnum === "CANCELLED").length,
     }),
     [todayRows]
   );
@@ -338,6 +373,24 @@ export function useDoctorDashboardData() {
 
   // Right rail: in-clinic, checked-in patients only (video visits never join the queue).
   const queueLines = useMemo(() => buildDoctorQueueLines(liveQueueEntries, timelineById), [liveQueueEntries, timelineById]);
+
+  // Right rail "Follow-ups": upcoming review visits (isFollowUp), separate from the main
+  // appointments query above since that one is bounded to yesterday/today only.
+  const { data: followUpAppointments } = useAppointments({
+    ...(clinicId ? { clinicId } : {}),
+    ...(doctorId ? { doctorId } : {}),
+    isFollowUp: true,
+    startDate: today,
+    limit: 5,
+  });
+  const followUpAppointmentsArray = useMemo(
+    () => (Array.isArray(followUpAppointments) ? followUpAppointments : (followUpAppointments as any)?.appointments || []),
+    [followUpAppointments]
+  );
+  const followUpLines = useMemo(
+    () => buildDoctorFollowUpLines(followUpAppointmentsArray),
+    [followUpAppointmentsArray]
+  );
 
   const activeConsult = useMemo<TransformedAppointment | null>(() => {
     if (!currentInPersonConsult) {
@@ -410,10 +463,16 @@ export function useDoctorDashboardData() {
       }
 
       const startedAt = new Date().toISOString();
-      await startAppointmentMutation.mutateAsync({
-        appointmentId,
-        doctorId: doctorIdForAppointment,
-      });
+      try {
+        await startAppointmentMutation.mutateAsync({
+          appointmentId,
+          doctorId: doctorIdForAppointment,
+        });
+      } catch {
+        // The mutation hook already shows the API's reason as an error toast (for example
+        // "Finish the current consultation first"). Nothing changed, so keep the screen as it is.
+        return;
+      }
       dispatch({ type: "setLastCompletedVisit", value: null });
       dispatch({
         type: "setConsultStartOverrides",
@@ -552,6 +611,7 @@ export function useDoctorDashboardData() {
   return {
     appointmentsArray,
     appointmentsError,
+    refetchAppointments,
     appointmentTimeline,
     openVideoVisits,
     nowMs: consultTick,
@@ -588,6 +648,7 @@ export function useDoctorDashboardData() {
     lastCompletedVisit,
     nextPatient,
     queueLines,
+    followUpLines,
     todayRows,
     onConsultSummaryChange: (value: string) => dispatch({ type: "setConsultSummary", value }),
     onSelectQueueLane: handleSelectQueueLane,
@@ -595,7 +656,6 @@ export function useDoctorDashboardData() {
     onCancelSkipMedicine: handleCancelSkipMedicine,
     prescriptionAppointment,
     onJoinVideoSession: (appointmentId: string) => push(buildVideoSessionRoute(appointmentId)),
-    onOpenEhr: (patientId: string) => push(`/doctor/patients/${patientId}`),
     onNavigateAppointments: () => push("/doctor/appointments"),
     onNavigatePatients: () => push("/doctor/patients"),
     onNavigateNoShow: () => push("/doctor/appointments?view=NO_SHOW"),

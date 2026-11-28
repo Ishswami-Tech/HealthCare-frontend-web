@@ -1,6 +1,5 @@
 // @ts-nocheck
 "use client";
-import { APP_CONFIG } from "@/lib/config/config";
 
 /**
  * ✅ GlobalSidebar - Refactored to use standard shadcn sidebar components
@@ -33,7 +32,8 @@ import {
   prefetchAppointments,
   prefetchMyAppointments,
 } from "@/hooks/query/useAppointments";
-import { useCurrentClinicId, useMyClinic } from "@/hooks/query/useClinics";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useClinicBrandName } from "@/hooks/query/useClinicBrandName";
 import {
   Dialog,
   DialogContent,
@@ -123,17 +123,54 @@ export interface SidebarProps {
 // LOGO COMPONENTS
 // ============================================================================
 
-/** Emerald brand square with the pulse mark (TestByDoctor). */
-const BrandMark = memo(function BrandMark({ className }: { className?: string }) {
+/** First letters of up to two words of the clinic name ("Aadesh Ayurvedalay" -> "AA"). */
+function clinicInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const letters = words.slice(0, 2).map((word) => word[0]?.toUpperCase() ?? "");
+  return letters.join("") || "";
+}
+
+/**
+ * The clinic's mark: its own logo (clinic settings, from the backend) when one is set, else its
+ * initials on the brand square; the pulse icon only when there is no clinic name at all.
+ */
+const BrandMark = memo(function BrandMark({
+  className,
+  logoUrl,
+  name,
+}: {
+  className?: string;
+  logoUrl?: string | null;
+  name?: string;
+}) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const initials = name ? clinicInitials(name) : "";
+  if (logoUrl && !logoFailed) {
+    return (
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-white shadow-sm",
+          className,
+        )}
+        aria-hidden="true"
+      >
+        <img src={logoUrl} alt="" className="size-full object-contain p-1" onError={() => setLogoFailed(true)} />
+      </span>
+    );
+  }
   return (
     <span
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#047857] text-white shadow-[0_6px_14px_rgba(4,120,87,0.28)]",
+        "flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#059669] to-[#047857] text-white shadow-[0_6px_14px_rgba(4,120,87,0.28)]",
         className,
       )}
       aria-hidden="true"
     >
-      <Activity className="size-5" strokeWidth={2.6} />
+      {initials ? (
+        <span className="text-[15px] font-extrabold tracking-[-0.3px]">{initials}</span>
+      ) : (
+        <Activity className="size-5" strokeWidth={2.6} />
+      )}
     </span>
   );
 });
@@ -148,11 +185,13 @@ function portalLabel(role?: string): string {
 
 const Logo = memo(function Logo({ role }: { role?: string }) {
   const portal = portalLabel(role);
-  const { data: myClinic } = useMyClinic();
-  const brandName = myClinic?.name?.trim() || APP_CONFIG.CLINIC.BRAND_NAME;
+  // The clinic's own name (backend, else session, else last seen on this device). While none is
+  // known yet a text placeholder ("Your clinic") is not shown; a skeleton bar holds the place.
+  const { name: brandName, isKnown, logoUrl } = useClinicBrandName();
+  const clinicName = isKnown ? brandName : "";
   return (
-    <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-2.5">
-      <BrandMark />
+    <Link href="/" prefetch={false} title={clinicName || undefined} aria-label={clinicName ? undefined : "Home"} className="flex min-w-0 items-center gap-2.5">
+      <BrandMark logoUrl={logoUrl} name={clinicName} />
       <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -160,9 +199,13 @@ const Logo = memo(function Logo({ role }: { role?: string }) {
         transition={{ duration: 0.2, ease: "linear" }}
         className="flex min-w-0 flex-col justify-center leading-[1.15]"
       >
-        <span className="truncate text-base font-extrabold tracking-[-0.3px] text-sidebar-foreground">
-          {brandName}
-        </span>
+        {clinicName ? (
+          <span className="line-clamp-2 break-words text-[15px] font-extrabold leading-[1.15] tracking-[-0.3px] text-sidebar-foreground">
+            {clinicName}
+          </span>
+        ) : (
+          <span className="block h-3.5 w-28 animate-pulse rounded bg-sidebar-accent" aria-hidden="true" />
+        )}
         {portal ? (
           <span className="truncate text-[10.5px] font-bold tracking-[0.4px] text-brand">{portal}</span>
         ) : null}
@@ -252,6 +295,23 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
     });
   }, [translatedLinks, hasPermission]);
 
+  // Only the most specific link is highlighted: "/clinic-admin/billing" must not stay lit
+  // while "/clinic-admin/billing/invoices" is open. A link with a query string wins a tie.
+  const activeHref = useMemo(() => {
+    let best: string | null = null;
+    let bestScore = -1;
+    for (const candidate of filteredLinks) {
+      if (!isSidebarLinkActive(pathname, searchParams, candidate.href)) continue;
+      const { pathname: targetPath, searchParams: targetSearch } = splitHref(candidate.href);
+      const score = targetPath.length * 2 + (targetSearch.size > 0 ? 1 : 0);
+      if (score > bestScore) {
+        best = candidate.href;
+        bestScore = score;
+      }
+    }
+    return best;
+  }, [filteredLinks, pathname, searchParams]);
+
   const profileRouteByRole: Record<string, string> = {
     SUPER_ADMIN: "/super-admin/settings",
     CLINIC_ADMIN: "/clinic-admin/settings",
@@ -309,7 +369,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
           {filteredLinks.map((link) => {
             const isLogout = link.href === "#logout" || link.title === t("sidebar.logout");
             const Icon = link.icon || Menu;
-            const isActive = isSidebarLinkActive(pathname, searchParams, link.href);
+            const isActive = link.href === activeHref;
 
             return (
               <SidebarMenuItem key={link.href} className="">
