@@ -1,4 +1,5 @@
 "use client";
+import { APP_CONFIG } from "@/lib/config/config";
 
 import type { ReactNode } from "react";
 import { Check, FileText, Globe, KeyRound, ScrollText, ShieldCheck } from "lucide-react";
@@ -187,7 +188,7 @@ export function PatientSettingsView({
               icon={ScrollText}
               tone="slate"
               label="Terms of service"
-              description={clinicName ? `The rules for using ${clinicName}'s services` : "The rules for using this service"}
+              description={`The rules for using ${clinicName || APP_CONFIG.CLINIC.BRAND_NAME}'s services`}
               href="/terms-of-service"
               external
             />

@@ -1,0 +1,277 @@
+name: Web image (Temps)
+
+# Builds the web app as one multi-arch image (linux/amd64 + linux/arm64) and deploys it to Temps.
+# Production runs one copy on each of temps-worker (amd64), oracle-main and oracle-vm2-dss (both
+# arm64). Their copies sit behind one load balancer, so every platform must serve the SAME build:
+# the Dockerfile runs `next build` once (on the build platform) and only the runtime layer differs
+# per platform. Separate per-arch builds gave different chunk names, and a page from an arm64 copy
+# then asked the amd64 copy for chunks it did not have (blank page). The check-same-build job
+# fails the run if the platforms' chunk lists ever differ again.
+#
+# NEXT_PUBLIC_* and the other build-time values come from repository Variables (one per Dockerfile
+# ARG). Runtime values live in the Temps environments.
+#
+# Every run pushes the immutable tag sha-<sha> after building both platforms; tags that deploy
+# anything are only added once both platforms pass their smoke test and the chunk check:
+# - push to main: + main, latest; deploys to the Temps "production" environment.
+# - push to pre-prod: + pre-prod; deploys to the Temps "pre-prod" environment.
+# Deploys run only when ENABLE_TEMPS_DEPLOY is "true" and the control-plane SSH secrets are set.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, pre-prod]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: web-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: healthcare-frontend-web
+
+jobs:
+  build:
+    name: Build (amd64 + arm64, one next build)
+    # Fork pull requests cannot push to GHCR.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      ref: ${{ steps.image.outputs.image }}:sha-${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name (lowercase)
+        id: image
+        run: echo "image=${REGISTRY}/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+      # Only the runtime stage's few RUN steps execute as arm64; next build runs natively.
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push sha tag
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.image }}:sha-${{ github.event.pull_request.head.sha || github.sha }}
+          build-args: |
+            BING_VERIFICATION=${{ vars.BING_VERIFICATION }}
+            GOOGLE_SITE_VERIFICATION=${{ vars.GOOGLE_SITE_VERIFICATION }}
+            NEXT_PUBLIC_API_BASE_URL=${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+            NEXT_PUBLIC_API_PREFIX=${{ vars.NEXT_PUBLIC_API_PREFIX }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_API_VERSION=${{ vars.NEXT_PUBLIC_API_VERSION }}
+            NEXT_PUBLIC_APPLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_APPLE_CLIENT_ID }}
+            NEXT_PUBLIC_APP_NAME=${{ vars.NEXT_PUBLIC_APP_NAME }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_APP_VERSION=${{ vars.NEXT_PUBLIC_APP_VERSION }}
+            NEXT_PUBLIC_AUTH_ENABLED=${{ vars.NEXT_PUBLIC_AUTH_ENABLED }}
+            NEXT_PUBLIC_BACKEND_URL=${{ vars.NEXT_PUBLIC_BACKEND_URL }}
+            NEXT_PUBLIC_CASHFREE_API_VERSION=${{ vars.NEXT_PUBLIC_CASHFREE_API_VERSION }}
+            NEXT_PUBLIC_CASHFREE_APP_ID=${{ vars.NEXT_PUBLIC_CASHFREE_APP_ID }}
+            NEXT_PUBLIC_CASHFREE_MODE=${{ vars.NEXT_PUBLIC_CASHFREE_MODE }}
+            NEXT_PUBLIC_CLINIC_API_URL=${{ vars.NEXT_PUBLIC_CLINIC_API_URL }}
+            NEXT_PUBLIC_CLINIC_ID=${{ vars.NEXT_PUBLIC_CLINIC_ID }}
+            NEXT_PUBLIC_DEBUG_BACKEND_STATUS=${{ vars.NEXT_PUBLIC_DEBUG_BACKEND_STATUS }}
+            NEXT_PUBLIC_ENABLE_ANALYTICS=${{ vars.NEXT_PUBLIC_ENABLE_ANALYTICS }}
+            NEXT_PUBLIC_ENABLE_CONSOLE_LOGS=${{ vars.NEXT_PUBLIC_ENABLE_CONSOLE_LOGS }}
+            NEXT_PUBLIC_ENABLE_CORS=${{ vars.NEXT_PUBLIC_ENABLE_CORS }}
+            NEXT_PUBLIC_ENABLED_PAYMENT_PROVIDERS=${{ vars.NEXT_PUBLIC_ENABLED_PAYMENT_PROVIDERS }}
+            NEXT_PUBLIC_ENABLE_HTTPS=${{ vars.NEXT_PUBLIC_ENABLE_HTTPS }}
+            NEXT_PUBLIC_ENABLE_NOTIFICATIONS=${{ vars.NEXT_PUBLIC_ENABLE_NOTIFICATIONS }}
+            NEXT_PUBLIC_ENABLE_REAL_TIME=${{ vars.NEXT_PUBLIC_ENABLE_REAL_TIME }}
+            NEXT_PUBLIC_ENABLE_VIDEO_CALLS=${{ vars.NEXT_PUBLIC_ENABLE_VIDEO_CALLS }}
+            NEXT_PUBLIC_ENABLE_VIDEO_RECORDING=${{ vars.NEXT_PUBLIC_ENABLE_VIDEO_RECORDING }}
+            NEXT_PUBLIC_ENVIRONMENT=${{ vars.NEXT_PUBLIC_ENVIRONMENT }}
+            NEXT_PUBLIC_FACEBOOK_APP_ID=${{ vars.NEXT_PUBLIC_FACEBOOK_APP_ID }}
+            NEXT_PUBLIC_FIREBASE_API_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+            NEXT_PUBLIC_FIREBASE_APP_ID=${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+            NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+            NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+            NEXT_PUBLIC_FIREBASE_VAPID_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
+            NEXT_PUBLIC_FRONTEND_DOMAIN=${{ vars.NEXT_PUBLIC_FRONTEND_DOMAIN }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ vars.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+            NEXT_PUBLIC_HEALTH_CHECK_INTERVAL=${{ vars.NEXT_PUBLIC_HEALTH_CHECK_INTERVAL }}
+            NEXT_PUBLIC_LOG_LEVEL=${{ vars.NEXT_PUBLIC_LOG_LEVEL }}
+            NEXT_PUBLIC_MAIN_DOMAIN=${{ vars.NEXT_PUBLIC_MAIN_DOMAIN }}
+            NEXT_PUBLIC_PAYMENT_BRIDGE_URL=${{ vars.NEXT_PUBLIC_PAYMENT_BRIDGE_URL }}
+            NEXT_PUBLIC_RAZORPAY_KEY_ID=${{ vars.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED=${{ vars.NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED }}
+            NEXT_PUBLIC_WEBSOCKET_URL=${{ vars.NEXT_PUBLIC_WEBSOCKET_URL }}
+            NEXT_PUBLIC_WS_MAX_RECONNECT_ATTEMPTS=${{ vars.NEXT_PUBLIC_WS_MAX_RECONNECT_ATTEMPTS }}
+            NEXT_PUBLIC_WS_TIMEOUT=${{ vars.NEXT_PUBLIC_WS_TIMEOUT }}
+            NEXT_PUBLIC_WS_URL=${{ vars.NEXT_PUBLIC_WS_URL }}
+            NEXT_PUBLIC_YOUTUBE_API_KEY=${{ vars.NEXT_PUBLIC_YOUTUBE_API_KEY }}
+            NEXT_SERVER_ACTION_ALLOWED_ORIGINS=${{ vars.NEXT_SERVER_ACTION_ALLOWED_ORIGINS }}
+            YAHOO_VERIFICATION=${{ vars.YAHOO_VERIFICATION }}
+            YANDEX_VERIFICATION=${{ vars.YANDEX_VERIFICATION }}
+          # Fixed salt for server action IDs, so open tabs keep working across deploys (see Dockerfile).
+          # The build layer cache does not track secret values: after rotating this secret, run the
+          # workflow once without cache (or change the Dockerfile) so the new key is used.
+          secrets: |
+            next_server_actions_encryption_key=${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
+          cache-from: type=gha,scope=web-multi
+          cache-to: type=gha,mode=max,ignore-error=true,scope=web-multi
+
+  smoke:
+    name: "Smoke test (${{ matrix.platform }})"
+    needs: build
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run the image natively
+        env:
+          REF: ${{ needs.build.outputs.ref }}
+        run: |
+          set -euo pipefail
+          expected="${{ matrix.platform == 'linux/arm64' && 'aarch64' || 'x86_64' }}"
+          docker pull -q --platform "${{ matrix.platform }}" "$REF"
+          arch=$(docker run --rm --entrypoint uname "$REF" -m)
+          [ "$arch" = "$expected" ] || { echo "::error::image arch $arch, expected $expected"; exit 1; }
+          docker run -d --name web-smoke -p 3000:3000 "$REF"
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:3000/api/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://localhost:3000/api/health
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/)
+          [ "$code" = "200" ] || { echo "::error::GET / returned $code"; docker logs web-smoke | tail -50; exit 1; }
+          # sharp must load for this platform (next/image optimisation).
+          docker exec web-smoke node -e "require('sharp'); console.log('sharp ok')"
+          docker run --rm --entrypoint sh "$REF" -c 'cd /app/.next/static/chunks && ls | sort' > "chunks-${arch}.txt"
+          echo "arch=$arch, /api/health ok, / 200, sharp ok, $(wc -l < "chunks-${arch}.txt") chunks"
+          docker rm -f web-smoke
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chunks-${{ matrix.platform == 'linux/arm64' && 'arm64' || 'amd64' }}
+          path: chunks-*.txt
+          retention-days: 1
+
+  check-same-build:
+    name: Same build on every platform
+    needs: smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: chunks-*
+          merge-multiple: true
+      - name: Compare chunk lists
+        run: |
+          set -euo pipefail
+          if ! diff -q chunks-x86_64.txt chunks-aarch64.txt >/dev/null; then
+            echo "::error::amd64 and arm64 images contain different chunks; replicas would 404 each other's pages"
+            diff chunks-x86_64.txt chunks-aarch64.txt | head -20
+            exit 1
+          fi
+          echo "identical: $(wc -l < chunks-x86_64.txt) chunks"
+
+  tag:
+    name: Tag for deploy
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-prod')
+    needs: [build, check-same-build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      image: ${{ needs.build.outputs.ref }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Add branch tags
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+          REF: ${{ needs.build.outputs.ref }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then tags="-t ${IMAGE}:main -t ${IMAGE}:latest"; else tags="-t ${IMAGE}:pre-prod"; fi
+          docker buildx imagetools create $tags "$REF"
+          docker buildx imagetools inspect "$REF"
+          echo "Image: \`$REF\` (linux/amd64 + linux/arm64)" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to Temps
+    # Runs when ENABLE_TEMPS_DEPLOY is "true". The SSH key is a dedicated deploy key that the
+    # control plane restricts (authorized_keys restrict,command=) to ~/bin/hcw-web-deploy, which
+    # accepts only "deploy-web <pre-prod|production> <this repo's sha- image>", pulls both
+    # platforms (the arm64 nodes are only scheduled when the arm64 variant is held locally) and
+    # runs `temps deploy:image`. The key cannot open a shell or forward ports.
+    if: vars.ENABLE_TEMPS_DEPLOY == 'true'
+    needs: tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'pre-prod' }}
+    concurrency:
+      group: temps-deploy-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      IMAGE: ${{ needs.tag.outputs.image }}
+      TEMPS_ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'production' || 'pre-prod' }}
+    steps:
+      - name: Deploy image on the control plane
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 "${SERVER_USER}@${SERVER_HOST}" \
+            "deploy-web ${TEMPS_ENVIRONMENT} ${IMAGE}"
+          rm -f ~/.ssh/deploy_key
+
+      - name: Report the public site status
+        # Informational only: `temps deploy:image --health-check-path /api/health` above already
+        # gated the deploy on the new containers. Cloudflare may challenge requests from GitHub's
+        # data-centre IPs, so a non-200 here is a warning, not a failed deploy.
+        run: |
+          host="${{ github.ref == 'refs/heads/main' && 'www.viddhakarma.com' || 'pre-prod.viddhakarma.com' }}"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://${host}/api/health" || true)
+          if [ "$code" = "200" ]; then
+            echo "https://${host}/api/health -> 200"
+          else
+            echo "::warning::https://${host}/api/health returned ${code} from the GitHub runner (Cloudflare may challenge CI traffic); Temps already health-checked the new containers."
+          fi

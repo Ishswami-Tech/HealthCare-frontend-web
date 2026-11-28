@@ -8,8 +8,8 @@
 import "@/lib/zod-config";
 import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
-import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
 import { TempsAnalyticsClient } from "@/app/providers/TempsAnalyticsClient";
+import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
 import Script from "next/script";
 import { APP_CONFIG } from "@/lib/config/config";
 import { baseSEO } from "@/lib/config/seo";

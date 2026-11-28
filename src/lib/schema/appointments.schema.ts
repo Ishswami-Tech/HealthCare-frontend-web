@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const appointmentTypeSchema = z.enum(['IN_PERSON', 'VIDEO_CALL', 'HOME_VISIT']);
 
+/** Longest reason-for-visit text a booking accepts; the booking form enforces the same limit. */
+export const APPOINTMENT_NOTES_MAX_LENGTH = 1000;
+
 export const createAppointmentSchema = z.object({
   patientId: z.string().uuid(),
   doctorId: z.string().uuid(),
@@ -10,7 +13,13 @@ export const createAppointmentSchema = z.object({
   // Visit length is clinic-specific and set by the server (clinic settings); bookings omit it.
   duration: z.number().min(3).max(480).optional(),
   type: appointmentTypeSchema,
-  notes: z.string().max(1000).optional(),
+  notes: z
+    .string()
+    .max(
+      APPOINTMENT_NOTES_MAX_LENGTH,
+      `The reason for visit can be at most ${APPOINTMENT_NOTES_MAX_LENGTH} characters.`
+    )
+    .optional(),
   clinicId: z.string().trim().min(1).max(100).optional(),
   locationId: z.string().uuid().optional(),
   symptoms: z.array(z.string()).optional(),

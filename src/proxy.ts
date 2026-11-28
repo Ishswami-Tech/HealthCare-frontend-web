@@ -28,6 +28,9 @@ import {
   PERMISSIONS_POLICY_VALUE,
 } from "./lib/config/csp";
 
+/** Next.js server action IDs are hex strings (42 characters in Next 16). */
+const SERVER_ACTION_ID_PATTERN = /^[0-9a-fA-F]{40,64}$/;
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -209,6 +212,12 @@ function applySecurityHeaders(
 
 async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
+
+  // Malformed server action IDs (see the second matcher entry in `config`): reject outright.
+  const actionId = request.headers.get("next-action");
+  if (actionId !== null && !SERVER_ACTION_ID_PATTERN.test(actionId)) {
+    return new NextResponse("Bad Request", { status: 400 });
+  }
 
   // =========================================================================
   // STEP 1: Skip proxy for static files and API routes
@@ -422,6 +431,14 @@ export const config = {
       // it; every action checks the session itself. Running the proxy as well doubled the Vercel
       // Functions per action call.
       missing: [{ type: "header", key: "next-action" }],
+    },
+    {
+      // A Next-Action header that is not a server action ID at all (e.g. "x"): scanners and bots
+      // probing the site. Our client only sends real IDs, so these are rejected in the proxy
+      // before Next.js tries to resolve them (which otherwise throws and logs a stack trace).
+      // Valid IDs never match this entry, so real action calls still skip the proxy.
+      source: "/:path*",
+      has: [{ type: "header", key: "next-action", value: "(?![0-9a-fA-F]{40,64}$).*" }],
     },
   ],
 };

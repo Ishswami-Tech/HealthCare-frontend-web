@@ -72,6 +72,8 @@ const envSchema = z.object({
   // Clinic Configuration
   NEXT_PUBLIC_CLINIC_ID: z.string().optional(),
   NEXT_PUBLIC_APP_NAME: z.string().optional(),
+  // Name the product shows for itself (invoice header, video lobby, payment descriptions).
+  NEXT_PUBLIC_CLINIC_BRAND_NAME: z.string().optional(),
   
   // App Configuration
   NEXT_PUBLIC_APP_URL: z.string().optional(),
@@ -290,6 +292,8 @@ export const APP_CONFIG = {
     // NOTE: 'CL0002' is the development fallback only - production must set NEXT_PUBLIC_CLINIC_ID
     ID: env.NEXT_PUBLIC_CLINIC_ID?.trim() || 'CL0002',
     APP_NAME: env.NEXT_PUBLIC_APP_NAME || 'Dr.Chandrakumar Deshmukh',
+    /** Shown wherever the app names itself to patients: invoices, the video lobby, payment descriptions. */
+    BRAND_NAME: env.NEXT_PUBLIC_CLINIC_BRAND_NAME?.trim() || 'Dr. Chandrakumar Deshmukh Clinic',
   },
   
   // ============================================

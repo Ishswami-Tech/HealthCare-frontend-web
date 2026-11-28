@@ -1,4 +1,5 @@
 "use client";
+import { APP_CONFIG } from "@/lib/config/config";
 
 import Link from "next/link";
 import {
@@ -194,7 +195,9 @@ export function PatientProfileHubView({
           Log out
         </Button>
         {appVersion ? (
-          <span className="text-xs text-ink-muted">{[clinicName, `Version ${appVersion}`].filter(Boolean).join(" · ")}</span>
+          <span className="text-xs text-ink-muted">
+            {[clinicName || APP_CONFIG.CLINIC.BRAND_NAME, `Version ${appVersion}`].join(" · ")}
+          </span>
         ) : null}
       </div>
 

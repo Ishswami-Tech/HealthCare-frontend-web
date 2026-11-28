@@ -2,6 +2,11 @@ import * as Sentry from "@sentry/nextjs";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { installStaleServerActionLogFilter } = await import(
+      "./lib/observability/stale-action-log-filter"
+    );
+    installStaleServerActionLogFilter();
+
     // Temps traces: only register the OTLP exporter when the platform provides
     // a collector endpoint (standard OTel env var), otherwise stay a no-op.
     // No request/response bodies are captured by @vercel/otel.

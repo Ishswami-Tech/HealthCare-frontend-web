@@ -474,6 +474,20 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
 
     return { success: true, appointment };
   } catch (error) {
+    // Invalid input is the user's to correct, not a server fault: return the field message
+    // ("The reason for visit can be at most 1000 characters.") instead of the raw ZodError JSON.
+    if (error instanceof z.ZodError) {
+      const issue = error.issues[0];
+      logger.warn('Appointment request failed validation', {
+        field: issue?.path.join('.'),
+        code: issue?.code,
+      });
+      return {
+        success: false,
+        error: issue?.message || 'Some appointment details are invalid.',
+        code: 'VALIDATION_ERROR',
+      };
+    }
     logger.error('Failed to create appointment', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create appointment' };
   }
